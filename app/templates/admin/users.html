@@ -1,0 +1,60 @@
+{% extends 'layouts/base.html' %}
+{% block title %}User Management — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin', url_for('admin.index')), ('Users', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <h4 class="fw-bold mb-0">User Accounts</h4>
+    <a href="{{ url_for('employees.create') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus me-1"></i>Add User
+    </a>
+</div>
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 px-4">
+        <form method="GET" class="d-flex gap-2">
+            <div class="input-group input-group-sm" style="max-width:320px">
+                <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" class="form-control border-start-0" placeholder="Search…" value="{{ search }}">
+            </div>
+            <button class="btn btn-primary btn-sm">Search</button>
+            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+        </form>
+    </div>
+</div>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Employee</th><th>Code</th><th>Role</th>
+                    <th>Status</th><th>Last Login</th><th>Failed</th><th class="pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for emp in employees %}
+            {% set sc={'active':'success','inactive':'secondary','suspended':'danger','pending_verification':'warning','locked':'warning'} %}
+            <tr>
+                <td class="ps-4">
+                    <div class="fw-semibold">{{ emp.full_name }}</div>
+                    <div class="text-muted small">{{ emp.email }}</div>
+                </td>
+                <td><code class="small">{{ emp.employee_code }}</code></td>
+                <td><span class="badge bg-primary bg-opacity-10 text-primary small">{{ emp.user.display_role }}</span></td>
+                <td><span class="badge bg-{{ sc.get(emp.user.status,'secondary') }}-subtle text-{{ sc.get(emp.user.status,'secondary') }} small">{{ emp.user.status.replace('_',' ').title() }}</span></td>
+                <td class="small text-muted">{{ emp.user.last_login_at.strftime('%d %b %H:%M') if emp.user.last_login_at else 'Never' }}</td>
+                <td class="small {% if emp.user.failed_login_attempts > 0 %}text-danger fw-semibold{% else %}text-muted{% endif %}">{{ emp.user.failed_login_attempts }}</td>
+                <td class="pe-4">
+                    <a href="{{ url_for('employees.detail', employee_id=emp.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-4 text-muted">No users found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-transparent">{% include 'shared/pagination.html' %}</div>
+    {% endif %}
+</div>
+{% endblock %}

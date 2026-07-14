@@ -1,0 +1,8 @@
+{% extends 'errors/base_error.html' %}
+{% block error_title %}405 Method Not Allowed{% endblock %}
+{% block error_code_bg %}405{% endblock %}
+{% block error_icon %}bi-ban{% endblock %}
+{% block error_heading %}Method Not Allowed{% endblock %}
+{% block error_body %}
+    The HTTP method used is not supported for this endpoint.
+{% endblock %}

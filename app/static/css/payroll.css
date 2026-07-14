@@ -1,0 +1,45 @@
+/* payroll.css — Payroll and payslip pages */
+
+.hrms-payslip {
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--hrms-white);
+    border: var(--hrms-border);
+    border-radius: var(--hrms-border-radius-lg);
+    box-shadow: var(--hrms-shadow-sm);
+}
+
+.hrms-payslip-header {
+    background: linear-gradient(135deg, var(--hrms-primary-dark), var(--hrms-primary));
+    color: var(--hrms-white);
+    padding: var(--hrms-space-6);
+    border-radius: var(--hrms-border-radius-lg) var(--hrms-border-radius-lg) 0 0;
+}
+
+.hrms-payslip-body { padding: var(--hrms-space-6); }
+
+.hrms-payslip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--hrms-space-2) 0;
+    border-bottom: 1px dashed var(--hrms-gray-200);
+    font-size: var(--hrms-font-size-sm);
+}
+
+.hrms-payslip-row:last-child { border-bottom: none; }
+
+.hrms-payslip-total {
+    font-size: var(--hrms-font-size-lg);
+    font-weight: var(--hrms-font-weight-bold);
+    color: var(--hrms-primary);
+}
+
+.hrms-salary-component {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--hrms-space-2) var(--hrms-space-4);
+    border-radius: var(--hrms-border-radius-md);
+}
+
+.hrms-salary-component:nth-child(odd) { background: var(--hrms-gray-50); }

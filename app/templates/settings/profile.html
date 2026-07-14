@@ -1,0 +1,41 @@
+{% extends 'layouts/base.html' %}
+{% block title %}My Profile — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Settings', None), ('Profile', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 py-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="bi bi-person-circle me-2 text-primary"></i>My Profile</h5>
+    </div>
+    <div class="card-body px-4 pb-4">
+        <div class="row g-3">
+            {% macro dr(l, v) %}<div class="col-sm-6"><div class="text-muted small mb-1">{{ l }}</div><div class="fw-medium">{{ v or '—' }}</div></div>{% endmacro %}
+            {{ dr('Full Name', current_user.full_name) }}
+            {{ dr('Email', current_user.email) }}
+            {{ dr('Username', current_user.username) }}
+            {{ dr('Role', current_user.display_role) }}
+            {% if employee %}
+            {{ dr('Employee Code', employee.employee_code) }}
+            {{ dr('Department', employee.department) }}
+            {{ dr('Designation', employee.designation) }}
+            {{ dr('Mobile', employee.mobile) }}
+            {{ dr('Date Joined', employee.date_joined.strftime('%d %b %Y') if employee.date_joined else None) }}
+            {% endif %}
+        </div>
+        <div class="mt-4">
+            <a href="{{ url_for('settings.security') }}" class="btn btn-outline-warning btn-sm">
+                <i class="bi bi-key me-1"></i>Change Password
+            </a>
+            {% if employee %}
+            <a href="{{ url_for('employees.detail', employee_id=employee.id) }}" class="btn btn-outline-primary btn-sm ms-2">
+                <i class="bi bi-person me-1"></i>Full Profile
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+/* attendance.css — Attendance tracking pages */
+
+.hrms-checkin-card {
+    border: 2px solid var(--hrms-border-color);
+    border-radius: var(--hrms-border-radius-xl);
+    transition: border-color var(--hrms-transition-base);
+}
+
+.hrms-checkin-card.checked-in  { border-color: var(--hrms-success); }
+.hrms-checkin-card.checked-out { border-color: var(--hrms-primary); }
+
+.hrms-checkin-time {
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: var(--hrms-font-weight-bold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    color: var(--hrms-text-primary);
+}
+
+.hrms-attendance-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.hrms-attendance-dot--present  { background: var(--hrms-success); }
+.hrms-attendance-dot--absent   { background: var(--hrms-danger);  }
+.hrms-attendance-dot--late     { background: var(--hrms-warning); }
+.hrms-attendance-dot--leave    { background: var(--hrms-info);    }
+.hrms-attendance-dot--holiday  { background: var(--hrms-gray-400);}

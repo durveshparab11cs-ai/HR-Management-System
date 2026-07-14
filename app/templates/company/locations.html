@@ -1,0 +1,21 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Locations — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Company',url_for('company.index')),('Locations',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h4 fw-bold mb-0">Office Locations</h1>
+  <a href="{{ url_for('attendance.settings') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-gear me-1"></i>Configure GPS Settings
+  </a>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-geo-alt" style="font-size:3rem;opacity:.3"></i>
+    <p class="mt-3 mb-1">Office location GPS settings are managed in Attendance Settings.</p>
+    <a href="{{ url_for('attendance.settings') }}" class="btn btn-primary mt-2">
+      Open Attendance Settings
+    </a>
+  </div>
+</div>
+{% endblock %}

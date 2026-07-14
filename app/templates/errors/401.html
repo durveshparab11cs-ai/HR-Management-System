@@ -1,0 +1,13 @@
+{% extends 'errors/base_error.html' %}
+{% block error_title %}401 Unauthorized{% endblock %}
+{% block error_code_bg %}401{% endblock %}
+{% block error_icon %}bi-lock{% endblock %}
+{% block error_heading %}Authentication Required{% endblock %}
+{% block error_body %}
+    You need to be signed in to access this page.
+{% endblock %}
+{% block error_actions %}
+<a href="{{ url_for('authentication.login') }}" class="btn btn-primary">
+    <i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Sign In
+</a>
+{% endblock %}

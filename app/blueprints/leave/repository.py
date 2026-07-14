@@ -1,0 +1,174 @@
+"""
+blueprints/leave/repository.py
+================================
+All database access for the leave module.
+"""
+
+from datetime import date
+from typing import Optional
+from sqlalchemy import and_, extract, func
+from app.extensions.database import db
+from app.models.leave import (
+    LeaveType, LeaveRequest, HalfDayRequest, EarlyLeaveRequest
+)
+
+
+class LeaveRepository:
+
+    # ── Leave Types ───────────────────────────────────────────────────
+
+    def get_all_types(self) -> list:
+        return LeaveType.query.filter_by(is_active=True).order_by(LeaveType.name).all()
+
+    def get_type_by_id(self, lt_id: int) -> Optional[LeaveType]:
+        return LeaveType.query.filter_by(id=lt_id, is_active=True).first()
+
+    def get_type_by_code(self, code: str) -> Optional[LeaveType]:
+        return LeaveType.query.filter_by(code=code.upper(), is_active=True).first()
+
+    def create_type(self, lt: LeaveType) -> LeaveType:
+        db.session.add(lt); db.session.commit(); return lt
+
+    def update_type(self, lt: LeaveType) -> LeaveType:
+        db.session.add(lt); db.session.commit(); return lt
+
+    # ── Leave Requests ────────────────────────────────────────────────
+
+    def get_by_id(self, lr_id: int) -> Optional[LeaveRequest]:
+        return LeaveRequest.query.filter_by(id=lr_id, is_deleted=False).first()
+
+    def get_by_id_or_404(self, lr_id: int) -> LeaveRequest:
+        from flask import abort
+        r = self.get_by_id(lr_id)
+        if not r: abort(404)
+        return r
+
+    def get_employee_requests(self, employee_id: int, page: int = 1, per_page: int = 20):
+        return (
+            LeaveRequest.query
+            .filter_by(employee_id=employee_id, is_deleted=False)
+            .order_by(LeaveRequest.applied_on.desc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def get_pending(self, page: int = 1, per_page: int = 30):
+        return (
+            LeaveRequest.query
+            .filter_by(status="pending", is_deleted=False)
+            .order_by(LeaveRequest.applied_on.asc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def get_all_requests(self, page: int = 1, per_page: int = 30, status: str = ""):
+        q = LeaveRequest.query.filter_by(is_deleted=False)
+        if status:
+            q = q.filter_by(status=status)
+        return q.order_by(LeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def create(self, lr: LeaveRequest) -> LeaveRequest:
+        db.session.add(lr); db.session.commit(); return lr
+
+    def update(self, lr: LeaveRequest) -> LeaveRequest:
+        db.session.add(lr); db.session.commit(); return lr
+
+    def count_days_taken(self, employee_id: int, leave_type_id: int, year: int) -> float:
+        """Total approved leave days for an employee in a given year."""
+        result = (
+            db.session.query(func.sum(LeaveRequest.total_days))
+            .filter(
+                LeaveRequest.employee_id == employee_id,
+                LeaveRequest.leave_type_id == leave_type_id,
+                LeaveRequest.status == "approved",
+                LeaveRequest.is_deleted == False,
+                extract("year", LeaveRequest.start_date) == year,
+            )
+            .scalar()
+        )
+        return float(result or 0)
+
+    def has_overlapping(self, employee_id: int, start: date, end: date, exclude_id: int = None) -> bool:
+        q = LeaveRequest.query.filter(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.is_deleted == False,
+            LeaveRequest.status.in_(["pending", "approved"]),
+            LeaveRequest.start_date <= end,
+            LeaveRequest.end_date >= start,
+        )
+        if exclude_id:
+            q = q.filter(LeaveRequest.id != exclude_id)
+        return q.first() is not None
+
+    def count_pending(self) -> int:
+        return LeaveRequest.query.filter_by(status="pending", is_deleted=False).count()
+
+    # ── Half Day Requests ─────────────────────────────────────────────
+
+    def get_halfday_by_id(self, hd_id: int) -> Optional[HalfDayRequest]:
+        return HalfDayRequest.query.filter_by(id=hd_id, is_deleted=False).first()
+
+    def get_halfday_by_id_or_404(self, hd_id: int) -> HalfDayRequest:
+        from flask import abort
+        r = self.get_halfday_by_id(hd_id)
+        if not r: abort(404)
+        return r
+
+    def get_employee_halfdays(self, employee_id: int, page: int = 1, per_page: int = 20):
+        return (
+            HalfDayRequest.query
+            .filter_by(employee_id=employee_id, is_deleted=False)
+            .order_by(HalfDayRequest.applied_on.desc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def get_pending_halfdays(self, page: int = 1, per_page: int = 30):
+        return (
+            HalfDayRequest.query
+            .filter_by(status="pending", is_deleted=False)
+            .order_by(HalfDayRequest.applied_on.asc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def create_halfday(self, hd: HalfDayRequest) -> HalfDayRequest:
+        db.session.add(hd); db.session.commit(); return hd
+
+    def update_halfday(self, hd: HalfDayRequest) -> HalfDayRequest:
+        db.session.add(hd); db.session.commit(); return hd
+
+    def count_pending_halfdays(self) -> int:
+        return HalfDayRequest.query.filter_by(status="pending", is_deleted=False).count()
+
+    # ── Early Leave Requests ──────────────────────────────────────────
+
+    def get_earlyleave_by_id(self, el_id: int) -> Optional[EarlyLeaveRequest]:
+        return EarlyLeaveRequest.query.filter_by(id=el_id, is_deleted=False).first()
+
+    def get_earlyleave_by_id_or_404(self, el_id: int) -> EarlyLeaveRequest:
+        from flask import abort
+        r = self.get_earlyleave_by_id(el_id)
+        if not r: abort(404)
+        return r
+
+    def get_employee_earlyleaves(self, employee_id: int, page: int = 1, per_page: int = 20):
+        return (
+            EarlyLeaveRequest.query
+            .filter_by(employee_id=employee_id, is_deleted=False)
+            .order_by(EarlyLeaveRequest.applied_on.desc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def get_pending_earlyleaves(self, page: int = 1, per_page: int = 30):
+        return (
+            EarlyLeaveRequest.query
+            .filter_by(status="pending", is_deleted=False)
+            .order_by(EarlyLeaveRequest.applied_on.asc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
+
+    def create_earlyleave(self, el: EarlyLeaveRequest) -> EarlyLeaveRequest:
+        db.session.add(el); db.session.commit(); return el
+
+    def update_earlyleave(self, el: EarlyLeaveRequest) -> EarlyLeaveRequest:
+        db.session.add(el); db.session.commit(); return el
+
+    def count_pending_earlyleaves(self) -> int:
+        return EarlyLeaveRequest.query.filter_by(status="pending", is_deleted=False).count()

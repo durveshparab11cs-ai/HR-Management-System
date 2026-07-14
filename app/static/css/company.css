@@ -1,0 +1,47 @@
+/* company.css — Company profile, departments, positions pages */
+
+.hrms-company-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border: var(--hrms-border);
+    border-radius: var(--hrms-border-radius-md);
+    padding: var(--hrms-space-2);
+    background: var(--hrms-white);
+}
+
+.hrms-dept-tree { list-style: none; padding-left: 0; }
+
+.hrms-dept-tree-item {
+    position: relative;
+    padding: var(--hrms-space-2) 0;
+}
+
+.hrms-dept-tree-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    width: 16px;
+    border-top: 2px solid var(--hrms-gray-300);
+}
+
+.hrms-dept-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--hrms-space-2);
+    padding: var(--hrms-space-2) var(--hrms-space-3);
+    background: var(--hrms-primary);
+    color: var(--hrms-white);
+    border-radius: var(--hrms-border-radius-pill);
+    font-size: var(--hrms-font-size-xs);
+    font-weight: var(--hrms-font-weight-semibold);
+}
+
+.hrms-position-card {
+    border-left: 4px solid var(--hrms-primary);
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    background: var(--hrms-gray-50);
+    border-radius: 0 var(--hrms-border-radius-md) var(--hrms-border-radius-md) 0;
+    margin-bottom: var(--hrms-space-2);
+}

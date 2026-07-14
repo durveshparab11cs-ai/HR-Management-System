@@ -1,0 +1,44 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Positions — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Company',url_for('company.index')),('Positions',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Job Positions</h1>
+    <p class="text-muted small mb-0">{{ positions|length }} position{{ 's' if positions|length != 1 else '' }}</p>
+  </div>
+  <a href="{{ url_for('company.create_position') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Add Position
+  </a>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Title</th><th>Code</th><th>Department</th>
+          <th>Grade</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for pos in positions %}
+      <tr>
+        <td class="ps-4 fw-semibold">{{ pos.title }}</td>
+        <td><code class="small">{{ pos.code }}</code></td>
+        <td class="small">{{ pos.department.name if pos.department else '—' }}</td>
+        <td class="small">{{ pos.grade or '—' }}</td>
+        <td>
+          <span class="badge bg-{{ 'success' if pos.is_active else 'secondary' }}-subtle text-{{ 'success' if pos.is_active else 'secondary' }}">
+            {{ 'Active' if pos.is_active else 'Inactive' }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center py-5 text-muted">No positions yet. <a href="{{ url_for('company.create_position') }}">Add one.</a></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

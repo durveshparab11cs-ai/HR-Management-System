@@ -1,0 +1,663 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Half Day Request — {{ app_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs = [
+    ('Leave Portal', url_for('leave.index')),
+    ('Half Day Request', None)
+] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Page layout ── */
+.hd-page-header {
+    margin-bottom: 28px;
+}
+.hd-page-header h1 {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #0f1729;
+    margin-bottom: 4px;
+}
+.hd-page-header p {
+    color: #64748b;
+    font-size: .9rem;
+    margin: 0;
+}
+
+/* ── Main card ── */
+.hd-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e8edf2;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.04);
+}
+
+.hd-card-header {
+    padding: 28px 32px 0;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.hd-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.hd-card-icon i {
+    font-size: 1.4rem;
+    color: #d97706;
+}
+
+.hd-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f1729;
+    margin: 0;
+}
+.hd-card-subtitle {
+    font-size: .82rem;
+    color: #64748b;
+    margin: 2px 0 0;
+}
+
+.hd-card-body {
+    padding: 28px 32px 32px;
+}
+
+/* ── Section label ── */
+.hd-section-label {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #94a3b8;
+    margin-bottom: 14px;
+}
+
+/* ── Floating label inputs ── */
+.hd-field {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.hd-field label {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
+    font-size: .875rem;
+    color: #94a3b8;
+    pointer-events: none;
+    transition: all .18s ease;
+    background: #fff;
+    padding: 0 4px;
+    z-index: 1;
+}
+
+.hd-field input[type="date"],
+.hd-field textarea,
+.hd-field select {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 14px 8px;
+    font-size: .9rem;
+    font-family: inherit;
+    color: #0f1729;
+    background: #fff;
+    outline: none;
+    transition: border-color .18s, box-shadow .18s;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.hd-field textarea {
+    padding-top: 22px;
+    resize: none;
+    overflow: hidden;
+    min-height: 90px;
+}
+
+.hd-field input[type="date"]:focus,
+.hd-field textarea:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,.12);
+}
+
+.hd-field input[type="date"]:focus + label,
+.hd-field input[type="date"]:not([value=""]) + label,
+.hd-field input.has-value + label,
+.hd-field textarea:focus + label,
+.hd-field textarea.has-value + label {
+    top: 0;
+    font-size: .72rem;
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.hd-field.is-invalid input[type="date"],
+.hd-field.is-invalid textarea {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239,68,68,.1);
+}
+
+.hd-err {
+    font-size: .75rem;
+    color: #ef4444;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ── Radio card group ── */
+.hd-radio-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.hd-radio-card {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.hd-radio-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.hd-radio-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .18s;
+    background: #fafafa;
+    text-align: center;
+}
+
+.hd-radio-label:hover {
+    border-color: #f59e0b;
+    background: #fffbf0;
+}
+
+.hd-radio-card input[type="radio"]:checked + .hd-radio-label {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbf0, #fef3c7);
+    box-shadow: 0 2px 8px rgba(245,158,11,.2);
+}
+
+.hd-radio-card input[type="radio"]:focus + .hd-radio-label {
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+}
+
+.hd-radio-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    background: #f1f5f9;
+    transition: background .18s;
+}
+
+.hd-radio-card input[type="radio"]:checked ~ .hd-radio-label .hd-radio-icon {
+    background: rgba(245,158,11,.15);
+}
+
+.hd-radio-title {
+    font-size: .9rem;
+    font-weight: 600;
+    color: #0f1729;
+    line-height: 1.2;
+}
+
+.hd-radio-desc {
+    font-size: .75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.hd-radio-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .18s;
+    flex-shrink: 0;
+}
+
+.hd-radio-card input[type="radio"]:checked ~ .hd-radio-label .hd-radio-check {
+    background: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.hd-radio-check::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    display: none;
+}
+
+.hd-radio-card input[type="radio"]:checked ~ .hd-radio-label .hd-radio-check::after {
+    display: block;
+}
+
+.hd-radio-err {
+    font-size: .75rem;
+    color: #ef4444;
+    margin-top: -8px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ── Divider ── */
+.hd-divider {
+    border: none;
+    border-top: 1px solid #f1f5f9;
+    margin: 24px 0;
+}
+
+/* ── Policy info box ── */
+.hd-policy-box {
+    background: #f8fafc;
+    border: 1px solid #e8edf2;
+    border-left: 4px solid #f59e0b;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+.hd-policy-box i {
+    color: #f59e0b;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.hd-policy-box p {
+    font-size: .82rem;
+    color: #475569;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ── Character counter ── */
+.hd-char-counter {
+    font-size: .72rem;
+    color: #94a3b8;
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* ── Action buttons ── */
+.hd-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.btn-hd-cancel {
+    flex: 0 0 auto;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    font-size: .9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+.btn-hd-cancel:hover {
+    border-color: #94a3b8;
+    color: #0f1729;
+    background: #f8fafc;
+    text-decoration: none;
+}
+
+.btn-hd-submit {
+    flex: 1;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    font-size: .9rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(245,158,11,.35);
+    letter-spacing: .01em;
+}
+.btn-hd-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(245,158,11,.45);
+}
+.btn-hd-submit:active:not(:disabled) { transform: none; }
+.btn-hd-submit:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+
+.hd-spinner {
+    width: 17px; height: 17px;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: hdSpin .65s linear infinite;
+    display: none;
+}
+@keyframes hdSpin { to { transform: rotate(360deg); } }
+
+/* ── Toast ── */
+.hd-toast-wrap {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.hd-toast {
+    min-width: 300px;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    padding: 14px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border-left: 4px solid #10b981;
+    animation: hdSlideIn .25s ease;
+}
+.hd-toast.error { border-left-color: #ef4444; }
+.hd-toast-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.hd-toast-body { flex: 1; font-size: .875rem; color: #0f1729; line-height: 1.5; }
+.hd-toast-close { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: .9rem; padding: 0; margin-left: 4px; }
+@keyframes hdSlideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Responsive */
+@media (max-width: 575px) {
+    .hd-card-header { padding: 20px 20px 16px; }
+    .hd-card-body { padding: 20px; }
+    .hd-radio-group { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toast container -->
+<div class="hd-toast-wrap" id="hd-toasts"></div>
+
+<div class="row justify-content-center">
+<div class="col-12 col-lg-7 col-xl-6">
+
+    <!-- Page header -->
+    <div class="hd-page-header">
+        <h1>
+            <i class="bi bi-calendar-half me-2" style="color:#d97706"></i>
+            Half Day Request
+        </h1>
+        <p>Submit a half-day leave for approval by your manager.</p>
+    </div>
+
+    <!-- Main card -->
+    <div class="hd-card">
+
+        <div class="hd-card-header">
+            <div class="hd-card-icon">
+                <i class="bi bi-calendar-half"></i>
+            </div>
+            <div>
+                <p class="hd-card-title">New Half Day Request</p>
+                <p class="hd-card-subtitle">Choose a session and provide your reason</p>
+            </div>
+        </div>
+
+        <div class="hd-card-body">
+
+            <!-- Policy note -->
+            <div class="hd-policy-box">
+                <i class="bi bi-info-circle-fill"></i>
+                <p>
+                    Half-day requests require manager approval and are subject to leave balance.
+                    Morning half covers <strong>09:00–13:00</strong> and afternoon half covers
+                    <strong>13:00–18:00</strong>. Approved requests automatically update your attendance.
+                </p>
+            </div>
+
+            <form method="POST" id="halfday-form" novalidate>
+                {{ form.hidden_tag() }}
+
+                <!-- ── Date ── -->
+                <p class="hd-section-label">Select Date</p>
+                <div class="hd-field {% if form.date.errors %}is-invalid{% endif %}" id="field-date">
+                    {{ form.date(id="hd-date", class="") }}
+                    <label for="hd-date">Date <span style="color:#ef4444">*</span></label>
+                    {% for e in form.date.errors %}
+                    <div class="hd-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                    {% endfor %}
+                </div>
+
+                <hr class="hd-divider">
+
+                <!-- ── Half type ── -->
+                <p class="hd-section-label">Select Session</p>
+                <div class="hd-radio-group" role="radiogroup" aria-labelledby="half-type-label">
+                    {% set ns = namespace(idx=0) %}
+                    {% for subfield in form.half_type %}
+                    {% set ns.idx = loop.index %}
+                    <label class="hd-radio-card" for="{{ subfield.id }}">
+                        {{ subfield() }}
+                        <span class="hd-radio-label">
+                            <span class="hd-radio-icon">
+                                {% if loop.index == 1 %}
+                                    <i class="bi bi-sunrise-fill" style="color:#f59e0b"></i>
+                                {% else %}
+                                    <i class="bi bi-sunset-fill" style="color:#6366f1"></i>
+                                {% endif %}
+                            </span>
+                            <span>
+                                <span class="hd-radio-title">{{ subfield.label.text }}</span>
+                                <span class="hd-radio-desc">
+                                    {% if loop.index == 1 %}09:00 – 13:00{% else %}13:00 – 18:00{% endif %}
+                                </span>
+                            </span>
+                            <span class="hd-radio-check" aria-hidden="true"></span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% for e in form.half_type.errors %}
+                <div class="hd-radio-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                {% endfor %}
+
+                <hr class="hd-divider">
+
+                <!-- ── Reason ── -->
+                <p class="hd-section-label">Reason for Leave</p>
+                <div class="hd-field {% if form.reason.errors %}is-invalid{% endif %}">
+                    {{ form.reason(id="hd-reason", rows="4", class="") }}
+                    <label for="hd-reason">Describe your reason <span style="color:#ef4444">*</span></label>
+                    {% for e in form.reason.errors %}
+                    <div class="hd-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
+                    {% endfor %}
+                </div>
+                <div class="hd-char-counter"><span id="reason-count">0</span> / 500 characters</div>
+
+                <!-- ── Actions ── -->
+                <div class="hd-actions">
+                    <a href="{{ url_for('leave.index') }}" class="btn-hd-cancel">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn-hd-submit" id="hd-submit-btn">
+                        <div class="hd-spinner" id="hd-spinner"></div>
+                        <i class="bi bi-send-check" id="hd-submit-icon"></i>
+                        <span id="hd-submit-text">Submit Request</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ── Float label for date ──────────────────────────────────────────
+    const dateInput = document.getElementById('hd-date');
+    if (dateInput) {
+        const applyFloat = () => {
+            if (dateInput.value) dateInput.classList.add('has-value');
+            else dateInput.classList.remove('has-value');
+        };
+        dateInput.addEventListener('change', applyFloat);
+        applyFloat();
+
+        // Prevent past dates
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+    }
+
+    // ── Textarea auto-resize + float label + char counter ────────────
+    const textarea = document.getElementById('hd-reason');
+    const counter  = document.getElementById('reason-count');
+
+    if (textarea) {
+        const resize = () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        };
+        const updateCounter = () => {
+            const len = textarea.value.length;
+            if (counter) {
+                counter.textContent = len;
+                counter.style.color = len > 480 ? '#ef4444' : '#94a3b8';
+            }
+            if (textarea.value.trim()) textarea.classList.add('has-value');
+            else textarea.classList.remove('has-value');
+        };
+        textarea.addEventListener('input', () => { resize(); updateCounter(); });
+        resize();
+        updateCounter();
+    }
+
+    // ── Form submit loading state ─────────────────────────────────────
+    const form    = document.getElementById('halfday-form');
+    const btn     = document.getElementById('hd-submit-btn');
+    const spinner = document.getElementById('hd-spinner');
+    const icon    = document.getElementById('hd-submit-icon');
+    const txt     = document.getElementById('hd-submit-text');
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            // Client-side validation before showing loader
+            let valid = true;
+
+            if (dateInput && !dateInput.value) {
+                showToast('Please select a date.', true);
+                valid = false;
+            }
+
+            const radioChecked = document.querySelector('input[name="half_type"]:checked');
+            if (!radioChecked) {
+                showToast('Please select Morning or Afternoon half.', true);
+                valid = false;
+            }
+
+            if (textarea && textarea.value.trim().length < 5) {
+                showToast('Please enter a reason (minimum 5 characters).', true);
+                valid = false;
+            }
+
+            if (!valid) {
+                e.preventDefault();
+                return;
+            }
+
+            btn.disabled = true;
+            if (spinner) spinner.style.display = 'block';
+            if (icon)    icon.style.display    = 'none';
+            if (txt)     txt.textContent       = 'Submitting…';
+        });
+    }
+
+    // ── Toast helper ──────────────────────────────────────────────────
+    function showToast(message, isError = false) {
+        const container = document.getElementById('hd-toasts');
+        if (!container) return;
+        const t = document.createElement('div');
+        t.className = 'hd-toast' + (isError ? ' error' : '');
+        t.innerHTML = `
+            <span class="hd-toast-icon">${isError ? '<i class="bi bi-exclamation-circle-fill" style="color:#ef4444"></i>' : '<i class="bi bi-check-circle-fill" style="color:#10b981"></i>'}</span>
+            <div class="hd-toast-body">${message}</div>
+            <button class="hd-toast-close" onclick="this.parentElement.remove()" aria-label="Close">
+                <i class="bi bi-x"></i>
+            </button>`;
+        container.appendChild(t);
+        setTimeout(() => { if (t.parentElement) t.remove(); }, 5000);
+    }
+
+    // Show flash messages as toasts if any exist (from server-side flash)
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    document.addEventListener('DOMContentLoaded', function() {
+        showToast({{ message | tojson }}, {{ 'true' if category in ('danger', 'error') else 'false' }});
+    });
+    {% endfor %}
+    {% endwith %}
+
+})();
+</script>
+{% endblock %}

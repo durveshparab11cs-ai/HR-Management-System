@@ -1,0 +1,46 @@
+/* authentication.css — Login, forgot password, reset password pages */
+
+.hrms-auth-body { background: linear-gradient(135deg, var(--hrms-primary-dark) 0%, var(--hrms-primary-light) 100%); }
+
+.hrms-auth-container { max-width: var(--hrms-auth-card-width); }
+
+.hrms-auth-card {
+    border-radius: var(--hrms-border-radius-xl);
+    box-shadow: var(--hrms-shadow-lg);
+}
+
+.hrms-auth-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--hrms-border-radius-lg);
+    background: linear-gradient(135deg, var(--hrms-primary), var(--hrms-primary-light));
+    box-shadow: var(--hrms-shadow-md);
+}
+
+/* Separator line */
+.hrms-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--hrms-space-3);
+    color: var(--hrms-text-muted);
+    font-size: var(--hrms-font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin: var(--hrms-space-4) 0;
+}
+
+.hrms-auth-divider::before,
+.hrms-auth-divider::after {
+    content: '';
+    flex: 1;
+    border-top: var(--hrms-border);
+}
+
+/* Password visibility toggle */
+.hrms-password-toggle {
+    border-left: none;
+    color: var(--hrms-text-muted);
+    transition: color var(--hrms-transition-fast);
+}
+
+.hrms-password-toggle:hover { color: var(--hrms-text-primary); }

@@ -1,0 +1,32 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Salary Structures — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Payroll',url_for('payroll.index')),('Salary Structures',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h4 fw-bold mb-0">Salary Structures</h1>
+</div>
+{% if structures %}
+<div class="row g-3">
+{% for s in structures %}
+<div class="col-md-6 col-lg-4">
+  <div class="card border-0 shadow-sm h-100">
+    <div class="card-body p-4">
+      <div class="fw-semibold mb-1">{{ s.name }}</div>
+      <code class="small text-muted">{{ s.code }}</code>
+      {% if s.description %}<p class="text-muted small mt-2 mb-0">{{ s.description }}</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-list-check" style="font-size:3rem;opacity:.3"></i>
+    <p class="mt-3 mb-0">No salary structures configured yet.</p>
+    <p class="small">Salary structures will be configurable in a future release.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

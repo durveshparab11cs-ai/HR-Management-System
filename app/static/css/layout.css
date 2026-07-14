@@ -1,0 +1,252 @@
+/*
+ * layout.css
+ * ===========
+ * Core application shell layout: sidebar, navbar, main content area.
+ * Uses CSS Flexbox — no Grid required at this level.
+ *
+ * Breakpoints (matching Bootstrap 5):
+ *   sm: 576px  md: 768px  lg: 992px  xl: 1200px
+ */
+
+/* ─── Application shell ─────────────────────────────────────────────── */
+
+.hrms-wrapper {
+    min-height: 100vh;
+    background: var(--hrms-bg-light);
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────── */
+
+.hrms-sidebar {
+    width: var(--hrms-sidebar-width);
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--hrms-primary-dark) 0%, var(--hrms-primary) 100%);
+    color: rgba(255, 255, 255, 0.85);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width var(--hrms-transition-base), transform var(--hrms-transition-base);
+    z-index: var(--hrms-z-fixed);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.15) transparent;
+}
+
+/* Brand area */
+.hrms-sidebar-brand {
+    min-height: var(--hrms-navbar-height);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hrms-sidebar-brand-name {
+    color: var(--hrms-white);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* User mini-profile */
+.hrms-sidebar-user {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--hrms-border-radius-md);
+    margin: var(--hrms-space-2) var(--hrms-space-2);
+    padding: var(--hrms-space-3);
+}
+
+.hrms-sidebar-user-info {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.hrms-role-badge {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* Navigation links */
+.hrms-nav-link {
+    color: rgba(255, 255, 255, 0.75);
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--hrms-border-radius-md);
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-medium);
+    transition: background var(--hrms-transition-fast), color var(--hrms-transition-fast);
+    white-space: nowrap;
+}
+
+.hrms-nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--hrms-white);
+    text-decoration: none;
+}
+
+.hrms-nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--hrms-white);
+    font-weight: var(--hrms-font-weight-semibold);
+    box-shadow: inset 3px 0 0 var(--hrms-accent);
+}
+
+.hrms-nav-icon {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.hrms-sidebar-divider {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile sidebar overlay */
+.hrms-sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--hrms-z-fixed) - 1);
+    backdrop-filter: blur(2px);
+    animation: fadeIn var(--hrms-transition-fast);
+}
+
+.hrms-sidebar-overlay.show { display: block; }
+
+/* Mobile: slide sidebar off-screen */
+@media (max-width: 767.98px) {
+    .hrms-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+        z-index: var(--hrms-z-fixed);
+    }
+
+    .hrms-sidebar.show {
+        transform: translateX(0);
+    }
+}
+
+/* ─── Navbar ────────────────────────────────────────────────────────── */
+
+.hrms-navbar {
+    height: var(--hrms-navbar-height);
+    background: var(--hrms-bg-card);
+    border-bottom: var(--hrms-border);
+    box-shadow: var(--hrms-shadow-xs);
+    z-index: var(--hrms-z-sticky);
+}
+
+.hrms-navbar-icon-btn {
+    color: var(--hrms-text-secondary);
+    border-radius: var(--hrms-border-radius-md);
+    transition: background var(--hrms-transition-fast), color var(--hrms-transition-fast);
+}
+
+.hrms-navbar-icon-btn:hover {
+    background: var(--hrms-gray-100);
+    color: var(--hrms-text-primary);
+}
+
+.hrms-navbar-user-btn {
+    color: var(--hrms-text-primary);
+    border-radius: var(--hrms-border-radius-md);
+    transition: background var(--hrms-transition-fast);
+}
+
+.hrms-navbar-user-btn:hover { background: var(--hrms-gray-100); }
+
+.hrms-notification-badge {
+    font-size: 0.6rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0.15rem 0.3rem;
+}
+
+.hrms-notification-dropdown {
+    min-width: 340px;
+    max-height: 420px;
+    overflow: hidden;
+}
+
+.hrms-notification-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.hrms-navbar-search .form-control:focus { box-shadow: none; }
+
+/* Sidebar toggle */
+.hrms-sidebar-toggle { color: var(--hrms-text-secondary); }
+.hrms-sidebar-toggle:hover { color: var(--hrms-text-primary); }
+
+/* ─── Main content area ─────────────────────────────────────────────── */
+
+.hrms-main {
+    min-width: 0; /* Prevent flex child overflow */
+    background: var(--hrms-bg-light);
+}
+
+.hrms-content {
+    max-width: var(--hrms-content-max-width);
+    /* Let it naturally fill the container width */
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────── */
+
+.hrms-footer {
+    background: var(--hrms-bg-card);
+    border-top: var(--hrms-border);
+    font-size: var(--hrms-font-size-sm);
+}
+
+.hrms-footer-link:hover { text-decoration: underline; }
+
+/* ─── Breadcrumbs ───────────────────────────────────────────────────── */
+
+.hrms-breadcrumbs .breadcrumb {
+    font-size: var(--hrms-font-size-sm);
+    background: none;
+    padding: 0;
+}
+
+.hrms-breadcrumbs .breadcrumb-item.active {
+    color: var(--hrms-text-muted);
+    font-weight: var(--hrms-font-weight-medium);
+}
+
+/* ─── Pagination ────────────────────────────────────────────────────── */
+
+.hrms-page-link {
+    border-color: var(--hrms-border-color);
+    color: var(--hrms-primary-light);
+    transition: background var(--hrms-transition-fast), color var(--hrms-transition-fast);
+}
+
+.hrms-page-link:hover {
+    background: var(--hrms-gray-100);
+    color: var(--hrms-primary);
+    border-color: var(--hrms-gray-400);
+}
+
+.page-item.active .hrms-page-link {
+    background: var(--hrms-primary);
+    border-color: var(--hrms-primary);
+    color: var(--hrms-white);
+}
+
+/* ─── Animations ────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}

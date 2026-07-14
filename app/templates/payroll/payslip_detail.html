@@ -1,0 +1,84 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Payslip — {{ payslip.run.period_label }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Payroll',url_for('payroll.index')),('Payslips',url_for('payroll.payslips')),('Payslip',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block extra_css %}
+<style>
+@media print { .sidebar,.hrms-navbar,.hrms-footer,.hrms-breadcrumbs,.btn-print { display:none!important; } .hrms-content { padding:0!important; } }
+.payslip-card { max-width:760px; margin:0 auto; }
+.payslip-header { background:linear-gradient(135deg,#1a3c6e,#2a5298); color:#fff; border-radius:12px 12px 0 0; padding:28px 32px; }
+.payslip-section { padding:20px 32px; border-bottom:1px solid #f1f5f9; }
+.payslip-row { display:flex; justify-content:space-between; padding:6px 0; font-size:.875rem; border-bottom:1px dashed #f1f5f9; }
+.payslip-row:last-child { border-bottom:none; }
+.payslip-total { background:#f8fafc; padding:16px 32px; border-radius:0 0 12px 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="payslip-card">
+  <div class="card border-0 shadow-sm overflow-hidden">
+
+    <div class="payslip-header">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <h4 class="fw-bold mb-1">{{ app_name }}</h4>
+          <div class="opacity-75 small">Payslip for {{ payslip.run.period_label }}</div>
+        </div>
+        <div class="text-end">
+          <div class="opacity-75 small">Net Payable</div>
+          <div class="h2 fw-bold mb-0">{{ payslip.net_display }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="payslip-section">
+      <div class="row g-3">
+        {% macro field(l,v) %}<div class="col-sm-4"><div class="text-muted small">{{ l }}</div><div class="fw-medium small">{{ v or '—' }}</div></div>{% endmacro %}
+        {{ field('Employee Name', payslip.employee.full_name) }}
+        {{ field('Employee Code', payslip.employee.employee_code) }}
+        {{ field('Department', payslip.employee.department) }}
+        {{ field('Designation', payslip.employee.designation) }}
+        {{ field('Pay Period', payslip.run.period_label) }}
+        {{ field('Status', payslip.status.title()) }}
+      </div>
+    </div>
+
+    <div class="payslip-section">
+      <div class="row g-3 mb-2">
+        {% macro att(l,v,c='') %}<div class="col-4 text-center"><div class="text-muted small">{{ l }}</div><div class="fw-bold {{ c }}">{{ v }}</div></div>{% endmacro %}
+        {{ att('Working Days', payslip.working_days) }}
+        {{ att('Days Present', payslip.days_present, 'text-success') }}
+        {{ att('Days Absent', payslip.days_absent, 'text-danger' if payslip.days_absent else '') }}
+      </div>
+    </div>
+
+    <div class="row g-0">
+      <div class="col-md-6 payslip-section">
+        <h6 class="fw-semibold mb-3 text-success">Earnings</h6>
+        {% for k, v in earnings.items() %}
+        <div class="payslip-row"><span>{{ k }}</span><span>₹{{ '{:,.2f}'.format(v) }}</span></div>
+        {% endfor %}
+        <div class="payslip-row fw-semibold border-top mt-2 pt-2"><span>Gross Salary</span><span>₹{{ '{:,.2f}'.format(payslip.gross_salary) }}</span></div>
+      </div>
+      <div class="col-md-6 payslip-section">
+        <h6 class="fw-semibold mb-3 text-danger">Deductions</h6>
+        {% for k, v in deductions.items() %}
+        <div class="payslip-row"><span>{{ k }}</span><span class="text-danger">₹{{ '{:,.2f}'.format(v) }}</span></div>
+        {% endfor %}
+        <div class="payslip-row fw-semibold border-top mt-2 pt-2"><span>Total Deductions</span><span class="text-danger">₹{{ '{:,.2f}'.format(payslip.total_deductions) }}</span></div>
+      </div>
+    </div>
+
+    <div class="payslip-total d-flex justify-content-between align-items-center">
+      <div class="fw-bold">Net Payable</div>
+      <div class="h4 fw-bold text-primary mb-0">{{ payslip.net_display }}</div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-3 mt-3 justify-content-end">
+    <button class="btn btn-outline-secondary btn-sm btn-print" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i>Print
+    </button>
+    <a href="{{ url_for('payroll.payslips') }}" class="btn btn-primary btn-sm">← Back to Payslips</a>
+  </div>
+</div>
+{% endblock %}

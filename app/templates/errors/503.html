@@ -1,0 +1,13 @@
+{% extends 'errors/base_error.html' %}
+{% block error_title %}503 Service Unavailable{% endblock %}
+{% block error_code_bg %}503{% endblock %}
+{% block error_icon %}bi-tools{% endblock %}
+{% block error_heading %}Under Maintenance{% endblock %}
+{% block error_body %}
+    Smart HRMS is currently undergoing scheduled maintenance. We'll be back shortly.
+{% endblock %}
+{% block error_actions %}
+<a href="javascript:location.reload()" class="btn btn-primary">
+    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Refresh
+</a>
+{% endblock %}

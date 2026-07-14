@@ -1,0 +1,23 @@
+{#
+  shared/footer.html
+  ====================
+  Application footer — sticky at the bottom of the content area.
+  Displays version, copyright, and quick links.
+#}
+<footer class="hrms-footer mt-auto py-3 px-4" role="contentinfo">
+    <div class="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+
+        <div class="hrms-footer-copy small text-muted">
+            &copy; {{ current_year }} {{ app_name }}.
+            All rights reserved.
+            <span class="hrms-footer-version ms-1 text-muted opacity-75">v{{ app_version }}</span>
+        </div>
+
+        <nav class="hrms-footer-links d-flex gap-3" aria-label="Footer navigation">
+            <a href="#" class="small text-muted text-decoration-none hrms-footer-link">Help</a>
+            <a href="#" class="small text-muted text-decoration-none hrms-footer-link">Privacy</a>
+            <a href="#" class="small text-muted text-decoration-none hrms-footer-link">Terms</a>
+        </nav>
+
+    </div>
+</footer>

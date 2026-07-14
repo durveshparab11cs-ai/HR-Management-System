@@ -1,0 +1,237 @@
+/*
+ * common.css
+ * ===========
+ * Global base styles, resets, and utility classes that apply
+ * across the entire application.
+ *
+ * Rules here affect all pages — keep selectors broad but lightweight.
+ * Page/component-specific rules belong in their own CSS files.
+ */
+
+/* ─── Base Reset & Root ─────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--hrms-font-family-base);
+    font-size: var(--hrms-font-size-base);
+    line-height: var(--hrms-line-height-base);
+    color: var(--hrms-text-primary);
+    background-color: var(--hrms-bg-light);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Typography ────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: var(--hrms-font-weight-semibold);
+    line-height: var(--hrms-line-height-tight);
+    color: var(--hrms-text-primary);
+    margin-bottom: var(--hrms-space-3);
+}
+
+a {
+    color: var(--hrms-primary-light);
+    text-decoration: none;
+    transition: color var(--hrms-transition-fast);
+}
+
+a:hover {
+    color: var(--hrms-primary);
+    text-decoration: underline;
+}
+
+code,
+kbd,
+pre,
+samp {
+    font-family: var(--hrms-font-family-mono);
+    font-size: 0.9em;
+}
+
+/* ─── Focus Styles (Accessibility) ─────────────────────────────────── */
+
+:focus-visible {
+    outline: 2px solid var(--hrms-primary-light);
+    outline-offset: 2px;
+    border-radius: var(--hrms-border-radius-sm);
+}
+
+/* Remove default focus ring for mouse users */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ─── Scrollbar Styling (Webkit) ────────────────────────────────────── */
+
+::-webkit-scrollbar            { width: 6px; height: 6px; }
+::-webkit-scrollbar-track      { background: transparent; }
+::-webkit-scrollbar-thumb      { background: var(--hrms-gray-400); border-radius: var(--hrms-border-radius-pill); }
+::-webkit-scrollbar-thumb:hover{ background: var(--hrms-gray-500); }
+
+/* ─── Selection ─────────────────────────────────────────────────────── */
+
+::selection {
+    background-color: rgba(var(--hrms-primary-rgb), 0.15);
+    color: var(--hrms-primary-dark);
+}
+
+/* ─── Avatar / Initials ─────────────────────────────────────────────── */
+
+.hrms-avatar-initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--hrms-primary-light), var(--hrms-primary));
+    color: var(--hrms-white);
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-semibold);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.hrms-avatar-initials--sm {
+    width: 32px;
+    height: 32px;
+    font-size: var(--hrms-font-size-xs);
+}
+
+.hrms-avatar-initials--lg {
+    width: 56px;
+    height: 56px;
+    font-size: var(--hrms-font-size-xl);
+}
+
+/* ─── Status Badges ─────────────────────────────────────────────────── */
+
+.hrms-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--hrms-space-1);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--hrms-border-radius-pill);
+    font-size: var(--hrms-font-size-xs);
+    font-weight: var(--hrms-font-weight-semibold);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.hrms-status-badge::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.8;
+}
+
+.hrms-status-active    { background: var(--hrms-success-light); color: var(--hrms-success-text); }
+.hrms-status-inactive  { background: var(--hrms-gray-200);      color: var(--hrms-gray-700);     }
+.hrms-status-pending   { background: var(--hrms-warning-light);  color: var(--hrms-warning-text); }
+.hrms-status-rejected  { background: var(--hrms-danger-light);   color: var(--hrms-danger-text);  }
+.hrms-status-approved  { background: var(--hrms-success-light);  color: var(--hrms-success-text); }
+.hrms-status-suspended { background: var(--hrms-danger-light);   color: var(--hrms-danger-text);  }
+
+/* ─── Flash container ───────────────────────────────────────────────── */
+
+.hrms-flash-container {
+    position: sticky;
+    top: var(--hrms-space-4);
+    z-index: var(--hrms-z-toast);
+}
+
+.hrms-flash-alert {
+    border: none;
+    border-radius: var(--hrms-border-radius-md);
+    box-shadow: var(--hrms-shadow-sm);
+    margin-bottom: var(--hrms-space-2);
+}
+
+/* ─── Loading spinner overlay ───────────────────────────────────────── */
+
+.hrms-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--hrms-z-modal);
+}
+
+/* ─── Page header ───────────────────────────────────────────────────── */
+
+.hrms-page-title {
+    font-size: var(--hrms-font-size-2xl);
+    font-weight: var(--hrms-font-weight-bold);
+    color: var(--hrms-text-primary);
+    margin-bottom: 0;
+}
+
+/* ─── Empty state ───────────────────────────────────────────────────── */
+
+.hrms-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--hrms-space-16) var(--hrms-space-8);
+    text-align: center;
+    color: var(--hrms-text-muted);
+}
+
+.hrms-empty-state-icon {
+    font-size: 3rem;
+    opacity: 0.4;
+    margin-bottom: var(--hrms-space-4);
+}
+
+/* ─── Stat cards ────────────────────────────────────────────────────── */
+
+.hrms-stat-card {
+    transition: transform var(--hrms-transition-base), box-shadow var(--hrms-transition-base);
+}
+
+.hrms-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hrms-shadow-md) !important;
+}
+
+.hrms-stat-icon {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ─── Utility classes ───────────────────────────────────────────────── */
+
+.hrms-text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.hrms-cursor-pointer { cursor: pointer; }
+
+.hrms-no-select { user-select: none; }
+
+.hrms-transition { transition: all var(--hrms-transition-base); }

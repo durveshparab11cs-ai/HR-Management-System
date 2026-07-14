@@ -1,0 +1,75 @@
+{#
+  shared/pagination.html
+  ========================
+  Bootstrap 5 pagination component.
+
+  Required variables (pass as include with context, or define in block):
+    pagination  — SQLAlchemy Pagination object OR dict from build_pagination_meta()
+    endpoint    — The current route endpoint name for url_for()
+    url_params  — dict of extra url_for() kwargs (e.g., filters, search query)
+
+  Usage in a route template:
+    {% set url_params = {'search': search_query, 'per_page': per_page} %}
+    {% include 'shared/pagination.html' %}
+
+  Renders nothing if total pages <= 1.
+#}
+{% if pagination and pagination.pages > 1 %}
+<nav aria-label="Page navigation" class="hrms-pagination-nav mt-4">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap gap-1 mb-0">
+
+        {# Previous button #}
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            <a
+                class="page-link hrms-page-link"
+                href="{{ url_for(endpoint, page=pagination.prev_num, **(url_params or {})) if pagination.has_prev else '#' }}"
+                aria-label="Previous page"
+                {% if not pagination.has_prev %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </a>
+        </li>
+
+        {# Page number buttons with ellipsis gaps #}
+        {% for page_num in pagination.iter_pages(left_edge=1, left_current=2, right_current=3, right_edge=1) %}
+            {% if page_num %}
+                <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                    <a
+                        class="page-link hrms-page-link"
+                        href="{{ url_for(endpoint, page=page_num, **(url_params or {})) }}"
+                        {% if page_num == pagination.page %}aria-current="page"{% endif %}
+                    >{{ page_num }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled" aria-hidden="true">
+                    <span class="page-link hrms-page-link">&hellip;</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+
+        {# Next button #}
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            <a
+                class="page-link hrms-page-link"
+                href="{{ url_for(endpoint, page=pagination.next_num, **(url_params or {})) if pagination.has_next else '#' }}"
+                aria-label="Next page"
+                {% if not pagination.has_next %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </a>
+        </li>
+
+    </ul>
+
+    {# Record count summary #}
+    <p class="text-center text-muted small mt-2 mb-0">
+        Showing
+        <strong>{{ ((pagination.page - 1) * pagination.per_page) + 1 }}</strong>
+        –
+        <strong>{{ [pagination.page * pagination.per_page, pagination.total] | min }}</strong>
+        of
+        <strong>{{ pagination.total }}</strong>
+        records
+    </p>
+</nav>
+{% endif %}

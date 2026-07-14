@@ -1,0 +1,41 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Leave Types — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin', url_for('admin.index')), ('Leave Types', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+        <h6 class="fw-semibold mb-0">Leave Types</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Name</th><th>Code</th><th>Days/Year</th>
+                    <th>Paid</th><th>Carry Forward</th><th>Requires Doc</th><th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for lt in leave_types %}
+            <tr>
+                <td class="ps-4">
+                    <span class="d-flex align-items-center gap-2">
+                        <span style="width:12px;height:12px;border-radius:50%;background:{{ lt.color }};display:inline-block"></span>
+                        <span class="fw-semibold small">{{ lt.name }}</span>
+                    </span>
+                </td>
+                <td><code class="small">{{ lt.code }}</code></td>
+                <td class="small fw-semibold">{{ lt.max_days_per_year }}</td>
+                <td><span class="badge bg-{{ 'success' if lt.is_paid else 'secondary' }}-subtle text-{{ 'success' if lt.is_paid else 'secondary' }} small">{{ 'Yes' if lt.is_paid else 'No' }}</span></td>
+                <td><span class="badge bg-{{ 'info' if lt.carry_forward else 'secondary' }}-subtle text-{{ 'info' if lt.carry_forward else 'secondary' }} small">{{ 'Yes' if lt.carry_forward else 'No' }}</span></td>
+                <td><span class="badge bg-{{ 'warning' if lt.requires_document else 'secondary' }}-subtle text-{{ 'warning' if lt.requires_document else 'secondary' }} small">{{ 'Yes' if lt.requires_document else 'No' }}</span></td>
+                <td><span class="badge bg-{{ 'success' if lt.is_active else 'secondary' }}-subtle text-{{ 'success' if lt.is_active else 'secondary' }} small">{{ 'Active' if lt.is_active else 'Inactive' }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-5 text-muted">No leave types configured. Run <code>flask seed-db</code> to seed defaults.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

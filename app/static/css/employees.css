@@ -1,0 +1,48 @@
+/* employees.css — Employee directory and profile pages */
+
+.hrms-employee-card {
+    transition: transform var(--hrms-transition-base), box-shadow var(--hrms-transition-base);
+}
+
+.hrms-employee-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--hrms-shadow-md) !important;
+}
+
+.hrms-employee-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--hrms-border-color);
+}
+
+.hrms-profile-banner {
+    height: 140px;
+    background: linear-gradient(135deg, var(--hrms-primary-dark), var(--hrms-primary-light));
+    border-radius: var(--hrms-border-radius-lg) var(--hrms-border-radius-lg) 0 0;
+}
+
+.hrms-profile-photo-wrapper {
+    margin-top: -48px;
+    position: relative;
+    display: inline-block;
+}
+
+.hrms-profile-photo {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 4px solid var(--hrms-white);
+    object-fit: cover;
+    box-shadow: var(--hrms-shadow-sm);
+}
+
+.hrms-employee-code {
+    font-family: var(--hrms-font-family-mono);
+    font-size: var(--hrms-font-size-xs);
+    background: var(--hrms-gray-100);
+    color: var(--hrms-text-muted);
+    padding: 2px 8px;
+    border-radius: var(--hrms-border-radius-pill);
+}

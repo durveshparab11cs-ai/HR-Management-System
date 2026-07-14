@@ -1,0 +1,48 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Attendance History — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Attendance',url_for('attendance.index')),('History',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+        <h6 class="fw-semibold mb-0">Attendance History — {{ employee.full_name }}</h6>
+        <span class="text-muted small">{{ pagination.total }} records</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Date</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Working Hours</th>
+                    <th>Overtime</th>
+                    <th>Status</th>
+                    <th>Late</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for att in pagination.items %}
+            {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary'} %}
+            <tr>
+                <td class="ps-4 fw-medium small">{{ att.date.strftime('%d %b %Y') }}<div class="text-muted" style="font-size:.75rem">{{ att.date.strftime('%A') }}</div></td>
+                <td class="small">{{ att.check_in_time.strftime('%H:%M') if att.check_in_time else '—' }}</td>
+                <td class="small">{{ att.check_out_time.strftime('%H:%M') if att.check_out_time else '—' }}</td>
+                <td class="small fw-medium">{{ att.working_hours_display }}</td>
+                <td class="small {% if att.overtime_minutes %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                    {% if att.overtime_minutes %}+{{ att.overtime_minutes // 60 }}h {{ att.overtime_minutes % 60 }}m{% else %}—{% endif %}
+                </td>
+                <td><span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }} small">{{ att.status.replace('_',' ').title() }}</span></td>
+                <td class="small {% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ (att.late_minutes ~ ' min') if att.is_late else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-5 text-muted">No records found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-transparent">{% include 'shared/pagination.html' %}</div>
+    {% endif %}
+</div>
+{% endblock %}

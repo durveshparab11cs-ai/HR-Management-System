@@ -1,0 +1,33 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Security — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Settings', url_for('settings.profile')), ('Security', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-6 col-lg-5">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 py-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="bi bi-shield-lock me-2 text-warning"></i>Security Settings</h5>
+    </div>
+    <div class="card-body px-4 pb-4">
+        <div class="alert alert-info small">
+            <i class="bi bi-info-circle me-1"></i>
+            To change your password, ask your HR administrator to reset it from the employee portal.
+        </div>
+        <div class="mb-3">
+            <div class="text-muted small mb-1">Last Login</div>
+            <div class="fw-medium">{{ current_user.last_login_at.strftime('%d %b %Y, %H:%M UTC') if current_user.last_login_at else 'No record' }}</div>
+        </div>
+        <div class="mb-3">
+            <div class="text-muted small mb-1">Last Login IP</div>
+            <div class="fw-medium"><code>{{ current_user.last_login_ip or '—' }}</code></div>
+        </div>
+        <div class="mb-3">
+            <div class="text-muted small mb-1">Account Status</div>
+            <div class="fw-medium">{{ current_user.status.replace('_',' ').title() }}</div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

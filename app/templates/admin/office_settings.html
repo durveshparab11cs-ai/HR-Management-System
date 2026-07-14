@@ -1,0 +1,153 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Office Settings — {{ app_name }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin', url_for('admin.index')), ('Office Settings', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="row g-4">
+<div class="col-lg-7">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 py-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Office &amp; Geofence Settings</h5>
+        <p class="text-muted small mb-0 mt-1">Configure GPS geofence, office timing, and attendance policy.</p>
+    </div>
+    <div class="card-body px-4 pb-4">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        <h6 class="text-uppercase text-muted small fw-semibold mb-3 border-bottom pb-2">Office Identity</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-medium small">Office Name</label>
+                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-medium small">Address</label>
+                {{ form.address(class="form-control", rows=2) }}
+            </div>
+        </div>
+
+        <h6 class="text-uppercase text-muted small fw-semibold mb-3 border-bottom pb-2">GPS Geofence</h6>
+        <div class="alert alert-info small py-2 mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Click on the map to set the office location, or enter coordinates manually.
+        </div>
+        <div id="settings-map" style="height:220px;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Latitude</label>
+                {{ form.latitude(class="form-control" + (" is-invalid" if form.latitude.errors else ""), id="lat-input", step="0.000001") }}
+                {% for e in form.latitude.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Longitude</label>
+                {{ form.longitude(class="form-control" + (" is-invalid" if form.longitude.errors else ""), id="lon-input", step="0.000001") }}
+                {% for e in form.longitude.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Radius (metres)</label>
+                {{ form.radius_metres(class="form-control" + (" is-invalid" if form.radius_metres.errors else ""), id="radius-input") }}
+                {% for e in form.radius_metres.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
+
+        <h6 class="text-uppercase text-muted small fw-semibold mb-3 border-bottom pb-2">Office Timing</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Start Time</label>
+                {{ form.office_start_time(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">End Time</label>
+                {{ form.office_end_time(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Grace Period (min)</label>
+                {{ form.grace_period_minutes(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Half Day Threshold (min)</label>
+                {{ form.half_day_threshold_minutes(class="form-control") }}
+                <div class="form-text">Working minutes below this = half day</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium small">Overtime Threshold (min)</label>
+                {{ form.overtime_threshold_minutes(class="form-control") }}
+            </div>
+        </div>
+
+        <h6 class="text-uppercase text-muted small fw-semibold mb-3 border-bottom pb-2">Policy</h6>
+        <div class="mb-4">
+            <div class="form-check form-switch mb-2">
+                {{ form.allow_remote_checkin(class="form-check-input", role="switch") }}
+                <label class="form-check-label small fw-medium">{{ form.allow_remote_checkin.label.text }}</label>
+            </div>
+            <div class="form-check form-switch">
+                {{ form.selfie_required(class="form-check-input", role="switch") }}
+                <label class="form-check-label small fw-medium">{{ form.selfie_required.label.text }}</label>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3 justify-content-end">
+            <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary px-5 fw-semibold">
+                <i class="bi bi-check2 me-1"></i>Save Settings
+            </button>
+        </div>
+    </form>
+    </div>
+</div>
+</div>
+
+<!-- Current Settings Summary -->
+<div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Current Configuration</h6></div>
+        <div class="card-body px-4 pb-4">
+            {% macro row(l,v) %}<div class="d-flex justify-content-between py-2 border-bottom border-light"><span class="text-muted small">{{ l }}</span><span class="small fw-semibold">{{ v or '—' }}</span></div>{% endmacro %}
+            {{ row('Office', office.name) }}
+            {{ row('Latitude', office.latitude) }}
+            {{ row('Longitude', office.longitude) }}
+            {{ row('Geofence Radius', office.radius_metres ~ 'm') }}
+            {{ row('Start Time', office.office_start_time.strftime('%H:%M') if office.office_start_time else '—') }}
+            {{ row('End Time', office.office_end_time.strftime('%H:%M') if office.office_end_time else '—') }}
+            {{ row('Grace Period', office.grace_period_minutes ~ ' min') }}
+            {{ row('Remote Check-In', 'Allowed' if office.allow_remote_checkin else 'Not Allowed') }}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+    const latIn  = document.getElementById('lat-input');
+    const lonIn  = document.getElementById('lon-input');
+    const radIn  = document.getElementById('radius-input');
+    const lat0   = parseFloat(latIn.value) || 18.52043;
+    const lon0   = parseFloat(lonIn.value) || 73.856743;
+    const rad0   = parseInt(radIn.value)   || 100;
+
+    const map = L.map('settings-map').setView([lat0, lon0], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const icon = L.divIcon({ html:'<div style="background:#1a3c6e;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>', className:'', iconAnchor:[8,8] });
+    let marker = L.marker([lat0, lon0], {icon, draggable:true}).addTo(map);
+    let circle = L.circle([lat0, lon0], {radius:rad0, color:'#1a3c6e', fillOpacity:.08, weight:2, dashArray:'6 4'}).addTo(map);
+
+    function updateFromMarker(lat, lon){
+        latIn.value = lat.toFixed(7);
+        lonIn.value = lon.toFixed(7);
+        circle.setLatLng([lat, lon]);
+        map.setView([lat, lon], 17);
+    }
+
+    marker.on('dragend', function(e){ const p = e.target.getLatLng(); updateFromMarker(p.lat, p.lng); });
+    map.on('click', function(e){ marker.setLatLng(e.latlng); updateFromMarker(e.latlng.lat, e.latlng.lng); });
+    radIn.addEventListener('input', function(){ const r = parseInt(radIn.value)||100; circle.setRadius(r); });
+})();
+</script>
+{% endblock %}

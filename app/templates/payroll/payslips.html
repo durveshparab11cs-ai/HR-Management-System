@@ -1,0 +1,36 @@
+{% extends 'layouts/base.html' %}
+{% block title %}My Payslips — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Payroll',url_for('payroll.index')),('My Payslips',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h4 fw-bold mb-0">My Payslips</h1>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr><th class="ps-4">Period</th><th>Days Present</th><th>Gross</th><th>Net Payable</th><th>Status</th><th class="pe-4">Download</th></tr>
+      </thead>
+      <tbody>
+      {% set sc={'draft':'secondary','paid':'success','approved':'primary'} %}
+      {% for slip in pagination.items %}
+      <tr>
+        <td class="ps-4 fw-semibold">{{ slip.run.period_label }}</td>
+        <td class="small">{{ slip.days_present }} / {{ slip.working_days }}</td>
+        <td class="small">₹{{ '{:,.0f}'.format(slip.gross_salary) }}</td>
+        <td class="fw-bold">₹{{ '{:,.0f}'.format(slip.net_salary) }}</td>
+        <td><span class="badge bg-{{ sc.get(slip.status,'secondary') }}-subtle text-{{ sc.get(slip.status,'secondary') }} small">{{ slip.status.title() }}</span></td>
+        <td class="pe-4"><a href="{{ url_for('payroll.payslip_detail', payslip_id=slip.id) }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:3px 9px"><i class="bi bi-eye me-1"></i>View</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center py-5 text-muted">No payslips yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="card-footer bg-transparent">{% include 'shared/pagination.html' %}</div>
+  {% endif %}
+</div>
+{% endblock %}

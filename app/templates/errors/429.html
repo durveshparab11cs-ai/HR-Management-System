@@ -1,0 +1,13 @@
+{% extends 'errors/base_error.html' %}
+{% block error_title %}429 Too Many Requests{% endblock %}
+{% block error_code_bg %}429{% endblock %}
+{% block error_icon %}bi-hourglass-split{% endblock %}
+{% block error_heading %}Too Many Requests{% endblock %}
+{% block error_body %}
+    You've made too many requests in a short period. Please wait a moment and try again.
+{% endblock %}
+{% block error_actions %}
+<a href="javascript:location.reload()" class="btn btn-primary">
+    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Try Again
+</a>
+{% endblock %}

@@ -1,0 +1,33 @@
+{# macros/forms.html — Reusable WTForms field renderer #}
+
+{% macro render_field(field, placeholder='', label_override='', extra_class='') %}
+{% set has_errors = field.errors | length > 0 %}
+<div class="mb-0">
+    {% if label_override %}
+        <label for="{{ field.id }}" class="form-label fw-medium small">{{ label_override }}</label>
+    {% elif field.label %}
+        <label for="{{ field.id }}" class="form-label fw-medium small">{{ field.label.text }}</label>
+    {% endif %}
+
+    {% if field.type == 'SelectField' or field.type == 'SelectMultipleField' %}
+        {{ field(class="form-select form-select-sm " + ("is-invalid " if has_errors else "") + extra_class) }}
+    {% elif field.type == 'TextAreaField' %}
+        {{ field(class="form-control form-control-sm " + ("is-invalid " if has_errors else "") + extra_class,
+                 placeholder=placeholder or field.description or '') }}
+    {% elif field.type == 'FileField' %}
+        {{ field(class="form-control form-control-sm " + ("is-invalid " if has_errors else "") + extra_class) }}
+    {% elif field.type == 'BooleanField' %}
+        <div class="form-check">
+            {{ field(class="form-check-input " + ("is-invalid " if has_errors else "")) }}
+            <label class="form-check-label small" for="{{ field.id }}">{{ field.label.text }}</label>
+        </div>
+    {% else %}
+        {{ field(class="form-control form-control-sm " + ("is-invalid " if has_errors else "") + extra_class,
+                 placeholder=placeholder or field.description or '') }}
+    {% endif %}
+
+    {% for error in field.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+</div>
+{% endmacro %}

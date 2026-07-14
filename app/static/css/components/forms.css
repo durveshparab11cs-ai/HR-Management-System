@@ -1,0 +1,80 @@
+/* forms.css — Form controls, labels, validation states */
+
+.hrms-form-section { margin-bottom: var(--hrms-space-6); }
+.hrms-form-section-title {
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--hrms-text-muted);
+    border-bottom: var(--hrms-border);
+    padding-bottom: var(--hrms-space-2);
+    margin-bottom: var(--hrms-space-4);
+}
+
+.form-label {
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-medium);
+    color: var(--hrms-text-primary);
+    margin-bottom: var(--hrms-space-1);
+}
+
+.form-control,
+.form-select {
+    border-color: var(--hrms-border-color);
+    border-radius: var(--hrms-border-radius-md);
+    font-size: var(--hrms-font-size-sm);
+    transition: border-color var(--hrms-transition-fast), box-shadow var(--hrms-transition-fast);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--hrms-primary-light);
+    box-shadow: 0 0 0 3px rgba(var(--hrms-primary-rgb), 0.12);
+    outline: none;
+}
+
+.form-text {
+    font-size: var(--hrms-font-size-xs);
+    color: var(--hrms-text-muted);
+}
+
+.required-star::after {
+    content: ' *';
+    color: var(--hrms-danger);
+}
+
+/* Password strength bar */
+.hrms-password-strength {
+    height: 4px;
+    border-radius: var(--hrms-border-radius-pill);
+    background: var(--hrms-gray-200);
+    overflow: hidden;
+}
+
+.hrms-password-strength-fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width var(--hrms-transition-base), background var(--hrms-transition-base);
+}
+
+.strength-weak   .hrms-password-strength-fill { width: 25%; background: var(--hrms-danger); }
+.strength-fair   .hrms-password-strength-fill { width: 50%; background: var(--hrms-warning); }
+.strength-good   .hrms-password-strength-fill { width: 75%; background: var(--hrms-info); }
+.strength-strong .hrms-password-strength-fill { width: 100%; background: var(--hrms-success); }
+
+/* File upload zone */
+.hrms-file-dropzone {
+    border: 2px dashed var(--hrms-border-color);
+    border-radius: var(--hrms-border-radius-lg);
+    padding: var(--hrms-space-8) var(--hrms-space-4);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--hrms-transition-fast), background var(--hrms-transition-fast);
+}
+
+.hrms-file-dropzone:hover,
+.hrms-file-dropzone.drag-over {
+    border-color: var(--hrms-primary-light);
+    background: rgba(var(--hrms-primary-rgb), .04);
+}

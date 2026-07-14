@@ -1,0 +1,108 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Pending Approvals — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Leave Portal', url_for('leave.index')), ('Pending Approvals', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+{% set sb = {'pending':'warning','approved':'success','rejected':'danger','cancelled':'secondary'} %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="fw-bold mb-0">Pending Approvals</h4>
+    <span class="badge bg-danger-subtle text-danger fs-6">{{ pagination.total }} leave &bull; {{ hd_list|length }} half-day &bull; {{ el_list|length }} early leave</span>
+</div>
+
+<!-- Leave Requests -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4">
+        <h6 class="fw-semibold mb-0">Leave Requests</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Employee</th><th>Type</th><th>Period</th>
+                    <th>Days</th><th>Reason</th><th>Applied</th><th class="pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for lr in pagination.items %}
+            <tr>
+                <td class="ps-4">
+                    <div class="fw-semibold small">{{ lr.employee.full_name }}</div>
+                    <div class="text-muted" style="font-size:.75rem">{{ lr.employee.employee_code }}</div>
+                </td>
+                <td><span class="badge rounded-pill px-2" style="background:{{ lr.leave_type.color }}20;color:{{ lr.leave_type.color }}">{{ lr.leave_type.name }}</span></td>
+                <td class="small">{{ lr.start_date.strftime('%d %b') }} – {{ lr.end_date.strftime('%d %b %Y') }}</td>
+                <td class="small fw-semibold">{{ lr.total_days }}</td>
+                <td class="small text-muted" style="max-width:180px">{{ lr.reason[:60] }}{% if lr.reason|length > 60 %}…{% endif %}</td>
+                <td class="small text-muted">{{ lr.applied_on.strftime('%d %b') }}</td>
+                <td class="pe-4">
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="{{ url_for('leave.approve', lr_id=lr.id) }}" class="d-inline">
+                            {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
+                            <button class="btn btn-sm btn-success px-3">Approve</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('leave.reject', lr_id=lr.id) }}" class="d-inline">
+                            {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
+                            <button class="btn btn-sm btn-outline-danger px-3">Reject</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-4 text-muted">No pending leave requests.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Half Day + Early Leave side by side -->
+<div class="row g-4">
+<div class="col-lg-6">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Half Day Requests</h6></div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th class="ps-4">Employee</th><th>Date</th><th>Half</th><th class="pe-4">Actions</th></tr></thead>
+            <tbody>
+            {% for hd in hd_list %}
+            <tr>
+                <td class="ps-4 small fw-semibold">{{ hd.employee.full_name }}</td>
+                <td class="small">{{ hd.date.strftime('%d %b %Y') }}</td>
+                <td class="small">{{ hd.half_type.title() }}</td>
+                <td class="pe-4">
+                    <form method="POST" action="{{ url_for('leave.approve_halfday', hd_id=hd.id) }}" class="d-inline">{{ csrf_token_field() }}<button class="btn btn-sm btn-success me-1">✓</button></form>
+                    <form method="POST" action="{{ url_for('leave.reject_halfday', hd_id=hd.id) }}" class="d-inline">{{ csrf_token_field() }}<button class="btn btn-sm btn-outline-danger">✗</button></form>
+                </td>
+            </tr>
+            {% else %}<tr><td colspan="4" class="text-center py-3 text-muted small">None pending.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+<div class="col-lg-6">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Early Leave Requests</h6></div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th class="ps-4">Employee</th><th>Date</th><th>Time</th><th class="pe-4">Actions</th></tr></thead>
+            <tbody>
+            {% for el in el_list %}
+            <tr>
+                <td class="ps-4 small fw-semibold">{{ el.employee.full_name }}</td>
+                <td class="small">{{ el.date.strftime('%d %b %Y') }}</td>
+                <td class="small">{{ el.requested_leave_time.strftime('%H:%M') }}</td>
+                <td class="pe-4">
+                    <form method="POST" action="{{ url_for('leave.approve_earlyleave', el_id=el.id) }}" class="d-inline">{{ csrf_token_field() }}<button class="btn btn-sm btn-success me-1">✓</button></form>
+                    <form method="POST" action="{{ url_for('leave.reject_earlyleave', el_id=el.id) }}" class="d-inline">{{ csrf_token_field() }}<button class="btn btn-sm btn-outline-danger">✗</button></form>
+                </td>
+            </tr>
+            {% else %}<tr><td colspan="4" class="text-center py-3 text-muted small">None pending.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

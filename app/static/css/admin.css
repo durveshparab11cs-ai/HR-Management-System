@@ -1,0 +1,34 @@
+/* admin.css — Admin panel styles */
+
+.hrms-admin-stat {
+    padding: var(--hrms-space-4);
+    border-radius: var(--hrms-border-radius-lg);
+    background: var(--hrms-bg-card);
+    border: var(--hrms-border);
+}
+
+.hrms-audit-entry {
+    display: flex;
+    gap: var(--hrms-space-3);
+    padding: var(--hrms-space-3) 0;
+    border-bottom: 1px solid var(--hrms-gray-100);
+    font-size: var(--hrms-font-size-sm);
+}
+
+.hrms-audit-entry:last-child { border-bottom: none; }
+
+.hrms-audit-action {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--hrms-border-radius-pill);
+    font-size: var(--hrms-font-size-xs);
+    font-weight: var(--hrms-font-weight-semibold);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.hrms-audit-action--create { background: var(--hrms-success-light); color: var(--hrms-success-text); }
+.hrms-audit-action--update { background: var(--hrms-info-light);    color: var(--hrms-info-text);    }
+.hrms-audit-action--delete { background: var(--hrms-danger-light);  color: var(--hrms-danger-text);  }
+.hrms-audit-action--login  { background: var(--hrms-warning-light); color: var(--hrms-warning-text); }

@@ -1,0 +1,33 @@
+{#
+  shared/breadcrumbs.html
+  =========================
+  Bootstrap 5 breadcrumb component.
+
+  Usage in a child template:
+    {% block breadcrumbs %}
+        {% set breadcrumbs = [
+            ('Dashboard', url_for('dashboard.index')),
+            ('Employees', url_for('employees.index')),
+            ('John Doe', None),
+        ] %}
+        {% include 'shared/breadcrumbs.html' %}
+    {% endblock %}
+
+  If 'breadcrumbs' is not defined, the component renders nothing.
+  The last item (None URL) is rendered as the active/current page.
+#}
+{% if breadcrumbs is defined and breadcrumbs %}
+<nav aria-label="breadcrumb" class="hrms-breadcrumbs mb-3">
+    <ol class="breadcrumb mb-0">
+        {% for label, url in breadcrumbs %}
+            {% if loop.last or url is none %}
+                <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+            {% else %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url }}" class="text-decoration-none">{{ label }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ol>
+</nav>
+{% endif %}

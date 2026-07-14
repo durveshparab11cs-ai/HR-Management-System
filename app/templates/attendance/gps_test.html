@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GPS Test</title>
+<style>
+body { font-family: system-ui; padding: 40px; max-width: 600px; margin: 0 auto; }
+.box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+.ok  { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+.err { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.pending { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+pre { background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
+button { padding: 12px 28px; font-size: 16px; border: none; border-radius: 8px; background: #3b82f6; color: #fff; cursor: pointer; margin-top: 16px; }
+button:hover { background: #2563eb; }
+</style>
+</head>
+<body>
+<h2>GPS Permission Diagnostic</h2>
+
+<div class="box" id="api-box">
+  <strong>1. Geolocation API</strong><br>
+  <span id="api-status">Checking…</span>
+</div>
+
+<div class="box" id="perm-box">
+  <strong>2. Permission Status</strong><br>
+  <span id="perm-status">Checking…</span>
+</div>
+
+<div class="box pending" id="gps-box">
+  <strong>3. GPS Coordinates</strong><br>
+  <span id="gps-status">Press the button below to request location.</span>
+</div>
+
+<button id="test-btn">Request Location Now</button>
+
+<pre id="log">Waiting…</pre>
+
+<p style="margin-top:24px;font-size:13px;color:#64748b">
+  <a href="/attendance/">← Back to Attendance</a>
+</p>
+
+<script>
+const log = document.getElementById('log');
+function write(msg) { log.textContent += '\n' + msg; }
+
+// 1. Check API exists
+const apiBox = document.getElementById('api-box');
+const apiStatus = document.getElementById('api-status');
+if ('geolocation' in navigator) {
+  apiBox.className = 'box ok';
+  apiStatus.textContent = '✓ navigator.geolocation is available';
+  write('API: available');
+} else {
+  apiBox.className = 'box err';
+  apiStatus.textContent = '✗ navigator.geolocation is NOT available in this browser';
+  write('API: NOT available');
+}
+
+// 2. Check permission state
+const permBox = document.getElementById('perm-box');
+const permStatus = document.getElementById('perm-status');
+if (navigator.permissions) {
+  navigator.permissions.query({ name: 'geolocation' }).then(result => {
+    permStatus.textContent = 'Permission state: ' + result.state;
+    write('Permission: ' + result.state);
+    if (result.state === 'granted') {
+      permBox.className = 'box ok';
+    } else if (result.state === 'denied') {
+      permBox.className = 'box err';
+      permStatus.textContent = '✗ DENIED — Go to Chrome → address bar → lock icon → Site settings → Location → Allow';
+    } else {
+      permBox.className = 'box pending';
+      permStatus.textContent = '⚠ Prompt — Click the button below to allow location.';
+    }
+    result.addEventListener('change', () => {
+      permStatus.textContent = 'Permission changed to: ' + result.state;
+      write('Permission changed: ' + result.state);
+    });
+  });
+} else {
+  permStatus.textContent = 'Permissions API not supported';
+  write('Permissions API: not supported');
+}
+
+// 3. Request GPS on button click
+document.getElementById('test-btn').addEventListener('click', () => {
+  const gpsBox = document.getElementById('gps-box');
+  const gpsStatus = document.getElementById('gps-status');
+  gpsStatus.textContent = 'Requesting… please wait…';
+  gpsBox.className = 'box pending';
+  write('Calling getCurrentPosition…');
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: la, longitude: lo, accuracy: ac } = pos.coords;
+      gpsBox.className = 'box ok';
+      gpsStatus.innerHTML =
+        `✓ Got location!<br>
+         Lat: <strong>${la.toFixed(6)}</strong><br>
+         Lon: <strong>${lo.toFixed(6)}</strong><br>
+         Accuracy: <strong>±${Math.round(ac)}m</strong>`;
+      write(`SUCCESS: lat=${la}, lon=${lo}, acc=±${ac}m`);
+    },
+    err => {
+      gpsBox.className = 'box err';
+      const msgs = {
+        1: 'PERMISSION DENIED — You must allow location for this site.',
+        2: 'POSITION UNAVAILABLE — Device cannot determine location.',
+        3: 'TIMEOUT — Took too long to get location.',
+      };
+      gpsStatus.textContent = '✗ Error ' + err.code + ': ' + (msgs[err.code] || err.message);
+      write('ERROR code=' + err.code + ': ' + err.message);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+});
+
+write('Page loaded. Origin: ' + window.location.origin);
+write('Protocol: ' + window.location.protocol);
+</script>
+</body>
+</html>

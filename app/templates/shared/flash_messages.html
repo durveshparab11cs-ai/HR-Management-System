@@ -1,0 +1,51 @@
+{#
+  shared/flash_messages.html
+  ============================
+  Renders all queued Flask flash messages as dismissible Bootstrap alerts.
+
+  Flash categories map to Bootstrap alert variants:
+    success  → alert-success  (green)
+    error    → alert-danger   (red)
+    danger   → alert-danger   (red)
+    warning  → alert-warning  (yellow)
+    info     → alert-info     (blue)
+
+  Auto-dismiss: info and success alerts fade out after 5 seconds
+  via the common.js flash handler.
+#}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="hrms-flash-container" aria-live="polite" aria-atomic="false" role="status">
+    {% for category, message in messages %}
+        {% set alert_class = {
+            'success': 'alert-success',
+            'error':   'alert-danger',
+            'danger':  'alert-danger',
+            'warning': 'alert-warning',
+            'info':    'alert-info',
+        }.get(category, 'alert-info') %}
+        {% set icon = {
+            'success': 'bi-check-circle-fill',
+            'error':   'bi-x-circle-fill',
+            'danger':  'bi-x-circle-fill',
+            'warning': 'bi-exclamation-triangle-fill',
+            'info':    'bi-info-circle-fill',
+        }.get(category, 'bi-info-circle-fill') %}
+        <div
+            class="alert {{ alert_class }} alert-dismissible fade show d-flex align-items-start gap-2 hrms-flash-alert"
+            role="alert"
+            data-auto-dismiss="{{ 'true' if category in ('success', 'info') else 'false' }}"
+        >
+            <i class="bi {{ icon }} flex-shrink-0 mt-1" aria-hidden="true"></i>
+            <div class="flex-grow-1">{{ message }}</div>
+            <button
+                type="button"
+                class="btn-close ms-2"
+                data-bs-dismiss="alert"
+                aria-label="Close"
+            ></button>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}

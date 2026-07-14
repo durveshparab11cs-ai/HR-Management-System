@@ -1,0 +1,74 @@
+/* cards.css — Card component variants */
+
+.hrms-card {
+    background: var(--hrms-bg-card);
+    border: var(--hrms-border);
+    border-radius: var(--hrms-border-radius-lg);
+    box-shadow: var(--hrms-shadow-sm);
+    transition: box-shadow var(--hrms-transition-base), transform var(--hrms-transition-base);
+}
+
+.hrms-card:hover { box-shadow: var(--hrms-shadow-md); }
+
+.hrms-card-header {
+    padding: var(--hrms-space-4) var(--hrms-space-5);
+    border-bottom: var(--hrms-border);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--hrms-space-3);
+}
+
+.hrms-card-title {
+    font-size: var(--hrms-font-size-base);
+    font-weight: var(--hrms-font-weight-semibold);
+    margin-bottom: 0;
+}
+
+.hrms-card-body { padding: var(--hrms-space-5); }
+
+/* Info card (metric/stat) */
+.hrms-info-card {
+    border-left: 4px solid transparent;
+}
+
+.hrms-info-card--primary { border-left-color: var(--hrms-primary); }
+.hrms-info-card--success  { border-left-color: var(--hrms-success); }
+.hrms-info-card--warning  { border-left-color: var(--hrms-warning); }
+.hrms-info-card--danger   { border-left-color: var(--hrms-danger);  }
+
+/* Profile card */
+.hrms-profile-card .hrms-profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--hrms-border-color);
+    object-fit: cover;
+}
+
+.hrms-profile-card .hrms-profile-name {
+    font-size: var(--hrms-font-size-lg);
+    font-weight: var(--hrms-font-weight-semibold);
+}
+
+/* Detail row inside cards */
+.hrms-detail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--hrms-space-3);
+    padding: var(--hrms-space-2) 0;
+    border-bottom: 1px solid var(--hrms-gray-100);
+    font-size: var(--hrms-font-size-sm);
+}
+
+.hrms-detail-row:last-child { border-bottom: none; }
+
+.hrms-detail-label {
+    width: 140px;
+    flex-shrink: 0;
+    color: var(--hrms-text-muted);
+    font-weight: var(--hrms-font-weight-medium);
+}
+
+.hrms-detail-value { color: var(--hrms-text-primary); }

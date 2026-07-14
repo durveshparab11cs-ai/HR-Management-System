@@ -1,0 +1,46 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Leave Report — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Reports',url_for('reports.index')),('Leave Report',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div><h1 class="h4 fw-bold mb-0">Leave Report — {{ year }}</h1></div>
+  <div class="d-flex gap-2">
+    {% for y in [year-1, year, year+1] %}
+    <a href="{{ url_for('reports.leave_report', year=y) }}"
+       class="btn btn-sm {% if y==year %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ y }}</a>
+    {% endfor %}
+    <a href="{{ url_for('reports.export', report_type='leave', fmt='xlsx', year=year) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('reports.export', report_type='leave', fmt='pdf', year=year) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+  </div>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.86rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Employee</th><th>Department</th>
+          <th class="text-center">Requests</th>
+          <th class="text-center text-success">Approved Days</th>
+          <th class="text-center text-warning">Pending</th>
+          <th class="text-center text-danger">Rejected</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in data %}
+      <tr>
+        <td class="ps-4"><div class="fw-semibold">{{ r.user.full_name }}</div><div class="text-muted" style="font-size:.75rem">{{ r.employee.employee_code }}</div></td>
+        <td class="small">{{ r.employee.department or '—' }}</td>
+        <td class="text-center">{{ r.total_requests }}</td>
+        <td class="text-center fw-semibold text-success">{{ r.approved_days }}</td>
+        <td class="text-center {% if r.pending_count %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ r.pending_count }}</td>
+        <td class="text-center {% if r.rejected_count %}text-danger{% else %}text-muted{% endif %}">{{ r.rejected_count }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center py-5 text-muted">No leave data for {{ year }}.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

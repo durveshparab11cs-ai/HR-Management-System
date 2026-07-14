@@ -1,0 +1,39 @@
+/* leave.css — Leave request and calendar pages */
+
+.hrms-leave-balance-card {
+    border-top: 4px solid var(--hrms-primary);
+    text-align: center;
+}
+
+.hrms-leave-balance-value {
+    font-size: var(--hrms-font-size-3xl);
+    font-weight: var(--hrms-font-weight-bold);
+    color: var(--hrms-primary);
+    line-height: 1;
+}
+
+.hrms-leave-balance-label {
+    font-size: var(--hrms-font-size-xs);
+    color: var(--hrms-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.hrms-leave-calendar { width: 100%; }
+
+.hrms-leave-calendar .fc-day-today { background: rgba(var(--hrms-primary-rgb), .06) !important; }
+
+.hrms-leave-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: var(--hrms-border-radius-pill);
+    font-size: var(--hrms-font-size-xs);
+    font-weight: var(--hrms-font-weight-semibold);
+}
+
+.hrms-leave-badge--pending  { background: var(--hrms-warning-light);  color: var(--hrms-warning-text);  }
+.hrms-leave-badge--approved { background: var(--hrms-success-light);   color: var(--hrms-success-text);  }
+.hrms-leave-badge--rejected { background: var(--hrms-danger-light);    color: var(--hrms-danger-text);   }
+.hrms-leave-badge--cancelled{ background: var(--hrms-gray-200);        color: var(--hrms-gray-700);      }

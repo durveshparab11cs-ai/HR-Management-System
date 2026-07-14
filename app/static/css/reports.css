@@ -1,0 +1,58 @@
+/* reports.css — Reports and export pages */
+
+.hrms-report-card {
+    border: var(--hrms-border);
+    border-radius: var(--hrms-border-radius-lg);
+    padding: var(--hrms-space-5);
+    cursor: pointer;
+    transition: border-color var(--hrms-transition-base), box-shadow var(--hrms-transition-base), transform var(--hrms-transition-base);
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.hrms-report-card:hover {
+    border-color: var(--hrms-primary-light);
+    box-shadow: var(--hrms-shadow-md);
+    transform: translateY(-2px);
+    color: inherit;
+    text-decoration: none;
+}
+
+.hrms-report-icon {
+    font-size: 2rem;
+    color: var(--hrms-primary);
+    margin-bottom: var(--hrms-space-3);
+}
+
+.hrms-report-title {
+    font-weight: var(--hrms-font-weight-semibold);
+    margin-bottom: var(--hrms-space-1);
+}
+
+.hrms-report-desc {
+    font-size: var(--hrms-font-size-sm);
+    color: var(--hrms-text-muted);
+}
+
+/* Export format pill buttons */
+.hrms-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--hrms-space-2);
+    padding: var(--hrms-space-2) var(--hrms-space-4);
+    border: var(--hrms-border);
+    border-radius: var(--hrms-border-radius-pill);
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-medium);
+    cursor: pointer;
+    transition: all var(--hrms-transition-fast);
+    text-decoration: none;
+    color: var(--hrms-text-primary);
+}
+
+.hrms-export-btn:hover {
+    background: var(--hrms-primary);
+    border-color: var(--hrms-primary);
+    color: var(--hrms-white);
+}

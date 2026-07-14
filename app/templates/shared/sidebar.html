@@ -1,0 +1,92 @@
+{#
+  shared/sidebar.html
+  ====================
+  Application sidebar navigation.
+
+  Variables injected by inject_navigation() context processor:
+    nav_items  — list of navigation item dicts filtered by user role
+                 each item: {label, icon, url_endpoint, roles}
+
+  Variables injected by inject_user_context():
+    is_authenticated, current_user_role, is_admin, is_hr_manager
+
+  Uses Bootstrap 5 collapse for mobile responsiveness.
+#}
+<nav id="hrms-sidebar" class="hrms-sidebar d-flex flex-column" aria-label="Main navigation">
+
+    <!-- Brand / Logo -->
+    <div class="hrms-sidebar-brand d-flex align-items-center px-3 py-4">
+        <div class="hrms-sidebar-logo me-2">
+            <i class="bi bi-grid-3x3-gap-fill fs-4"></i>
+        </div>
+        <span class="hrms-sidebar-brand-name fw-bold fs-5">Smart HRMS</span>
+        <button
+            class="btn btn-link ms-auto d-md-none text-white hrms-sidebar-close"
+            id="sidebar-close-btn"
+            aria-label="Close sidebar"
+            type="button"
+        >
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <!-- User mini-profile -->
+    <div class="hrms-sidebar-user px-3 pb-3">
+        <div class="d-flex align-items-center">
+            <div class="hrms-sidebar-avatar me-2">
+                {% if current_user.profile_photo %}
+                    <img
+                        src="{{ url_for('static', filename='uploads/' ~ current_user.profile_photo) }}"
+                        alt="{{ current_user.full_name }}"
+                        class="rounded-circle"
+                        width="36" height="36"
+                    >
+                {% else %}
+                    <span class="hrms-avatar-initials rounded-circle">
+                        {{ current_user.first_name[0] | upper }}{{ current_user.last_name[0] | upper }}
+                    </span>
+                {% endif %}
+            </div>
+            <div class="hrms-sidebar-user-info overflow-hidden">
+                <div class="text-truncate fw-semibold small">{{ current_user.full_name }}</div>
+                <div class="text-truncate hrms-role-badge small">{{ current_user.display_role }}</div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="hrms-sidebar-divider mx-3 my-0">
+
+    <!-- Navigation items -->
+    <ul class="hrms-sidebar-nav nav flex-column flex-grow-1 px-2 py-3" role="list">
+        {% for item in nav_items %}
+            {% set is_active = request.endpoint and request.endpoint.startswith(item.url_endpoint.split('.')[0]) %}
+            <li class="nav-item">
+                <a
+                    href="{{ url_for(item.url_endpoint) if item.url_endpoint else '#' }}"
+                    class="nav-link hrms-nav-link d-flex align-items-center gap-2 rounded
+                           {% if is_active %}active{% endif %}"
+                    {% if is_active %}aria-current="page"{% endif %}
+                >
+                    <i class="bi {{ item.icon }} hrms-nav-icon" aria-hidden="true"></i>
+                    <span>{{ item.label }}</span>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Sidebar footer -->
+    <div class="hrms-sidebar-footer px-3 pb-3 mt-auto">
+        <hr class="hrms-sidebar-divider mt-0 mb-3">
+        <a
+            href="{{ url_for('authentication.logout') }}"
+            class="nav-link hrms-nav-link d-flex align-items-center gap-2 rounded text-danger"
+        >
+            <i class="bi bi-box-arrow-left hrms-nav-icon" aria-hidden="true"></i>
+            <span>Logout</span>
+        </a>
+    </div>
+
+</nav>
+
+<!-- Sidebar overlay for mobile -->
+<div class="hrms-sidebar-overlay d-md-none" id="sidebar-overlay" aria-hidden="true"></div>

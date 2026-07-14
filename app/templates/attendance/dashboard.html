@@ -1,0 +1,408 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Attendance — {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --att-green:#10b981; --att-red:#ef4444; --att-amber:#f59e0b;
+  --att-blue:#3b82f6;  --att-navy:#1a3c6e;
+}
+
+/* ── Status banner ── */
+.att-banner{
+  background:linear-gradient(135deg,var(--att-navy) 0%,#2a5298 100%);
+  border-radius:20px;padding:32px 36px;color:#fff;position:relative;overflow:hidden;
+  box-shadow:0 12px 40px rgba(26,60,110,.3);
+  margin-bottom:24px;
+}
+.att-banner::before{
+  content:'';position:absolute;top:-100px;right:-100px;
+  width:320px;height:320px;border-radius:50%;
+  background:rgba(255,255,255,.04);pointer-events:none;
+}
+.att-date{font-size:.88rem;opacity:.7;margin-bottom:3px}
+.att-clock{
+  font-size:clamp(2.6rem,6vw,3.8rem);font-weight:800;
+  font-variant-numeric:tabular-nums;letter-spacing:-.03em;
+  line-height:1;margin-bottom:4px;
+}
+.att-tz{font-size:.72rem;opacity:.5;margin-bottom:20px}
+
+.att-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 16px;border-radius:50px;font-size:.82rem;font-weight:600;
+  background:rgba(255,255,255,.12);backdrop-filter:blur(4px);margin-bottom:4px;
+}
+.att-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--att-green);
+  box-shadow:0 0 6px var(--att-green);
+  animation:attPulse 2s infinite;
+}
+.att-dot.off{background:#94a3b8;box-shadow:none;animation:none}
+@keyframes attPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+
+.att-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;position:relative;z-index:1}
+.att-tile{
+  background:rgba(255,255,255,.1);border-radius:12px;
+  padding:14px 16px;backdrop-filter:blur(4px);
+}
+.att-tile-label{font-size:.7rem;opacity:.65;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.att-tile-value{font-size:1.1rem;font-weight:700}
+
+/* ── GPS + Map card ── */
+.gps-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:hidden;height:100%}
+.gps-card-header{padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;
+  display:flex;align-items:center;justify-content:space-between}
+.gps-card-title{font-size:.95rem;font-weight:700;color:#0f1729;margin:0}
+
+.gps-status-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;border-bottom:1px solid #f8fafc;
+  font-size:.82rem;
+}
+.gps-indicator{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.gps-indicator.acquiring{background:var(--att-amber);animation:attPulse 1.2s infinite}
+.gps-indicator.ok{background:var(--att-green)}
+.gps-indicator.error{background:var(--att-red)}
+
+#att-map{height:200px;width:100%}
+
+.gps-coords{
+  padding:10px 20px;font-size:.78rem;color:#475569;
+  border-top:1px solid #f1f5f9;display:none;
+}
+.gps-coords span{font-weight:600;color:#0f1729}
+
+/* ── Distance badge ── */
+.dist-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:50px;font-size:.78rem;font-weight:700;
+}
+.dist-badge.inside{background:#dcfce7;color:#166534}
+.dist-badge.outside{background:#fee2e2;color:#991b1b}
+
+/* ── Action buttons ── */
+.att-action-card{
+  background:#fff;border-radius:16px;border:1px solid #e8edf2;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);padding:24px;
+}
+.btn-checkin{
+  width:100%;padding:15px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,var(--att-green),#059669);
+  color:#fff;font-size:.95rem;font-weight:700;font-family:inherit;cursor:pointer;
+  box-shadow:0 4px 16px rgba(16,185,129,.35);
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn-checkin:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 24px rgba(16,185,129,.5)}
+.btn-checkin:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.btn-checkout{
+  width:100%;padding:15px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,var(--att-red),#dc2626);
+  color:#fff;font-size:.95rem;font-weight:700;font-family:inherit;cursor:pointer;
+  box-shadow:0 4px 16px rgba(239,68,68,.35);
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn-checkout:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 24px rgba(239,68,68,.5)}
+.btn-checkout:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.att-spinner{
+  width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:attPulse 0s,attSpin .65s linear infinite;display:none;
+}
+@keyframes attSpin{to{transform:rotate(360deg)}}
+
+/* ── Photo upload ── */
+.photo-zone{
+  border:2px dashed #e2e8f0;border-radius:12px;padding:20px;
+  text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;margin-top:16px;
+}
+.photo-zone:hover,.photo-zone.drag-over{border-color:var(--att-navy);background:#f8fafc}
+.photo-preview{
+  width:80px;height:80px;border-radius:10px;object-fit:cover;
+  border:2px solid #e2e8f0;display:none;margin:0 auto 8px;
+}
+
+/* ── Rejection detail box ── */
+.rejection-box{
+  background:#fff5f5;border:1px solid #fecaca;border-left:4px solid var(--att-red);
+  border-radius:0 12px 12px 0;padding:16px 20px;
+  display:none;margin-top:14px;
+}
+.rejection-box .rj-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;font-size:.84rem;border-bottom:1px solid #fee2e2;
+}
+.rejection-box .rj-row:last-child{border-bottom:none}
+
+/* ── Toast ── */
+.att-toast-wrap{position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+.att-toast{
+  min-width:300px;max-width:400px;background:#fff;border-radius:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.14);padding:14px 18px;
+  display:flex;align-items:flex-start;gap:12px;
+  border-left:4px solid var(--att-green);
+  animation:attSlide .25s ease;
+}
+.att-toast.error{border-left-color:var(--att-red)}
+.att-toast.warn{border-left-color:var(--att-amber)}
+.att-toast-body{flex:1;font-size:.865rem;color:#0f1729;line-height:1.5}
+.att-toast-close{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.9rem;padding:0}
+@keyframes attSlide{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── History table ── */
+.att-table-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:hidden}
+
+@media(max-width:575px){
+  .att-tiles{grid-template-columns:1fr 1fr}
+  .att-banner{padding:22px 20px}
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Attendance',None)] %}{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+
+<!-- Toast container -->
+<div class="att-toast-wrap" id="att-toasts"></div>
+
+<!-- ── STATUS BANNER ── -->
+<div class="att-banner">
+  <div class="att-date" id="att-date"></div>
+  <div class="att-clock" id="att-clock">--:--:--</div>
+  <div class="att-tz">Local Time</div>
+
+  <div class="d-flex flex-wrap gap-2">
+    {% if status.attendance and status.attendance.check_in_time %}
+      <div class="att-pill">
+        <div class="att-dot {% if status.attendance.check_out_time %}off{% endif %}"></div>
+        {% if status.attendance.check_out_time %}
+          Signed Out — <span class="utc-to-ist">{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span> IST
+        {% else %}
+          Signed In — <span class="utc-to-ist">{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span> IST
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="att-pill"><div class="att-dot off"></div> Not Checked In</div>
+    {% endif %}
+    {% if status.attendance and status.attendance.is_late %}
+    <div class="att-pill" style="background:rgba(245,158,11,.2)">
+      <i class="bi bi-clock-history"></i>
+      Late {{ status.attendance.late_minutes }} min
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="att-tiles">
+    <div class="att-tile">
+      <div class="att-tile-label">Check In (IST)</div>
+      <div class="att-tile-value">
+        {% if status.attendance and status.attendance.check_in_time %}
+          <span class="utc-to-ist">{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="att-tile">
+      <div class="att-tile-label">Check Out (IST)</div>
+      <div class="att-tile-value">
+        {% if status.attendance and status.attendance.check_out_time %}
+          <span class="utc-to-ist">{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+        {% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="att-tile">
+      <div class="att-tile-label">Worked</div>
+      <div class="att-tile-value">
+        {{ status.attendance.working_hours_display if status.attendance else '—' }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="row g-4 mb-4">
+
+  <!-- GPS + Map -->
+  <div class="col-lg-7">
+    <div class="gps-card">
+      <div class="gps-card-header">
+        <h6 class="gps-card-title"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>GPS Verification</h6>
+        <span class="text-muted small" id="gps-accuracy-label"></span>
+      </div>
+
+      <div class="gps-status-bar">
+        <div class="gps-indicator acquiring" id="gps-dot"></div>
+        <span id="gps-text">Requesting GPS — if prompted, click <strong>Allow</strong> in the browser.</span>
+        <span class="ms-auto" id="gps-dist-badge"></span>
+      </div>
+
+      <div id="att-map"></div>
+
+      <div class="gps-coords" id="gps-coords">
+        Your location: <span id="gps-latlon"></span>
+        &bull; Distance from office: <span id="gps-dist-text" class="fw-semibold"></span>
+      </div>
+
+      <!-- Rejection detail box -->
+      <div class="rejection-box px-4 py-3 mx-3 mb-3" id="rejection-box" style="display:none">
+        <div class="fw-semibold text-danger small mb-2"><i class="bi bi-x-circle me-1"></i>Outside Permitted Area</div>
+        <div class="rj-row">
+          <span class="text-muted">Your Distance</span>
+          <span class="fw-bold text-danger" id="rj-emp-dist">—</span>
+        </div>
+        <div class="rj-row">
+          <span class="text-muted">Allowed Radius</span>
+          <span class="fw-bold text-success" id="rj-allowed">—</span>
+        </div>
+        <div class="rj-row">
+          <span class="text-muted">You need to move</span>
+          <span class="fw-bold text-warning" id="rj-move-by">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="col-lg-5">
+    <div class="att-action-card">
+      <h6 class="fw-semibold mb-3 small text-uppercase text-muted">Mark Attendance</h6>
+
+      <!-- ── Photo upload — always visible, above buttons ── -->
+      <div style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="small fw-semibold text-muted">
+            <i class="bi bi-camera2 me-1 text-primary"></i>Proof Photo
+          </div>
+          {% if status.has_photo %}
+          <span class="badge bg-success-subtle text-success small">
+            <i class="bi bi-check-circle me-1"></i>Uploaded
+          </span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
+          {% endif %}
+        </div>
+
+        {% if status.has_photo %}
+        <div class="text-center py-3 text-muted small">
+          <i class="bi bi-check-circle-fill text-success fs-4 d-block mb-1"></i>
+          Proof photo already uploaded for today.
+        </div>
+        {% else %}
+        <div class="photo-zone" id="photo-zone">
+          <img id="photo-preview-img" class="photo-preview" alt="Proof photo" style="display:none">
+          <i class="bi bi-camera fs-3 text-muted d-block mb-1"></i>
+          <div class="small fw-medium text-muted">Click or drag photo here</div>
+          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB · Optional</div>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp"
+                 style="display:none">
+        </div>
+        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo"
+                style="display:none">
+          <span class="att-spinner" id="photo-spin" style="border-top-color:var(--att-navy)"></span>
+          <i class="bi bi-upload me-1"></i> <span id="photo-txt">Upload Photo</span>
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- ── Check In / Check Out buttons ── -->
+      <div class="d-grid gap-3">
+        <button class="btn-checkin" id="btn-checkin"
+                {% if not status.can_check_in %}disabled{% endif %}>
+          <div class="att-spinner" id="ci-spin"></div>
+          <i class="bi bi-box-arrow-in-right" id="ci-icon"></i>
+          <span id="ci-text">
+            {% if status.attendance and status.attendance.check_in_time %}Already Checked In{% else %}Check In{% endif %}
+          </span>
+        </button>
+
+        <button class="btn-checkout" id="btn-checkout"
+                {% if not status.can_check_out %}disabled{% endif %}>
+          <div class="att-spinner" id="co-spin"></div>
+          <i class="bi bi-box-arrow-right" id="co-icon"></i>
+          <span id="co-text">
+            {% if not status.attendance or not status.attendance.check_in_time %}Check In First
+            {% elif status.attendance.check_out_time %}Already Checked Out
+            {% else %}Check Out{% endif %}
+          </span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── ATTENDANCE HISTORY ── -->
+<div class="att-table-card">
+  <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom">
+    <h6 class="fw-semibold mb-0">Attendance History</h6>
+    <a href="{{ url_for('attendance.history') }}" class="small text-primary">View All</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Date</th>
+          <th>Check In</th>
+          <th>Check Out</th>
+          <th>Hours</th>
+          <th>Status</th>
+          <th>Late</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary','work_from_home':'primary'} %}
+      {% for att in history.items %}
+      <tr>
+        <td class="ps-4 fw-medium">
+          {{ att.date.strftime('%d %b %Y') }}
+          <div class="text-muted" style="font-size:.72rem">{{ att.date.strftime('%A') }}</div>
+        </td>
+        <td><span class="utc-to-ist">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_in_time else '' }}</span>{% if not att.check_in_time %}—{% endif %}</td>
+        <td><span class="utc-to-ist">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_out_time else '' }}</span>{% if not att.check_out_time %}—{% endif %}</td>
+        <td class="fw-semibold">{{ att.working_hours_display }}</td>
+        <td>
+          <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
+            {{ att.status.replace('_',' ').title() }}
+          </span>
+        </td>
+        <td class="{% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+          {{ (att.late_minutes|string + ' min') if att.is_late else '—' }}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center py-5 text-muted">No attendance records yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Office data for JS -->
+<script id="office-data" type="application/json">
+{
+  "lat":    {{ office.latitude    if office else 18.520430 }},
+  "lon":    {{ office.longitude   if office else 73.856743 }},
+  "radius": {{ office.radius_metres if office else 100 }},
+  "name":   {{ (office.name | tojson) if office else '"Head Office"' }}
+}
+</script>
+<script>
+  const CSRF_TOKEN   = "{{ csrf_token() }}";
+  const CAN_CHECKIN  = {{ 'true' if status.can_check_in  else 'false' }};
+  const CAN_CHECKOUT = {{ 'true' if status.can_check_out else 'false' }};
+  const CAN_PHOTO    = {{ 'true' if status.can_upload_photo else 'false' }};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+{% endblock %}

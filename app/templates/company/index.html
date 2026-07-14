@@ -1,0 +1,101 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Company — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Company',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Company Overview</h1>
+    <p class="text-muted small mb-0">{{ profile.name }}</p>
+  </div>
+  <a href="{{ url_for('company.profile') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-pencil me-1"></i>Edit Profile
+  </a>
+</div>
+
+<div class="row g-4">
+  <!-- Profile card -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="rounded-3 bg-primary bg-opacity-10 p-3">
+            <i class="bi bi-building text-primary fs-2"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-0">{{ profile.name }}</h5>
+            <div class="text-muted small">{{ profile.industry or 'No industry set' }}</div>
+          </div>
+        </div>
+        {% macro pr(l,v) %}
+        <div class="d-flex justify-content-between py-2 border-bottom border-light" style="font-size:.85rem">
+          <span class="text-muted">{{ l }}</span>
+          <span class="fw-medium">{{ v or '—' }}</span>
+        </div>
+        {% endmacro %}
+        {{ pr('Email', profile.email) }}
+        {{ pr('Phone', profile.phone) }}
+        {{ pr('Website', profile.website) }}
+        {{ pr('City', profile.city) }}
+        {{ pr('Country', profile.country) }}
+        {{ pr('Currency', profile.currency ~ ' ' ~ profile.currency_symbol) }}
+        {{ pr('Timezone', profile.timezone) }}
+        {% if profile.gstin %}{{ pr('GSTIN', profile.gstin) }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="col-lg-8">
+    <div class="row g-3">
+      {% set modules = [
+        ('Departments', 'company.departments', 'bi-diagram-3', 'primary', dept_stats|length),
+        ('Positions',   'company.positions',   'bi-person-badge', 'success', ''),
+        ('Shifts',      'company.shifts',      'bi-clock', 'warning', ''),
+        ('Locations',   'company.locations',   'bi-geo-alt', 'info', ''),
+      ] %}
+      {% for label, ep, icon, color, count in modules %}
+      <div class="col-sm-6">
+        <a href="{{ url_for(ep) }}" class="card border-0 shadow-sm text-decoration-none h-100">
+          <div class="card-body p-4 d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-{{ color }} bg-opacity-10 p-3">
+              <i class="bi {{ icon }} text-{{ color }} fs-3"></i>
+            </div>
+            <div>
+              <div class="fw-semibold">{{ label }}</div>
+              {% if count != '' %}<div class="text-muted small">{{ count }} configured</div>{% endif %}
+            </div>
+            <i class="bi bi-chevron-right ms-auto text-muted"></i>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if dept_stats %}
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-transparent border-0 py-3 px-4">
+        <h6 class="fw-semibold mb-0">Department Distribution</h6>
+      </div>
+      <div class="card-body px-4 pb-4">
+        {% for d in dept_stats %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="small fw-medium d-flex align-items-center gap-2">
+              <span style="width:10px;height:10px;border-radius:50%;background:{{ d.color }};display:inline-block"></span>
+              {{ d.name }}
+            </span>
+            <span class="small text-muted">{{ d.count }} employees</span>
+          </div>
+          <div class="progress" style="height:6px;border-radius:10px">
+            <div class="progress-bar" style="width:{{ [d.count * 10, 100]|min }}%;background:{{ d.color }};border-radius:10px"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

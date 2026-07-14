@@ -1,0 +1,94 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Attendance Report — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Reports',url_for('reports.index')),('Attendance Report',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Attendance Report</h1>
+    <p class="text-muted small mb-0">{{ start.strftime('%d %b %Y') }} – {{ end.strftime('%d %b %Y') }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.export', report_type='attendance', fmt='xlsx', start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('reports.export', report_type='attendance', fmt='csv',  start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-text me-1"></i>CSV</a>
+    <a href="{{ url_for('reports.export', report_type='attendance', fmt='pdf',  start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3 px-4">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small fw-medium mb-1">Start Date</label>
+        <input type="date" name="start" class="form-control form-control-sm" value="{{ start.isoformat() }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-medium mb-1">End Date</label>
+        <input type="date" name="end" class="form-control form-control-sm" value="{{ end.isoformat() }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-medium mb-1">Department</label>
+        <select name="dept" class="form-select form-select-sm">
+          <option value="">All Departments</option>
+          {% for d in departments %}<option value="{{ d }}" {% if d==department %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary btn-sm w-100">Apply Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.86rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Employee</th><th>Department</th>
+          <th class="text-center text-success">Present</th>
+          <th class="text-center text-danger">Absent</th>
+          <th class="text-center text-warning">Half Day</th>
+          <th class="text-center text-info">On Leave</th>
+          <th class="text-center text-warning">Late Days</th>
+          <th class="text-center">Total Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in data %}
+      <tr>
+        <td class="ps-4">
+          <div class="fw-semibold">{{ r.user.full_name }}</div>
+          <div class="text-muted" style="font-size:.75rem">{{ r.employee.employee_code }}</div>
+        </td>
+        <td class="small">{{ r.employee.department or '—' }}</td>
+        <td class="text-center fw-semibold text-success">{{ r.present }}</td>
+        <td class="text-center fw-semibold text-danger">{{ r.absent }}</td>
+        <td class="text-center fw-semibold text-warning">{{ r.half_day }}</td>
+        <td class="text-center text-info">{{ r.on_leave }}</td>
+        <td class="text-center {% if r.late_days > 0 %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ r.late_days }}</td>
+        <td class="text-center fw-semibold">{{ r.total_hours }}h</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center py-5 text-muted">No data for selected period.</td></tr>
+      {% endfor %}
+      </tbody>
+      {% if data %}
+      <tfoot class="table-light fw-semibold">
+        <tr>
+          <td class="ps-4 fw-bold" colspan="2">Total</td>
+          <td class="text-center text-success">{{ data|sum(attribute='present') }}</td>
+          <td class="text-center text-danger">{{ data|sum(attribute='absent') }}</td>
+          <td class="text-center text-warning">{{ data|sum(attribute='half_day') }}</td>
+          <td class="text-center text-info">{{ data|sum(attribute='on_leave') }}</td>
+          <td class="text-center text-warning">{{ data|sum(attribute='late_days') }}</td>
+          <td class="text-center">{{ data|sum(attribute='total_hours') }}h</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

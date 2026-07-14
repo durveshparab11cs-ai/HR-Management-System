@@ -1,0 +1,37 @@
+/* settings.css — Settings and profile pages */
+
+.hrms-settings-nav .nav-link {
+    color: var(--hrms-text-secondary);
+    font-size: var(--hrms-font-size-sm);
+    font-weight: var(--hrms-font-weight-medium);
+    padding: .5rem 1rem;
+    border-radius: var(--hrms-border-radius-md);
+    transition: background var(--hrms-transition-fast), color var(--hrms-transition-fast);
+}
+
+.hrms-settings-nav .nav-link:hover { background: var(--hrms-gray-100); color: var(--hrms-text-primary); }
+.hrms-settings-nav .nav-link.active { background: var(--hrms-primary); color: var(--hrms-white); }
+
+.hrms-settings-section { margin-bottom: var(--hrms-space-8); }
+.hrms-settings-section-title {
+    font-size: var(--hrms-font-size-lg);
+    font-weight: var(--hrms-font-weight-semibold);
+    margin-bottom: var(--hrms-space-1);
+}
+
+.hrms-settings-section-desc {
+    font-size: var(--hrms-font-size-sm);
+    color: var(--hrms-text-muted);
+    margin-bottom: var(--hrms-space-4);
+}
+
+.hrms-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--hrms-space-4);
+    padding: var(--hrms-space-4) 0;
+    border-bottom: 1px solid var(--hrms-gray-100);
+}
+
+.hrms-setting-row:last-child { border-bottom: none; }

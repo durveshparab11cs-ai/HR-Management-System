@@ -1,0 +1,107 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Employees — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Employees',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">Employee Directory</h1>
+        <p class="text-muted small mb-0">{{ pagination.total }} employee{{ 's' if pagination.total != 1 else '' }}</p>
+    </div>
+    <a href="{{ url_for('employees.create') }}" class="btn btn-primary d-flex align-items-center gap-2">
+        <i class="bi bi-person-plus-fill"></i> Add Employee
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Search name, email, code…" value="{{ search }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="dept" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}<option value="{{ d }}" {% if d==department %}selected{% endif %}>{{ d }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="branch" class="form-select form-select-sm">
+                    <option value="">All Branches</option>
+                    {% for b in branches %}<option value="{{ b }}" {% if b==branch %}selected{% endif %}>{{ b }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
+                <a href="{{ url_for('employees.index') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4" style="width:40px">#</th>
+                    <th>Employee</th>
+                    <th>Code</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for emp in employees %}
+            <tr>
+                <td class="ps-4 text-muted small">{{ loop.index + (pagination.page-1)*25 }}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-3">
+                        {% if emp.profile_photo %}
+                            <img src="{{ url_for('static', filename='uploads/'+emp.profile_photo) }}" class="rounded-circle" width="38" height="38" style="object-fit:cover">
+                        {% else %}
+                            <div class="hrms-avatar-initials rounded-circle" style="width:38px;height:38px;font-size:.85rem">{{ emp.user.first_name[0]|upper }}{{ emp.user.last_name[0]|upper }}</div>
+                        {% endif %}
+                        <div>
+                            <div class="fw-semibold small">{{ emp.full_name }}</div>
+                            <div class="text-muted" style="font-size:.78rem">{{ emp.email }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><code class="small">{{ emp.employee_code }}</code></td>
+                <td class="small">{{ emp.department or '—' }}</td>
+                <td class="small">{{ emp.designation or '—' }}</td>
+                <td><span class="badge bg-primary bg-opacity-10 text-primary small">{{ emp.user.display_role }}</span></td>
+                <td>
+                    {% set sc={'active':'success','inactive':'secondary','suspended':'danger','pending_verification':'warning','locked':'warning'} %}
+                    <span class="badge bg-{{ sc.get(emp.user.status,'secondary') }}-subtle text-{{ sc.get(emp.user.status,'secondary') }} small">
+                        {{ emp.user.status.replace('_',' ').title() }}
+                    </span>
+                </td>
+                <td class="text-end pe-4">
+                    <a href="{{ url_for('employees.detail', employee_id=emp.id) }}" class="btn btn-sm btn-outline-primary me-1" title="View"><i class="bi bi-eye"></i></a>
+                    <a href="{{ url_for('employees.edit', employee_id=emp.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center py-5 text-muted">No employees found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-transparent">
+        {% set url_params = {'q': search, 'dept': department, 'branch': branch} %}
+        {% include 'shared/pagination.html' %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

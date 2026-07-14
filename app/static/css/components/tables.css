@@ -1,0 +1,79 @@
+/* tables.css — Data table styles */
+
+.hrms-table-wrapper {
+    background: var(--hrms-bg-card);
+    border-radius: var(--hrms-border-radius-lg);
+    box-shadow: var(--hrms-shadow-sm);
+    overflow: hidden;
+}
+
+.hrms-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--hrms-space-3);
+    padding: var(--hrms-space-4);
+    border-bottom: var(--hrms-border);
+}
+
+.table.hrms-table {
+    margin-bottom: 0;
+    font-size: var(--hrms-font-size-sm);
+}
+
+.table.hrms-table thead th {
+    background: var(--hrms-gray-50);
+    color: var(--hrms-text-secondary);
+    font-size: var(--hrms-font-size-xs);
+    font-weight: var(--hrms-font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-bottom: var(--hrms-border);
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    white-space: nowrap;
+}
+
+.table.hrms-table tbody td {
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--hrms-gray-100);
+    color: var(--hrms-text-primary);
+}
+
+.table.hrms-table tbody tr:last-child td { border-bottom: none; }
+
+.table.hrms-table tbody tr {
+    transition: background var(--hrms-transition-fast);
+}
+
+.table.hrms-table tbody tr:hover {
+    background: var(--hrms-gray-50);
+}
+
+/* Sortable column header */
+.hrms-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.hrms-table th.sortable:hover { color: var(--hrms-primary); }
+
+.hrms-sort-icon {
+    opacity: .4;
+    font-size: .75rem;
+    margin-left: .25rem;
+}
+
+.hrms-table th.sort-asc  .hrms-sort-icon,
+.hrms-table th.sort-desc .hrms-sort-icon { opacity: 1; color: var(--hrms-primary); }
+
+/* Actions cell */
+.hrms-table-actions { white-space: nowrap; }
+
+.hrms-table-action-btn {
+    padding: .2rem .45rem;
+    font-size: var(--hrms-font-size-sm);
+    line-height: 1;
+    border-radius: var(--hrms-border-radius);
+}

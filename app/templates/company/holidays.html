@@ -1,0 +1,15 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Holidays — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Company',url_for('company.index')),('Holidays',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h4 fw-bold mb-0">Holiday Calendar</h1>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-calendar-heart" style="font-size:3rem;opacity:.3"></i>
+    <p class="mt-3 mb-0">Holiday calendar coming in the next release.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,276 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Attendance Settings — {{ app_name }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+.settings-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.settings-card-header{padding:22px 28px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px}
+.settings-card-icon{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.settings-card-icon i{color:#3b82f6;font-size:1.2rem}
+.settings-card-body{padding:24px 28px 28px}
+.settings-section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.settings-section-label::after{content:'';flex:1;border-top:1px solid #f1f5f9}
+.f-label{display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:5px}
+.f-control{
+  width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;
+  font-size:.88rem;font-family:inherit;color:#0f1729;background:#fff;
+  outline:none;transition:border-color .18s,box-shadow .18s;
+}
+.f-control:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.f-control.is-invalid{border-color:#ef4444}
+.f-switch{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;cursor:pointer}
+.f-switch input[type="checkbox"]{width:42px;height:24px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0;margin-top:2px}
+.f-switch-label{font-size:.88rem;font-weight:600;color:#0f1729;margin-bottom:1px}
+.f-switch-desc{font-size:.78rem;color:#64748b}
+#settings-map{height:240px;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.coord-info{background:#f8fafc;border:1px solid #e8edf2;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#475569;margin-top:10px}
+.coord-info strong{color:#0f1729}
+.btn-save{
+  padding:12px 36px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  color:#fff;font-size:.9rem;font-weight:700;font-family:inherit;cursor:pointer;
+  box-shadow:0 4px 16px rgba(59,130,246,.35);transition:all .15s;
+}
+.btn-save:hover{transform:translateY(-1px);box-shadow:0 7px 24px rgba(59,130,246,.45)}
+.current-stat{padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;font-size:.83rem}
+.current-stat:last-child{border-bottom:none}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Admin',url_for('admin.index')),('Attendance Settings',None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Attendance Settings</h1>
+    <p class="text-muted small mb-0">Configure GPS geofence, office hours, and attendance policy.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+
+<!-- LEFT: Settings form -->
+<div class="col-lg-7">
+<div class="settings-card">
+  <div class="settings-card-header">
+    <div class="settings-card-icon"><i class="bi bi-gear-fill"></i></div>
+    <div>
+      <div class="fw-bold" style="font-size:.95rem">Office Configuration</div>
+      <div class="text-muted small">Changes take effect immediately for all attendance checks.</div>
+    </div>
+  </div>
+  <div class="settings-card-body">
+  <form method="POST" id="settings-form" novalidate>
+    {{ form.hidden_tag() }}
+
+    <!-- Identity -->
+    <div class="settings-section-label">Office Identity</div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-7">
+        <label class="f-label">{{ form.name.label.text }}</label>
+        {{ form.name(class="f-control" + (" is-invalid" if form.name.errors else "")) }}
+        {% for e in form.name.errors %}<div style="font-size:.75rem;color:#ef4444;margin-top:4px">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-5">
+        <label class="f-label">Address</label>
+        {{ form.address(class="f-control", rows=2, style="resize:none") }}
+      </div>
+    </div>
+
+    <!-- GPS Geofence -->
+    <div class="settings-section-label">GPS Geofence</div>
+    <div class="alert alert-info d-flex gap-2 align-items-start py-2 mb-3 small">
+      <i class="bi bi-map flex-shrink-0 mt-1"></i>
+      Click on the map to set office location, or enter coordinates manually.
+    </div>
+    <div id="settings-map" class="mb-3"></div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <label class="f-label">Latitude</label>
+        {{ form.latitude(class="f-control" + (" is-invalid" if form.latitude.errors else ""), id="lat-input", step="0.000001") }}
+        {% for e in form.latitude.errors %}<div style="font-size:.75rem;color:#ef4444;margin-top:4px">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">Longitude</label>
+        {{ form.longitude(class="f-control" + (" is-invalid" if form.longitude.errors else ""), id="lon-input", step="0.000001") }}
+        {% for e in form.longitude.errors %}<div style="font-size:.75rem;color:#ef4444;margin-top:4px">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">Radius (metres)</label>
+        {{ form.radius_metres(class="f-control" + (" is-invalid" if form.radius_metres.errors else ""), id="radius-input") }}
+        {% for e in form.radius_metres.errors %}<div style="font-size:.75rem;color:#ef4444;margin-top:4px">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <!-- Office Hours -->
+    <div class="settings-section-label">Office Hours</div>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <label class="f-label">Start Time</label>
+        {{ form.office_start_time(class="f-control") }}
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">End Time</label>
+        {{ form.office_end_time(class="f-control") }}
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">Grace Period (min)</label>
+        {{ form.grace_period_minutes(class="f-control") }}
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">Half-Day Threshold (min)</label>
+        {{ form.half_day_threshold_minutes(class="f-control") }}
+        <div style="font-size:.72rem;color:#94a3b8;margin-top:3px">Work below this = half day</div>
+      </div>
+      <div class="col-md-4">
+        <label class="f-label">Overtime Threshold (min)</label>
+        {{ form.overtime_threshold_minutes(class="f-control") }}
+      </div>
+    </div>
+
+    <!-- Policy -->
+    <div class="settings-section-label">Attendance Policy</div>
+    <div class="d-flex flex-column gap-2 mb-4">
+      <label class="f-switch">
+        {{ form.allow_remote_checkin(class="form-check-input") }}
+        <div>
+          <div class="f-switch-label">Allow remote check-in</div>
+          <div class="f-switch-desc">Bypass GPS radius validation — employees can check in from anywhere.</div>
+        </div>
+      </label>
+      <label class="f-switch">
+        {{ form.selfie_required(class="form-check-input") }}
+        <div>
+          <div class="f-switch-label">Require proof photo</div>
+          <div class="f-switch-desc">Employee must upload a photo after GPS verification.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="d-flex gap-3 justify-content-end">
+      <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" class="btn-save">
+        <i class="bi bi-check2 me-2"></i>Save Settings
+      </button>
+    </div>
+  </form>
+  </div>
+</div>
+</div>
+
+<!-- RIGHT: Current config summary -->
+<div class="col-lg-5">
+  <div class="settings-card mb-4">
+    <div class="settings-card-header">
+      <div class="settings-card-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
+        <i class="bi bi-info-circle-fill" style="color:#16a34a"></i>
+      </div>
+      <div><div class="fw-bold" style="font-size:.95rem">Current Configuration</div></div>
+    </div>
+    <div class="settings-card-body py-2">
+      {% macro cs(l,v) %}
+      <div class="current-stat">
+        <span class="text-muted">{{ l }}</span>
+        <span class="fw-semibold">{{ v or '—' }}</span>
+      </div>
+      {% endmacro %}
+      {{ cs('Office Name', office.name) }}
+      {{ cs('Latitude', office.latitude) }}
+      {{ cs('Longitude', office.longitude) }}
+      {{ cs('Geofence Radius', office.radius_metres|string + 'm') }}
+      {{ cs('Start Time', office.office_start_time.strftime('%H:%M') if office.office_start_time else None) }}
+      {{ cs('End Time', office.office_end_time.strftime('%H:%M') if office.office_end_time else None) }}
+      {{ cs('Grace Period', office.grace_period_minutes|string + ' min') }}
+      {{ cs('Half-Day Threshold', office.half_day_threshold_minutes|string + ' min') }}
+      {{ cs('Remote Check-In', 'Allowed' if office.allow_remote_checkin else 'Not Allowed') }}
+      {{ cs('Selfie Required', 'Yes' if office.selfie_required else 'No') }}
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <div class="settings-card-icon" style="background:linear-gradient(135deg,#fefce8,#fef9c3)">
+        <i class="bi bi-lightbulb-fill" style="color:#ca8a04"></i>
+      </div>
+      <div><div class="fw-bold" style="font-size:.95rem">How It Works</div></div>
+    </div>
+    <div class="settings-card-body">
+      <ul class="small text-muted mb-0 ps-3" style="line-height:2">
+        <li>Employees must be within <strong>{{ office.radius_metres }}m</strong> of the office to check in or out.</li>
+        <li>Check-ins after <strong>{{ office.office_start_time.strftime('%H:%M') if office.office_start_time else '09:00' }}</strong> + grace period are marked <strong>Late</strong>.</li>
+        <li>Working less than <strong>{{ office.half_day_threshold_minutes }}min</strong> is auto-classified as <strong>Half Day</strong>.</li>
+        <li>GPS coordinates are verified using the <strong>Haversine formula</strong>.</li>
+        <li>All GPS attempts are logged regardless of result.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  const latIn  = document.getElementById('lat-input');
+  const lonIn  = document.getElementById('lon-input');
+  const radIn  = document.getElementById('radius-input');
+  const lat0   = parseFloat(latIn?.value) || 18.52043;
+  const lon0   = parseFloat(lonIn?.value) || 73.856743;
+  const rad0   = parseInt(radIn?.value)   || 100;
+
+  const map = L.map('settings-map').setView([lat0, lon0], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  const icon = L.divIcon({
+    html: '<div style="background:#1a3c6e;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',
+    className: '', iconAnchor: [8, 8],
+  });
+
+  let marker = L.marker([lat0, lon0], { icon, draggable: true }).addTo(map);
+  let circle = L.circle([lat0, lon0], {
+    radius: rad0, color: '#1a3c6e', fillOpacity: .08, weight: 2, dashArray: '6 4',
+  }).addTo(map);
+
+  function updateFromLatLon(lat, lon) {
+    if (latIn) latIn.value = lat.toFixed(7);
+    if (lonIn) lonIn.value = lon.toFixed(7);
+    circle.setLatLng([lat, lon]);
+    map.panTo([lat, lon]);
+  }
+
+  marker.on('dragend', e => {
+    const p = e.target.getLatLng();
+    updateFromLatLon(p.lat, p.lng);
+  });
+
+  map.on('click', e => {
+    marker.setLatLng(e.latlng);
+    updateFromLatLon(e.latlng.lat, e.latlng.lng);
+  });
+
+  radIn?.addEventListener('input', () => {
+    const r = parseInt(radIn.value) || 100;
+    circle.setRadius(r);
+  });
+
+  // Sync lat/lon inputs → map
+  [latIn, lonIn].forEach(inp => {
+    inp?.addEventListener('change', () => {
+      const lat = parseFloat(latIn.value);
+      const lon = parseFloat(lonIn.value);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        marker.setLatLng([lat, lon]);
+        circle.setLatLng([lat, lon]);
+        map.panTo([lat, lon]);
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

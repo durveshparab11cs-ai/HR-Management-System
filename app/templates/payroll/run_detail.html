@@ -1,0 +1,84 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Payroll — {{ run.period_label }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Payroll',url_for('payroll.index')),(run.period_label,None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+{% set sc={'draft':'secondary','processing':'info','processed':'primary','approved':'success','paid':'success','cancelled':'danger'} %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">{{ run.period_label }}
+      <span class="badge bg-{{ sc.get(run.status,'secondary') }}-subtle text-{{ sc.get(run.status,'secondary') }} ms-2 fs-6">{{ run.status.title() }}</span>
+    </h1>
+    <p class="text-muted small mb-0">{{ run.employee_count }} employees &bull; Created {{ run.created_at.strftime('%d %b %Y') if run.created_at else '' }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if run.status == 'draft' %}
+    <form method="POST" action="{{ url_for('payroll.process_run', run_id=run.id) }}">
+      {{ csrf_token_field() }}
+      <button class="btn btn-primary btn-sm"><i class="bi bi-play-circle me-1"></i>Process Payroll</button>
+    </form>
+    {% elif run.status == 'processed' %}
+    <form method="POST" action="{{ url_for('payroll.approve_run', run_id=run.id) }}">
+      {{ csrf_token_field() }}
+      <button class="btn btn-success btn-sm"><i class="bi bi-check-circle me-1"></i>Approve</button>
+    </form>
+    {% elif run.status == 'approved' %}
+    <form method="POST" action="{{ url_for('payroll.mark_paid', run_id=run.id) }}">
+      {{ csrf_token_field() }}
+      <button class="btn btn-primary btn-sm"><i class="bi bi-bank me-1"></i>Mark as Paid</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row g-3 mb-4">
+  {% set cards = [
+    ('Gross Salary','₹{:,.0f}'.format(run.total_gross),'bi-cash','primary'),
+    ('Total Deductions','₹{:,.0f}'.format(run.total_deductions),'bi-dash-circle','danger'),
+    ('Net Payable','₹{:,.0f}'.format(run.total_net),'bi-wallet2','success'),
+    ('Employees',run.employee_count,'bi-people','info'),
+  ] %}
+  {% for label, val, icon, color in cards %}
+  <div class="col-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4 d-flex align-items-center gap-3">
+        <div class="rounded-3 p-3 bg-{{ color }} bg-opacity-10"><i class="bi {{ icon }} text-{{ color }} fs-4"></i></div>
+        <div><div class="text-muted small">{{ label }}</div><div class="fw-bold h5 mb-0">{{ val }}</div></div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Payslips table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Payslips ({{ payslips|length }})</h6></div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr><th class="ps-4">Employee</th><th>Days</th><th>Basic</th><th>Gross</th><th>Deductions</th><th>Net</th><th class="pe-4">Action</th></tr>
+      </thead>
+      <tbody>
+      {% for slip in payslips %}
+      <tr>
+        <td class="ps-4">
+          <div class="fw-semibold">{{ slip.employee.full_name }}</div>
+          <div class="text-muted" style="font-size:.75rem">{{ slip.employee.employee_code }}</div>
+        </td>
+        <td class="small">{{ slip.days_present }} / {{ slip.working_days }}</td>
+        <td class="small">₹{{ '{:,.0f}'.format(slip.basic_salary) }}</td>
+        <td class="small">₹{{ '{:,.0f}'.format(slip.gross_salary) }}</td>
+        <td class="small text-danger">₹{{ '{:,.0f}'.format(slip.total_deductions) }}</td>
+        <td class="small fw-semibold">₹{{ '{:,.0f}'.format(slip.net_salary) }}</td>
+        <td class="pe-4"><a href="{{ url_for('payroll.payslip_detail', payslip_id=slip.id) }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:3px 9px">View</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center py-4 text-muted">No payslips yet. Click "Process Payroll".</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Admin Dashboard — {{ app_name }}{% endblock %}
+{% block extra_css %}
+<style>
+.stat-card { border-radius:16px; padding:28px 24px; color:#fff; position:relative; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+.stat-card::after { content:''; position:absolute; bottom:-30px; right:-30px; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,.08); }
+.stat-card .stat-val { font-size:2.4rem; font-weight:800; line-height:1; }
+.stat-card .stat-lbl { font-size:.8rem; opacity:.8; text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+.stat-card .stat-icon { position:absolute; top:20px; right:24px; font-size:2rem; opacity:.25; }
+.sc-blue   { background:linear-gradient(135deg,#1a3c6e,#2a5298); }
+.sc-green  { background:linear-gradient(135deg,#059669,#10b981); }
+.sc-orange { background:linear-gradient(135deg,#d97706,#f59e0b); }
+.sc-red    { background:linear-gradient(135deg,#dc2626,#ef4444); }
+.sc-purple { background:linear-gradient(135deg,#7c3aed,#a78bfa); }
+.sc-teal   { background:linear-gradient(135deg,#0891b2,#06b6d4); }
+.sc-pink   { background:linear-gradient(135deg,#db2777,#ec4899); }
+.sc-slate  { background:linear-gradient(135deg,#475569,#64748b); }
+</style>
+{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin Dashboard',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">Admin Dashboard</h1>
+        <p class="text-muted small mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.office_settings') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-gear me-1"></i>Office Settings
+        </a>
+        <a href="{{ url_for('employees.create') }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-person-plus me-1"></i>Add Employee
+        </a>
+    </div>
+</div>
+
+<!-- ── Stat Cards Row 1: Attendance ── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-blue">
+            <i class="bi bi-people stat-icon"></i>
+            <div class="stat-val">{{ total_employees }}</div>
+            <div class="stat-lbl">Total Employees</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-green">
+            <i class="bi bi-box-arrow-in-right stat-icon"></i>
+            <div class="stat-val">{{ checked_in_today }}</div>
+            <div class="stat-lbl">Checked In</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-teal">
+            <i class="bi bi-box-arrow-right stat-icon"></i>
+            <div class="stat-val">{{ checked_out_today }}</div>
+            <div class="stat-lbl">Checked Out</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-red">
+            <i class="bi bi-person-x stat-icon"></i>
+            <div class="stat-val">{{ absent_today }}</div>
+            <div class="stat-lbl">Absent</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-orange">
+            <i class="bi bi-clock-history stat-icon"></i>
+            <div class="stat-val">{{ late_today }}</div>
+            <div class="stat-lbl">Late Arrivals</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-4 col-lg-2">
+        <div class="stat-card sc-purple">
+            <i class="bi bi-hourglass-split stat-icon"></i>
+            <div class="stat-val">{{ pending_leaves + pending_halfdays + pending_early }}</div>
+            <div class="stat-lbl">Pending Approvals</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+
+<!-- ── Today's Attendance ── -->
+<div class="col-lg-7">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+        <h6 class="fw-semibold mb-0">Today's Attendance</h6>
+        <a href="{{ url_for('attendance.index') }}" class="small text-primary">View All</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" style="font-size:.85rem">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Employee</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Hours</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary'} %}
+            {% for att in today_records[:15] %}
+            <tr>
+                <td class="ps-4 fw-medium">{{ att.employee.full_name }}</td>
+                <td>{{ att.check_in_time.strftime('%H:%M') if att.check_in_time else '—' }}</td>
+                <td>{{ att.check_out_time.strftime('%H:%M') if att.check_out_time else '—' }}</td>
+                <td class="fw-semibold">{{ att.working_hours_display }}</td>
+                <td>
+                    <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
+                        {{ att.status.replace('_',' ').title() }}
+                    </span>
+                    {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late</span>{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-5 text-muted">No attendance records yet today.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ── Right Panel ── -->
+<div class="col-lg-5">
+
+    <!-- Pending Leave Requests -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+            <h6 class="fw-semibold mb-0">
+                Pending Leave Requests
+                {% if pending_leaves %}<span class="badge bg-danger ms-2">{{ pending_leaves }}</span>{% endif %}
+            </h6>
+            <a href="{{ url_for('leave.pending') }}" class="small text-primary">Review All</a>
+        </div>
+        <div class="list-group list-group-flush">
+        {% for lr in recent_requests %}
+        <div class="list-group-item px-4 py-3">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div>
+                    <div class="fw-semibold small">{{ lr.employee.full_name }}</div>
+                    <div class="text-muted" style="font-size:.78rem">
+                        {{ lr.leave_type.name }} &bull;
+                        {{ lr.start_date.strftime('%d %b') }} – {{ lr.end_date.strftime('%d %b %Y') }} &bull;
+                        {{ lr.total_days }} day{{ 's' if lr.total_days != 1 else '' }}
+                    </div>
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    <form method="POST" action="{{ url_for('leave.approve', lr_id=lr.id) }}">
+                        {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
+                        <button class="btn btn-xs btn-success" style="font-size:.75rem;padding:3px 10px">✓</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('leave.reject', lr_id=lr.id) }}">
+                        {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
+                        <button class="btn btn-xs btn-outline-danger" style="font-size:.75rem;padding:3px 10px">✗</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item text-center text-muted small py-4">No pending requests.</div>
+        {% endfor %}
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Quick Actions</h6></div>
+        <div class="card-body px-4 pb-4">
+            <div class="row g-2">
+                {% set actions=[
+                    ('Employees','employees.index','bi-people-fill','primary'),
+                    ('Add Employee','employees.create','bi-person-plus','success'),
+                    ('Leave Requests','leave.pending','bi-calendar-x','warning'),
+                    ('Office Settings','admin.office_settings','bi-geo-alt-fill','danger'),
+                    ('Leave Types','admin.leave_types','bi-list-check','info'),
+                    ('User Accounts','admin.users','bi-shield-lock','secondary'),
+                ] %}
+                {% for label, endpoint, icon, color in actions %}
+                <div class="col-6">
+                    <a href="{{ url_for(endpoint) }}" class="btn btn-outline-{{ color }} w-100 d-flex align-items-center gap-2 justify-content-center py-2 btn-sm">
+                        <i class="bi {{ icon }}"></i> {{ label }}
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

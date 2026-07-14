@@ -1,0 +1,9 @@
+{% extends 'errors/base_error.html' %}
+{% block error_title %}500 Internal Server Error{% endblock %}
+{% block error_code_bg %}500{% endblock %}
+{% block error_icon %}bi-exclamation-triangle{% endblock %}
+{% block error_heading %}Something Went Wrong{% endblock %}
+{% block error_body %}
+    An unexpected error occurred on our end. Our team has been notified.
+    Please try again in a few minutes.
+{% endblock %}

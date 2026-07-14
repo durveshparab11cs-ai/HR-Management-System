@@ -1,0 +1,59 @@
+/* buttons.css — Custom button variants and states */
+
+/* Override Bootstrap primary with HRMS brand color */
+.btn-primary {
+    --bs-btn-bg:           var(--hrms-primary);
+    --bs-btn-border-color: var(--hrms-primary);
+    --bs-btn-hover-bg:     var(--hrms-primary-light);
+    --bs-btn-hover-border-color: var(--hrms-primary-light);
+    --bs-btn-active-bg:    var(--hrms-primary-dark);
+    --bs-btn-active-border-color: var(--hrms-primary-dark);
+    --bs-btn-focus-shadow-rgb: var(--hrms-primary-rgb);
+}
+
+.btn-outline-primary {
+    --bs-btn-color:        var(--hrms-primary);
+    --bs-btn-border-color: var(--hrms-primary);
+    --bs-btn-hover-bg:     var(--hrms-primary);
+    --bs-btn-hover-border-color: var(--hrms-primary);
+}
+
+/* Icon-only round button */
+.hrms-btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--hrms-border-radius-md);
+    font-size: var(--hrms-font-size-sm);
+    flex-shrink: 0;
+}
+
+.hrms-btn-icon--sm {
+    width: 28px;
+    height: 28px;
+    font-size: var(--hrms-font-size-xs);
+}
+
+/* Loading state — spinner replaces text */
+.btn .hrms-btn-spinner { vertical-align: -0.125em; }
+
+/* Action bar (toolbar above tables / at top of forms) */
+.hrms-action-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--hrms-space-2);
+    flex-wrap: wrap;
+}
+
+/* Confirm-delete button — pulsing red */
+.btn-danger-confirm {
+    animation: btnPulse 1.4s ease infinite;
+}
+
+@keyframes btnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, .5); }
+    50%       { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+}

@@ -1,0 +1,53 @@
+/* alerts.css — Alert and notification styles */
+
+/* In-app notification item */
+.hrms-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--hrms-space-3);
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    border-bottom: 1px solid var(--hrms-gray-100);
+    cursor: pointer;
+    transition: background var(--hrms-transition-fast);
+    text-decoration: none;
+    color: inherit;
+}
+
+.hrms-notification-item:hover { background: var(--hrms-gray-50); }
+
+.hrms-notification-item.unread { background: rgba(var(--hrms-primary-rgb), .03); }
+
+.hrms-notification-item.unread .hrms-notification-title {
+    font-weight: var(--hrms-font-weight-semibold);
+}
+
+.hrms-notification-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--hrms-primary);
+    flex-shrink: 0;
+    margin-top: .3rem;
+}
+
+.hrms-notification-title {
+    font-size: var(--hrms-font-size-sm);
+    margin-bottom: .15rem;
+    line-height: var(--hrms-line-height-tight);
+}
+
+.hrms-notification-time {
+    font-size: var(--hrms-font-size-xs);
+    color: var(--hrms-text-muted);
+}
+
+/* Inline inline alert within forms */
+.hrms-inline-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--hrms-space-2);
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    border-radius: var(--hrms-border-radius-md);
+    font-size: var(--hrms-font-size-sm);
+    border: none;
+}

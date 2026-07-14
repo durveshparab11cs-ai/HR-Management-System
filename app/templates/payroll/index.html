@@ -1,0 +1,36 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Payroll — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Payroll',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div><h1 class="h4 fw-bold mb-0">Payroll</h1><p class="text-muted small mb-0">{{ pagination.total }} payroll run{{ 's' if pagination.total != 1 else '' }}</p></div>
+  <a href="{{ url_for('payroll.run_payroll') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Run</a>
+</div>
+
+{% set sc={'draft':'secondary','processing':'info','processed':'primary','approved':'success','paid':'success','cancelled':'danger'} %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr><th class="ps-4">Period</th><th>Employees</th><th>Gross</th><th>Deductions</th><th>Net</th><th>Status</th><th class="pe-4">Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for run in pagination.items %}
+      <tr>
+        <td class="ps-4 fw-semibold">{{ run.period_label }}</td>
+        <td class="small">{{ run.employee_count }}</td>
+        <td class="small">₹{{ '{:,.0f}'.format(run.total_gross) }}</td>
+        <td class="small text-danger">₹{{ '{:,.0f}'.format(run.total_deductions) }}</td>
+        <td class="small fw-semibold">₹{{ '{:,.0f}'.format(run.total_net) }}</td>
+        <td><span class="badge bg-{{ sc.get(run.status,'secondary') }}-subtle text-{{ sc.get(run.status,'secondary') }} small">{{ run.status.title() }}</span></td>
+        <td class="pe-4"><a href="{{ url_for('payroll.run_detail', run_id=run.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center py-5 text-muted">No payroll runs yet. <a href="{{ url_for('payroll.run_payroll') }}">Create one.</a></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="{{ self.page_description() }}">
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- CSRF token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>{% block title %}{{ title | default('') }} — {{ app_name }}{% endblock %}</title>
+
+    {# Favicon — add images/favicon.ico to static/images/ to enable #}
+
+    <!-- Bootstrap 5 CSS (CDN with local fallback) -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous"
+    >
+
+    <!-- Bootstrap Icons -->
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    >
+
+    <!-- Application CSS — load order matters -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/buttons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/cards.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/tables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/forms.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/alerts.css') }}">
+
+    <!-- Page-specific CSS -->
+    {% block extra_css %}{% endblock %}
+
+    {% block page_description scoped %}{% endblock %}
+</head>
+<body class="hrms-body">
+
+    {% if is_authenticated %}
+        <!-- Authenticated layout: sidebar + main content -->
+        <div class="hrms-wrapper d-flex">
+
+            <!-- Sidebar Navigation -->
+            {% include 'shared/sidebar.html' %}
+
+            <!-- Main content area -->
+            <div class="hrms-main flex-grow-1 d-flex flex-column min-vh-100">
+
+                <!-- Top Navbar -->
+                {% include 'shared/navbar.html' %}
+
+                <!-- Page content -->
+                <main class="hrms-content flex-grow-1 p-4" id="main-content" role="main">
+
+                    <!-- Breadcrumbs -->
+                    {% block breadcrumbs %}
+                        {% include 'shared/breadcrumbs.html' %}
+                    {% endblock %}
+
+                    <!-- Flash messages -->
+                    {% include 'shared/flash_messages.html' %}
+
+                    <!-- Page header -->
+                    {% block page_header %}
+                        {% if title %}
+                        <div class="hrms-page-header mb-4">
+                            <h1 class="hrms-page-title">
+                                {% block page_icon %}{% endblock %}
+                                {{ title }}
+                            </h1>
+                            {% block page_subtitle %}{% endblock %}
+                        </div>
+                        {% endif %}
+                    {% endblock %}
+
+                    <!-- Main page body -->
+                    {% block content %}{% endblock %}
+
+                </main>
+
+                <!-- Footer -->
+                {% include 'shared/footer.html' %}
+
+            </div><!-- /.hrms-main -->
+        </div><!-- /.hrms-wrapper -->
+
+    {% else %}
+        <!-- Unauthenticated layout: centered card -->
+        <div class="hrms-auth-wrapper min-vh-100 d-flex align-items-center justify-content-center">
+            {% include 'shared/flash_messages.html' %}
+            {% block auth_content %}{% endblock %}
+        </div>
+    {% endif %}
+
+    <!-- Global modal container -->
+    {% include 'shared/modal.html' %}
+
+    <!-- Bootstrap 5 JS bundle -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmOaHVpqJ6lIyLzXnXpLjdQANia"
+        crossorigin="anonymous"
+    ></script>
+
+    <!-- Application JavaScript -->
+    <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+
+    <!-- Page-specific JavaScript -->
+    {% block extra_js %}{% endblock %}
+
+</body>
+</html>

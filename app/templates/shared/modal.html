@@ -1,0 +1,99 @@
+{#
+  shared/modal.html
+  ==================
+  Generic reusable Bootstrap 5 modal container.
+
+  This provides a single modal element driven by JavaScript.
+  The common.js HRMSModal class populates title, body, and action
+  button dynamically so one modal serves all confirmation dialogs,
+  alert popups, and AJAX-loaded forms.
+
+  For static inline modals, extend this pattern directly in the page template.
+#}
+
+<!-- Global confirmation / alert modal -->
+<div
+    class="modal fade"
+    id="hrms-global-modal"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="hrms-modal-title"
+    aria-hidden="true"
+    data-bs-backdrop="static"
+>
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content hrms-modal-content">
+
+            <!-- Header -->
+            <div class="modal-header hrms-modal-header">
+                <h5 class="modal-title fw-semibold" id="hrms-modal-title">Confirm Action</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body hrms-modal-body" id="hrms-modal-body">
+                <p class="mb-0">Are you sure you want to perform this action?</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer hrms-modal-footer border-0">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                    id="hrms-modal-cancel-btn"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-danger hrms-modal-confirm-btn"
+                    id="hrms-modal-confirm-btn"
+                >
+                    Confirm
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Large content modal (for AJAX-loaded forms) -->
+<div
+    class="modal fade"
+    id="hrms-content-modal"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="hrms-content-modal-title"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content hrms-modal-content">
+
+            <div class="modal-header hrms-modal-header">
+                <h5 class="modal-title fw-semibold" id="hrms-content-modal-title"></h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+
+            <div class="modal-body hrms-modal-body p-0" id="hrms-content-modal-body">
+                <!-- Dynamically loaded content -->
+                <div class="d-flex align-items-center justify-content-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

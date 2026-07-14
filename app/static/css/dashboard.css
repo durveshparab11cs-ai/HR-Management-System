@@ -1,0 +1,40 @@
+/* dashboard.css — Dashboard-specific styles */
+
+/* Stat card row */
+.hrms-stat-card .hrms-stat-value {
+    font-size: var(--hrms-font-size-2xl);
+    font-weight: var(--hrms-font-weight-bold);
+    line-height: 1;
+}
+
+.hrms-stat-card .hrms-stat-label {
+    font-size: var(--hrms-font-size-xs);
+    color: var(--hrms-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: var(--hrms-space-1);
+}
+
+/* Activity list */
+.hrms-activity-list .list-group-item {
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    padding: var(--hrms-space-3) var(--hrms-space-4);
+    font-size: var(--hrms-font-size-sm);
+    border-color: var(--hrms-gray-100);
+}
+
+.hrms-activity-list .list-group-item:first-child { border-top: none; }
+
+.hrms-activity-time {
+    font-size: var(--hrms-font-size-xs);
+    color: var(--hrms-text-muted);
+    white-space: nowrap;
+}
+
+/* Chart containers */
+.hrms-chart-container {
+    position: relative;
+    width: 100%;
+}

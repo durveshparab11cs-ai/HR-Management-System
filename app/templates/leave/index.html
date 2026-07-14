@@ -1,0 +1,162 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Leave Portal — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Leave Portal', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+{% set status_badge = {'pending':'warning','approved':'success','rejected':'danger','cancelled':'secondary','withdrawn':'secondary'} %}
+
+<!-- Quick Actions -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">Leave Portal</h1>
+        <p class="text-muted small mb-0">Manage your leave requests and view balances</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('leave.apply') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-plus-lg"></i> Apply Leave
+        </a>
+        <a href="{{ url_for('leave.apply_halfday') }}" class="btn btn-outline-warning btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-half"></i> Half Day
+        </a>
+        <a href="{{ url_for('leave.apply_earlyleave') }}" class="btn btn-outline-info btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history"></i> Early Leave
+        </a>
+        {% if is_hr_manager %}
+        <a href="{{ url_for('leave.pending') }}" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-hourglass-split"></i> Pending Approvals
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Leave Balance Cards -->
+<div class="row g-3 mb-4">
+{% for b in balances %}
+<div class="col-sm-6 col-lg-3">
+    <div class="card border-0 shadow-sm h-100" style="border-top:3px solid {{ b.type.color }} !important;">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-start justify-content-between mb-3">
+                <div>
+                    <div class="fw-semibold">{{ b.type.name }}</div>
+                    <div class="text-muted small">{{ b.type.code }}</div>
+                </div>
+                <span class="badge rounded-pill px-3 py-1" style="background:{{ b.type.color }}20;color:{{ b.type.color }}">
+                    {{ "Paid" if b.type.is_paid else "Unpaid" }}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-end mb-2">
+                <div>
+                    <span class="h3 fw-bold mb-0">{{ b.available | int }}</span>
+                    <span class="text-muted small"> / {{ b.max }}</span>
+                </div>
+                <span class="text-muted small">{{ b.taken | int }} used</span>
+            </div>
+            <div class="progress" style="height:5px;border-radius:10px">
+                <div class="progress-bar" role="progressbar" style="width:{{ b.pct }}%;background:{{ b.type.color }}"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<div class="row g-4">
+<!-- Leave History -->
+<div class="col-lg-8">
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+        <h6 class="fw-semibold mb-0">Leave Requests</h6>
+        <span class="text-muted small">{{ pagination.total }} total</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Type</th>
+                    <th>Period</th>
+                    <th>Days</th>
+                    <th>Applied</th>
+                    <th>Status</th>
+                    <th class="pe-4">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for lr in pagination.items %}
+            <tr>
+                <td class="ps-4">
+                    <span class="badge rounded-pill px-2" style="background:{{ lr.leave_type.color }}20;color:{{ lr.leave_type.color }}">{{ lr.leave_type.name }}</span>
+                </td>
+                <td class="small">{{ lr.start_date.strftime('%d %b') }} – {{ lr.end_date.strftime('%d %b %Y') }}</td>
+                <td class="small fw-semibold">{{ lr.total_days }}</td>
+                <td class="small text-muted">{{ lr.applied_on.strftime('%d %b %Y') }}</td>
+                <td><span class="badge bg-{{ status_badge.get(lr.status,'secondary') }}-subtle text-{{ status_badge.get(lr.status,'secondary') }} small">{{ lr.status.title() }}</span></td>
+                <td class="pe-4">
+                    {% if lr.status == 'pending' %}
+                    <form method="POST" action="{{ url_for('leave.cancel', lr_id=lr.id) }}" class="d-inline">
+                        {{ csrf_token_field() }}
+                        <button class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:2px 8px" onclick="return confirm('Cancel this leave?')">Cancel</button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center py-5 text-muted">No leave requests yet. <a href="{{ url_for('leave.apply') }}">Apply now.</a></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination.pages > 1 %}
+    <div class="card-footer bg-transparent">{% set url_params = {} %}{% include 'shared/pagination.html' %}</div>
+    {% endif %}
+</div>
+</div>
+
+<!-- Right: Half Day + Early Leave -->
+<div class="col-lg-4">
+    <!-- Half Day -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+            <h6 class="fw-semibold mb-0">Half Day Requests</h6>
+            <a href="{{ url_for('leave.apply_halfday') }}" class="small text-primary">+ New</a>
+        </div>
+        <div class="list-group list-group-flush">
+        {% for hd in hd_list %}
+        <div class="list-group-item d-flex align-items-center justify-content-between py-3 px-4">
+            <div>
+                <div class="small fw-semibold">{{ hd.date.strftime('%d %b %Y') }}</div>
+                <div style="font-size:.78rem" class="text-muted">{{ hd.half_type.title() }} half</div>
+            </div>
+            <span class="badge bg-{{ status_badge.get(hd.status,'secondary') }}-subtle text-{{ status_badge.get(hd.status,'secondary') }}">{{ hd.status.title() }}</span>
+        </div>
+        {% else %}
+        <div class="list-group-item text-center text-muted small py-4">No half-day requests.</div>
+        {% endfor %}
+        </div>
+    </div>
+
+    <!-- Early Leave -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+            <h6 class="fw-semibold mb-0">Early Leave Requests</h6>
+            <a href="{{ url_for('leave.apply_earlyleave') }}" class="small text-primary">+ New</a>
+        </div>
+        <div class="list-group list-group-flush">
+        {% for el in el_list %}
+        <div class="list-group-item d-flex align-items-center justify-content-between py-3 px-4">
+            <div>
+                <div class="small fw-semibold">{{ el.date.strftime('%d %b %Y') }}</div>
+                <div style="font-size:.78rem" class="text-muted">Leave at {{ el.requested_leave_time.strftime('%H:%M') }}</div>
+            </div>
+            <span class="badge bg-{{ status_badge.get(el.status,'secondary') }}-subtle text-{{ status_badge.get(el.status,'secondary') }}">{{ el.status.title() }}</span>
+        </div>
+        {% else %}
+        <div class="list-group-item text-center text-muted small py-4">No early leave requests.</div>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

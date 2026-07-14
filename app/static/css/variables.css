@@ -1,0 +1,167 @@
+/*
+ * variables.css
+ * =============
+ * CSS custom properties (design tokens) for the entire Smart HRMS UI.
+ * Override here — never scatter color/spacing values across component files.
+ *
+ * Naming convention:  --hrms-<category>-<variant>
+ *
+ * Contents:
+ *   1. Brand Colors
+ *   2. Semantic Colors
+ *   3. Neutral Palette
+ *   4. Typography
+ *   5. Spacing & Sizing
+ *   6. Borders & Shadows
+ *   7. Layout Dimensions
+ *   8. Transitions
+ *   9. Z-index Scale
+ *  10. Dark-mode overrides (future)
+ */
+
+:root {
+    /* ----------------------------------------------------------------
+     * 1. Brand Colors
+     * ---------------------------------------------------------------- */
+    --hrms-primary:          #1a3c6e;
+    --hrms-primary-light:    #2a5298;
+    --hrms-primary-dark:     #112850;
+    --hrms-primary-rgb:      26, 60, 110;
+
+    --hrms-secondary:        #6c757d;
+    --hrms-secondary-light:  #adb5bd;
+    --hrms-secondary-dark:   #495057;
+
+    --hrms-accent:           #f59e0b;      /* amber — call-to-action highlights */
+    --hrms-accent-dark:      #d97706;
+
+    /* ----------------------------------------------------------------
+     * 2. Semantic Colors
+     * ---------------------------------------------------------------- */
+    --hrms-success:          #198754;
+    --hrms-success-light:    #d1e7dd;
+    --hrms-success-text:     #0f5132;
+
+    --hrms-danger:           #dc3545;
+    --hrms-danger-light:     #f8d7da;
+    --hrms-danger-text:      #842029;
+
+    --hrms-warning:          #ffc107;
+    --hrms-warning-light:    #fff3cd;
+    --hrms-warning-text:     #664d03;
+
+    --hrms-info:             #0dcaf0;
+    --hrms-info-light:       #cff4fc;
+    --hrms-info-text:        #055160;
+
+    /* ----------------------------------------------------------------
+     * 3. Neutral Palette
+     * ---------------------------------------------------------------- */
+    --hrms-white:            #ffffff;
+    --hrms-black:            #0a0a0a;
+
+    --hrms-gray-50:          #f8f9fa;
+    --hrms-gray-100:         #f4f6f9;
+    --hrms-gray-200:         #e9ecef;
+    --hrms-gray-300:         #dee2e6;
+    --hrms-gray-400:         #ced4da;
+    --hrms-gray-500:         #adb5bd;
+    --hrms-gray-600:         #6c757d;
+    --hrms-gray-700:         #495057;
+    --hrms-gray-800:         #343a40;
+    --hrms-gray-900:         #212529;
+
+    --hrms-bg-light:         var(--hrms-gray-100);
+    --hrms-bg-card:          var(--hrms-white);
+    --hrms-text-primary:     var(--hrms-gray-900);
+    --hrms-text-secondary:   var(--hrms-gray-600);
+    --hrms-text-muted:       var(--hrms-gray-500);
+    --hrms-border-color:     var(--hrms-gray-300);
+
+    /* ----------------------------------------------------------------
+     * 4. Typography
+     * ---------------------------------------------------------------- */
+    --hrms-font-family-base: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    --hrms-font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+    --hrms-font-size-xs:     0.75rem;    /* 12px */
+    --hrms-font-size-sm:     0.875rem;   /* 14px */
+    --hrms-font-size-base:   1rem;       /* 16px */
+    --hrms-font-size-md:     1.0625rem;  /* 17px */
+    --hrms-font-size-lg:     1.125rem;   /* 18px */
+    --hrms-font-size-xl:     1.25rem;    /* 20px */
+    --hrms-font-size-2xl:    1.5rem;     /* 24px */
+    --hrms-font-size-3xl:    1.875rem;   /* 30px */
+
+    --hrms-font-weight-light:    300;
+    --hrms-font-weight-normal:   400;
+    --hrms-font-weight-medium:   500;
+    --hrms-font-weight-semibold: 600;
+    --hrms-font-weight-bold:     700;
+
+    --hrms-line-height-tight:    1.25;
+    --hrms-line-height-base:     1.5;
+    --hrms-line-height-loose:    1.75;
+
+    /* ----------------------------------------------------------------
+     * 5. Spacing & Sizing
+     * ---------------------------------------------------------------- */
+    --hrms-space-1:   0.25rem;
+    --hrms-space-2:   0.5rem;
+    --hrms-space-3:   0.75rem;
+    --hrms-space-4:   1rem;
+    --hrms-space-5:   1.25rem;
+    --hrms-space-6:   1.5rem;
+    --hrms-space-8:   2rem;
+    --hrms-space-10:  2.5rem;
+    --hrms-space-12:  3rem;
+    --hrms-space-16:  4rem;
+
+    /* ----------------------------------------------------------------
+     * 6. Borders & Shadows
+     * ---------------------------------------------------------------- */
+    --hrms-border-radius-sm:  0.25rem;
+    --hrms-border-radius:     0.375rem;
+    --hrms-border-radius-md:  0.5rem;
+    --hrms-border-radius-lg:  0.75rem;
+    --hrms-border-radius-xl:  1rem;
+    --hrms-border-radius-pill: 50rem;
+
+    --hrms-border-width:      1px;
+    --hrms-border:            var(--hrms-border-width) solid var(--hrms-border-color);
+
+    --hrms-shadow-xs:  0 1px 2px rgba(0,0,0,.06);
+    --hrms-shadow-sm:  0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --hrms-shadow:     0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -1px rgba(0,0,0,.05);
+    --hrms-shadow-md:  0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.04);
+    --hrms-shadow-lg:  0 20px 25px -5px rgba(0,0,0,.08), 0 10px 10px -5px rgba(0,0,0,.04);
+
+    /* ----------------------------------------------------------------
+     * 7. Layout Dimensions
+     * ---------------------------------------------------------------- */
+    --hrms-sidebar-width:         260px;
+    --hrms-sidebar-width-collapsed: 64px;
+    --hrms-navbar-height:         60px;
+    --hrms-content-max-width:     1400px;
+    --hrms-auth-card-width:       440px;
+
+    /* ----------------------------------------------------------------
+     * 8. Transitions
+     * ---------------------------------------------------------------- */
+    --hrms-transition-fast:   150ms ease;
+    --hrms-transition-base:   250ms ease;
+    --hrms-transition-slow:   400ms ease;
+
+    /* ----------------------------------------------------------------
+     * 9. Z-index Scale
+     * ---------------------------------------------------------------- */
+    --hrms-z-below:    -1;
+    --hrms-z-base:      0;
+    --hrms-z-raised:   10;
+    --hrms-z-dropdown: 1000;
+    --hrms-z-sticky:   1020;
+    --hrms-z-fixed:    1030;
+    --hrms-z-modal:    1050;
+    --hrms-z-tooltip:  1070;
+    --hrms-z-toast:    1090;
+}

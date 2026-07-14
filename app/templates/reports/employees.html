@@ -1,0 +1,77 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Employee Report — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Reports',url_for('reports.index')),('Employee Report',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div><h1 class="h4 fw-bold mb-0">Employee Report</h1><p class="text-muted small mb-0">{{ stats.total }} employees</p></div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.export', report_type='employees', fmt='xlsx') }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('reports.export', report_type='employees', fmt='csv') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-text me-1"></i>CSV</a>
+  </div>
+</div>
+
+<!-- Dept distribution -->
+{% if stats.by_department %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">By Department</h6></div>
+      <div class="card-body px-4 pb-4">
+        {% for d in stats.by_department %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="small fw-medium">{{ d.dept }}</span>
+            <span class="small text-muted">{{ d.count }}</span>
+          </div>
+          <div class="progress" style="height:6px;border-radius:10px">
+            <div class="progress-bar bg-primary" style="width:{{ (d.count / stats.total * 100)|int }}%;border-radius:10px"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">By Employment Type</h6></div>
+      <div class="card-body px-4 pb-4">
+        {% for t in stats.by_type %}
+        <div class="d-flex justify-content-between py-2 border-bottom border-light small">
+          <span class="fw-medium">{{ t.type }}</span>
+          <span class="badge bg-secondary-subtle text-secondary">{{ t.count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.86rem">
+      <thead class="table-light">
+        <tr><th class="ps-4">Employee</th><th>Code</th><th>Department</th><th>Designation</th><th>Type</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+      {% for emp, usr in employees %}
+      <tr>
+        <td class="ps-4"><div class="fw-semibold">{{ usr.full_name }}</div><div class="text-muted" style="font-size:.75rem">{{ usr.email }}</div></td>
+        <td><code class="small">{{ emp.employee_code }}</code></td>
+        <td class="small">{{ emp.department or '—' }}</td>
+        <td class="small">{{ emp.designation or '—' }}</td>
+        <td class="small">{{ emp.employment_type.replace('_',' ').title() }}</td>
+        <td>
+          {% set sc={'active':'success','inactive':'secondary','suspended':'danger'} %}
+          <span class="badge bg-{{ sc.get(usr.status,'secondary') }}-subtle text-{{ sc.get(usr.status,'secondary') }} small">{{ usr.status.replace('_',' ').title() }}</span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center py-5 text-muted">No employees.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
