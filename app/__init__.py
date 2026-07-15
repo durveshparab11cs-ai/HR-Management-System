@@ -439,7 +439,7 @@ def _register_health(app: Flask) -> None:
 def _auto_create_tables(app: Flask) -> None:
     """
     Create all DB tables on first boot and auto-seed employee master data.
-    Runs inside a proper app context after all extensions are initialized.
+    Also adds new columns to existing tables via ALTER TABLE when needed.
     """
     try:
         with app.app_context():
@@ -447,10 +447,45 @@ def _auto_create_tables(app: Flask) -> None:
             db.create_all()
             app.logger.info("db.create_all() — tables ready.")
 
+            # Add new GPS accuracy columns if they don't exist yet
+            _migrate_add_columns(db)
+
             # Auto-seed employee master if table is empty
             _auto_seed_employees(app)
     except Exception as exc:
         app.logger.warning("db.create_all() skipped: %s", exc)
+
+
+def _migrate_add_columns(db) -> None:
+    """
+    Idempotent ALTER TABLE for new columns added after initial deploy.
+    Safe to run on every boot — skips if columns already exist.
+    """
+    from sqlalchemy import inspect, text  # noqa: PLC0415
+
+    insp = inspect(db.engine)
+    dialect = db.engine.dialect.name  # 'postgresql' or 'sqlite'
+
+    def col_exists(table, col):
+        try:
+            return any(c['name'] == col for c in insp.get_columns(table))
+        except Exception:
+            return True  # assume exists if we can't check
+
+    new_cols = [
+        ('attendance', 'check_in_accuracy',  'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
+        ('attendance', 'check_out_accuracy', 'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
+    ]
+
+    for table, col, col_type in new_cols:
+        if not col_exists(table, col):
+            try:
+                db.session.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}'))
+                db.session.commit()
+                logger.info("Added column %s.%s", table, col)
+            except Exception as e:
+                db.session.rollback()
+                logger.warning("Could not add column %s.%s: %s", table, col, e)
 
 
 def _auto_seed_employees(app: Flask) -> None:
