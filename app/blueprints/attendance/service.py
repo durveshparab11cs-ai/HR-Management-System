@@ -105,6 +105,7 @@ class AttendanceService:
         attendance.check_in_time              = now
         attendance.check_in_latitude          = gps.lat
         attendance.check_in_longitude         = gps.lon
+        attendance.check_in_accuracy          = gps.accuracy
         attendance.check_in_distance_metres   = gps.distance_metres
         attendance.check_in_ip                = self._get_ip()
         attendance.check_in_device            = self._get_ua()
@@ -184,6 +185,7 @@ class AttendanceService:
         attendance.check_out_time              = now
         attendance.check_out_latitude          = gps.lat
         attendance.check_out_longitude         = gps.lon
+        attendance.check_out_accuracy          = gps.accuracy
         attendance.check_out_distance_metres   = gps.distance_metres
         attendance.working_minutes             = meta["working_minutes"]
         attendance.overtime_minutes            = meta["overtime_minutes"]

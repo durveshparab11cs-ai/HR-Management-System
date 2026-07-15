@@ -65,9 +65,15 @@
 .gps-indicator{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .gps-indicator.acquiring{background:var(--att-amber);animation:attPulse 1.2s infinite}
 .gps-indicator.ok{background:var(--att-green)}
+.gps-indicator.found{background:var(--att-green)}
 .gps-indicator.error{background:var(--att-red)}
 
-#att-map{height:200px;width:100%}
+#att-map{
+  height:350px;
+  width:100%;
+  display:block;
+  min-height:350px;
+}
 
 .gps-coords{
   padding:10px 20px;font-size:.78rem;color:#475569;

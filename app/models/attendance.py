@@ -23,6 +23,7 @@ class Attendance(BaseModel):
     check_in_time: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     check_in_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_in_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    check_in_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_in_distance_metres: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_in_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     check_in_device: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -35,6 +36,7 @@ class Attendance(BaseModel):
     check_out_time: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     check_out_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_out_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    check_out_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_out_distance_metres: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # ── Computed ──────────────────────────────────────────────────────

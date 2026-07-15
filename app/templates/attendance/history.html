@@ -178,6 +178,7 @@
                     <th>Status</th>
                     <th>Late</th>
                     <th class="text-center">Photo</th>
+                    <th>Location ✓</th>
                 </tr>
             </thead>
             <tbody>
@@ -233,10 +234,26 @@
                         <span class="text-muted" style="font-size:.75rem">—</span>
                     {% endif %}
                 </td>
+                <td class="small">
+                    {% if att.check_in_latitude and att.check_in_longitude %}
+                    <div class="text-success fw-semibold" style="font-size:.72rem">
+                        <i class="bi bi-check-circle me-1"></i>Verified
+                    </div>
+                    <div class="text-muted" style="font-size:.68rem">
+                        {{ "%.5f"|format(att.check_in_latitude) }},
+                        {{ "%.5f"|format(att.check_in_longitude) }}
+                    </div>
+                    {% if att.check_in_accuracy %}
+                    <div class="text-muted" style="font-size:.67rem">±{{ att.check_in_accuracy|int }}m</div>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="8" class="text-center py-5">
+                <td colspan="9" class="text-center py-5">
                     <i class="bi bi-calendar-x text-muted" style="font-size:2.5rem;opacity:.3;display:block;margin-bottom:10px"></i>
                     <div class="text-muted">No attendance records found for the selected filters.</div>
                     {% if start_date or end_date or status %}

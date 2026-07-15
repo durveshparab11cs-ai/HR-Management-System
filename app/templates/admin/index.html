@@ -109,6 +109,7 @@
                     <th>Check Out</th>
                     <th>Hours</th>
                     <th>Status</th>
+                    <th>Location</th>
                 </tr>
             </thead>
             <tbody>
@@ -125,9 +126,21 @@
                     </span>
                     {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late {{ att.late_minutes | fmt_minutes }}</span>{% endif %}
                 </td>
+                <td class="small">
+                    {% if att.check_in_latitude and att.check_in_longitude %}
+                    <a href="https://www.google.com/maps?q={{ att.check_in_latitude }},{{ att.check_in_longitude }}"
+                       target="_blank" rel="noopener" class="text-primary"
+                       title="{{ '%.5f'|format(att.check_in_latitude) }}, {{ '%.5f'|format(att.check_in_longitude) }}{% if att.check_in_accuracy %} ±{{ att.check_in_accuracy|int }}m{% endif %}">
+                        <i class="bi bi-geo-alt-fill me-1"></i>Map
+                    </a>
+                    {% if att.check_in_accuracy %}
+                    <span class="text-muted" style="font-size:.7rem;display:block">±{{ att.check_in_accuracy|int }}m</span>
+                    {% endif %}
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center py-5 text-muted">No attendance records yet today.</td></tr>
+            <tr><td colspan="6" class="text-center py-5 text-muted">No attendance records yet today.</td></tr>
             {% endfor %}
             </tbody>
         </table>
