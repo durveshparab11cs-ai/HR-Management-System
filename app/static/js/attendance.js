@@ -87,9 +87,15 @@
 
   // ── Status ────────────────────────────────────────────────────────────
   function setStatus(state, msg) {
-    const dot = el('gps-dot'), text = el('gps-text');
-    if (dot)  dot.className = `gps-indicator ${state}`;
-    if (text) { text.textContent = msg; text.style.color = state==='ok'?'#10b981':state==='error'?'#ef4444':'#f59e0b'; }
+    const dot  = el('gps-dot');
+    const text = el('gps-text');
+    if (dot) {
+      dot.className = 'gps-dot ' + (state === 'ok' ? 'found' : state === 'error' ? 'error' : 'acquiring');
+    }
+    if (text) {
+      text.textContent = msg;
+      text.style.color = state === 'ok' ? '#10b981' : state === 'error' ? '#ef4444' : '#f59e0b';
+    }
   }
 
   // ── Buttons ───────────────────────────────────────────────────────────
@@ -136,46 +142,31 @@
 
     const coordsEl = el('gps-coords');
     if (coordsEl) coordsEl.style.display = '';
-    const ll = el('gps-latlon'); if(ll) ll.textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-    const dt = el('gps-dist-text'); if(dt) { dt.textContent=`${dist.toFixed(0)}m`; dt.style.color=within?'#10b981':'#ef4444'; }
-    const ab = el('gps-accuracy-label'); if(ab) ab.textContent=`±${Math.round(acc)}m accuracy`;
-    const badge = el('gps-dist-badge');
-    if (badge) badge.innerHTML=`<span class="dist-badge ${within?'inside':'outside'}">${dist.toFixed(0)}m ${within?'✓':'✗'}</span>`;
-
-    const rb = el('rejection-box');
-    if (rb) {
-      if (!within) {
-        rb.style.display = '';
-        const re=el('rj-emp-dist'); if(re) re.textContent=`${dist.toFixed(0)} m`;
-        const ra=el('rj-allowed');  if(ra) ra.textContent=`${OFFICE.radius} m`;
-        const rm=el('rj-move-by');  if(rm) rm.textContent=`${Math.max(0,dist-OFFICE.radius).toFixed(0)} m closer`;
-      } else {
-        rb.style.display = 'none';
-      }
-    }
+    const ct = el('coords-text');
+    if (ct) ct.textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)} (±${Math.round(acc)}m)`;
+    const dt = el('distance-text');
+    if (dt) { dt.textContent = `${dist.toFixed(0)}m from office`; dt.style.color = within ? '#10b981' : '#ef4444'; }
   }
 
   // ── GPS init ──────────────────────────────────────────────────────────
   function startGPS() {
-    setStatus('acquiring', 'Acquiring your location…');
-    // Do NOT disable buttons — use fallback immediately so UI is always usable
-    // The server validates coordinates anyway
+    setStatus('acquiring', 'Requesting GPS… please allow location if prompted.');
 
     if (!navigator.geolocation) {
-      useFallback('Geolocation not supported.');
+      useFallback('Geolocation not supported by this browser.');
       return;
     }
 
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         if (result.state === 'denied') {
-          useFallback('Location permission denied.');
+          useFallback('Location permission denied. Please enable it in browser settings.');
         } else {
-          // 'granted' or 'prompt' — try to get real GPS
-          // BUT immediately enable buttons with fallback coords
-          // Real GPS will update them if it succeeds
-          useFallback('');  // silently enable with office coords
-          requestGPS();     // still try to get real GPS in background
+          // 'granted' or 'prompt'
+          // Enable buttons with fallback immediately so UI is never blocked
+          useFallback('');
+          // Then try to get real GPS in background
+          requestGPS();
         }
       }).catch(() => {
         useFallback('');
@@ -188,21 +179,48 @@
   }
 
   function requestGPS() {
-    navigator.geolocation.getCurrentPosition(
-      onGPSSuccess,
-      (err) => {
-        if (err.code === 1) {
-          useFallback('Location permission denied by browser. Check site permissions.');
-        } else {
-          // Timeout or unavailable — try watchPosition as fallback
-          navigator.geolocation.watchPosition(onGPSSuccess,
-            () => useFallback('Could not acquire GPS location.'),
-            { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-          );
+    // Try high accuracy first (GPS chip), then fall back to network location
+    let attempts = 0;
+
+    function tryGPS(highAccuracy) {
+      attempts++;
+      navigator.geolocation.getCurrentPosition(
+        onGPSSuccess,
+        (err) => {
+          if (err.code === 1) {
+            // Permission denied — use fallback
+            useFallback('Location permission denied. Check browser site settings.');
+          } else if (highAccuracy && attempts <= 2) {
+            // High accuracy failed — retry with low accuracy
+            setStatus('acquiring', 'High accuracy GPS not available, trying network location…');
+            setTimeout(() => tryGPS(false), 1000);
+          } else {
+            // All attempts failed — start watchPosition as last resort
+            setStatus('acquiring', 'GPS timeout — trying continuous location watch…');
+            let watchId = navigator.geolocation.watchPosition(
+              (pos) => {
+                navigator.geolocation.clearWatch(watchId);
+                onGPSSuccess(pos);
+              },
+              () => useFallback('Could not acquire GPS. Using office location as fallback.'),
+              { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
+            );
+            // Stop watching after 30s regardless
+            setTimeout(() => {
+              navigator.geolocation.clearWatch(watchId);
+              if (!gpsReady) useFallback('GPS timed out. Using office location as fallback.');
+            }, 30000);
+          }
+        },
+        {
+          enableHighAccuracy: highAccuracy,
+          timeout: highAccuracy ? 10000 : 15000,
+          maximumAge: highAccuracy ? 0 : 30000  // no cache for high accuracy
         }
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
-    );
+      );
+    }
+
+    tryGPS(true);
   }
 
   function useFallback(reason) {
@@ -352,13 +370,22 @@
 
   // ── Toast ─────────────────────────────────────────────────────────────
   function showToast(msg, type) {
-    const c=el('att-toasts');if(!c)return;
-    const icons={success:'✅',error:'❌',warn:'⚠️'};
-    const t=document.createElement('div');
-    t.className=`att-toast${type==='error'?' error':type==='warn'?' warn':''}`;
-    t.innerHTML=`<span style="font-size:1.1rem">${icons[type]||'ℹ️'}</span><div class="att-toast-body">${msg}</div><button class="att-toast-close" onclick="this.parentElement.remove()">✕</button>`;
+    // Support both possible container IDs
+    const c = el('att-toast-container') || el('att-toasts');
+    if (!c) {
+      // fallback — append to body
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;min-width:300px';
+      d.id = 'att-toast-container';
+      document.body.appendChild(d);
+      return showToast(msg, type);
+    }
+    const icons = { success: '✅', error: '❌', warn: '⚠️' };
+    const t = document.createElement('div');
+    t.className = `att-toast${type === 'error' ? ' error' : type === 'warn' ? ' warn' : ''}`;
+    t.innerHTML = `<span class="att-toast-icon">${icons[type] || 'ℹ️'}</span><div>${msg}</div><button class="att-toast-close" onclick="this.parentElement.remove()">✕</button>`;
     c.appendChild(t);
-    setTimeout(()=>{if(t.parentElement)t.remove();},6000);
+    setTimeout(() => { if (t.parentElement) t.remove(); }, 6000);
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────
