@@ -300,24 +300,44 @@
 
   /* ── GPS error handler ──────────────────────────────────────────── */
   function onGPSError(err, fallback) {
+    // If GPS already succeeded once, ignore any subsequent errors
+    if (gpsReady) return;
+
     let msg;
     switch (err.code) {
-      case 1: msg = 'Location permission denied. Please allow location access in browser settings.'; break;
-      case 2: msg = 'Position unavailable. GPS signal lost or device location off.'; break;
-      case 3: msg = 'GPS request timed out. Retrying with network location…'; break;
-      default: msg = 'Unknown GPS error. Please refresh the page.';
+      case 1: msg = 'Location permission denied. Click the lock icon in the address bar and allow location.'; break;
+      case 2: msg = 'Position unavailable. Check that device location services are on.'; break;
+      case 3: msg = 'GPS timed out. Retrying with network location…'; break;
+      default: msg = 'GPS error. Please refresh the page.';
     }
 
     if (err.code === 3 && fallback) {
-      // Timeout — retry once with low accuracy
-      navigator.geolocation.getCurrentPosition(onGPSSuccess,
-        (e2) => { setGpsStatus('error', `GPS failed: ${msg}`); useFallback(); },
+      // Timeout — retry with low accuracy (network/wifi location)
+      navigator.geolocation.getCurrentPosition(
+        onGPSSuccess,
+        function () { if (!gpsReady) { setGpsStatus('error', msg); useFallback(); } },
         GPS_OPTS_LO
       );
       return;
     }
 
-    setGpsStatus('error', msg);
+    if (err.code === 1) {
+      // Permission denied — watch for permission change and retry
+      setGpsStatus('error', msg);
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
+          status.onchange = function () {
+            if (status.state === 'granted') {
+              setGpsStatus('acquiring', 'Permission granted — acquiring location…');
+              fetchGPS(false);
+            }
+          };
+        }).catch(function () {});
+      }
+    } else {
+      setGpsStatus('error', msg);
+    }
+
     useFallback();
     isRefreshing = false;
     const rb = el('btn-refresh-gps');
@@ -331,14 +351,11 @@
       useFallback();
       return;
     }
-    if (!isManual) {
-      setGpsStatus('acquiring', 'Requesting GPS — please allow location if prompted…');
-    } else {
-      setGpsStatus('acquiring', 'Refreshing location…');
-    }
+    setGpsStatus('acquiring', isManual ? 'Refreshing location…' : 'Getting your location…');
+
     navigator.geolocation.getCurrentPosition(
       onGPSSuccess,
-      (err) => onGPSError(err, true),
+      function (err) { onGPSError(err, true); },
       GPS_OPTS_HI
     );
   }
@@ -497,10 +514,40 @@
   el('btn-checkin')?.addEventListener('click',  () => submitAttendance(CI_URL, 'in'));
   el('btn-checkout')?.addEventListener('click', () => submitAttendance(CO_URL, 'out'));
 
+  function startGPS() {
+    if (!navigator.geolocation) {
+      setGpsStatus('error', 'Geolocation is not supported by this browser.');
+      useFallback();
+      return;
+    }
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
+        if (perm.state === 'denied') {
+          setGpsStatus('error', 'Location blocked. Click the lock icon in the address bar and set Location to Allow, then reload.');
+          useFallback();
+        } else {
+          // 'granted' or 'prompt' — request directly, no pre-fallback
+          fetchGPS(false);
+        }
+        // Watch for permission changes (e.g. user clicks Allow after page loads)
+        perm.onchange = function () {
+          if (perm.state === 'granted') {
+            fetchGPS(false);
+          }
+        };
+      }).catch(function () {
+        fetchGPS(false);
+      });
+    } else {
+      fetchGPS(false);
+    }
+  }
+
   // Check if Leaflet is loaded; if not inject it dynamically then init
   function bootWhenLeafletReady() {
     initMap();
-    fetchGPS(false);
+    startGPS();
     startAutoRefresh();
     initPhotoUpload();
   }
