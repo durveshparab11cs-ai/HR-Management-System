@@ -270,11 +270,12 @@ class ProductionConfig(BaseConfig):
         "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
         "Content-Security-Policy": (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com; "
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
-            "img-src 'self' data: blob:; "
-            "connect-src 'self';"
+            "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org; "
+            "connect-src 'self' https://*.tile.openstreetmap.org; "
+            "frame-src 'none';"
         ),
     }
 
