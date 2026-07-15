@@ -1,0 +1,35 @@
+databases:
+  - name: smart-hrms-db
+    databaseName: smart_hrms
+    user: hrms_user
+    plan: free
+
+services:
+  - type: web
+    name: HR-Management-System
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smart-hrms-db
+          property: connectionString
+      - key: SESSION_TYPE
+        value: filesystem
+      - key: CACHE_TYPE
+        value: SimpleCache
+      - key: SESSION_COOKIE_SECURE
+        value: "True"
+      - key: REMEMBER_COOKIE_SECURE
+        value: "True"
+      - key: WEB_CONCURRENCY
+        value: "2"
+    disk:
+      name: hrms-data
+      mountPath: /app/instance
+      sizeGB: 1

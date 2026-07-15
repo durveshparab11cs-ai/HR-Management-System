@@ -19,6 +19,11 @@ from dotenv import load_dotenv
 # configuration classes pick them up during module initialization.
 load_dotenv()
 
+# Render.com provides DATABASE_URL as postgres:// — SQLAlchemy 2.x requires postgresql://
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url.startswith("postgres://"):
+    os.environ["DATABASE_URL"] = _db_url.replace("postgres://", "postgresql://", 1)
+
 from app import create_app  # noqa: E402 — must come after load_dotenv
 
 # Resolve the environment name from the environment variable.

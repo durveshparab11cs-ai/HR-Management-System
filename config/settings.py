@@ -233,6 +233,13 @@ class ProductionConfig(BaseConfig):
     # Stronger CSRF timeout in production
     WTF_CSRF_TIME_LIMIT: int = 1800
 
+    # PostgreSQL — fix postgres:// → postgresql:// for SQLAlchemy 2.x
+    _db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
+    SQLALCHEMY_DATABASE_URI: str = (
+        _db_url.replace("postgres://", "postgresql://", 1)
+        if _db_url else "sqlite:///smart_hrms_dev.db"
+    )
+
     # PostgreSQL connection pool settings
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "pool_pre_ping": True,
@@ -242,12 +249,13 @@ class ProductionConfig(BaseConfig):
         "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 3600)),
     }
 
-    # Redis cache in production
-    CACHE_TYPE: str = os.environ.get("CACHE_TYPE", "RedisCache")
+    # Cache — use Redis if available, else SimpleCache
+    CACHE_TYPE: str = os.environ.get("CACHE_TYPE", "SimpleCache")
     CACHE_REDIS_URL: str = os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/0")
 
-    # Redis session in production
-    SESSION_TYPE: str = "redis"
+    # Session — use filesystem (Redis optional)
+    SESSION_TYPE: str = os.environ.get("SESSION_TYPE", "filesystem")
+    SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "./instance/sessions")
 
     # Production log level
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "WARNING")
@@ -279,5 +287,6 @@ config_registry: dict = {
     "development": DevelopmentConfig,
     "testing": TestingConfig,
     "production": ProductionConfig,
+    "render": ProductionConfig,   # alias used on Render.com
     "default": DevelopmentConfig,
 }
