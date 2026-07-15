@@ -52,7 +52,7 @@
 
 /* ── GPS + Map card ── */
 .gps-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;
-  box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:hidden;height:100%}
+  box-shadow:0 2px 8px rgba(0,0,0,.05);overflow:visible;height:100%}
 .gps-card-header{padding:18px 20px 14px;border-bottom:1px solid #f1f5f9;
   display:flex;align-items:center;justify-content:space-between}
 .gps-card-title{font-size:.95rem;font-weight:700;color:#0f1729;margin:0}
@@ -69,10 +69,12 @@
 .gps-indicator.error{background:var(--att-red)}
 
 #att-map{
-  height:350px;
-  width:100%;
-  display:block;
+  height:350px !important;
+  width:100% !important;
+  display:block !important;
   min-height:350px;
+  position:relative;
+  z-index:0;
 }
 
 .gps-coords{
@@ -250,7 +252,7 @@
         <span class="ms-auto" id="gps-dist-badge"></span>
       </div>
 
-      <div id="att-map"></div>
+      <div id="att-map" style="height:350px;width:100%;display:block;min-height:350px;position:relative;z-index:0;background:#e8edf2;"></div>
 
       <div class="gps-coords" id="gps-coords">
         Your location: <span id="gps-latlon"></span>

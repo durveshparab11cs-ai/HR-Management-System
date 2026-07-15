@@ -34,7 +34,7 @@
             <i class="bi bi-info-circle me-1"></i>
             Click on the map to set the office location, or enter coordinates manually.
         </div>
-        <div id="settings-map" style="height:220px;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
+        <div id="settings-map" style="height:320px;width:100%;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.08);display:block;position:relative;z-index:0;background:#e8edf2"></div>
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <label class="form-label fw-medium small">Latitude</label>
@@ -123,89 +123,104 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-(function(){
-    const latIn  = document.getElementById('lat-input');
-    const lonIn  = document.getElementById('lon-input');
-    const radIn  = document.getElementById('radius-input');
-    const lat0   = parseFloat(latIn.value) || 19.014903;
-    const lon0   = parseFloat(lonIn.value) || 72.845183;
-    const rad0   = parseInt(radIn.value)   || 100;
+(function () {
+    'use strict';
 
-    // Wait for DOM + any CSS transitions to complete
-    function initMap() {
-        const container = document.getElementById('settings-map');
+    var _map = null;
+
+    function buildMap() {
+        var container = document.getElementById('settings-map');
         if (!container) return;
+        if (_map) { _map.invalidateSize(); return; }
 
-        const map = L.map('settings-map', { zoomControl: true }).setView([lat0, lon0], 17);
+        var latIn  = document.getElementById('lat-input');
+        var lonIn  = document.getElementById('lon-input');
+        var radIn  = document.getElementById('radius-input');
+
+        var lat0 = parseFloat(latIn ? latIn.value : '') || 19.014903;
+        var lon0 = parseFloat(lonIn ? lonIn.value : '') || 72.845183;
+        var rad0 = parseInt(radIn  ? radIn.value  : '') || 100;
+
+        // Force the container dimensions explicitly
+        container.style.height   = '320px';
+        container.style.width    = '100%';
+        container.style.display  = 'block';
+        container.style.position = 'relative';
+
+        _map = L.map('settings-map', { zoomControl: true }).setView([lat0, lon0], 17);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(_map);
 
-        const icon = L.divIcon({
+        var icon = L.divIcon({
             html: '<div style="background:#1a3c6e;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',
             className: '', iconAnchor: [9, 9]
         });
 
-        let marker = L.marker([lat0, lon0], { icon, draggable: true }).addTo(map)
-            .bindPopup('<strong>Office Location</strong><br>Drag to reposition').openPopup();
-        let circle = L.circle([lat0, lon0], {
+        var marker = L.marker([lat0, lon0], { icon: icon, draggable: true })
+            .addTo(_map)
+            .bindPopup('<strong>Office Location</strong><br>Drag to move');
+
+        var circle = L.circle([lat0, lon0], {
             radius: rad0, color: '#1a3c6e', fillColor: '#1a3c6e',
-            fillOpacity: .1, weight: 2, dashArray: '6 4'
-        }).addTo(map);
+            fillOpacity: 0.1, weight: 2, dashArray: '6 4'
+        }).addTo(_map);
 
-        // Force Leaflet to recalculate size after container is fully painted
-        setTimeout(() => map.invalidateSize(), 200);
-
-        function updateFromLatLon(lat, lon) {
-            latIn.value = lat.toFixed(7);
-            lonIn.value = lon.toFixed(7);
+        function updateCoords(lat, lon) {
+            if (latIn) latIn.value = lat.toFixed(7);
+            if (lonIn) lonIn.value = lon.toFixed(7);
             marker.setLatLng([lat, lon]);
             circle.setLatLng([lat, lon]);
-            map.setView([lat, lon], 17);
+            _map.setView([lat, lon], 17);
         }
 
-        marker.on('dragend', function(e) {
-            const p = e.target.getLatLng();
-            updateFromLatLon(p.lat, p.lng);
+        marker.on('dragend', function (e) {
+            var p = e.target.getLatLng();
+            updateCoords(p.lat, p.lng);
         });
 
-        map.on('click', function(e) {
-            updateFromLatLon(e.latlng.lat, e.latlng.lng);
+        _map.on('click', function (e) {
+            updateCoords(e.latlng.lat, e.latlng.lng);
         });
 
-        radIn.addEventListener('input', function() {
-            const r = parseInt(radIn.value) || 100;
-            circle.setRadius(r);
-        });
+        if (radIn) {
+            radIn.addEventListener('input', function () {
+                circle.setRadius(parseInt(radIn.value) || 100);
+            });
+        }
 
-        // Re-sync when lat/lon fields are typed manually
-        [latIn, lonIn].forEach(inp => {
-            inp.addEventListener('change', function() {
-                const la = parseFloat(latIn.value);
-                const lo = parseFloat(lonIn.value);
+        [latIn, lonIn].forEach(function (inp) {
+            if (!inp) return;
+            inp.addEventListener('change', function () {
+                var la = parseFloat(latIn.value), lo = parseFloat(lonIn.value);
                 if (!isNaN(la) && !isNaN(lo)) {
                     marker.setLatLng([la, lo]);
                     circle.setLatLng([la, lo]);
-                    map.setView([la, lo], 17);
+                    _map.setView([la, lo], 17);
                 }
             });
         });
+
+        // Multiple invalidateSize calls to handle deferred layout
+        var delays = [50, 200, 500, 1000, 2000];
+        delays.forEach(function (d) {
+            setTimeout(function () { _map && _map.invalidateSize(); }, d);
+        });
     }
 
-    // Init immediately + after window load to handle any deferred CSS
+    // Try as early as possible, then again at load
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMap);
+        document.addEventListener('DOMContentLoaded', buildMap);
     } else {
-        initMap();
+        buildMap();
     }
-    window.addEventListener('load', function() {
-        // Second call after all resources loaded
-        setTimeout(() => {
-            const m = document.querySelector('#settings-map .leaflet-container');
-            if (!m) initMap();
-        }, 300);
+    window.addEventListener('load', function () {
+        setTimeout(buildMap, 100);
+        setTimeout(function () { _map && _map.invalidateSize(); }, 300);
     });
+
 })();
 </script>
 {% endblock %}
