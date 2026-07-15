@@ -1,15 +1,173 @@
 {% extends 'layouts/base.html' %}
 {% block title %}Attendance History — {{ app_name }}{% endblock %}
-{% block breadcrumbs %}{% set breadcrumbs=[('Attendance',url_for('attendance.index')),('History',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Attendance', url_for('attendance.index')), ('History', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
 {% block page_header %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 18px;
+    background: linear-gradient(135deg, #198754, #146c43);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: .875rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .2s;
+    box-shadow: 0 3px 10px rgba(25,135,84,.3);
+    text-decoration: none;
+}
+.export-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(25,135,84,.4);
+    color: #fff;
+    text-decoration: none;
+}
+.export-btn:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+.export-btn .export-spin {
+    width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: exportSpin .65s linear infinite;
+    display: none;
+}
+@keyframes exportSpin { to { transform: rotate(360deg); } }
+
+/* Filter card */
+.filter-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e8edf2;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+/* Status badge filter pills */
+.status-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.status-pill {
+    padding: 4px 12px;
+    border-radius: 50px;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid #dee2e6;
+    background: #fff;
+    color: #495057;
+    text-decoration: none;
+    transition: all .15s;
+}
+.status-pill:hover { border-color: #1a3c6e; color: #1a3c6e; }
+.status-pill.active { background: #1a3c6e; border-color: #1a3c6e; color: #fff; }
+
+/* Export notification */
+.export-notif {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    min-width: 280px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    padding: 14px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border-left: 4px solid #198754;
+    animation: notifSlide .25s ease;
+}
+.export-notif.error { border-left-color: #dc3545; }
+@keyframes notifSlide { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
-        <h6 class="fw-semibold mb-0">Attendance History — {{ employee.full_name }}</h6>
-        <span class="text-muted small">{{ pagination.total }} records</span>
+
+<!-- Page header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">
+            <i class="bi bi-clock-history me-2 text-primary"></i>Attendance History
+        </h1>
+        <p class="text-muted small mb-0">{{ employee.full_name }} &bull; {{ pagination.total }} record{{ 's' if pagination.total != 1 else '' }}</p>
     </div>
+    <button class="export-btn" id="export-btn" title="Export to Excel">
+        <div class="export-spin" id="export-spin"></div>
+        <i class="bi bi-file-earmark-excel-fill" id="export-icon"></i>
+        <span id="export-txt">Download Excel</span>
+    </button>
+</div>
+
+<!-- Filters -->
+<div class="filter-card">
+    <form method="GET" id="filter-form" class="row g-3 align-items-end">
+        <div class="col-sm-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">From Date</label>
+            <input type="date" name="start_date" class="form-control form-control-sm"
+                   value="{{ start_date }}" id="filter-start">
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">To Date</label>
+            <input type="date" name="end_date" class="form-control form-control-sm"
+                   value="{{ end_date }}" id="filter-end">
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <label class="form-label small fw-semibold mb-1">Status</label>
+            <select name="status" class="form-select form-select-sm" id="filter-status">
+                <option value="">All Status</option>
+                {% for s, l in [
+                    ('present','Present'),('absent','Absent'),
+                    ('half_day','Half Day'),('on_leave','On Leave'),
+                    ('holiday','Holiday'),('weekend','Weekend'),
+                ] %}
+                <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ l }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-sm-6 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="{{ url_for('attendance.history') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </form>
+
+    <!-- Quick month shortcuts -->
+    <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+        <span class="text-muted small fw-semibold me-1">Quick:</span>
+        {% set today_d = namespace() %}
+        {% for label, qs in [
+            ('This Month', 'this_month'),
+            ('Last Month', 'last_month'),
+            ('Last 30 Days', 'last_30'),
+            ('Last 3 Months', 'last_90'),
+        ] %}
+        <a href="#" class="status-pill {% if request.args.get('quick') == qs %}active{% endif %}"
+           data-quick="{{ qs }}">{{ label }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
+        <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
             <thead class="table-light">
                 <tr>
                     <th class="ps-4">Date</th>
@@ -19,30 +177,230 @@
                     <th>Overtime</th>
                     <th>Status</th>
                     <th>Late</th>
+                    <th class="text-center">Photo</th>
                 </tr>
             </thead>
             <tbody>
-            {% for att in pagination.items %}
-            {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary'} %}
+            {% set bm = {'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary'} %}
+            {% for att, photo in pagination.items %}
             <tr>
-                <td class="ps-4 fw-medium small">{{ att.date.strftime('%d %b %Y') }}<div class="text-muted" style="font-size:.75rem">{{ att.date.strftime('%A') }}</div></td>
-                <td class="small">{{ att.check_in_time.strftime('%H:%M') if att.check_in_time else '—' }}</td>
-                <td class="small">{{ att.check_out_time.strftime('%H:%M') if att.check_out_time else '—' }}</td>
-                <td class="small fw-medium">{{ att.working_hours_display }}</td>
-                <td class="small {% if att.overtime_minutes %}text-success fw-semibold{% else %}text-muted{% endif %}">
-                    {% if att.overtime_minutes %}+{{ att.overtime_minutes // 60 }}h {{ att.overtime_minutes % 60 }}m{% else %}—{% endif %}
+                <td class="ps-4 fw-medium small">
+                    {{ att.date.strftime('%d %b %Y') }}
+                    <div class="text-muted" style="font-size:.72rem">{{ att.date.strftime('%A') }}</div>
                 </td>
-                <td><span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }} small">{{ att.status.replace('_',' ').title() }}</span></td>
-                <td class="small {% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">{{ (att.late_minutes ~ ' min') if att.is_late else '—' }}</td>
+                <td class="small">
+                    {% if att.check_in_time %}
+                    <span class="utc-to-ist">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="small">
+                    {% if att.check_out_time %}
+                    <span class="utc-to-ist">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="small fw-semibold">{{ att.working_hours_display }}</td>
+                <td class="small {% if att.overtime_minutes %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                    {% if att.overtime_minutes %}
+                        +{{ att.overtime_minutes // 60 }}h {{ att.overtime_minutes % 60 }}m
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }} small">
+                        {{ att.status.replace('_',' ').title() }}
+                    </span>
+                    {% if att.is_half_day %}
+                    <span class="badge bg-warning-subtle text-warning small ms-1">Half</span>
+                    {% endif %}
+                </td>
+                <td class="small {% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+                    {{ (att.late_minutes | fmt_minutes) if att.is_late else '—' }}
+                </td>
+                <td class="text-center">
+                    {% if photo and photo.file_path %}
+                        <a href="{{ url_for('static', filename='uploads/' + photo.file_path) }}"
+                           target="_blank"
+                           title="View proof photo — {{ att.date.strftime('%d %b %Y') }}"
+                           class="photo-thumb-link">
+                            <img src="{{ url_for('static', filename='uploads/' + photo.file_path) }}"
+                                 alt="Proof photo"
+                                 class="rounded-2 border"
+                                 style="width:40px;height:40px;object-fit:cover;cursor:pointer;
+                                        transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.12)"
+                                 onmouseover="this.style.transform='scale(1.12)'"
+                                 onmouseout="this.style.transform='scale(1)'">
+                        </a>
+                    {% else %}
+                        <span class="text-muted" style="font-size:.75rem">—</span>
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
-            <tr><td colspan="7" class="text-center py-5 text-muted">No records found.</td></tr>
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <i class="bi bi-calendar-x text-muted" style="font-size:2.5rem;opacity:.3;display:block;margin-bottom:10px"></i>
+                    <div class="text-muted">No attendance records found for the selected filters.</div>
+                    {% if start_date or end_date or status %}
+                    <a href="{{ url_for('attendance.history') }}" class="btn btn-sm btn-outline-secondary mt-3">Clear Filters</a>
+                    {% endif %}
+                </td>
+            </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
+
     {% if pagination.pages > 1 %}
-    <div class="card-footer bg-transparent">{% include 'shared/pagination.html' %}</div>
+    <div class="card-footer bg-transparent">
+        {% set url_params = {'start_date': start_date, 'end_date': end_date, 'status': status} %}
+        {% include 'shared/pagination.html' %}
+    </div>
     {% endif %}
 </div>
+
+<!-- Export notification container -->
+<div id="export-notif-wrap"></div>
+
+<!-- Pass current filters to JS for export URL construction -->
+<script id="filter-data" type="application/json">
+{
+    "start_date": {{ start_date | tojson }},
+    "end_date":   {{ end_date   | tojson }},
+    "status":     {{ status     | tojson }},
+    "export_url": {{ url_for('attendance.export_history') | tojson }}
+}
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    // ── UTC → IST converter ───────────────────────────────────────────
+    document.querySelectorAll('.utc-to-ist').forEach(function (s) {
+        const iso = s.textContent.trim();
+        if (!iso) return;
+        try {
+            const ist = new Date(new Date(iso).getTime() + 330 * 60000);
+            const hh  = String(ist.getUTCHours()).padStart(2, '0');
+            const mm  = String(ist.getUTCMinutes()).padStart(2, '0');
+            s.textContent = hh + ':' + mm + ' IST';
+        } catch (e) {}
+    });
+
+    // ── Quick date shortcuts ──────────────────────────────────────────
+    document.querySelectorAll('[data-quick]').forEach(function (pill) {
+        pill.addEventListener('click', function (e) {
+            e.preventDefault();
+            const today = new Date();
+            const fmt   = d => d.toISOString().split('T')[0];
+            let start, end = fmt(today);
+
+            switch (this.dataset.quick) {
+                case 'this_month':
+                    start = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+                    break;
+                case 'last_month': {
+                    const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    const l = new Date(today.getFullYear(), today.getMonth(), 0);
+                    start = fmt(f); end = fmt(l);
+                    break;
+                }
+                case 'last_30': {
+                    const d = new Date(today); d.setDate(d.getDate() - 30);
+                    start = fmt(d);
+                    break;
+                }
+                case 'last_90': {
+                    const d = new Date(today); d.setDate(d.getDate() - 90);
+                    start = fmt(d);
+                    break;
+                }
+            }
+
+            document.getElementById('filter-start').value = start;
+            document.getElementById('filter-end').value   = end;
+            document.getElementById('filter-form').submit();
+        });
+    });
+
+    // ── Excel Export ──────────────────────────────────────────────────
+    const btn        = document.getElementById('export-btn');
+    const spin       = document.getElementById('export-spin');
+    const icon       = document.getElementById('export-icon');
+    const txt        = document.getElementById('export-txt');
+    const notifWrap  = document.getElementById('export-notif-wrap');
+
+    const filters    = JSON.parse(document.getElementById('filter-data').textContent);
+
+    function buildExportUrl() {
+        const params = new URLSearchParams();
+        if (filters.start_date) params.set('start_date', filters.start_date);
+        if (filters.end_date)   params.set('end_date',   filters.end_date);
+        if (filters.status)     params.set('status',     filters.status);
+        const qs = params.toString();
+        return filters.export_url + (qs ? '?' + qs : '');
+    }
+
+    function showNotif(message, isError) {
+        const n = document.createElement('div');
+        n.className = 'export-notif' + (isError ? ' error' : '');
+        n.innerHTML =
+            '<span style="font-size:1.2rem">' + (isError ? '❌' : '✅') + '</span>' +
+            '<div style="flex:1;font-size:.875rem;color:#0f1729">' + message + '</div>' +
+            '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.9rem">✕</button>';
+        notifWrap.appendChild(n);
+        setTimeout(function () { if (n.parentElement) n.remove(); }, 5000);
+    }
+
+    btn.addEventListener('click', async function () {
+        btn.disabled         = true;
+        spin.style.display   = 'block';
+        icon.style.display   = 'none';
+        txt.textContent      = 'Generating…';
+
+        try {
+            const res = await fetch(buildExportUrl(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (res.status === 404) {
+                const data = await res.json().catch(() => ({}));
+                showNotif(data.message || 'No attendance records available for export.', true);
+                return;
+            }
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                showNotif(data.message || 'Export failed. Please try again.', true);
+                return;
+            }
+
+            // Trigger download
+            const blob     = await res.blob();
+            const url      = URL.createObjectURL(blob);
+            const a        = document.createElement('a');
+            const today    = new Date().toISOString().split('T')[0];
+            a.href         = url;
+            a.download     = 'Attendance_History_' + today + '.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotif('Excel file downloaded successfully!', false);
+
+        } catch (err) {
+            showNotif('Network error. Please check your connection.', true);
+        } finally {
+            btn.disabled       = false;
+            spin.style.display = 'none';
+            icon.style.display = '';
+            txt.textContent    = 'Download Excel';
+        }
+    });
+
+})();
+</script>
 {% endblock %}

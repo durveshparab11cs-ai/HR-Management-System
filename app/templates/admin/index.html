@@ -89,7 +89,16 @@
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
         <h6 class="fw-semibold mb-0">Today's Attendance</h6>
-        <a href="{{ url_for('attendance.index') }}" class="small text-primary">View All</a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('admin.export_daily_attendance') }}"
+               class="btn btn-sm btn-success d-flex align-items-center gap-1"
+               id="admin-export-btn"
+               title="Download Excel — All employees for today">
+                <i class="bi bi-file-earmark-excel-fill"></i>
+                <span class="d-none d-sm-inline">Download Excel</span>
+            </a>
+            <a href="{{ url_for('attendance.index') }}" class="small text-primary">View All</a>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle" style="font-size:.85rem">
@@ -114,7 +123,7 @@
                     <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
                         {{ att.status.replace('_',' ').title() }}
                     </span>
-                    {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late</span>{% endif %}
+                    {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late {{ att.late_minutes | fmt_minutes }}</span>{% endif %}
                 </td>
             </tr>
             {% else %}
@@ -176,6 +185,8 @@
                 {% set actions=[
                     ('Employees','employees.index','bi-people-fill','primary'),
                     ('Add Employee','employees.create','bi-person-plus','success'),
+                    ('Import Employees','admin.import_employees','bi-file-earmark-excel','success'),
+                    ('Employee Master','admin.employee_master','bi-person-badge','primary'),
                     ('Leave Requests','leave.pending','bi-calendar-x','warning'),
                     ('Office Settings','admin.office_settings','bi-geo-alt-fill','danger'),
                     ('Leave Types','admin.leave_types','bi-list-check','info'),

@@ -43,7 +43,7 @@
                             {% endif %}
                         </div>
                         {% if today_att and today_att.is_late %}
-                        <div class="text-warning small"><i class="bi bi-clock-history me-1"></i>Late {{ today_att.late_minutes }} min</div>
+                        <div class="text-warning small"><i class="bi bi-clock-history me-1"></i>Late {{ today_att.late_minutes | fmt_minutes }}</div>
                         {% endif %}
                     </div>
                 </div>

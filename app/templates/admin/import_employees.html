@@ -1,0 +1,192 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Import Employees — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin',url_for('admin.index')),('Import Employees',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block extra_css %}
+<style>
+.imp-drop{border:2px dashed #e2e8f0;border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa}
+.imp-drop:hover,.imp-drop.drag-over{border-color:#1a3c6e;background:#eff6ff}
+.imp-drop i{font-size:2.5rem;color:#94a3b8;display:block;margin-bottom:10px}
+.status-imported{color:#16a34a;font-weight:600}
+.status-skipped{color:#6b7280}
+.status-duplicate{color:#d97706;font-weight:600}
+.status-error{color:#dc2626;font-weight:600}
+.summary-card{border-radius:12px;padding:18px 22px;text-align:center;border:none}
+.summary-val{font-size:2rem;font-weight:800;line-height:1}
+.summary-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;opacity:.8;margin-top:3px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Import Employees</h1>
+    <p class="text-muted small mb-0">Upload Excel to pre-seed Employee Master Data</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.employee_master') }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-people me-1"></i>View Master ({{ total_masters }})
+    </a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  {% set cards = [
+    (total_masters, 'Total Employees', 'bi-people-fill', '#1a3c6e', '#eff6ff'),
+    (registered, 'Registered', 'bi-person-check-fill', '#16a34a', '#f0fdf4'),
+    (total_masters - registered, 'Pending Registration', 'bi-hourglass-split', '#d97706', '#fffbeb'),
+  ] %}
+  {% for val, lbl, icon, color, bg in cards %}
+  <div class="col-sm-4">
+    <div class="summary-card" style="background:{{ bg }}">
+      <div class="summary-val" style="color:{{ color }}">{{ val }}</div>
+      <div class="summary-lbl" style="color:{{ color }}">{{ lbl }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Upload form -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent border-0 py-3 px-4">
+    <h6 class="fw-semibold mb-0">Upload Excel File</h6>
+  </div>
+  <div class="card-body px-4 pb-4">
+    <div class="alert alert-info small mb-4">
+      <i class="bi bi-info-circle me-1"></i>
+      Excel must have columns: <strong>EMP-CODE</strong> and <strong>NAME</strong>.
+      Duplicate codes are skipped automatically.
+      Employees can register on the portal after import.
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="import-form">
+      {{ csrf_token_field() }}
+      <div class="imp-drop" id="drop-zone" onclick="document.getElementById('excel-file').click()">
+        <i class="bi bi-file-earmark-excel-fill text-success"></i>
+        <div class="fw-semibold mb-1">Click or drag Excel file here</div>
+        <div class="text-muted small">.xlsx or .xls — max 10 MB</div>
+        <div id="file-name" class="mt-2 text-primary small fw-semibold"></div>
+      </div>
+      <input type="file" id="excel-file" name="excel_file"
+             accept=".xlsx,.xls" style="display:none"
+             onchange="onFileSelect(this)">
+
+      <div class="d-flex gap-3 mt-4 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" onclick="previewFile()">
+          <i class="bi bi-eye me-1"></i>Preview
+        </button>
+        <button type="submit" class="btn btn-success px-4 fw-semibold" id="import-btn">
+          <i class="bi bi-upload me-1"></i>Import Employees
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Result -->
+{% if result and result.success %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+    <h6 class="fw-semibold mb-0 text-success"><i class="bi bi-check-circle me-1"></i>Import Report</h6>
+    <span class="text-muted small">{{ result.total }} rows processed</span>
+  </div>
+  <div class="card-body px-4 pb-2">
+    <div class="row g-3 mb-4">
+      {% for val, lbl, color in [
+        (result.imported, 'Imported', 'success'),
+        (result.skipped,  'Skipped',  'secondary'),
+        (result.duplicate,'Duplicate','warning'),
+        (result.errors,   'Errors',   'danger'),
+      ] %}
+      <div class="col-6 col-md-3">
+        <div class="card border-0 bg-{{ color }}-subtle text-center py-3">
+          <div class="h3 fw-bold text-{{ color }} mb-0">{{ val }}</div>
+          <div class="small text-{{ color }} fw-medium">{{ lbl }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% if result.details %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle" style="font-size:.825rem">
+      <thead class="table-light">
+        <tr><th class="ps-4">Code</th><th>Name</th><th>Status</th><th class="pe-4">Reason</th></tr>
+      </thead>
+      <tbody>
+      {% for d in result.details %}
+      <tr>
+        <td class="ps-4"><code class="small">{{ d.code }}</code></td>
+        <td>{{ d.name }}</td>
+        <td><span class="status-{{ d.status }}">{{ d.status.title() }}</span></td>
+        <td class="pe-4 text-muted small">{{ d.reason or '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Preview modal -->
+<div class="modal fade" id="preview-modal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">Excel Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" id="preview-content">
+        <div class="text-center py-5 text-muted">Loading preview…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInp  = document.getElementById('excel-file');
+
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e=>{
+  e.preventDefault();dropZone.classList.remove('drag-over');
+  if(e.dataTransfer.files[0]){fileInp.files=e.dataTransfer.files;onFileSelect(fileInp);}
+});
+
+function onFileSelect(inp){
+  if(inp.files[0]) document.getElementById('file-name').textContent='Selected: '+inp.files[0].name;
+}
+
+async function previewFile(){
+  if(!fileInp.files[0]){alert('Select a file first.');return;}
+  const modal = new bootstrap.Modal(document.getElementById('preview-modal'));
+  document.getElementById('preview-content').innerHTML='<div class="text-center py-5 text-muted">Loading…</div>';
+  modal.show();
+  const fd=new FormData();
+  fd.append('excel_file',fileInp.files[0]);
+  fd.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content||'');
+  const res=await fetch('{{ url_for("admin.preview_import") }}',{method:'POST',body:fd});
+  const d=await res.json();
+  if(!d.success){
+    document.getElementById('preview-content').innerHTML='<div class="text-center py-4 text-danger">'+d.message+'</div>';
+    return;
+  }
+  let html='<table class="table table-sm table-hover mb-0"><thead class="table-light"><tr>';
+  d.headers.forEach(h=>{html+=`<th class="ps-3">${h}</th>`;});
+  html+='</tr></thead><tbody>';
+  d.rows.forEach(r=>{
+    html+='<tr>';
+    d.headers.forEach(h=>{html+=`<td class="ps-3 small">${r[h]||''}</td>`;});
+    html+='</tr>';
+  });
+  html+=`</tbody></table><div class="text-muted small text-center py-2">Showing ${d.rows.length} of ${d.total_rows} rows</div>`;
+  document.getElementById('preview-content').innerHTML=html;
+}
+</script>
+{% endblock %}

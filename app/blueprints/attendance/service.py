@@ -89,7 +89,7 @@ class AttendanceService:
         if existing and existing.check_in_time:
             return False, "You have already checked in today.", None, None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         is_late, late_minutes = compute_check_in_meta(now, office)
 
         if existing:
@@ -130,7 +130,7 @@ class AttendanceService:
 
         import pytz  # noqa: PLC0415
         IST = pytz.timezone("Asia/Kolkata")
-        ist_time = now.astimezone(IST).strftime("%H:%M")
+        ist_time = datetime.now(IST).strftime("%H:%M")
         late_msg = f" You are late by {late_minutes} min." if is_late else ""
         logger.info("CHECK_IN | emp=%s | dist=%.0fm | late=%s", employee.id, gps.distance_metres, is_late)
         gps_detail = self._build_gps_detail(gps, office)
@@ -178,7 +178,7 @@ class AttendanceService:
         if attendance.check_out_time:
             return False, "You have already checked out today.", None, None
 
-        now  = datetime.now(timezone.utc)
+        now  = datetime.utcnow()
         meta = compute_check_out_meta(attendance, now, office)
 
         attendance.check_out_time              = now

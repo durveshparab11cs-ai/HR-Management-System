@@ -80,8 +80,8 @@ def create_app(env: str = "development") -> Flask:
     # ── 7b. Template Globals ─────────────────────────────────────────
     _register_template_globals(app)
 
-    # Note: IST time conversion is handled client-side in attendance.js
-    # using the .utc-to-ist CSS class pattern (UTC+5:30 offset).
+    # ── 7c. Jinja2 filters (IST conversion, fmt_minutes, etc.) ──────
+    _register_template_filters(app)
 
     # ── 8. CLI Commands ──────────────────────────────────────────────
     _register_cli(app)
@@ -377,6 +377,26 @@ def _register_template_filters(app: Flask) -> None:
     def to_ist_date(dt):
         """Format datetime as '13 Jul 2026, 02:06 PM IST'."""
         return to_ist(dt, "%d %b %Y, %I:%M %p")
+
+    @app.template_filter("fmt_minutes")
+    def fmt_minutes(minutes):
+        """
+        Format integer minutes as human-readable duration.
+        Usage: {{ att.late_minutes | fmt_minutes }}
+        Examples: 5 → '5m', 65 → '1h 5m', 455 → '7h 35m'
+        """
+        if not minutes:
+            return "0m"
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            return "0m"
+        h, m = divmod(minutes, 60)
+        if h == 0:
+            return f"{m}m"
+        if m == 0:
+            return f"{h}h"
+        return f"{h}h {m}m"
 
 
 def _register_root_redirect(app: Flask) -> None:

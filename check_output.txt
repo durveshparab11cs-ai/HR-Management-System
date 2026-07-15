@@ -1,0 +1,136 @@
+Creating Flask app...
+
+[OK] App created successfully
+
+[OK] Database connected -- 22 tables
+     - attendance
+     - attendance_logs
+     - attendance_photos
+     - company_profile
+     - departments
+     - early_leave_requests
+     - employee_master
+     - employees
+     - gps_logs
+     - half_day_requests
+     - leave_requests
+     - leave_types
+     - login_history
+     - notifications
+     - office_settings
+     - payroll_runs
+     - payslips
+     - positions
+     - salary_components
+     - salary_structures
+     - shifts
+     - users
+
+[OK] employee_master : 353 rows
+[OK] users           : 5 rows
+
+[OK] 101 routes registered:
+  [GET       ]  /
+  [GET       ]  /admin
+  [GET       ]  /admin/
+  [GET       ]  /admin/attendance/export
+  [GET       ]  /admin/audit-logs
+  [GET       ]  /admin/employee-master
+  [GET,POST  ]  /admin/import-employees
+  [POST      ]  /admin/import-employees/preview
+  [GET       ]  /admin/leave-types
+  [GET,POST  ]  /admin/office-settings
+  [GET       ]  /admin/static/<path:filename>
+  [GET       ]  /admin/users
+  [GET       ]  /api/v1/health
+  [GET       ]  /api/v1/me
+  [GET       ]  /attendance/
+  [POST      ]  /attendance/checkin
+  [POST      ]  /attendance/checkout
+  [GET       ]  /attendance/gps-test
+  [GET       ]  /attendance/history
+  [GET       ]  /attendance/history/export
+  [GET,POST  ]  /attendance/settings
+  [GET       ]  /attendance/static/<path:filename>
+  [POST      ]  /attendance/upload-photo
+  [GET,POST  ]  /auth/forgot-password
+  [GET,POST  ]  /auth/login
+  [GET       ]  /auth/logout
+  [GET       ]  /auth/lookup-employee
+  [GET,POST  ]  /auth/reset-password/<token>
+  [GET       ]  /auth/static/<path:filename>
+  [GET       ]  /company
+  [GET       ]  /company/
+  [GET       ]  /company/departments
+  [POST      ]  /company/departments/<int:dept_id>/delete
+  [GET,POST  ]  /company/departments/create
+  [GET       ]  /company/holidays
+  [GET       ]  /company/locations
+  [GET       ]  /company/positions
+  [GET,POST  ]  /company/positions/create
+  [GET,POST  ]  /company/profile
+  [GET       ]  /company/shifts
+  [GET,POST  ]  /company/shifts/create
+  [GET       ]  /company/static/<path:filename>
+  [GET       ]  /dashboard
+  [GET       ]  /dashboard/
+  [GET       ]  /dashboard/static/<path:filename>
+  [GET       ]  /employees/
+  [GET       ]  /employees/<int:employee_id>
+  [POST      ]  /employees/<int:employee_id>/delete
+  [GET,POST  ]  /employees/<int:employee_id>/edit
+  [GET,POST  ]  /employees/<int:employee_id>/reset-password
+  [POST      ]  /employees/<int:employee_id>/toggle-status
+  [POST      ]  /employees/<int:employee_id>/unlock
+  [GET,POST  ]  /employees/create
+  [GET       ]  /employees/next-code
+  [GET       ]  /employees/static/<path:filename>
+  [GET       ]  /health
+  [GET       ]  /leave/
+  [POST      ]  /leave/<int:lr_id>/approve
+  [POST      ]  /leave/<int:lr_id>/cancel
+  [POST      ]  /leave/<int:lr_id>/reject
+  [GET,POST  ]  /leave/apply
+  [POST      ]  /leave/earlyleave/<int:el_id>/approve
+  [POST      ]  /leave/earlyleave/<int:el_id>/reject
+  [GET,POST  ]  /leave/earlyleave/apply
+  [POST      ]  /leave/halfday/<int:hd_id>/approve
+  [POST      ]  /leave/halfday/<int:hd_id>/reject
+  [GET,POST  ]  /leave/halfday/apply
+  [GET       ]  /leave/pending
+  [GET       ]  /leave/static/<path:filename>
+  [GET       ]  /notifications
+  [GET       ]  /notifications/
+  [POST      ]  /notifications/<int:notification_id>/read
+  [GET       ]  /notifications/count
+  [POST      ]  /notifications/mark-all-read
+  [GET       ]  /notifications/static/<path:filename>
+  [GET       ]  /payroll
+  [GET       ]  /payroll/
+  [GET       ]  /payroll/payslips
+  [GET       ]  /payroll/payslips/<int:payslip_id>
+  [GET,POST  ]  /payroll/run/create
+  [GET       ]  /payroll/runs/<int:run_id>
+  [POST      ]  /payroll/runs/<int:run_id>/approve
+  [POST      ]  /payroll/runs/<int:run_id>/mark-paid
+  [POST      ]  /payroll/runs/<int:run_id>/process
+  [GET       ]  /payroll/salary-structures
+  [GET       ]  /payroll/static/<path:filename>
+  [GET       ]  /reports
+  [GET       ]  /reports/
+  [GET       ]  /reports/attendance
+  [GET       ]  /reports/employees
+  [GET       ]  /reports/export/<report_type>/<fmt>
+  [GET       ]  /reports/leave
+  [GET       ]  /reports/static/<path:filename>
+  [GET       ]  /settings
+  [GET       ]  /settings/
+  [GET,POST  ]  /settings/leave-policy
+  [GET,POST  ]  /settings/notifications
+  [GET,POST  ]  /settings/profile
+  [GET,POST  ]  /settings/security
+  [GET       ]  /settings/static/<path:filename>
+  [GET       ]  /static/<path:filename>
+
+[OK] All checks passed. Run 'python run.py' to start the server.
+     URL: http://localhost:5000/auth/login

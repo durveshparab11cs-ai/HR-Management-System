@@ -1,0 +1,19 @@
+INFO  Using column #1 for code, #2 for name
+INFO  Parsed 354 valid rows from Excel.
+DEBUG  Configuration loaded: DevelopmentConfig
+INFO  Logging initialized | env=unknown | level=DEBUG | dir=./logs
+INFO  setup plugin alembic.autogenerate.schemas
+INFO  setup plugin alembic.autogenerate.tables
+INFO  setup plugin alembic.autogenerate.types
+INFO  setup plugin alembic.autogenerate.constraints
+INFO  setup plugin alembic.autogenerate.defaults
+INFO  setup plugin alembic.autogenerate.comments
+DEBUG  Extensions initialized.
+DEBUG  ProxyFix skipped (development mode).
+DEBUG  Security headers middleware registered.
+INFO  Registered 12 blueprints: authentication, dashboard, company, employees, attendance, leave, payroll, reports, notifications, settings, admin, api
+INFO  Error handlers registered.
+DEBUG  CLI commands registered.
+INFO  Smart HRMS started | env=development | debug=True
+WARNING  DUPLICATE_IN_FILE  code=E-2605011             name=Chinthangunta Venkatesh
+INFO  Database committed.

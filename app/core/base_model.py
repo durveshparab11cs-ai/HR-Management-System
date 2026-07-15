@@ -154,7 +154,7 @@ class BaseModel(db.Model, TimestampMixin, SoftDeleteMixin):
             self, for method chaining.
         """
         self.is_deleted = True
-        self.deleted_at = datetime.now(timezone.utc)
+        self.deleted_at = datetime.utcnow()
         self.deleted_by = deleted_by_id
         return self.save(commit=commit)
 

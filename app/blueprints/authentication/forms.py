@@ -1,59 +1,95 @@
 """
 blueprints/authentication/forms.py
 =====================================
-Flask-WTF forms for authentication — login and first-time registration.
+Flask-WTF forms for authentication.
+
+Login and Registration now use Employee Code instead of Email.
 """
 
+import re
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, EmailField, PasswordField, SelectField, StringField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional as Opt
+from wtforms import BooleanField, PasswordField, StringField
+from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
 
 
-ROLE_CHOICES = [
-    ("employee",   "Employee"),
-    ("manager",    "Manager"),
-    ("hr_staff",   "HR Staff"),
-    ("hr_manager", "HR Manager"),
-    ("admin",      "Admin"),
-]
+def validate_password_strength(form, field):
+    """
+    Enforce password policy:
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - At least one special character
+    """
+    pwd = field.data or ""
+    errors = []
+    if len(pwd) < 8:
+        errors.append("at least 8 characters")
+    if not re.search(r"[A-Z]", pwd):
+        errors.append("one uppercase letter")
+    if not re.search(r"[a-z]", pwd):
+        errors.append("one lowercase letter")
+    if not re.search(r"\d", pwd):
+        errors.append("one digit")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-\+\=\[\]\\\/]", pwd):
+        errors.append("one special character")
+    if errors:
+        raise ValidationError(f"Password must contain: {', '.join(errors)}.")
 
 
 class LoginForm(FlaskForm):
-    email = EmailField(
-        "Email Address",
-        validators=[DataRequired(message="Email is required."), Email(message="Enter a valid email.")],
-        render_kw={"placeholder": "you@company.com", "autofocus": True},
+    """Login with Employee Code + Password."""
+
+    employee_code = StringField(
+        "Employee Code",
+        validators=[
+            DataRequired(message="Employee Code is required."),
+            Length(min=2, max=30, message="Enter a valid Employee Code."),
+        ],
+        render_kw={
+            "placeholder": "e.g. E-2603028",
+            "autofocus": True,
+            "autocomplete": "username",
+            "class": "",
+        },
     )
     password = PasswordField(
         "Password",
         validators=[DataRequired(message="Password is required.")],
-        render_kw={"placeholder": "Enter your password"},
+        render_kw={"placeholder": "Enter your password", "autocomplete": "current-password"},
     )
     remember_me = BooleanField("Keep me signed in for 30 days")
 
 
 class RegisterForm(FlaskForm):
-    first_name = StringField(
-        "First Name",
-        validators=[DataRequired(), Length(min=2, max=50)],
-        render_kw={"placeholder": "First name"},
+    """
+    First-time self-registration using Employee Code.
+
+    Flow:
+        1. Employee enters their code
+        2. JS fetches their name from /auth/lookup-employee
+        3. They set a password
+        4. Submit creates their User account
+    """
+
+    employee_code = StringField(
+        "Employee Code",
+        validators=[
+            DataRequired(message="Employee Code is required."),
+            Length(min=2, max=30, message="Enter a valid Employee Code."),
+        ],
+        render_kw={
+            "placeholder": "e.g. E-2603028",
+            "autofocus": True,
+            "autocomplete": "off",
+        },
     )
-    last_name = StringField(
-        "Last Name",
-        validators=[DataRequired(), Length(min=2, max=50)],
-        render_kw={"placeholder": "Last name"},
-    )
-    email = EmailField(
-        "Work Email",
-        validators=[DataRequired(), Email()],
-        render_kw={"placeholder": "work@email.com"},
-    )
-    role = SelectField("Role", choices=ROLE_CHOICES, validators=[DataRequired()])
     password = PasswordField(
         "Password",
         validators=[
             DataRequired(),
-            Length(min=8, max=128, message="Password must be at least 8 characters."),
+            Length(min=8, max=128),
+            validate_password_strength,
         ],
         render_kw={"placeholder": "Min 8 characters"},
     )
@@ -68,19 +104,27 @@ class RegisterForm(FlaskForm):
 
 
 class ForgotPasswordForm(FlaskForm):
-    email = EmailField(
-        "Email Address",
-        validators=[DataRequired(), Email()],
-        render_kw={"placeholder": "your.work@email.com", "autofocus": True},
+    """Request password reset via Employee Code."""
+
+    employee_code = StringField(
+        "Employee Code",
+        validators=[
+            DataRequired(message="Employee Code is required."),
+            Length(min=2, max=30),
+        ],
+        render_kw={"placeholder": "e.g. E-2603028", "autofocus": True},
     )
 
 
 class ResetPasswordForm(FlaskForm):
+    """Set a new password (used after admin-verified reset)."""
+
     password = PasswordField(
         "New Password",
         validators=[
             DataRequired(),
-            Length(min=8, max=128, message="Password must be at least 8 characters."),
+            Length(min=8, max=128),
+            validate_password_strength,
         ],
         render_kw={"placeholder": "New password"},
     )

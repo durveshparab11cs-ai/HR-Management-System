@@ -196,7 +196,7 @@
     {% if status.attendance and status.attendance.is_late %}
     <div class="att-pill" style="background:rgba(245,158,11,.2)">
       <i class="bi bi-clock-history"></i>
-      Late {{ status.attendance.late_minutes }} min
+      Late {{ status.attendance.late_minutes | fmt_minutes }}
     </div>
     {% endif %}
   </div>
@@ -374,7 +374,7 @@
           </span>
         </td>
         <td class="{% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">
-          {{ (att.late_minutes|string + ' min') if att.is_late else '—' }}
+          {{ (att.late_minutes | fmt_minutes) if att.is_late else '—' }}
         </td>
       </tr>
       {% else %}

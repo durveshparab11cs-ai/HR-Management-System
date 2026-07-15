@@ -16,6 +16,7 @@ Models available:
 from app.models.user import User  # noqa: F401
 from app.models.office_settings import OfficeSettings  # noqa: F401
 from app.models.employee import Employee  # noqa: F401
+from app.models.employee_master import EmployeeMaster  # noqa: F401
 from app.models.login_history import LoginHistory  # noqa: F401
 from app.models.attendance import Attendance  # noqa: F401
 from app.models.attendance_log import AttendanceLog  # noqa: F401
@@ -27,7 +28,7 @@ from app.models.company import CompanyProfile, Department, Position, Shift  # no
 from app.models.payroll import SalaryStructure, SalaryComponent, PayrollRun, Payslip  # noqa: F401
 
 __all__ = [
-    "User", "OfficeSettings", "Employee", "LoginHistory",
+    "User", "OfficeSettings", "Employee", "EmployeeMaster", "LoginHistory",
     "Attendance", "AttendanceLog", "AttendancePhoto", "GPSLog",
     "LeaveType", "LeaveRequest", "HalfDayRequest", "EarlyLeaveRequest",
     "Notification",

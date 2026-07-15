@@ -41,7 +41,7 @@ class NotificationService:
         if not n:
             return False
         n.is_read = True
-        n.read_at = datetime.now(timezone.utc)
+        n.read_at = datetime.utcnow()
         db.session.commit()
         return True
 
@@ -49,7 +49,7 @@ class NotificationService:
         count = (
             Notification.query
             .filter_by(user_id=user_id, is_read=False)
-            .update({"is_read": True, "read_at": datetime.now(timezone.utc)})
+            .update({"is_read": True, "read_at": datetime.utcnow()})
         )
         db.session.commit()
         return count

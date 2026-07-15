@@ -186,13 +186,15 @@ class User(UserMixin, BaseModel):
     def is_active(self) -> bool:
         """
         Flask-Login requires this. Returns True only for active, unlocked accounts.
-
-        Accounts with ACTIVE status and no active lockout are considered active.
         """
         if self.status != UserStatus.ACTIVE.value:
             return False
-        if self.locked_until and self.locked_until > datetime.now(timezone.utc):
-            return False
+        if self.locked_until:
+            locked = self.locked_until
+            if locked.tzinfo is not None:
+                locked = locked.replace(tzinfo=None)
+            if locked > datetime.utcnow():
+                return False
         return not self.is_deleted
 
     def get_id(self) -> str:
@@ -212,7 +214,7 @@ class User(UserMixin, BaseModel):
         """
         from werkzeug.security import generate_password_hash  # noqa: PLC0415
         self.password_hash = generate_password_hash(plaintext_password)
-        self.password_changed_at = datetime.now(timezone.utc)
+        self.password_changed_at = datetime.utcnow()
 
     def check_password(self, plaintext_password: str) -> bool:
         """
@@ -236,7 +238,8 @@ class User(UserMixin, BaseModel):
         from datetime import timedelta  # noqa: PLC0415
         self.failed_login_attempts += 1
         if self.failed_login_attempts >= Limits.Password.MAX_FAILED_ATTEMPTS:
-            self.locked_until = datetime.now(timezone.utc) + timedelta(
+            # Store as naive UTC — SQLite does not preserve tzinfo
+            self.locked_until = datetime.utcnow() + timedelta(
                 minutes=Limits.Password.LOCKOUT_DURATION_MINUTES
             )
 
@@ -244,14 +247,18 @@ class User(UserMixin, BaseModel):
         """Reset failed counter and record login metadata."""
         self.failed_login_attempts = 0
         self.locked_until = None
-        self.last_login_at = datetime.now(timezone.utc)
+        self.last_login_at = datetime.utcnow()
         self.last_login_ip = ip_address
 
     def is_locked(self) -> bool:
         """Return True if this account is currently locked."""
         if self.locked_until is None:
             return False
-        return self.locked_until > datetime.now(timezone.utc)
+        locked = self.locked_until
+        # Normalize both sides to naive UTC for SQLite compatibility
+        if locked.tzinfo is not None:
+            locked = locked.replace(tzinfo=None)
+        return locked > datetime.utcnow()
 
     # ------------------------------------------------------------------
     # Role / Permission Helpers

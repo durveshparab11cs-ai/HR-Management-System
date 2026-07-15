@@ -1,0 +1,24 @@
+All tables created successfully.
+Tables in database (22):
+  - attendance
+  - attendance_logs
+  - attendance_photos
+  - company_profile
+  - departments
+  - early_leave_requests
+  - employee_master
+  - employees
+  - gps_logs
+  - half_day_requests
+  - leave_requests
+  - leave_types
+  - login_history
+  - notifications
+  - office_settings
+  - payroll_runs
+  - payslips
+  - positions
+  - salary_components
+  - salary_structures
+  - shifts
+  - users

@@ -1,0 +1,9 @@
+[2026-07-15 11:02:29,449] DEBUG in __init__: Configuration loaded: DevelopmentConfig
+[2026-07-15 11:02:29,470] INFO in logging_config: Logging initialized | env=unknown | level=DEBUG | dir=./logs
+[2026-07-15 11:02:30,227] DEBUG in __init__: Extensions initialized.
+[2026-07-15 11:02:30,232] DEBUG in proxy: ProxyFix skipped (development mode).
+[2026-07-15 11:02:30,232] DEBUG in security_headers: Security headers middleware registered.
+[2026-07-15 11:02:30,299] INFO in __init__: Registered 12 blueprints: authentication, dashboard, company, employees, attendance, leave, payroll, reports, notifications, settings, admin, api
+[2026-07-15 11:02:30,299] INFO in error_handlers: Error handlers registered.
+[2026-07-15 11:02:30,384] DEBUG in __init__: CLI commands registered.
+[2026-07-15 11:02:30,394] INFO in __init__: Smart HRMS started | env=development | debug=True

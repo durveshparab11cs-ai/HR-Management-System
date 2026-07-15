@@ -95,7 +95,7 @@ class LeaveService:
             reason=form_data.get("reason", "").strip(),
             attachment=attachment_path,
             status="pending",
-            applied_on=datetime.now(timezone.utc),
+            applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
         leave_repo.create(lr)
@@ -111,7 +111,7 @@ class LeaveService:
             return False, f"Cannot approve a request with status '{lr.status}'."
         lr.status = "approved"
         lr.reviewed_by = reviewer_id
-        lr.reviewed_on = datetime.now(timezone.utc)
+        lr.reviewed_on = datetime.utcnow()
         lr.reviewer_comment = comment
         leave_repo.update(lr)
         # Mark attendance as on_leave for each day
@@ -127,7 +127,7 @@ class LeaveService:
             return False, f"Cannot reject a request with status '{lr.status}'."
         lr.status = "rejected"
         lr.reviewed_by = reviewer_id
-        lr.reviewed_on = datetime.now(timezone.utc)
+        lr.reviewed_on = datetime.utcnow()
         lr.reviewer_comment = comment
         leave_repo.update(lr)
         return True, "Leave request rejected."
@@ -177,7 +177,7 @@ class LeaveService:
             half_type=half_type,
             reason=reason,
             status="pending",
-            applied_on=datetime.now(timezone.utc),
+            applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
         leave_repo.create_halfday(hd)
@@ -189,7 +189,7 @@ class LeaveService:
         if hd.status != "pending": return False, "Already processed."
         hd.status = "approved"
         hd.reviewed_by = reviewer_id
-        hd.reviewed_on = datetime.now(timezone.utc)
+        hd.reviewed_on = datetime.utcnow()
         hd.reviewer_comment = comment
         leave_repo.update_halfday(hd)
         # Update attendance
@@ -206,7 +206,7 @@ class LeaveService:
         if hd.status != "pending": return False, "Already processed."
         hd.status = "rejected"
         hd.reviewed_by = reviewer_id
-        hd.reviewed_on = datetime.now(timezone.utc)
+        hd.reviewed_on = datetime.utcnow()
         hd.reviewer_comment = comment
         leave_repo.update_halfday(hd)
         return True, "Half-day request rejected."
@@ -237,7 +237,7 @@ class LeaveService:
             requested_leave_time=leave_time,
             reason=reason,
             status="pending",
-            applied_on=datetime.now(timezone.utc),
+            applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
         leave_repo.create_earlyleave(el)
@@ -249,7 +249,7 @@ class LeaveService:
         if el.status != "pending": return False, "Already processed."
         el.status = "approved"
         el.reviewed_by = reviewer_id
-        el.reviewed_on = datetime.now(timezone.utc)
+        el.reviewed_on = datetime.utcnow()
         el.reviewer_comment = comment
         leave_repo.update_earlyleave(el)
         att = att_repo.get_today(el.employee_id, el.date)
@@ -264,7 +264,7 @@ class LeaveService:
         if el.status != "pending": return False, "Already processed."
         el.status = "rejected"
         el.reviewed_by = reviewer_id
-        el.reviewed_on = datetime.now(timezone.utc)
+        el.reviewed_on = datetime.utcnow()
         el.reviewer_comment = comment
         leave_repo.update_earlyleave(el)
         return True, "Early leave rejected."

@@ -1,0 +1,87 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Employee Master — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin',url_for('admin.index')),('Employee Master',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Employee Master</h1>
+    <p class="text-muted small mb-0">{{ pagination.total }} employees</p>
+  </div>
+  <a href="{{ url_for('admin.import_employees') }}" class="btn btn-success btn-sm">
+    <i class="bi bi-upload me-1"></i>Import Excel
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2 px-4">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="q" class="form-control border-start-0" placeholder="Search code, name, department…" value="{{ search }}">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Status</option>
+          <option value="registered" {% if status=='registered' %}selected{% endif %}>Registered</option>
+          <option value="pending" {% if status=='pending' %}selected{% endif %}>Pending</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary btn-sm w-100">Filter</button>
+      </div>
+      <div class="col-md-2">
+        <a href="{{ url_for('admin.employee_master') }}" class="btn btn-outline-secondary btn-sm w-100">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Code</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Designation</th>
+          <th>Registration</th>
+          <th>Imported</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for emp in pagination.items %}
+      <tr>
+        <td class="ps-4"><code>{{ emp.employee_code }}</code></td>
+        <td class="fw-semibold">{{ emp.employee_name }}</td>
+        <td class="small text-muted">{{ emp.department or '—' }}</td>
+        <td class="small text-muted">{{ emp.designation or '—' }}</td>
+        <td>
+          {% if emp.is_registered %}
+          <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Registered</span>
+          {% else %}
+          <span class="badge bg-warning-subtle text-warning"><i class="bi bi-hourglass me-1"></i>Pending</span>
+          {% endif %}
+        </td>
+        <td class="small text-muted">{{ emp.imported_at.strftime('%d %b %Y') if emp.imported_at else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center py-5 text-muted">
+        No employees found.
+        <a href="{{ url_for('admin.import_employees') }}">Import from Excel</a>
+      </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  {% set endpoint = 'admin.employee_master' %}
+  {% set url_params = {'q': search, 'status': status} %}
+  <div class="card-footer bg-transparent">{% include 'shared/pagination.html' %}</div>
+  {% endif %}
+</div>
+{% endblock %}

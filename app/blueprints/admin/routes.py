@@ -5,7 +5,7 @@ Admin panel routes — dashboard, office settings, user management.
 """
 
 from datetime import date
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.core.security import admin_required, roles_required
@@ -118,3 +118,279 @@ def audit_logs():
 def leave_types():
     types = _leave.get_all_types()
     return render_template("admin/leave_types.html", title="Leave Types", leave_types=types)
+
+
+# ── Employee Import Module ────────────────────────────────────────────
+
+@admin_bp.route("/import-employees", methods=["GET", "POST"])
+@login_required
+@admin_required
+def import_employees():
+    """Upload Excel and import employee master data."""
+    from .employee_import import EmployeeImportService
+    from app.models.employee_master import EmployeeMaster
+
+    import_svc = EmployeeImportService()
+    result     = None
+    total_masters = EmployeeMaster.query.count()
+    registered    = EmployeeMaster.query.filter_by(is_registered=True).count()
+
+    if request.method == "POST":
+        file = request.files.get("excel_file")
+        if not file or not file.filename:
+            flash("Please select an Excel file to upload.", "warning")
+        elif not file.filename.lower().endswith((".xlsx", ".xls")):
+            flash("Only Excel files (.xlsx, .xls) are supported.", "danger")
+        else:
+            result = import_svc.import_from_file(file, imported_by=current_user.id)
+            if result.get("success"):
+                flash(result["message"], "success")
+            else:
+                flash(result["message"], "danger")
+            total_masters = EmployeeMaster.query.count()
+            registered    = EmployeeMaster.query.filter_by(is_registered=True).count()
+
+    return render_template(
+        "admin/import_employees.html",
+        title="Import Employees",
+        result=result,
+        total_masters=total_masters,
+        registered=registered,
+    )
+
+
+@admin_bp.route("/import-employees/preview", methods=["POST"])
+@login_required
+@admin_required
+def preview_import():
+    """AJAX: preview Excel without importing."""
+    from .employee_import import EmployeeImportService
+    import_svc = EmployeeImportService()
+    file = request.files.get("excel_file")
+    if not file or not file.filename:
+        return jsonify(success=False, message="No file provided.")
+    result = import_svc.preview(file)
+    return jsonify(result)
+
+
+@admin_bp.route("/employee-master")
+@login_required
+@admin_required
+def employee_master():
+    """View all employees in the master table."""
+    from app.models.employee_master import EmployeeMaster
+    from flask import request as _req
+    search = _req.args.get("q", "").strip()
+    status = _req.args.get("status", "")
+    page   = _req.args.get("page", 1, type=int)
+
+    q = EmployeeMaster.query
+    if search:
+        q = q.filter(
+            EmployeeMaster.employee_code.ilike(f"%{search}%") |
+            EmployeeMaster.employee_name.ilike(f"%{search}%") |
+            EmployeeMaster.department.ilike(f"%{search}%")
+        )
+    if status == "registered":
+        q = q.filter_by(is_registered=True)
+    elif status == "pending":
+        q = q.filter_by(is_registered=False)
+
+    pagination = q.order_by(EmployeeMaster.employee_code).paginate(
+        page=page, per_page=30, error_out=False
+    )
+    return render_template(
+        "admin/employee_master.html",
+        title="Employee Master",
+        pagination=pagination,
+        search=search,
+        status=status,
+    )
+
+
+@admin_bp.route("/attendance/export")
+@login_required
+@admin_required
+def export_daily_attendance():
+    """
+    Export full daily attendance for ALL employees to Excel.
+    Query param: ?date=YYYY-MM-DD  (defaults to today)
+    """
+    import io
+    from datetime import datetime as _dt
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from flask import send_file
+    from app.blueprints.attendance.repository import AttendanceRepository as AttRepo
+
+    att_repo = AttRepo()
+
+    date_str = request.args.get("date", "").strip()
+    try:
+        export_date = _dt.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+    except ValueError:
+        export_date = date.today()
+
+    rows = att_repo.get_all_employees_attendance_for_date(export_date)
+
+    if not rows:
+        flash("No employee data available for export.", "warning")
+        return redirect(url_for("admin.index"))
+
+    # ── Build workbook ────────────────────────────────────────────────
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Daily Attendance"
+
+    header_font  = Font(bold=True, color="FFFFFF", size=11)
+    header_fill  = PatternFill(start_color="1A3C6E", end_color="1A3C6E", fill_type="solid")
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align   = Alignment(horizontal="left", vertical="center")
+    thin         = Side(style="thin", color="DEE2E6")
+    border       = Border(left=thin, right=thin, top=thin, bottom=thin)
+    alt_fill     = PatternFill(start_color="F4F6F9", end_color="F4F6F9", fill_type="solid")
+
+    # ── Title row ─────────────────────────────────────────────────────
+    ws.merge_cells("A1:L1")
+    title_cell = ws["A1"]
+    title_cell.value = f"Daily Attendance Report — {export_date.strftime('%d %B %Y')}"
+    title_cell.font  = Font(bold=True, size=13, color="1A3C6E")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
+
+    # ── Headers ───────────────────────────────────────────────────────
+    headers = [
+        ("#",              5),
+        ("Emp Code",       12),
+        ("Employee Name",  22),
+        ("Department",     16),
+        ("Designation",    16),
+        ("Date",           12),
+        ("Check In (IST)", 15),
+        ("Check Out (IST)",15),
+        ("Working Hours",  14),
+        ("Status",         13),
+        ("Late",           8),
+        ("Late By (min)",  13),
+    ]
+
+    for col, (h, w) in enumerate(headers, start=1):
+        cell = ws.cell(row=2, column=col, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = header_align
+        cell.border    = border
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    ws.row_dimensions[2].height = 24
+    ws.freeze_panes = "A3"
+
+    # ── Helpers ───────────────────────────────────────────────────────
+    def to_ist(dt):
+        if not dt:
+            return "—"
+        from datetime import timedelta
+        return (dt + timedelta(hours=5, minutes=30)).strftime("%I:%M %p")
+
+    def fmt_hours(mins):
+        if not mins:
+            return "—"
+        h, m = divmod(mins, 60)
+        return f"{h}h {m:02d}m"
+
+    status_colors = {
+        "present":  "198754",
+        "absent":   "DC3545",
+        "half_day": "D97706",
+        "on_leave": "0891B2",
+        "holiday":  "6C757D",
+        "weekend":  "ADB5BD",
+    }
+
+    # ── Data rows ─────────────────────────────────────────────────────
+    summary = {"present": 0, "absent": 0, "late": 0, "on_leave": 0}
+
+    for i, row in enumerate(rows, start=1):
+        r   = i + 2
+        att = row["attendance"]
+        emp = row["employee"]
+        usr = row["user"]
+        is_alt = (i % 2 == 0)
+
+        status_str = att.status if att else "absent"
+        if status_str in summary:
+            summary[status_str] += 1
+        elif status_str not in summary:
+            pass
+
+        if att and att.check_in_time:
+            summary["present"] = summary.get("present", 0)
+        else:
+            summary["absent"] = summary.get("absent", 0)
+
+        if att and att.is_late:
+            summary["late"] += 1
+
+        row_data = [
+            i,
+            emp.employee_code,
+            usr.full_name,
+            emp.department or "—",
+            emp.designation or "—",
+            export_date.strftime("%d-%m-%Y"),
+            to_ist(att.check_in_time) if att else "—",
+            to_ist(att.check_out_time) if att else "—",
+            fmt_hours(att.working_minutes) if att else "—",
+            status_str.replace("_", " ").title(),
+            "Yes" if (att and att.is_late) else "No",
+            att.late_minutes if (att and att.is_late) else 0,
+        ]
+
+        for col, val in enumerate(row_data, start=1):
+            cell = ws.cell(row=r, column=col, value=val)
+            cell.border    = border
+            cell.alignment = left_align if col in (3, 4, 5) else center_align
+            if is_alt:
+                cell.fill = alt_fill
+
+        # Colour status
+        st_cell = ws.cell(row=r, column=10)
+        color   = status_colors.get(status_str, "212529")
+        st_cell.font = Font(color=color, bold=True)
+
+        # Highlight late
+        if att and att.is_late:
+            ws.cell(row=r, column=11).font = Font(color="D97706", bold=True)
+
+    # ── Summary row ───────────────────────────────────────────────────
+    sr = len(rows) + 3
+    ws.cell(row=sr, column=1, value="SUMMARY").font = Font(bold=True, color="1A3C6E")
+    summary_data = [
+        ("Total Employees", len(rows), "1A3C6E"),
+        ("Present",   sum(1 for r in rows if r["attendance"] and r["attendance"].check_in_time), "198754"),
+        ("Absent",    sum(1 for r in rows if not r["attendance"] or not r["attendance"].check_in_time), "DC3545"),
+        ("Late",      sum(1 for r in rows if r["attendance"] and r["attendance"].is_late), "D97706"),
+        ("On Leave",  sum(1 for r in rows if r["attendance"] and r["attendance"].status == "on_leave"), "0891B2"),
+    ]
+    for col, (label, val, color) in enumerate(summary_data, start=1):
+        lc = ws.cell(row=sr, column=col, value=label)
+        lc.font  = Font(bold=True, color=color, size=9)
+        lc.fill  = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        vc = ws.cell(row=sr + 1, column=col, value=val)
+        vc.font  = Font(bold=True, color=color, size=14)
+        vc.fill  = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        vc.alignment = Alignment(horizontal="center")
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    filename = f"Attendance_{export_date.strftime('%Y-%m-%d')}.xlsx"
+    return send_file(
+        buffer,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )

@@ -146,7 +146,7 @@ class PayrollService:
             return False, "Only processed runs can be approved."
         run.status      = "approved"
         run.approved_by = approved_by
-        run.approved_on = datetime.now(timezone.utc)
+        run.approved_on = datetime.utcnow()
         db.session.commit()
         return True, "Payroll run approved."
 
