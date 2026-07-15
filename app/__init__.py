@@ -139,13 +139,6 @@ def _load_config(app: Flask, env: str) -> None:
 def _init_extensions(app: Flask) -> None:
     """
     Initialize all Flask extensions by calling their init_app() methods.
-
-    Extensions are defined as module-level singletons in app/extensions/.
-    Calling init_app() binds them to this specific app instance without
-    importing the app at extension definition time (avoids circular imports).
-
-    Args:
-        app: Flask instance.
     """
     from app.extensions.database import db          # noqa: PLC0415
     from app.extensions.migrate  import migrate     # noqa: PLC0415
@@ -164,11 +157,38 @@ def _init_extensions(app: Flask) -> None:
     csrf.init_app(app)
     limiter.init_app(app)
     cache.init_app(app)
+
+    # Flask-Session: use cookie-based fallback if filesystem dir not writable
+    session_type = app.config.get("SESSION_TYPE", "filesystem")
+    if session_type == "filesystem":
+        session_dir = app.config.get("SESSION_FILE_DIR", "/tmp/hrms_sessions")
+        try:
+            os.makedirs(session_dir, exist_ok=True)
+            # Test write access
+            test_file = os.path.join(session_dir, ".write_test")
+            with open(test_file, "w") as f:
+                f.write("ok")
+            os.remove(test_file)
+        except OSError:
+            # Fallback to signed cookie sessions if filesystem not available
+            app.logger.warning(
+                "SESSION filesystem dir not writable (%s), falling back to cookie sessions.",
+                session_dir,
+            )
+            app.config["SESSION_TYPE"] = "null"
+
     server_session.init_app(app)
 
     # Import all models so Alembic discovers them for migrations
     with app.app_context():
         from app.models import User  # noqa: F401, PLC0415
+
+        # Auto-create tables on first boot (safe to call repeatedly)
+        try:
+            db.create_all()
+            app.logger.info("db.create_all() completed.")
+        except Exception as e:
+            app.logger.warning("db.create_all() skipped: %s", e)
 
     app.logger.debug("Extensions initialized.")
 

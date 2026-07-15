@@ -104,6 +104,7 @@ class BaseConfig:
     SESSION_TYPE: str = os.environ.get("SESSION_TYPE", "filesystem")
     SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "./instance/sessions")
     SESSION_PERMANENT: bool = False
+    SESSION_USE_SIGNER: bool = True   # Sign sessions with SECRET_KEY
     PERMANENT_SESSION_LIFETIME: timedelta = timedelta(
         seconds=int(os.environ.get("PERMANENT_SESSION_LIFETIME", 86400))
     )
@@ -253,9 +254,9 @@ class ProductionConfig(BaseConfig):
     CACHE_TYPE: str = os.environ.get("CACHE_TYPE", "SimpleCache")
     CACHE_REDIS_URL: str = os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/0")
 
-    # Session — use filesystem (Redis optional)
+    # Session — use filesystem by default; set SESSION_TYPE=redis if Redis available
     SESSION_TYPE: str = os.environ.get("SESSION_TYPE", "filesystem")
-    SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "./instance/sessions")
+    SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "/tmp/hrms_sessions")
 
     # Production log level
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "WARNING")

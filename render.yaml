@@ -21,6 +21,8 @@ services:
           property: connectionString
       - key: SESSION_TYPE
         value: filesystem
+      - key: SESSION_FILE_DIR
+        value: /tmp/hrms_sessions
       - key: CACHE_TYPE
         value: SimpleCache
       - key: SESSION_COOKIE_SECURE
@@ -29,6 +31,8 @@ services:
         value: "True"
       - key: WEB_CONCURRENCY
         value: "2"
+      - key: LOG_LEVEL
+        value: WARNING
     disk:
       name: hrms-data
       mountPath: /app/instance
