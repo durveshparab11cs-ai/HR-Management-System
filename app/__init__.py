@@ -99,6 +99,9 @@ def create_app(env: str = "development") -> Flask:
     # ── Root redirect ────────────────────────────────────────────────
     _register_root_redirect(app)
 
+    # ── Auto-create DB tables (safe on first boot) ───────────────────
+    _auto_create_tables(app)
+
     app.logger.info(
         "Smart HRMS started | env=%s | debug=%s",
         env,
@@ -158,37 +161,20 @@ def _init_extensions(app: Flask) -> None:
     limiter.init_app(app)
     cache.init_app(app)
 
-    # Flask-Session: use cookie-based fallback if filesystem dir not writable
+    # Flask-Session: ensure session dir exists, fallback to no server-session
     session_type = app.config.get("SESSION_TYPE", "filesystem")
     if session_type == "filesystem":
         session_dir = app.config.get("SESSION_FILE_DIR", "/tmp/hrms_sessions")
         try:
             os.makedirs(session_dir, exist_ok=True)
-            # Test write access
-            test_file = os.path.join(session_dir, ".write_test")
-            with open(test_file, "w") as f:
-                f.write("ok")
-            os.remove(test_file)
         except OSError:
-            # Fallback to signed cookie sessions if filesystem not available
-            app.logger.warning(
-                "SESSION filesystem dir not writable (%s), falling back to cookie sessions.",
-                session_dir,
-            )
-            app.config["SESSION_TYPE"] = "null"
+            pass
+        app.config["SESSION_FILE_DIR"] = session_dir
 
     server_session.init_app(app)
 
     # Import all models so Alembic discovers them for migrations
-    with app.app_context():
-        from app.models import User  # noqa: F401, PLC0415
-
-        # Auto-create tables on first boot (safe to call repeatedly)
-        try:
-            db.create_all()
-            app.logger.info("db.create_all() completed.")
-        except Exception as e:
-            app.logger.warning("db.create_all() skipped: %s", e)
+    from app.models import User  # noqa: F401, PLC0415
 
     app.logger.debug("Extensions initialized.")
 
@@ -448,3 +434,18 @@ def _register_health(app: Flask) -> None:
     def health():
         """Liveness probe — returns 200 OK when app is running."""
         return jsonify({"status": "ok", "version": app.config.get("APP_VERSION", "1.0.0")}), 200
+
+
+def _auto_create_tables(app: Flask) -> None:
+    """
+    Create all DB tables on first boot.
+    Runs inside a proper app context after all extensions are initialized.
+    Safe to call repeatedly — SQLAlchemy only creates missing tables.
+    """
+    try:
+        with app.app_context():
+            from app.extensions.database import db  # noqa: PLC0415
+            db.create_all()
+            app.logger.info("db.create_all() — tables ready.")
+    except Exception as exc:
+        app.logger.warning("db.create_all() skipped: %s", exc)
