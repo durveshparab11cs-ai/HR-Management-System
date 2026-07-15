@@ -131,3 +131,10 @@ celerybeat.pid
 # Sphinx documentation (if added)
 # ------------------------------------------------------------------------------
 docs/_build/
+
+# Kiro/CI log output files
+*.txt
+!requirements/*.txt
+!requirements.txt
+!runtime.txt
+!check_result.txt

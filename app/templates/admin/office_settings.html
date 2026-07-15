@@ -127,27 +127,85 @@
     const latIn  = document.getElementById('lat-input');
     const lonIn  = document.getElementById('lon-input');
     const radIn  = document.getElementById('radius-input');
-    const lat0   = parseFloat(latIn.value) || 18.52043;
-    const lon0   = parseFloat(lonIn.value) || 73.856743;
+    const lat0   = parseFloat(latIn.value) || 19.014903;
+    const lon0   = parseFloat(lonIn.value) || 72.845183;
     const rad0   = parseInt(radIn.value)   || 100;
 
-    const map = L.map('settings-map').setView([lat0, lon0], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    // Wait for DOM + any CSS transitions to complete
+    function initMap() {
+        const container = document.getElementById('settings-map');
+        if (!container) return;
 
-    const icon = L.divIcon({ html:'<div style="background:#1a3c6e;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>', className:'', iconAnchor:[8,8] });
-    let marker = L.marker([lat0, lon0], {icon, draggable:true}).addTo(map);
-    let circle = L.circle([lat0, lon0], {radius:rad0, color:'#1a3c6e', fillOpacity:.08, weight:2, dashArray:'6 4'}).addTo(map);
+        const map = L.map('settings-map', { zoomControl: true }).setView([lat0, lon0], 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-    function updateFromMarker(lat, lon){
-        latIn.value = lat.toFixed(7);
-        lonIn.value = lon.toFixed(7);
-        circle.setLatLng([lat, lon]);
-        map.setView([lat, lon], 17);
+        const icon = L.divIcon({
+            html: '<div style="background:#1a3c6e;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>',
+            className: '', iconAnchor: [9, 9]
+        });
+
+        let marker = L.marker([lat0, lon0], { icon, draggable: true }).addTo(map)
+            .bindPopup('<strong>Office Location</strong><br>Drag to reposition').openPopup();
+        let circle = L.circle([lat0, lon0], {
+            radius: rad0, color: '#1a3c6e', fillColor: '#1a3c6e',
+            fillOpacity: .1, weight: 2, dashArray: '6 4'
+        }).addTo(map);
+
+        // Force Leaflet to recalculate size after container is fully painted
+        setTimeout(() => map.invalidateSize(), 200);
+
+        function updateFromLatLon(lat, lon) {
+            latIn.value = lat.toFixed(7);
+            lonIn.value = lon.toFixed(7);
+            marker.setLatLng([lat, lon]);
+            circle.setLatLng([lat, lon]);
+            map.setView([lat, lon], 17);
+        }
+
+        marker.on('dragend', function(e) {
+            const p = e.target.getLatLng();
+            updateFromLatLon(p.lat, p.lng);
+        });
+
+        map.on('click', function(e) {
+            updateFromLatLon(e.latlng.lat, e.latlng.lng);
+        });
+
+        radIn.addEventListener('input', function() {
+            const r = parseInt(radIn.value) || 100;
+            circle.setRadius(r);
+        });
+
+        // Re-sync when lat/lon fields are typed manually
+        [latIn, lonIn].forEach(inp => {
+            inp.addEventListener('change', function() {
+                const la = parseFloat(latIn.value);
+                const lo = parseFloat(lonIn.value);
+                if (!isNaN(la) && !isNaN(lo)) {
+                    marker.setLatLng([la, lo]);
+                    circle.setLatLng([la, lo]);
+                    map.setView([la, lo], 17);
+                }
+            });
+        });
     }
 
-    marker.on('dragend', function(e){ const p = e.target.getLatLng(); updateFromMarker(p.lat, p.lng); });
-    map.on('click', function(e){ marker.setLatLng(e.latlng); updateFromMarker(e.latlng.lat, e.latlng.lng); });
-    radIn.addEventListener('input', function(){ const r = parseInt(radIn.value)||100; circle.setRadius(r); });
+    // Init immediately + after window load to handle any deferred CSS
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMap);
+    } else {
+        initMap();
+    }
+    window.addEventListener('load', function() {
+        // Second call after all resources loaded
+        setTimeout(() => {
+            const m = document.querySelector('#settings-map .leaflet-container');
+            if (!m) initMap();
+        }, 300);
+    });
 })();
 </script>
 {% endblock %}

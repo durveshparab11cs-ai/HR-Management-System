@@ -54,14 +54,32 @@
   function initMap() {
     const container = el('att-map');
     if (!container || !OFFICE.lat) return;
-    map = L.map('att-map', { zoomControl:true, attributionControl:false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
-    L.marker([OFFICE.lat, OFFICE.lon], { icon: mkIcon('#1a3c6e') })
-      .addTo(map).bindPopup(`<strong>${OFFICE.name||'Office'}</strong><br>Radius: ${OFFICE.radius}m`);
-    L.circle([OFFICE.lat, OFFICE.lon], {
-      radius: OFFICE.radius, color:'#1a3c6e', fillOpacity:.07, weight:2, dashArray:'6 4'
+
+    map = L.map('att-map', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
     }).addTo(map);
+
+    // Office marker
+    L.marker([OFFICE.lat, OFFICE.lon], { icon: mkIcon('#1a3c6e') })
+      .addTo(map)
+      .bindPopup(`<strong>${OFFICE.name || 'Office'}</strong><br>Geofence: ${OFFICE.radius}m radius`);
+
+    // Geofence circle
+    L.circle([OFFICE.lat, OFFICE.lon], {
+      radius: OFFICE.radius,
+      color: '#1a3c6e',
+      fillColor: '#1a3c6e',
+      fillOpacity: .08,
+      weight: 2,
+      dashArray: '6 4'
+    }).addTo(map);
+
     map.setView([OFFICE.lat, OFFICE.lon], 17);
+
+    // Critical: force Leaflet to recalculate container size
+    setTimeout(() => map.invalidateSize(), 100);
+    setTimeout(() => map.invalidateSize(), 500);
   }
 
   function mkIcon(color) {
