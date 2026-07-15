@@ -438,14 +438,224 @@ def _register_health(app: Flask) -> None:
 
 def _auto_create_tables(app: Flask) -> None:
     """
-    Create all DB tables on first boot.
+    Create all DB tables on first boot and auto-seed employee master data.
     Runs inside a proper app context after all extensions are initialized.
-    Safe to call repeatedly — SQLAlchemy only creates missing tables.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
             db.create_all()
             app.logger.info("db.create_all() — tables ready.")
+
+            # Auto-seed employee master if table is empty
+            _auto_seed_employees(app)
     except Exception as exc:
         app.logger.warning("db.create_all() skipped: %s", exc)
+
+
+def _auto_seed_employees(app: Flask) -> None:
+    """Seed EmployeeMaster if table is empty. Runs once on first boot."""
+    try:
+        from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+        from app.extensions.database import db  # noqa: PLC0415
+
+        if EmployeeMaster.query.count() > 0:
+            app.logger.info("employee_master already seeded — skipping.")
+            return
+
+        employees = [
+            ("E-2603028","Aastha Vishwakarma"),("E-2405029","Abhinay Tiwari"),
+            ("E-2506034","Akash Dubey"),("E-2503014","Aman Singh"),
+            ("E-2407001","Prabhakar Sharma"),("E-2603029","Preeti Singh"),
+            ("E-2509001","Ravendra Yadav"),("E-2501002","Ritik Chaudhari"),
+            ("E-2406013","Shewani Tej Prakash Srivastava"),("E-2503007","Sunidhi Rao"),
+            ("E-2502012","Surendra Gond"),("E-2511018","Rugvedi Kshitij Badadare"),
+            ("E-2605029","Chanchal Patil"),("E-2601005","Harish Kumar"),
+            ("E-2407010","Naresh Kumar"),("E-2407025","Priyanshu Singh"),
+            ("E-2408012","Rajesh Kumar"),("E-2407008","Siddhi Raghunath Sawant"),
+            ("E-2605037","Samiksha Rokade"),("E-2604040","Ramkrushna Supekar"),
+            ("E-2403001","Ajay Ramesh Ratnottar"),("E-2408028","Akshay Dinesh Wagh"),
+            ("E-2606057","Atharva Jadhav"),("E-2603007","Bhavesh Dattaram Sawant"),
+            ("E-2604028","Diksha Sunil Bhat"),("E-2604030","Diksha Supadu Mahale"),
+            ("E-2601020","Divesh Deepak Palkar"),("E-2505014","Divya Masane"),
+            ("E-2607005","Himanshu Ajay Meher"),("E-2412009","Jyoti Kishanmurari Gupta"),
+            ("E-2606016","Manasi Mahadik"),("E-2508007","Nikhil Chandivde"),
+            ("E-2604029","Nikita Sunil Thorat"),("E-2603034","Nilam Narayan Shigwan"),
+            ("E-2603037","Pratiksha Suresh Bhalerao"),("E-2308016","Rahul Parshuram Nagotkar"),
+            ("E-2512018","Rajkumar Singh"),("E-2511014","Revati Vinod Shinde"),
+            ("E-2306030","Ritu Raju Ghankutkar"),("E-2411018","Rohan Khandre"),
+            ("E-2508008","Sairaj Dinesh Mavle"),("E-2606050","Sakshi Jadyal"),
+            ("E-2606045","Sahil Dhawale"),("E-2604027","Sanskruti Sunil Shinde"),
+            ("E-2505035","Shantanu Santosh Pisal"),("E-2603035","Sheetal Vishwakarma"),
+            ("E-2605038","Shravan Pandurang Shegaji"),("E-2407009","Shravasti Santosh Padelkar"),
+            ("E-2510022","Shruti Kamble"),("E-2305020","Shubham Sanjay Pednekar"),
+            ("E-2508005","Sneha Santosh Darpe"),("E-2601028","Soham Balkrishna Munj"),
+            ("E-2607004","Sujal Pawar"),("E-2606034","Toshvi Dhanu"),
+            ("E-2210537","Vaishnavi Mali"),("E-2607010","Vipin Sahani"),
+            ("E-2605023","Harish Patil"),("E-2401011","Rutik Dhanjay Mhatre"),
+            ("E-2605025","Aditya Misal"),("E-2602013","Ashvini Gajanan Wanare"),
+            ("E-2503009","Diksha Bodake"),("E-2511005","Dr. Nandini Omkar Nade"),
+            ("E-2601006","Princekumar Umeshkumar Yadav"),("E-2601011","Sumit Bharat Davda"),
+            ("E-2405002","Tejal Haresh Nevrekar"),("E-2307012","Vivek Ajay Sawant"),
+            ("E-2504006","Aditi Sahu"),("E-2504010","Amit Barman"),
+            ("E-2606008","Anuj Barman"),("E-2605007","Anurag Prajapati"),
+            ("E-2505033","Palak Rajput"),("E-2605006","Prince Mishra"),
+            ("E-2606017","Sapna Singh"),("E-2606027","Sanjay Patel"),
+            ("E-2404001","Shivesh Kumar Tiwari"),("E-2504024","Shreya Sonkar"),
+            ("E-2606028","Tarun Parste"),("E-2605008","Vivek Tiwari"),
+            ("E-2603020","Akshata Mane"),("E-2105113","Mahendra Mestry"),
+            ("E-2504016","Radhey Govind pingate"),("E-2403016","Shivani Bhimrao Kamble"),
+            ("E-2507008","Tanisha Milind Pawar"),("E-2605016","Aayush Puradkar"),
+            ("E-2606024","Aanchal Rajkumar Pal"),("E-2606048","Ajay Kumar"),
+            ("E-2606015","Anjali Wankar"),("E-2602004","Bhavana Vikas Zende"),
+            ("E-2606014","Chenta Maru"),("E-2511001","Chetna Anant Rambade"),
+            ("E-2603031","Divya Arun Manchekar"),("E-2606047","Kunal Shelar"),
+            ("E-2607003","Janhvi Shigwan"),("E-2606023","Jyoti Chauhan"),
+            ("E-2607012","Nilesh Gavkar"),("E-2607009","Nikhil Malhar"),
+            ("E-2606052","Neha Sorkade"),("E-2606030","Prachi Diwale"),
+            ("E-2606043","Prachi Dinda"),("E-2606010","Pooja Ram Naresh Jaiswar"),
+            ("E-2512006","Prachi Sanjay Nachare"),("E-2606020","Pratik Sonavane"),
+            ("E-2604031","Purva Mahesh Shedge"),("E-2606029","Rohan Raju Thakur"),
+            ("E-2205031","Rahul Dattaram Bhosale"),("E-2606025","Rishabh Mishra"),
+            ("E-2601016","Sahil Raghunath Kudkar"),("E-2310009","Sakshi Balkrishna Jadhav"),
+            ("E-2606012","Samruddhi Santosh Arekar"),("E-2510001","Sanika kadam"),
+            ("E-2606044","Sanket Kamble"),("E-2011065","Shilpa Chavan"),
+            ("E-2605009","Varsha Bule"),("E-2504012","Aditya Suresh Gurav"),
+            ("E-2305010","Anuradha Maruti Kurade"),("E-2407024","Kartik Ashok Wadar"),
+            ("E-2606060","Pratik Gavali"),("E-2112241","Siddhesh Dinesh Vichare"),
+            ("E-2605033","Swaroop Jadhav"),("E-2605034","Yash Dalvi"),
+            ("E-2603010","Kaushik Santosh Mahadik"),("E-2412005","Samruddhi Manoj jadhav"),
+            ("E-2604036","Ravi Indraraj Diwakar"),("E-2507012","Pratiksha Prakash Tapase"),
+            ("E-2503001","Akshata Satish Salve"),("E-2406014","Anjali Yashawant Gawade"),
+            ("E-2605028","Aryan Gangurde"),("E-2604016","Dipali Ganesh Lad"),
+            ("E-2308010","Komal Dilip Singh"),("E-2303011","Omkar Dhondiba Manere"),
+            ("E-2606001","Nashra Shaikh"),("E-2308002","Rahul Ramesh Masaye"),
+            ("E-2503017","Sahil Dipak Shirke"),("E-2606002","Sahil Ramakant Mhetar"),
+            ("E-2511030","Samiksha Mahendra Pawar"),("E-2510003","Shalini Gupta"),
+            ("E-2507001","Sujal Sanjay Dubey"),("E-2607001","Aryan Phatak"),
+            ("E-2606054","Suyash Patil"),("E-2606009","Rishkiesh Khandizod"),
+            ("E-2606039","Siddhesh Wateka"),("E-2603038","Ravina Monoj Tambe"),
+            ("E-2504018","Pratiksha Dhondiram Dhebe"),("E-2409010","Nitesh Maurya"),
+            ("E-2605005","Birik Sangma"),("E-2008034","Dhaval Dandge"),
+            ("E-2104059","Jaya Devi"),("E-2605003","Karan Sarmah"),
+            ("E-2604043","Pragyan Jyoti Baruah"),("E-2606005","Aditya Mayekar"),
+            ("E-2512020","Afroze Alim Baig"),("E-2510030","Akash Maitri"),
+            ("E-2203011","Akshay Darsharth Ghadi"),("E-2606053","Akshay Dhotre"),
+            ("E-2412018","Aman Yogendra Pandey"),("E-2412019","Aman Kumar Singh"),
+            ("E-2606007","Ankit Dineshchandra Vaishya"),("E-2607008","Anil Saini"),
+            ("E-2605032","Atharva Bhosale"),("E-2606003","Aryan Devrendra"),
+            ("E-2102029","Darshan Shah"),("E-2603004","Dhrup Mukesh Jain"),
+            ("E-2606022","Disha Shobhnath Maurya"),("E-2605030","Dhrumil Jadhav"),
+            ("E-2606056","Devika Kajeri"),("E-2601032","Dr. Mayuri Komredivar"),
+            ("E-2606026","Durvesh Parab"),("E-2203114","Ekta Sunil More"),
+            ("E-2606059","Gaytari Khalde"),("E-2505029","Harsh Ganesh Katukam"),
+            ("E-2401006","Harshala Amol kadam"),("E-2410007","Jindnyasa R Chaudhari"),
+            ("E-2506027","Kajol Damodar Nachanekar"),("E-2606021","Kedar Prashant Sangvekar"),
+            ("E-2601015","Komal Rokade"),("E-2606046","Kritika Pangle"),
+            ("E-2606058","Krutika Jadhav"),("E-1901044","Manisha Sudhakar Palve"),
+            ("E-2606051","Manali Shelke"),("E-2505010","Maliha Salimuddin Shaikh"),
+            ("E-2607014","Mitesh Sane"),("E-2604038","Moneswar Rabha"),
+            ("E-2606038","Muskaan Singh"),("E-2601013","Neha Dhiraj Babariya"),
+            ("E-2601002","Nidhi Avinash Kanki"),("E-2602011","Omkar Satyawan Amberkar"),
+            ("E-2307007","Pallavi Mangesh Mali"),("E-2606061","Parth Pande"),
+            ("E-2607007","Punam Tushar Lavale"),("E-2301009","Pramod Balaram Ghare"),
+            ("E-1507005","Prasad Morje"),("E-2601004","Pratik Dinkar Mohite"),
+            ("E-2512012","Pratik Prakash Sagvekar"),("E-2602023","Priyanka Krishana Dasare"),
+            ("E-2603025","Raj Sanjay Shukla"),("E-2510025","Riddhi Namye"),
+            ("E-2606013","Ritu Singh"),("E-2604046","Rohit Salunke"),
+            ("E-2011069","Rutuja Suresh Pawar"),("E-2506004","Rutuja Vilas Gaikwad"),
+            ("E-2507013","Sakshi Anil Yeram"),("E-2606032","Sakshi Shedge"),
+            ("E-2606018","Shakshat Chavan"),("E-2307011","Sampada Arvind Thakur"),
+            ("E-2101013","Sanam Desai"),("E-2312031","Shifa Qureshi"),
+            ("E-2506011","Shraddha Bharat Yadav"),("E-2506028","Shravani Sanjay Telgade"),
+            ("E-2405001","Siddhesh Gautam Kadam"),("E-2601017","Siddhi shantaram Devrukhkar"),
+            ("E-2601003","Sneha Jagdish Solanki"),("E-2212009","Sneha Rahul Sonavane"),
+            ("E-2506010","Srushti Mahesh Ghadi"),("E-2505001","Sudha Ravi"),
+            ("E-2601021","Swaraj Sandesh Kalibag"),("E-2510016","Tejas Ashok Jadhav"),
+            ("E-2010044","Tulshidas Bhosale"),("E-1304001","Umesh Pradeep Devare"),
+            ("E-2604017","Vaishnavi Pardipkumar Sarjine"),("E-2202079","Vandana Gopal Rathod"),
+            ("E-2501011","Vijay Shankar Manjare"),("E-2212022","Ramdas Mahadu Lande"),
+            ("E-2205027","Shubhali Rajendra Gamare"),("E-2511009","Aman Raj"),
+            ("E-2501007","Ankita Kumari"),("E-2602002","Ashish Kumar Bhagat"),
+            ("E-2602031","Ashu Ankita Khalkho"),("E-2603013","Chintu Kumar"),
+            ("E-2602022","Kamlesh Kumar Kesri"),("E-2501009","Kunal Kumar"),
+            ("E-2601031","Lovely Kumari"),("E-2408004","Poonam Kumari"),
+            ("E-2605022","Pradeep Baitha"),("E-2602003","Pratik Raj"),
+            ("E-2511012","Rohit Mahto"),("E-2602027","Sachin Kumar Prajapati"),
+            ("E-2601019","Saket Kumar"),("E-2502008","Sintu Kumar Mandal"),
+            ("E-2602012","Tanu Kumari"),("E-2501006","Umesh Kumar Goswami"),
+            ("E-2408025","Anjali Humane"),("E-2212003","Buddhesh Drugsing Gharghumar"),
+            ("E-2505028","Dipanshu Shekhar gadikar"),("E-2407016","Khushal Nandlal Mohadikar"),
+            ("E-2404008","Minal Govinda umredkar"),("E-2404006","Mitali Manoj Misar"),
+            ("E-2403005","Nandini Chaoube"),("E-1904051","Priya yeole"),
+            ("E-2200628","Dr. Purnika Nitin Shrivasatva"),("E-2205040","Ritali Pranay Wanjari"),
+            ("E-2506033","Sneha Rajat Khadse"),("E-2503004","Sonu Dnyaneshwar Mundle"),
+            ("E-2112242","Sushant Sudhir Gamare"),("E-1803023","Sushma Rehepade"),
+            ("E-2310001","Vaishnavi Viajay Dhande"),("E-2502002","Washish Gulabrao Saeaithul"),
+            ("E-2412016","Abhishek"),("E-2408007","Ranjeet Hanwant"),
+            ("E-2605026","Preeti Acharya"),("E-2606055","Sudhir Shendage"),
+            ("E-2409020","Warke Vaibhav Nagsen"),("E-2601027","Kumari Nidhi Yadav"),
+            ("E-2603006","Archana Upadhyay"),("E-2603016","Kaushal Sudir Gurav"),
+            ("E-2508019","Nikhil Satish Harale"),("E-2603018","Tanvi Santosh Patil"),
+            ("E-2607006","Balkrushna Laxman Kawle"),("E-2604014","Rutuja Dattatray Mane"),
+            ("E-2512023","Priti Yadav"),("E-2407020","Trupti Ramchandra Gotad"),
+            ("E-2602030","Tanuja Bhalchandra Gogawale"),("E-2411008","Sakshi Appaso Yadav"),
+            ("E-2410017","Shubham Ashok Kamble"),("E-2607011","Armeti Anil Kumar Dnyaneshwar"),
+            ("E-2605020","Archana Chauhan"),("E-2601029","Aryan Prakash Yadav"),
+            ("E-2603024","Devesh Umesh Bhosle"),("E-1801019","Nilesh Pawar"),
+            ("E-2603003","Payal Bibhishan Khandagale"),("E-2604019","Raj Jyotiram Mane"),
+            ("E-1801020","Sandeep Jadhav"),("E-2307014","Shraddha Sanjay Pol"),
+            ("E-2607013","Shruti Kasar"),("E-2603005","Suknya Sunil Surve"),
+            ("E-2603032","Tanmay Sushil Kadam"),("E-1810036","Tushar Chandrakant Amkar"),
+            ("E-2411003","Yash Anil Mane"),("E-2401002","Omkar Kale"),
+            ("E-2605011","A. Parthsarthii"),("E-2210516","Adimoolam Sai"),
+            ("E-2506026","Arun Kumar"),("E-2606004","B. Janardhan Gowda"),
+            ("E-2605017","C. Bharath Kumar"),("E-2502004","Chintam Sireesha"),
+            ("E-2605021","C. Darvin"),("E-2604035","Dileep K. Yadav"),
+            ("E-2601012","Dr. Prathyusha Narasa Reddy Gare"),("E-2503005","H.V. Naveen Kumar"),
+            ("E-2511019","K Sasikumar"),("E-2210518","Kadimella Anilkumar"),
+            ("E-2503003","Kalluru Bhuvaneshwari"),("E-2605014","Kandula Poojitha"),
+            ("E-2602032","Maniru Gayatri"),("E-2212015","Motupalli Nagendra babu"),
+            ("E-2605001","Mounika Polamareddy"),("E-2512004","N J K P Sai Teja"),
+            ("E-2308007","N.Hemeswari"),("E-2512009","Naga Shankar Banne"),
+            ("E-2605036","Nithin Kumar"),("E-2511008","P Anitha"),
+            ("E-2605004","P. Nagamani Teja"),("E-2406023","P.Bhanu Priya"),
+            ("E-2606019","P. Dhanush"),("E-2503015","Vandadi Narasimhulu"),
+            ("E-2604020","Rithika Kuppala"),("E-2408010","Talari Gnanasai"),
+            ("E-2603012","Thuduku Reddy Prakash"),("E-2605024","V. Thulasiram"),
+            ("E-2312028","Latu Borgohain"),("E-2505012","Moniram"),
+            ("E-2312029","Sri Liladitya Gogoi"),("E-2604021","Hariom Dyaneshwar Lohare"),
+            ("E-2604024","Narendra Sanjay Patil"),("E-2604018","Sagar Purushottam Pote"),
+            ("E-2605010","Sakshil Patil"),("E-2509003","Sandeep Yadav"),
+            ("E-2604023","Vijay Dattappa"),("E-2510026","Rutuja Balasaheb Kadam"),
+            ("E-2512016","Swayam Anil Sirdawade"),("E-2511021","Siddhi Balkrishna Sakpal"),
+            ("E-2510035","Aditya Chavan"),("E-2303018","Akshata Subhash Dhangade"),
+            ("E-2405023","Apurva Santosh Kapadi"),("E-2011077","Aruna Kodare"),
+            ("E-2508023","Pritee Nagesh Sakpal"),("E-2103039","Sahil Sanjay Gamare"),
+            ("E-2200635","Sayali Santosh Humane"),("E-2502014","Shailesh Sambhaji Jadhav"),
+            ("E-2411033","Siddhi Gujar"),("E-2511020","Suraj Surendra Chavan"),
+            ("E-2012098","Vaibhav Baburav Juwale"),("E-2011061","Yash Gopinath Salvi"),
+            ("E-2508003","Disha Bhamre"),("E-2604022","Ganesh Raut"),
+            ("E-5505022","Navajyot Santosh Gavanang"),("E-2503018","Nilesh Raju Vairat"),
+            ("E-2504009","Parmeshwar Laxmanrao Joshi"),("E-2511033","Pranali Jatin Bare"),
+            ("E-2503021","Pratik Baban Walunj"),("E-2502003","Rameshwar Gaikwad"),
+            ("E-2512003","Sakshi Bhingaree"),("E-2511031","Sakshi Sham More"),
+            ("E-2501010","Yogiraj Yadav Jadhav"),
+        ]
+
+        count = 0
+        for code, name in employees:
+            if not EmployeeMaster.query.filter_by(employee_code=code).first():
+                db.session.add(EmployeeMaster(employee_code=code, employee_name=name))
+                count += 1
+
+        db.session.commit()
+        app.logger.info("Auto-seeded %d employees into employee_master.", count)
+
+    except Exception as exc:
+        app.logger.error("Auto-seed employees failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
