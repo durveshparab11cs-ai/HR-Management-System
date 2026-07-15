@@ -38,19 +38,48 @@ class AuthRepository:
     def get_by_employee_code(self, employee_code: str) -> Optional[User]:
         """
         Find a User by their employee_code stored in the Employee table.
-        Joins User → Employee → EmployeeMaster.
+        Falls back to email-placeholder lookup if Employee record is missing.
         """
         from app.models.employee import Employee  # noqa: PLC0415
+        code = employee_code.strip().upper()
+
+        # Primary path: join User → Employee
         result = (
             db.session.query(User)
             .join(Employee, Employee.user_id == User.id)
             .filter(
-                Employee.employee_code == employee_code.strip().upper(),
+                Employee.employee_code == code,
                 Employee.is_deleted == False,
                 User.is_deleted == False,
             )
             .first()
         )
+        if result:
+            return result
+
+        # Fallback: look up by the internal email placeholder generated at registration
+        # Format: {lowercase_code_no_dash}@hrms.internal  e.g. e2606026@hrms.internal
+        placeholder = f"{code.lower().replace('-', '')}@hrms.internal"
+        result = User.query.filter(
+            User.email == placeholder,
+            User.is_deleted == False,
+        ).first()
+
+        # If found via placeholder but Employee row is missing, create it now
+        if result:
+            existing_emp = Employee.query.filter_by(user_id=result.id, is_deleted=False).first()
+            if not existing_emp:
+                try:
+                    emp = Employee(
+                        user_id=result.id,
+                        employee_code=code,
+                        created_by=result.id,
+                    )
+                    db.session.add(emp)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+
         return result
 
     def get_by_email(self, email: str) -> Optional[User]:
