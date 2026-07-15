@@ -24,10 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy and install Python dependencies
-COPY requirements/production.txt /tmp/requirements.txt
+# Copy all requirements files (production.txt references base.txt via -r)
+COPY requirements/ /tmp/requirements/
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt
+    pip install --no-cache-dir -r /tmp/requirements/production.txt
 
 # ------------------------------------------------------------------------------
 # Stage 2: Runtime — lean production image
