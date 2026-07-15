@@ -1,1 +1,1 @@
-web: gunicorn run:app
+web: gunicorn --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-4} --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --preload --log-level warning --access-logfile - --error-logfile - run:app
