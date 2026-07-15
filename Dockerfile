@@ -80,17 +80,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command — Gunicorn WSGI server
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "4", \
-     "--worker-class", "sync", \
-     "--worker-connections", "1000", \
-     "--timeout", "120", \
-     "--keepalive", "5", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
-     "--preload", \
-     "--access-logfile", "/app/logs/gunicorn_access.log", \
-     "--error-logfile", "/app/logs/gunicorn_error.log", \
-     "--log-level", "warning", \
-     "run:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 4 --worker-class sync --worker-connections 1000 --timeout 120 --keepalive 5 --max-requests 1000 --max-requests-jitter 100 --preload --access-logfile /app/logs/gunicorn_access.log --error-logfile /app/logs/gunicorn_error.log --log-level warning run:app"]
