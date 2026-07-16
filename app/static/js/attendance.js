@@ -258,52 +258,54 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     GPS SUCCESS — the only path that unlocks attendance
+     GPS SUCCESS — validate by DISTANCE ONLY using Haversine
+     Accuracy is displayed as info only — never used to reject.
   ════════════════════════════════════════════════════════════════════ */
   function onGPSSuccess(pos) {
     const empLat = pos.coords.latitude;
     const empLon = pos.coords.longitude;
     const empAcc = pos.coords.accuracy;
 
-    // Accuracy gate — if GPS fix is too poor, keep retrying silently
-    // Update map to show current position but keep buttons locked
-    if (empAcc > OFFICE.minAccuracy) {
-      // Show on map but don't unlock
-      const dist   = OFFICE.lat ? haversineMetres(empLat, empLon, OFFICE.lat, OFFICE.lon) : 0;
-      const within = dist <= OFFICE.radius;
-      updateMapEmployee(empLat, empLon, empAcc, within);
-      updateInfoPanel(empLat, empLon, empAcc, dist, within);
-      setGpsStatus('acquiring',
-        `Improving accuracy (±${Math.round(empAcc)}m) — need ±${OFFICE.minAccuracy}m or better…`
-      );
-      // Don't set gpsReady yet — keep trying for better fix
-      return;
-    }
-
-    // ✓ Acceptable accuracy achieved
+    // Always update stored coords with fresh position
     lat = empLat; lon = empLon; acc = empAcc;
     gpsReady = true;
     _permRetries = 0;
 
-    const oLat   = OFFICE.lat;
-    const oLon   = OFFICE.lon;
-    const oRad   = OFFICE.radius;
-    const dist   = oLat ? haversineMetres(lat, lon, oLat, oLon) : 0;
+    const oLat = OFFICE.lat;
+    const oLon = OFFICE.lon;
+    const oRad = OFFICE.radius;
+
+    // Haversine distance — only validation criterion
+    const dist   = (oLat && oLon) ? haversineMetres(empLat, empLon, oLat, oLon) : 0;
     const within = dist <= oRad;
 
-    updateMapEmployee(lat, lon, acc, within);
-    updateInfoPanel(lat, lon, acc, dist, within);
+    // ── Console logging (requirement 7) ──────────────────────────────
+    console.group('[Smart HRMS] GPS Verification');
+    console.log('Current Latitude  :', empLat.toFixed(7));
+    console.log('Current Longitude :', empLon.toFixed(7));
+    console.log('Target Latitude   :', oLat);
+    console.log('Target Longitude  :', oLon);
+    console.log('GPS Accuracy      :', Math.round(empAcc) + 'm');
+    console.log('Calculated Distance:', dist.toFixed(2) + 'm');
+    console.log('Allowed Radius    :', oRad + 'm');
+    console.log('Validation Result :', within ? 'PASS ✓' : 'FAIL ✗');
+    console.groupEnd();
+
+    // Update map and info panel
+    updateMapEmployee(empLat, empLon, empAcc, within);
+    updateInfoPanel(empLat, empLon, empAcc, dist, within);
 
     if (within) {
-      unlockButtons(); // ← only called here
+      // ── Inside radius — PASS ──────────────────────────────────────
+      unlockButtons();
       setGpsStatus('ok',
-        `✓ GPS Verified — ${dist.toFixed(1)}m from office (±${Math.round(acc)}m accuracy)`
+        '✓ GPS Verified — ' + dist.toFixed(1) + 'm from office (±' + Math.round(empAcc) + 'm accuracy)'
       );
     } else {
-      // Outside zone — buttons stay locked (server will also reject)
+      // ── Outside radius — FAIL ─────────────────────────────────────
       lockButtons('Outside Zone');
       setGpsStatus('error',
-        `✗ Outside zone — ${dist.toFixed(1)}m from ${OFFICE.name}, need to be within ${oRad}m`
+        '✗ Outside Allowed Area — ' + dist.toFixed(1) + 'm from office (allowed: ' + oRad + 'm)'
       );
     }
   }
@@ -357,7 +359,7 @@
 
 
   /* ═══════════════════════════════════════════════════════════════════
-     GPS FETCH — watchPosition + silent retry
+     GPS FETCH — getCurrentPosition with fresh coords (maximumAge: 0)
   ════════════════════════════════════════════════════════════════════ */
   function fetchGPS(isManual) {
     if (!navigator.geolocation) {
@@ -367,29 +369,20 @@
     }
     if (isManual) setGpsStatus('acquiring', 'Refreshing location…');
 
-    // Cancel any existing watch before starting new one
+    // Cancel any existing watch
     if (_watchId !== null) {
       navigator.geolocation.clearWatch(_watchId);
       _watchId = null;
     }
 
-    _watchId = navigator.geolocation.watchPosition(
-      function (pos) {
-        // Stop watching once we get a position callback (success or accuracy check)
-        // onGPSSuccess will restart the 10s auto-refresh cycle
-        if (_watchId !== null) {
-          navigator.geolocation.clearWatch(_watchId);
-          _watchId = null;
-        }
-        onGPSSuccess(pos);
-      },
-      function (err) {
-        if (!gpsReady) onGPSError(err);
-      },
+    // Use getCurrentPosition — fresh fix every time (maximumAge: 0)
+    navigator.geolocation.getCurrentPosition(
+      function (pos) { onGPSSuccess(pos); },
+      function (err) { if (!gpsReady) onGPSError(err); },
       {
         enableHighAccuracy: true,
-        timeout: 20000,      // per spec requirement
-        maximumAge: 0        // always fresh — never use cached coords
+        timeout: 15000,
+        maximumAge: 0       // always fresh — never use cached coords
       }
     );
   }
@@ -427,14 +420,14 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     AUTO-REFRESH every 10 seconds
+     AUTO-REFRESH every 10 seconds — updates map and status,
+     but does NOT reset gpsReady (buttons stay unlocked during refresh)
   ════════════════════════════════════════════════════════════════════ */
   function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(function () {
       if (!isRefreshing && document.visibilityState === 'visible') {
-        // Reset gpsReady so onGPSSuccess re-evaluates geofence on next fix
-        gpsReady = false;
+        // Do NOT reset gpsReady here — buttons must stay unlocked
         fetchGPS(false);
       }
     }, 10000);
