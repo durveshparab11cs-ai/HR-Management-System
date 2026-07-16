@@ -283,78 +283,83 @@
     lon = pos.coords.longitude;
     acc = pos.coords.accuracy;
     gpsReady = true;
+    _permRetries = 0; // reset retry counter
 
-    // Immediately clear ANY error/blocked message — GPS succeeded
-    // This handles the race condition where the error callback fired
-    // before getCurrentPosition resolved (Chromium permissions API bug)
-    const textEl = el('gps-text');
-    if (textEl && textEl.style.color === 'rgb(239, 68, 68)') {
-      // Was showing an error — clear it
-      textEl.style.color = '';
-    }
-
-    const dist   = haversine(lat, lon, OFFICE.lat || 19.014903, OFFICE.lon || 72.845183);
-    const within = dist <= (OFFICE.radius || 100);
+    const oLat   = OFFICE.lat || 19.014903;
+    const oLon   = OFFICE.lon || 72.845183;
+    const oRad   = OFFICE.radius || 100;
+    const dist   = haversine(lat, lon, oLat, oLon);
+    const within = dist <= oRad;
 
     updateMapLocation(lat, lon, acc, within);
     updateInfoPanel(lat, lon, acc, dist, within);
     enableButtons();
 
-    setGpsStatus(
-      within ? 'ok' : 'error',
-      within
-        ? `✓ GPS Verified — ${dist.toFixed(0)}m from office (±${Math.round(acc)}m accuracy)`
-        : `✗ Outside office zone — ${dist.toFixed(0)}m away (allowed: ${OFFICE.radius || 100}m)`
-    );
+    // Status message with exact distance so users can verify the 50/100m boundary
+    const distText = dist < 1000
+      ? dist.toFixed(1) + 'm'
+      : (dist / 1000).toFixed(2) + 'km';
+    const accText  = Math.round(acc) + 'm';
+
+    if (within) {
+      setGpsStatus('ok',
+        `✓ GPS Verified — ${distText} from office (±${accText} accuracy)`
+      );
+    } else {
+      const moveBy = Math.max(0, dist - oRad).toFixed(0);
+      setGpsStatus('error',
+        `✗ Outside zone — ${distText} from office, need to be within ${oRad}m (move ${moveBy}m closer)`
+      );
+    }
   }
 
   /* ── GPS error handler ──────────────────────────────────────────── */
+  let _permRetries = 0;
+
   function onGPSError(err, fallback) {
-    // If GPS already succeeded once, ignore any subsequent errors
+    // If GPS already succeeded, ignore errors
     if (gpsReady) return;
 
-    let msg;
-    switch (err.code) {
-      case 1: msg = 'Location permission denied. Click the lock icon in the address bar and allow location.'; break;
-      case 2: msg = 'Position unavailable. Check that device location services are on.'; break;
-      case 3: msg = 'GPS timed out. Retrying with network location…'; break;
-      default: msg = 'GPS error. Please refresh the page.';
-    }
-
-    if (err.code === 3 && fallback) {
-      // Timeout — retry with low accuracy (network/wifi location)
-      navigator.geolocation.getCurrentPosition(
-        onGPSSuccess,
-        function () { if (!gpsReady) { setGpsStatus('error', msg); useFallback(); } },
-        GPS_OPTS_LO
-      );
+    // Chromium bug: PERMISSION_DENIED fires even when permission is granted
+    // if the page loaded before permission was set. Retry up to 3 times.
+    if (err.code === 1 && _permRetries < 3) {
+      _permRetries++;
+      setGpsStatus('acquiring', `Retrying GPS (attempt ${_permRetries}/3)…`);
+      setTimeout(function () {
+        if (!gpsReady) fetchGPS(false);
+      }, 1500 * _permRetries);
       return;
     }
 
-    if (err.code === 1) {
-      // Permission denied — watch for permission change and retry
-      setGpsStatus('error', msg);
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
-          status.onchange = function () {
-            if (status.state === 'granted') {
-              setGpsStatus('acquiring', 'Permission granted — acquiring location…');
-              fetchGPS(false);
-            }
-          };
-        }).catch(function () {});
-      }
-    } else {
-      setGpsStatus('error', msg);
+    let msg;
+    switch (err.code) {
+      case 1:
+        msg = 'Location permission denied. Open site settings and set Location to "Allow", then reload this page.';
+        break;
+      case 2:
+        msg = 'Position unavailable. Make sure device location services are enabled.';
+        break;
+      case 3:
+        msg = 'GPS timed out. Reload the page to try again.';
+        break;
+      default:
+        msg = 'GPS error (' + err.code + '). Please reload the page.';
     }
 
+    setGpsStatus('error', msg);
     useFallback();
     isRefreshing = false;
+
     const rb = el('btn-refresh-gps');
-    if (rb) { rb.disabled = false; rb.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Location'; }
+    if (rb) {
+      rb.disabled = false;
+      rb.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Location';
+    }
   }
 
   /* ── Fetch GPS position ─────────────────────────────────────────── */
+  let _watchId = null;
+
   function fetchGPS(isManual) {
     if (!navigator.geolocation) {
       setGpsStatus('error', 'Geolocation not supported by this browser.');
@@ -365,13 +370,48 @@
     if (isManual) {
       setGpsStatus('acquiring', 'Refreshing location…');
     }
-    // Note: for auto-start, status is already set to 'Loading GPS…' by startGPS()
 
-    navigator.geolocation.getCurrentPosition(
-      onGPSSuccess,
-      function (err) { onGPSError(err, true); },
-      GPS_OPTS_HI
+    // Cancel any existing watch
+    if (_watchId !== null) {
+      navigator.geolocation.clearWatch(_watchId);
+      _watchId = null;
+    }
+
+    // Use watchPosition — far more reliable than getCurrentPosition on Chromium HTTPS
+    // It bypasses the permission-state race condition entirely
+    _watchId = navigator.geolocation.watchPosition(
+      function (pos) {
+        // Got a fix — stop watching (we only need one position for now)
+        if (_watchId !== null) {
+          navigator.geolocation.clearWatch(_watchId);
+          _watchId = null;
+        }
+        onGPSSuccess(pos);
+      },
+      function (err) {
+        onGPSError(err, true);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
+
+    // Safety timeout — if watchPosition never fires success or error
+    setTimeout(function () {
+      if (_watchId !== null && !gpsReady) {
+        // Try with low accuracy as last resort
+        navigator.geolocation.clearWatch(_watchId);
+        _watchId = null;
+        navigator.geolocation.getCurrentPosition(
+          onGPSSuccess,
+          function (err) {
+            if (!gpsReady) {
+              setGpsStatus('error', 'GPS timed out. Check location settings and reload.');
+              useFallback();
+            }
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+        );
+      }
+    }, 20000);
   }
 
   /* ── Fallback: use office coords (buttons-only, doesn't block real GPS) ── */
