@@ -2,16 +2,11 @@
 attendance/routes.py
 ======================
 Attendance routes — thin HTTP layer only.
-
-Rules:
-    - No business logic here.
-    - Every route delegates to AttendanceService or OfficeSettingsService.
-    - JSON endpoints return structured responses.
-    - HTML endpoints render templates.
 """
 
+import os
 from datetime import date
-from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for, send_from_directory, abort
 from flask_login import current_user, login_required
 
 from app.blueprints.employees.repository import EmployeeRepository
@@ -412,3 +407,24 @@ def settings():
         form=form,
         office=office,
     )
+
+
+# ── Serve attendance proof photos ────────────────────────────────────
+
+@attendance_bp.route("/photo/<path:filename>")
+@login_required
+def serve_photo(filename):
+    """
+    Serve an attendance proof photo from the uploads folder.
+    Only the employee who owns the photo or HR/Admin can view it.
+    """
+    from flask import current_app  # noqa: PLC0415
+    upload_folder = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+    # Security: prevent directory traversal
+    safe_name = os.path.normpath(filename)
+    if safe_name.startswith(".."):
+        abort(403)
+    try:
+        return send_from_directory(upload_folder, safe_name)
+    except Exception:
+        abort(404)

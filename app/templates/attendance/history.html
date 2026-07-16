@@ -218,11 +218,11 @@
                 </td>
                 <td class="text-center">
                     {% if photo and photo.file_path %}
-                        <a href="{{ url_for('static', filename='uploads/' + photo.file_path) }}"
+                        <a href="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
                            target="_blank"
                            title="View proof photo — {{ att.date.strftime('%d %b %Y') }}"
                            class="photo-thumb-link">
-                            <img src="{{ url_for('static', filename='uploads/' + photo.file_path) }}"
+                            <img src="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
                                  alt="Proof photo"
                                  class="rounded-2 border"
                                  style="width:40px;height:40px;object-fit:cover;cursor:pointer;

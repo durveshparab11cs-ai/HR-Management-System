@@ -123,19 +123,11 @@ class PhotoService:
             return False, "Failed to record photo. Please try again.", None
 
     def get_photo_url(self, photo: AttendancePhoto) -> Optional[str]:
-        """
-        Build a URL for serving a stored attendance photo.
-
-        Args:
-            photo: AttendancePhoto model instance.
-
-        Returns:
-            URL string or None.
-        """
+        """Build a URL for serving a stored attendance photo."""
         if not photo or not photo.file_path:
             return None
-        from flask import url_for
-        return url_for("static", filename=f"uploads/{photo.file_path}")
+        from flask import url_for  # noqa: PLC0415
+        return url_for("attendance.serve_photo", filename=photo.file_path)
 
     def delete_photo(self, photo: AttendancePhoto) -> bool:
         """
