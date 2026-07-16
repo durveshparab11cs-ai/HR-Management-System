@@ -400,7 +400,7 @@
   "lon":          {{ office.longitude            if office else 73.856743 }},
   "radius":       {{ office.radius_metres        if office else 100 }},
   "name":         {{ (office.name | tojson)      if office else '"Head Office"' }},
-  "min_accuracy": {{ office.min_gps_accuracy_metres if office else 50 }}
+  "min_accuracy": {{ (office.min_gps_accuracy_metres | default(50, true)) if office else 50 }}
 }
 </script>
 <script>

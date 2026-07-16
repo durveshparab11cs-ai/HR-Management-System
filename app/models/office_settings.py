@@ -29,7 +29,24 @@ class OfficeSettings(BaseModel):
     radius_metres: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     # Minimum GPS accuracy required from browser before allowing attendance.
     # 50m is a good default — rejects clearly poor WiFi-based locations.
-    min_gps_accuracy_metres: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    # NOTE: Uses try/except in property for backward compat with existing DB rows.
+    _min_gps_accuracy_metres: Mapped[int] = mapped_column(
+        "min_gps_accuracy_metres",
+        Integer, nullable=True, default=50
+    )
+
+    @property
+    def min_gps_accuracy_metres(self) -> int:
+        """Safe access — returns 50 if column not yet in DB."""
+        try:
+            val = self._min_gps_accuracy_metres
+            return val if val is not None else 50
+        except Exception:
+            return 50
+
+    @min_gps_accuracy_metres.setter
+    def min_gps_accuracy_metres(self, value: int) -> None:
+        self._min_gps_accuracy_metres = value
 
     # ── Office Timing ───────────────────────────────────────────────
     office_start_time: Mapped[datetime.time] = mapped_column(
