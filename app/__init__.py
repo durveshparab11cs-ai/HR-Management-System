@@ -695,3 +695,31 @@ def _auto_seed_employees(app: Flask) -> None:
             db.session.rollback()
         except Exception:
             pass
+
+    # ── Also seed leave types if missing ────────────────────────────
+    try:
+        from app.models.leave import LeaveType  # noqa: PLC0415
+        from app.extensions.database import db as _db2  # noqa: PLC0415
+        if LeaveType.query.count() == 0:
+            leave_defaults = [
+                {"name": "Casual Leave",      "code": "CL",   "max_days_per_year": 12, "is_paid": True,  "color": "#3b82f6"},
+                {"name": "Sick Leave",        "code": "SL",   "max_days_per_year": 12, "is_paid": True,  "color": "#ef4444", "requires_document": True},
+                {"name": "Paid Leave",        "code": "PL",   "max_days_per_year": 15, "is_paid": True,  "color": "#10b981"},
+                {"name": "Loss of Pay",       "code": "LOP",  "max_days_per_year": 30, "is_paid": False, "color": "#f59e0b"},
+                {"name": "Comp Off",          "code": "COMP", "max_days_per_year": 6,  "is_paid": True,  "color": "#8b5cf6"},
+                {"name": "Maternity Leave",   "code": "ML",   "max_days_per_year": 180,"is_paid": True,  "color": "#ec4899"},
+                {"name": "Paternity Leave",   "code": "PTL",  "max_days_per_year": 15, "is_paid": True,  "color": "#0891b2"},
+                {"name": "Bereavement Leave", "code": "BL",   "max_days_per_year": 5,  "is_paid": True,  "color": "#6b7280"},
+            ]
+            for lt_data in leave_defaults:
+                if not LeaveType.query.filter_by(code=lt_data["code"]).first():
+                    _db2.session.add(LeaveType(**lt_data))
+            _db2.session.commit()
+            app.logger.info("Auto-seeded %d leave types.", len(leave_defaults))
+    except Exception as exc:
+        app.logger.error("Auto-seed leave types failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
