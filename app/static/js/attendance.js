@@ -391,30 +391,48 @@
 
 
   /* ═══════════════════════════════════════════════════════════════════
-     GPS FETCH — getCurrentPosition with fresh coords (maximumAge: 0)
+     GPS FETCH
+     Uses watchPosition which is more reliable than getCurrentPosition
+     on Chromium HTTPS. Error callback is ignored if success fires first.
   ════════════════════════════════════════════════════════════════════ */
+  let _gpsSuccessReceived = false; // track if success ever fired this session
+
   function fetchGPS(isManual) {
     if (!navigator.geolocation) {
       setGpsStatus('error', 'Geolocation not supported by this browser.');
-      lockButtons('GPS Unsupported');
       return;
     }
-    if (isManual) setGpsStatus('acquiring', 'Refreshing location…');
+    if (isManual) {
+      setGpsStatus('acquiring', 'Refreshing location…');
+      _permRetries = 0;
+    }
 
-    // Cancel any existing watch
+    // Cancel existing watch
     if (_watchId !== null) {
       navigator.geolocation.clearWatch(_watchId);
       _watchId = null;
     }
 
-    // Use getCurrentPosition — fresh fix every time (maximumAge: 0)
-    navigator.geolocation.getCurrentPosition(
-      function (pos) { onGPSSuccess(pos); },
-      function (err) { if (!gpsReady) onGPSError(err); },
+    // Use watchPosition — fires success even when getCurrentPosition fails on Chromium HTTPS
+    _watchId = navigator.geolocation.watchPosition(
+      function (pos) {
+        _gpsSuccessReceived = true;
+        // Stop watching after first good position
+        if (_watchId !== null) {
+          navigator.geolocation.clearWatch(_watchId);
+          _watchId = null;
+        }
+        onGPSSuccess(pos);
+      },
+      function (err) {
+        // Ignore error if success already fired (async race)
+        if (_gpsSuccessReceived || gpsReady) return;
+        onGPSError(err);
+      },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 0       // always fresh — never use cached coords
+        maximumAge: 0
       }
     );
   }
@@ -428,25 +446,37 @@
       return;
     }
 
-    // Do NOT lock buttons here — the template already set them correctly
-    // (Already Checked In / Check In First / etc.)
-    // Only the GPS success/failure callbacks should change button state
     setGpsStatus('acquiring', 'Loading GPS…');
-    fetchGPS(false);
 
-    // Advisory: watch for permission changes
+    // Check permission state first to give informed status message
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
+        if (perm.state === 'denied') {
+          // Truly denied — show message immediately
+          setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
+          return;
+        }
+        // 'granted' or 'prompt' — request GPS directly
+        fetchGPS(false);
+
+        // Watch for permission state changes
         perm.onchange = function () {
           if (perm.state === 'granted' && !gpsReady) {
             _permRetries = 0;
+            _gpsSuccessReceived = false;
             setGpsStatus('acquiring', 'Permission granted — getting location…');
             fetchGPS(false);
           } else if (perm.state === 'denied' && !gpsReady) {
-            setGpsStatus('error', 'Location denied. Click the lock icon → Allow → reload.');
+            setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
           }
         };
-      }).catch(function () {});
+      }).catch(function () {
+        // Permissions API not available — try GPS directly
+        fetchGPS(false);
+      });
+    } else {
+      // No Permissions API — try GPS directly
+      fetchGPS(false);
     }
   }
 
