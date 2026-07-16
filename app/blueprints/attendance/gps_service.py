@@ -129,22 +129,18 @@ class GPSService:
                 lat=lat, lon=lon, accuracy=accuracy, suspicious=True,
             )
 
-        # Step 2b: Accuracy threshold — reject if GPS accuracy is too poor
+        # Step 2b: Log accuracy for audit — no hard rejection on accuracy alone.
+        # The frontend already performs smart GPS refinement (watchPosition with
+        # up to 30s wait for best reading). By the time the submission arrives,
+        # it contains the best accuracy the device could achieve. Rejecting on
+        # accuracy here would punish users in poor GPS environments even when
+        # their Haversine distance is clearly inside the geofence.
+        # Accuracy is stored and displayed to admins for audit purposes only.
         min_accuracy = getattr(office, 'min_gps_accuracy_metres', 50)
         if accuracy is not None and accuracy > min_accuracy:
-            reason = (
-                f"GPS accuracy is too poor (±{accuracy:.0f}m). "
-                f"Required: ±{min_accuracy}m or better. "
-                f"Move to an open area and try again."
-            )
-            self._log(employee, lat, lon, accuracy, None, action, reason)
-            logger.warning(
-                "GPS_POOR_ACCURACY | emp=%s | accuracy=%.0fm | required=%dm | action=%s",
+            logger.info(
+                "GPS_LOW_ACCURACY_ACCEPTED | emp=%s | accuracy=%.0fm | threshold=%dm | action=%s",
                 employee.id, accuracy, min_accuracy, action,
-            )
-            return GPSVerificationResult(
-                success=False, error=reason,
-                lat=lat, lon=lon, accuracy=accuracy,
             )
 
         # Step 3: Distance
