@@ -234,12 +234,30 @@
   /* ═══════════════════════════════════════════════════════════════════
      BUTTON STATE — security-critical
      Buttons are LOCKED until real GPS succeeds with acceptable accuracy.
-     useFallback() NEVER unlocks submission buttons.
+     IMPORTANT: Never overwrite "Already Checked In / Already Checked Out"
+     states — those are set by the server and must be preserved.
   ════════════════════════════════════════════════════════════════════ */
   function lockButtons(reason) {
-    const ci = el('btn-checkin'), co = el('btn-checkout');
-    if (ci) { ci.disabled = true; const t = el('ci-text'); if (t && reason) t.textContent = reason; }
-    if (co) { co.disabled = true; }
+    const ci = el('btn-checkin');
+    const co = el('btn-checkout');
+    // Only lock buttons that are currently in an "active" state
+    // Never override server-set completed states
+    if (ci) {
+      const ciTxt = (el('ci-text') || {}).textContent || '';
+      const isCompleted = ciTxt.indexOf('Already') !== -1 || ciTxt.indexOf('Checked') !== -1;
+      if (!isCompleted) {
+        ci.disabled = true;
+        const t = el('ci-text');
+        if (t && reason) t.textContent = reason;
+      }
+    }
+    if (co) {
+      const coTxt = (el('co-text') || {}).textContent || '';
+      const isCompleted = coTxt.indexOf('Already') !== -1 || coTxt.indexOf('First') !== -1;
+      if (!isCompleted) {
+        co.disabled = true;
+      }
+    }
   }
 
   function unlockButtons() {
@@ -314,29 +332,24 @@
      GPS ERROR
   ════════════════════════════════════════════════════════════════════ */
   function onGPSError(err) {
-    // CRITICAL: if GPS already succeeded (map shows location), NEVER show error
+    // CRITICAL: if GPS already succeeded, NEVER show error or touch buttons
     if (gpsReady) return;
 
-    // PERMISSION_DENIED (code 1) — Chromium HTTPS bug:
-    // The error fires even when permission IS granted.
-    // The watchPosition success callback fires shortly after.
-    // Strategy: always retry, never show "denied" immediately.
-    // Only show the error after 5 retries with no success.
+    // PERMISSION_DENIED (code 1) — Chromium HTTPS race condition:
+    // This fires even when permission IS granted. Retry silently up to 5x.
     if (err.code === 1) {
       _permRetries++;
       if (_permRetries <= 5) {
-        // Silent retry — don't show any error yet
         setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/5)');
         setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 1500);
         return;
       }
-      // After 5 retries, show actionable message
-      setGpsStatus('error', 'Location access denied. Click the lock icon → Location → Allow, then reload the page.');
-      lockButtons('GPS Denied');
+      // After 5 retries with no success — show status only, don't touch buttons
+      setGpsStatus('error', 'Location access denied. Click the lock icon → Location → Allow, then reload.');
       return;
     }
 
-    // Timeout (code 3) — keep retrying silently, normal on first load
+    // Timeout (code 3) — normal on first load, keep retrying
     if (err.code === 3) {
       _permRetries++;
       if (_permRetries <= 8) {
@@ -344,13 +357,13 @@
         setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 2500);
         return;
       }
-      setGpsStatus('acquiring', 'GPS slow to respond. Buttons locked until location confirmed.');
+      // After 8 timeouts — show status only
+      setGpsStatus('acquiring', 'GPS slow to respond. Using last known location.');
       return;
     }
 
-    // Position unavailable (code 2)
+    // Position unavailable (code 2) — show status, don't touch buttons
     setGpsStatus('error', 'Device location unavailable. Enable location services and reload.');
-    lockButtons('GPS Required');
 
     const rb = el('btn-refresh-gps');
     if (rb) { rb.disabled = false; rb.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Location'; }
@@ -393,16 +406,16 @@
   function startGPS() {
     if (!navigator.geolocation) {
       setGpsStatus('error', 'Geolocation not supported by this browser.');
-      lockButtons('GPS Unsupported');
       return;
     }
 
-    // Buttons locked at start — only onGPSSuccess can unlock them
-    lockButtons('Waiting for GPS…');
+    // Do NOT lock buttons here — the template already set them correctly
+    // (Already Checked In / Check In First / etc.)
+    // Only the GPS success/failure callbacks should change button state
     setGpsStatus('acquiring', 'Loading GPS…');
     fetchGPS(false);
 
-    // Advisory: watch for permission changes only (never blocks GPS directly)
+    // Advisory: watch for permission changes
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
         perm.onchange = function () {
@@ -412,7 +425,6 @@
             fetchGPS(false);
           } else if (perm.state === 'denied' && !gpsReady) {
             setGpsStatus('error', 'Location denied. Click the lock icon → Allow → reload.');
-            lockButtons('GPS Denied');
           }
         };
       }).catch(function () {});
