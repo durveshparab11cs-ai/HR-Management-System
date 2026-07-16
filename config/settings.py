@@ -65,8 +65,10 @@ class BaseConfig:
     # Flask-Login
     # --------------------------------------------------------------------------
     LOGIN_VIEW: str = "authentication.login"
-    LOGIN_MESSAGE: str = "Please log in to access this page."
-    LOGIN_MESSAGE_CATEGORY: str = "warning"
+    # Empty — suppresses the yellow "Please log in" flash banner.
+    # The login page itself makes the redirect reason obvious.
+    LOGIN_MESSAGE: str = ""
+    LOGIN_MESSAGE_CATEGORY: str = "info"
 
     # --------------------------------------------------------------------------
     # Flask-Mail
@@ -140,13 +142,16 @@ class BaseConfig:
 
     # --------------------------------------------------------------------------
     # Security Headers (applied by middleware)
+    # NOTE: geolocation is intentionally ALLOWED — the attendance system
+    # requires browser GPS access. Blocking it with geolocation=() would
+    # prevent check-in/check-out for all employees.
     # --------------------------------------------------------------------------
     SECURITY_HEADERS: dict = {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+        "Permissions-Policy": "microphone=(), camera=()",
     }
 
 
@@ -265,6 +270,8 @@ class ProductionConfig(BaseConfig):
     BCRYPT_LOG_ROUNDS: int = int(os.environ.get("BCRYPT_LOG_ROUNDS", 14))
 
     # Additional security headers for production
+    # NOTE: geolocation is intentionally NOT blocked — GPS attendance requires it.
+    # BaseConfig.SECURITY_HEADERS already sets Permissions-Policy without geolocation=().
     SECURITY_HEADERS: dict = {
         **BaseConfig.SECURITY_HEADERS,
         "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -274,7 +281,7 @@ class ProductionConfig(BaseConfig):
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com; "
             "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
             "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org; "
-            "connect-src 'self' https://*.tile.openstreetmap.org; "
+            "connect-src 'self' https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org; "
             "frame-src 'none';"
         ),
     }

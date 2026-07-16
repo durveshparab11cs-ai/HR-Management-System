@@ -27,15 +27,16 @@ def configure_login_manager(app) -> None:
         app: The Flask application instance.
     """
     login_manager.login_view = app.config.get("LOGIN_VIEW", "authentication.login")
-    login_manager.login_message = app.config.get(
-        "LOGIN_MESSAGE", "Please log in to access this page."
-    )
-    login_manager.login_message_category = app.config.get(
-        "LOGIN_MESSAGE_CATEGORY", "warning"
-    )
-    login_manager.session_protection = "strong"
+    # Empty string suppresses the flash banner — the login page itself
+    # provides enough context without a yellow "Please log in" popup.
+    login_manager.login_message = ""
+    login_manager.login_message_category = "info"
+    # "basic" instead of "strong" — "strong" invalidates sessions whenever
+    # IP or User-Agent changes (common on mobile/Render proxy), causing
+    # spurious logouts and multiple flash messages on the admin dashboard.
+    login_manager.session_protection = "basic"
     login_manager.refresh_view = "authentication.login"
-    login_manager.needs_refresh_message = "Please re-authenticate to continue."
+    login_manager.needs_refresh_message = ""
     login_manager.needs_refresh_message_category = "info"
 
     @login_manager.user_loader
@@ -64,9 +65,14 @@ def configure_login_manager(app) -> None:
     def unauthorized():
         """
         Custom handler for unauthorized access attempts.
-        Redirects to the login page with a flash message.
+        Redirects to the login page without a flash banner —
+        an empty login_message means we stay silent.
         """
-        from flask import flash, redirect, request, url_for  # noqa: PLC0415
+        from flask import redirect, request, url_for  # noqa: PLC0415
 
-        flash(login_manager.login_message, login_manager.login_message_category)
+        # Only flash if a non-empty message was configured
+        if login_manager.login_message:
+            from flask import flash  # noqa: PLC0415
+            flash(login_manager.login_message, login_manager.login_message_category)
+
         return redirect(url_for(login_manager.login_view, next=request.url))
