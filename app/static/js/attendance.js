@@ -13,8 +13,9 @@
   const CO_URL    = '/attendance/checkout';
   const PHOTO_URL = '/attendance/upload-photo';
   const R         = 6_371_000;
-  const GPS_OPTS_HI  = { enableHighAccuracy: true,  timeout: 15000, maximumAge: 0 };
-  const GPS_OPTS_LO  = { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 };
+  // Generous timeouts — Chromium on HTTPS can be slow to get first fix
+  const GPS_OPTS_HI  = { enableHighAccuracy: true,  timeout: 30000, maximumAge: 0 };
+  const GPS_OPTS_LO  = { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 };
 
   /* ── State ──────────────────────────────────────────────────────── */
   let lat = null, lon = null, acc = null, gpsReady = false;
@@ -317,33 +318,46 @@
   let _permRetries = 0;
 
   function onGPSError(err, fallback) {
-    // If GPS already succeeded, ignore errors
+    // Never handle errors if GPS already succeeded
     if (gpsReady) return;
 
-    // Chromium bug: PERMISSION_DENIED fires even when permission is granted
-    // if the page loaded before permission was set. Retry up to 3 times.
+    // Timeout (code 3) — retry silently, this is normal on first load
+    if (err.code === 3) {
+      _permRetries++;
+      if (_permRetries <= 5) {
+        setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/5)');
+        setTimeout(function () {
+          if (!gpsReady) fetchGPS(false);
+        }, 2000);
+        return;
+      }
+      // After 5 timeouts, enable buttons and show soft message
+      setGpsStatus('acquiring', 'GPS slow to respond — buttons enabled. Location still loading…');
+      useFallback();
+      return;
+    }
+
+    // PERMISSION_DENIED (code 1) — Chromium bug: retry up to 3x before showing error
     if (err.code === 1 && _permRetries < 3) {
       _permRetries++;
-      setGpsStatus('acquiring', `Retrying GPS (attempt ${_permRetries}/3)…`);
+      setGpsStatus('acquiring', 'Retrying GPS (' + _permRetries + '/3)…');
       setTimeout(function () {
         if (!gpsReady) fetchGPS(false);
       }, 1500 * _permRetries);
       return;
     }
 
+    // Real permission denied or position unavailable
     let msg;
     switch (err.code) {
       case 1:
-        msg = 'Location permission denied. Open site settings and set Location to "Allow", then reload this page.';
+        msg = 'Location access denied. Click the lock icon → Location → Allow, then reload.';
         break;
       case 2:
-        msg = 'Position unavailable. Make sure device location services are enabled.';
-        break;
-      case 3:
-        msg = 'GPS timed out. Reload the page to try again.';
+        msg = 'Position unavailable. Enable device location services and reload.';
         break;
       default:
-        msg = 'GPS error (' + err.code + '). Please reload the page.';
+        msg = 'GPS error. Please reload the page.';
     }
 
     setGpsStatus('error', msg);
@@ -377,11 +391,11 @@
       _watchId = null;
     }
 
-    // Use watchPosition — far more reliable than getCurrentPosition on Chromium HTTPS
-    // It bypasses the permission-state race condition entirely
+    // Use watchPosition — bypasses Chromium's permission state race condition
+    // No safety timeout — let it keep trying until it succeeds
     _watchId = navigator.geolocation.watchPosition(
       function (pos) {
-        // Got a fix — stop watching (we only need one position for now)
+        // Got a fix — stop watching (we have position)
         if (_watchId !== null) {
           navigator.geolocation.clearWatch(_watchId);
           _watchId = null;
@@ -389,29 +403,13 @@
         onGPSSuccess(pos);
       },
       function (err) {
-        onGPSError(err, true);
+        // Only treat as error if GPS hasn't already succeeded
+        if (!gpsReady) {
+          onGPSError(err, true);
+        }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
     );
-
-    // Safety timeout — if watchPosition never fires success or error
-    setTimeout(function () {
-      if (_watchId !== null && !gpsReady) {
-        // Try with low accuracy as last resort
-        navigator.geolocation.clearWatch(_watchId);
-        _watchId = null;
-        navigator.geolocation.getCurrentPosition(
-          onGPSSuccess,
-          function (err) {
-            if (!gpsReady) {
-              setGpsStatus('error', 'GPS timed out. Check location settings and reload.');
-              useFallback();
-            }
-          },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
-        );
-      }
-    }, 20000);
   }
 
   /* ── Fallback: use office coords (buttons-only, doesn't block real GPS) ── */
@@ -571,30 +569,32 @@
 
   function startGPS() {
     if (!navigator.geolocation) {
-      setGpsStatus('error', 'Geolocation is not supported by this browser.');
+      setGpsStatus('error', 'Geolocation not supported by this browser.');
       useFallback();
       return;
     }
 
-    // ALWAYS call getCurrentPosition directly — never pre-check permissions.
-    // The Permissions API can return stale/wrong state (Chromium bug on HTTPS).
-    // getCurrentPosition is the authoritative source of truth.
+    // Enable buttons immediately with office coords — never block the UI
+    // Real GPS will update the marker and status when it resolves
+    useFallback();
     setGpsStatus('acquiring', 'Loading GPS…');
+
+    // Call GPS directly — never pre-check permissions (Chromium bug)
     fetchGPS(false);
 
-    // Separately watch permission state for changes (e.g. user changes after page load)
-    // This is advisory only — never used to block GPS
+    // Advisory: watch for permission changes only
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
         perm.onchange = function () {
           if (perm.state === 'granted' && !gpsReady) {
+            _permRetries = 0;
             setGpsStatus('acquiring', 'Permission granted — getting location…');
             fetchGPS(false);
           } else if (perm.state === 'denied' && !gpsReady) {
-            setGpsStatus('error', 'Location access denied. Click the lock icon → Allow location → reload.');
+            setGpsStatus('error', 'Location access denied. Click the lock icon → Allow → reload.');
           }
         };
-      }).catch(function () { /* permissions API not available — ignore */ });
+      }).catch(function () {});
     }
   }
 
