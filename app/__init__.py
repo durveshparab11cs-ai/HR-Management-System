@@ -473,8 +473,9 @@ def _migrate_add_columns(db) -> None:
             return True  # assume exists if we can't check
 
     new_cols = [
-        ('attendance', 'check_in_accuracy',  'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
-        ('attendance', 'check_out_accuracy', 'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
+        ('attendance',     'check_in_accuracy',           'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
+        ('attendance',     'check_out_accuracy',          'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
+        ('office_settings','min_gps_accuracy_metres',     'INTEGER'),
     ]
 
     for table, col, col_type in new_cols:

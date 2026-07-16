@@ -284,14 +284,15 @@ class AttendanceService:
     def _build_gps_detail(self, gps, office) -> dict:
         """Build a dict of GPS/distance detail for JSON responses."""
         return {
-            "employee_lat":     gps.lat,
-            "employee_lon":     gps.lon,
-            "accuracy":         gps.accuracy,
-            "distance_metres":  gps.distance_metres,
-            "office_lat":       office.latitude if office else None,
-            "office_lon":       office.longitude if office else None,
-            "allowed_radius":   office.radius_metres if office else None,
-            "within_radius":    gps.within_radius,
+            "employee_lat":         gps.lat,
+            "employee_lon":         gps.lon,
+            "accuracy":             gps.accuracy,
+            "distance_metres":      gps.distance_metres,
+            "office_lat":           office.latitude if office else None,
+            "office_lon":           office.longitude if office else None,
+            "allowed_radius":       office.radius_metres if office else None,
+            "min_gps_accuracy":     getattr(office, "min_gps_accuracy_metres", 50) if office else 50,
+            "within_radius":        gps.within_radius,
         }
 
     def _get_ip(self) -> str:

@@ -27,6 +27,9 @@ class OfficeSettings(BaseModel):
     latitude: Mapped[float] = mapped_column(Float, nullable=False, default=18.520430)
     longitude: Mapped[float] = mapped_column(Float, nullable=False, default=73.856743)
     radius_metres: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    # Minimum GPS accuracy required from browser before allowing attendance.
+    # 50m is a good default — rejects clearly poor WiFi-based locations.
+    min_gps_accuracy_metres: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
 
     # ── Office Timing ───────────────────────────────────────────────
     office_start_time: Mapped[datetime.time] = mapped_column(

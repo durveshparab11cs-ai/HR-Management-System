@@ -129,6 +129,24 @@ class GPSService:
                 lat=lat, lon=lon, accuracy=accuracy, suspicious=True,
             )
 
+        # Step 2b: Accuracy threshold — reject if GPS accuracy is too poor
+        min_accuracy = getattr(office, 'min_gps_accuracy_metres', 50)
+        if accuracy is not None and accuracy > min_accuracy:
+            reason = (
+                f"GPS accuracy is too poor (±{accuracy:.0f}m). "
+                f"Required: ±{min_accuracy}m or better. "
+                f"Move to an open area and try again."
+            )
+            self._log(employee, lat, lon, accuracy, None, action, reason)
+            logger.warning(
+                "GPS_POOR_ACCURACY | emp=%s | accuracy=%.0fm | required=%dm | action=%s",
+                employee.id, accuracy, min_accuracy, action,
+            )
+            return GPSVerificationResult(
+                success=False, error=reason,
+                lat=lat, lon=lon, accuracy=accuracy,
+            )
+
         # Step 3: Distance
         result = calc_distance(lat, lon, office.latitude, office.longitude, office.radius_metres)
 
