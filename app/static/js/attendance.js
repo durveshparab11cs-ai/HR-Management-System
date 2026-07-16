@@ -335,21 +335,7 @@
     // CRITICAL: if GPS already succeeded, NEVER show error or touch buttons
     if (gpsReady) return;
 
-    // PERMISSION_DENIED (code 1) — Chromium HTTPS race condition:
-    // This fires even when permission IS granted. Retry silently up to 5x.
-    if (err.code === 1) {
-      _permRetries++;
-      if (_permRetries <= 5) {
-        setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/5)');
-        setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 1500);
-        return;
-      }
-      // After 5 retries with no success — show status only, don't touch buttons
-      setGpsStatus('error', 'Location access denied. Click the lock icon → Location → Allow, then reload.');
-      return;
-    }
-
-    // Timeout (code 3) — normal on first load, keep retrying
+    // Timeout (code 3) — normal on first load, keep retrying silently
     if (err.code === 3) {
       _permRetries++;
       if (_permRetries <= 8) {
@@ -357,12 +343,45 @@
         setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 2500);
         return;
       }
-      // After 8 timeouts — show status only
-      setGpsStatus('acquiring', 'GPS slow to respond. Using last known location.');
+      setGpsStatus('acquiring', 'GPS slow — map shows estimated location.');
       return;
     }
 
-    // Position unavailable (code 2) — show status, don't touch buttons
+    // PERMISSION_DENIED (code 1) — Chromium HTTPS race condition:
+    // This fires even when permission IS granted because the OS permission
+    // handshake is async. The success callback fires ~500ms later.
+    // Retry silently — only check real permission state after many failures.
+    if (err.code === 1) {
+      _permRetries++;
+      if (_permRetries <= 8) {
+        setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/8)');
+        setTimeout(function () {
+          if (!gpsReady) fetchGPS(false);
+        }, 1200);
+        return;
+      }
+      // After 8 retries — verify actual permission state before showing error
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(function (p) {
+          if (!gpsReady) {
+            if (p.state === 'denied') {
+              setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
+            } else {
+              // Permission is actually granted — keep trying
+              _permRetries = 0;
+              fetchGPS(false);
+            }
+          }
+        }).catch(function () {
+          if (!gpsReady) setGpsStatus('error', 'Location unavailable. Check browser permissions.');
+        });
+      } else {
+        if (!gpsReady) setGpsStatus('error', 'Location unavailable. Check browser permissions.');
+      }
+      return;
+    }
+
+    // Position unavailable (code 2)
     setGpsStatus('error', 'Device location unavailable. Enable location services and reload.');
 
     const rb = el('btn-refresh-gps');
