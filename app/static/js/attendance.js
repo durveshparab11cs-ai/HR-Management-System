@@ -20,19 +20,19 @@
     lon:         parseFloat(_raw.lon)         || null,
     radius:      parseFloat(_raw.radius)      || 100,
     name:        _raw.name                    || 'Office',
-    minAccuracy: parseFloat(_raw.min_accuracy)|| 50,
+    minAccuracy: parseFloat(_raw.min_accuracy)|| 50,   // max acceptable GPS error in metres
   };
 
   const CI_URL    = '/attendance/checkin';
   const CO_URL    = '/attendance/checkout';
   const PHOTO_URL = '/attendance/upload-photo';
-  const R         = 6_371_000;
+  const R         = 6_371_000; // Earth radius metres
 
   /* ── GPS state ───────────────────────────────────────────────────── */
-  let lat      = null;
-  let lon      = null;
-  let acc      = null;
-  let gpsReady = false;
+  let lat      = null;   // confirmed employee latitude
+  let lon      = null;   // confirmed employee longitude
+  let acc      = null;   // confirmed GPS accuracy metres
+  let gpsReady = false;  // true ONLY after real GPS with acceptable accuracy
   let _watchId = null;
   let _permRetries = 0;
   let autoRefreshTimer = null;
@@ -43,7 +43,9 @@
 
   const el = id => document.getElementById(id);
 
-  /* ═══════════════ CLOCK ════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     CLOCK
+  ════════════════════════════════════════════════════════════════════ */
   (function () {
     const c = el('att-clock'), d = el('att-date');
     if (!c) return;
@@ -55,7 +57,9 @@
     tick(); setInterval(tick, 1000);
   })();
 
-  /* ═══════════════ UTC → IST ════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     UTC → IST
+  ════════════════════════════════════════════════════════════════════ */
   document.querySelectorAll('.utc-to-ist').forEach(s => {
     const iso = s.textContent.trim();
     if (!iso) return;
@@ -65,7 +69,9 @@
     } catch (e) {}
   });
 
-  /* ═══════════════ HAVERSINE ════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     HAVERSINE — mirrors Python distance_calculator.py exactly
+  ════════════════════════════════════════════════════════════════════ */
   function haversineMetres(la1, lo1, la2, lo2) {
     const r = Math.PI / 180;
     const phi1 = la1 * r, phi2 = la2 * r;
@@ -74,7 +80,9 @@
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  /* ═══════════════ STATUS BAR ════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     STATUS BAR
+  ════════════════════════════════════════════════════════════════════ */
   function setGpsStatus(state, msg) {
     const dot  = el('gps-dot');
     const text = el('gps-text');
@@ -87,7 +95,10 @@
     }
   }
 
-  /* ═══════════════ LEAFLET MAP ══════════════════════════════════════ */
+
+  /* ═══════════════════════════════════════════════════════════════════
+     LEAFLET MAP
+  ════════════════════════════════════════════════════════════════════ */
   function mkIcon(color, size) {
     size = size || 14;
     return L.divIcon({
@@ -99,22 +110,28 @@
   function initMap() {
     const container = el('att-map');
     if (!container || typeof L === 'undefined' || map) return;
+
     container.style.cssText = 'height:350px;width:100%;display:block;position:relative;z-index:0;';
+
     map = L.map('att-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
+
     if (OFFICE.lat && OFFICE.lon) {
       L.marker([OFFICE.lat, OFFICE.lon], { icon: mkIcon('#1a3c6e', 18) })
         .addTo(map)
-        .bindPopup(`<strong>${OFFICE.name}</strong><br>Geofence: ${OFFICE.radius}m radius`);
+        .bindPopup(`<strong>${OFFICE.name}</strong><br>Geofence: ${OFFICE.radius}m radius<br>Min GPS accuracy: ±${OFFICE.minAccuracy}m`);
+
       L.circle([OFFICE.lat, OFFICE.lon], {
         radius: OFFICE.radius, color: '#1a3c6e', fillColor: '#1a3c6e',
         fillOpacity: 0.07, weight: 2, dashArray: '6 4'
       }).addTo(map);
+
       map.setView([OFFICE.lat, OFFICE.lon], 17);
     }
+
     [100, 400, 1000].forEach(d => setTimeout(() => map && map.invalidateSize(), d));
   }
 
@@ -138,7 +155,10 @@
     map.invalidateSize();
   }
 
-  /* ═══════════════ INFO PANEL ════════════════════════════════════════ */
+
+  /* ═══════════════════════════════════════════════════════════════════
+     LIVE INFO PANEL (injected below map)
+  ════════════════════════════════════════════════════════════════════ */
   function ensureInfoPanel() {
     if (el('gps-info-card')) return;
     const mapEl = el('att-map');
@@ -171,12 +191,15 @@
   }
 
   function updateInfoPanel(empLat, empLon, empAcc, dist, within) {
+    // gps-coords bar in template
     const cEl = el('gps-coords'); if (cEl) cEl.style.display = '';
     const ll = el('gps-latlon');  if (ll) ll.textContent = empLat.toFixed(6) + ', ' + empLon.toFixed(6);
     const dt = el('gps-dist-text'); if (dt) { dt.textContent = dist.toFixed(1) + 'm'; dt.style.color = within ? '#10b981' : '#ef4444'; }
     const ab = el('gps-accuracy-label'); if (ab) ab.textContent = '±' + Math.round(empAcc) + 'm accuracy';
     const badge = el('gps-dist-badge');
     if (badge) badge.innerHTML = `<span class="dist-badge ${within ? 'inside' : 'outside'}">${dist.toFixed(1)}m ${within ? '✓' : '✗'}</span>`;
+
+    // rejection box
     const rb = el('rejection-box');
     if (rb) {
       if (!within) {
@@ -184,8 +207,12 @@
         const re = el('rj-emp-dist'); if (re) re.textContent = dist.toFixed(1) + ' m';
         const ra = el('rj-allowed');  if (ra) ra.textContent = OFFICE.radius + ' m';
         const rm = el('rj-move-by');  if (rm) rm.textContent = Math.max(0, dist - OFFICE.radius).toFixed(1) + ' m closer';
-      } else { rb.style.display = 'none'; }
+      } else {
+        rb.style.display = 'none';
+      }
     }
+
+    // injected info panel
     ensureInfoPanel();
     const accColor = empAcc <= OFFICE.minAccuracy ? '#10b981' : '#f59e0b';
     const li = el('info-lat');   if (li) li.textContent = empLat.toFixed(7);
@@ -193,17 +220,28 @@
     const la = el('info-acc');   if (la) { la.textContent = '±' + Math.round(empAcc) + 'm'; la.style.color = accColor; }
     const ld = el('info-dist');  if (ld) { ld.textContent = dist.toFixed(1) + 'm'; ld.style.color = within ? '#10b981' : '#ef4444'; }
     const lz = el('info-zone');
-    if (lz) { lz.textContent = within ? '✓ Inside Allowed Area' : '✗ Outside Allowed Area'; lz.style.color = within ? '#10b981' : '#ef4444'; }
+    if (lz) {
+      lz.textContent = within ? '✓ Inside Allowed Area' : '✗ Outside Allowed Area';
+      lz.style.color = within ? '#10b981' : '#ef4444';
+    }
     const lt = el('info-time');  if (lt) lt.textContent = new Date().toLocaleTimeString();
     const rb2 = el('btn-refresh-gps');
     if (rb2) { rb2.disabled = false; rb2.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Location'; }
     isRefreshing = false;
   }
 
-  /* ═══════════════ BUTTON STATE ══════════════════════════════════════ */
+
+  /* ═══════════════════════════════════════════════════════════════════
+     BUTTON STATE — security-critical
+     Buttons are LOCKED until real GPS succeeds with acceptable accuracy.
+     IMPORTANT: Never overwrite "Already Checked In / Already Checked Out"
+     states — those are set by the server and must be preserved.
+  ════════════════════════════════════════════════════════════════════ */
   function lockButtons(reason) {
     const ci = el('btn-checkin');
     const co = el('btn-checkout');
+    // Only lock buttons that are currently in an "active" state
+    // Never override server-set completed states
     if (ci) {
       const ciTxt = (el('ci-text') || {}).textContent || '';
       const isCompleted = ciTxt.indexOf('Already') !== -1 || ciTxt.indexOf('Checked') !== -1;
@@ -216,11 +254,14 @@
     if (co) {
       const coTxt = (el('co-text') || {}).textContent || '';
       const isCompleted = coTxt.indexOf('Already') !== -1 || coTxt.indexOf('First') !== -1;
-      if (!isCompleted) { co.disabled = true; }
+      if (!isCompleted) {
+        co.disabled = true;
+      }
     }
   }
 
   function unlockButtons() {
+    // Only called from onGPSSuccess when real coordinates verified
     const ci = el('btn-checkin'), co = el('btn-checkout');
     if (ci && (typeof CAN_CHECKIN === 'undefined' || CAN_CHECKIN)) {
       ci.disabled = false;
@@ -234,50 +275,67 @@
     }
   }
 
-  /* ═══════════════ GPS SUCCESS ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     GPS SUCCESS — validate by DISTANCE ONLY using Haversine
+     Accuracy is displayed as info only — never used to reject.
+  ════════════════════════════════════════════════════════════════════ */
   function onGPSSuccess(pos) {
     const empLat = pos.coords.latitude;
     const empLon = pos.coords.longitude;
     const empAcc = pos.coords.accuracy;
 
+    // Always update stored coords with fresh position
     lat = empLat; lon = empLon; acc = empAcc;
     gpsReady = true;
     _permRetries = 0;
 
-    const oLat = OFFICE.lat, oLon = OFFICE.lon, oRad = OFFICE.radius;
+    const oLat = OFFICE.lat;
+    const oLon = OFFICE.lon;
+    const oRad = OFFICE.radius;
+
+    // Haversine distance — only validation criterion
     const dist   = (oLat && oLon) ? haversineMetres(empLat, empLon, oLat, oLon) : 0;
     const within = dist <= oRad;
 
+    // ── Console logging (requirement 7) ──────────────────────────────
     console.group('[Smart HRMS] GPS Verification');
     console.log('Current Latitude  :', empLat.toFixed(7));
     console.log('Current Longitude :', empLon.toFixed(7));
     console.log('Target Latitude   :', oLat);
     console.log('Target Longitude  :', oLon);
     console.log('GPS Accuracy      :', Math.round(empAcc) + 'm');
-    console.log('Altitude          :', pos.coords.altitude != null ? pos.coords.altitude + 'm' : 'n/a');
-    console.log('Heading           :', pos.coords.heading  != null ? pos.coords.heading  + '°' : 'n/a');
-    console.log('Speed             :', pos.coords.speed    != null ? pos.coords.speed    + 'm/s' : 'n/a');
     console.log('Calculated Distance:', dist.toFixed(2) + 'm');
     console.log('Allowed Radius    :', oRad + 'm');
     console.log('Validation Result :', within ? 'PASS ✓' : 'FAIL ✗');
     console.groupEnd();
 
+    // Update map and info panel
     updateMapEmployee(empLat, empLon, empAcc, within);
     updateInfoPanel(empLat, empLon, empAcc, dist, within);
 
     if (within) {
+      // ── Inside radius — PASS ──────────────────────────────────────
       unlockButtons();
-      setGpsStatus('ok', '✓ GPS Verified — ' + dist.toFixed(1) + 'm from office (±' + Math.round(empAcc) + 'm accuracy)');
+      setGpsStatus('ok',
+        '✓ GPS Verified — ' + dist.toFixed(1) + 'm from office (±' + Math.round(empAcc) + 'm accuracy)'
+      );
     } else {
+      // ── Outside radius — FAIL ─────────────────────────────────────
       lockButtons('Outside Zone');
-      setGpsStatus('error', '✗ Outside Allowed Area — ' + dist.toFixed(1) + 'm from office (allowed: ' + oRad + 'm)');
+      setGpsStatus('error',
+        '✗ Outside Allowed Area — ' + dist.toFixed(1) + 'm from office (allowed: ' + oRad + 'm)'
+      );
     }
   }
 
-  /* ═══════════════ GPS ERROR ══════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     GPS ERROR
+  ════════════════════════════════════════════════════════════════════ */
   function onGPSError(err) {
+    // CRITICAL: if GPS already succeeded, NEVER show error or touch buttons
     if (gpsReady) return;
 
+    // Timeout (code 3) — normal on first load, keep retrying silently
     if (err.code === 3) {
       _permRetries++;
       if (_permRetries <= 8) {
@@ -289,19 +347,27 @@
       return;
     }
 
+    // PERMISSION_DENIED (code 1) — Chromium HTTPS race condition:
+    // This fires even when permission IS granted because the OS permission
+    // handshake is async. The success callback fires ~500ms later.
+    // Retry silently — only check real permission state after many failures.
     if (err.code === 1) {
       _permRetries++;
       if (_permRetries <= 8) {
         setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/8)');
-        setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 1200);
+        setTimeout(function () {
+          if (!gpsReady) fetchGPS(false);
+        }, 1200);
         return;
       }
+      // After 8 retries — verify actual permission state before showing error
       if (navigator.permissions) {
         navigator.permissions.query({ name: 'geolocation' }).then(function (p) {
           if (!gpsReady) {
             if (p.state === 'denied') {
               setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
             } else {
+              // Permission is actually granted — keep trying
               _permRetries = 0;
               fetchGPS(false);
             }
@@ -315,82 +381,135 @@
       return;
     }
 
+    // Position unavailable (code 2)
     setGpsStatus('error', 'Device location unavailable. Enable location services and reload.');
+
     const rb = el('btn-refresh-gps');
     if (rb) { rb.disabled = false; rb.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Location'; }
     isRefreshing = false;
   }
 
-  /* ═══════════════ GPS FETCH ══════════════════════════════════════════ */
-  let _gpsSuccessReceived = false;
+
+  /* ═══════════════════════════════════════════════════════════════════
+     GPS FETCH
+     Uses watchPosition which is more reliable than getCurrentPosition
+     on Chromium HTTPS. Error callback is ignored if success fires first.
+  ════════════════════════════════════════════════════════════════════ */
+  let _gpsSuccessReceived = false; // track if success ever fired this session
 
   function fetchGPS(isManual) {
     if (!navigator.geolocation) {
       setGpsStatus('error', 'Geolocation not supported by this browser.');
       return;
     }
-    if (isManual) { setGpsStatus('acquiring', 'Refreshing location…'); _permRetries = 0; }
+    if (isManual) {
+      setGpsStatus('acquiring', 'Refreshing location…');
+      _permRetries = 0;
+    }
 
-    if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
+    // Cancel existing watch
+    if (_watchId !== null) {
+      navigator.geolocation.clearWatch(_watchId);
+      _watchId = null;
+    }
 
+    // Use watchPosition — fires success even when getCurrentPosition fails on Chromium HTTPS
     _watchId = navigator.geolocation.watchPosition(
       function (pos) {
         _gpsSuccessReceived = true;
-        if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
+        // Stop watching after first good position
+        if (_watchId !== null) {
+          navigator.geolocation.clearWatch(_watchId);
+          _watchId = null;
+        }
         onGPSSuccess(pos);
       },
       function (err) {
+        // Ignore error if success already fired (async race)
         if (_gpsSuccessReceived || gpsReady) return;
         onGPSError(err);
       },
-      { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
     );
   }
 
-  /* ═══════════════ START GPS ══════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     START GPS (called on page load)
+  ════════════════════════════════════════════════════════════════════ */
   function startGPS() {
     if (!navigator.geolocation) {
       setGpsStatus('error', 'Geolocation not supported by this browser.');
       return;
     }
+
     setGpsStatus('acquiring', 'Loading GPS…');
+
+    // Check permission state first to give informed status message
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
         if (perm.state === 'denied') {
+          // Truly denied — show message immediately
           setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
           return;
         }
+        // 'granted' or 'prompt' — request GPS directly
         fetchGPS(false);
+
+        // Watch for permission state changes
         perm.onchange = function () {
           if (perm.state === 'granted' && !gpsReady) {
-            _permRetries = 0; _gpsSuccessReceived = false;
+            _permRetries = 0;
+            _gpsSuccessReceived = false;
             setGpsStatus('acquiring', 'Permission granted — getting location…');
             fetchGPS(false);
           } else if (perm.state === 'denied' && !gpsReady) {
             setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
           }
         };
-      }).catch(function () { fetchGPS(false); });
-    } else { fetchGPS(false); }
+      }).catch(function () {
+        // Permissions API not available — try GPS directly
+        fetchGPS(false);
+      });
+    } else {
+      // No Permissions API — try GPS directly
+      fetchGPS(false);
+    }
   }
 
-  /* ═══════════════ AUTO-REFRESH ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     AUTO-REFRESH every 10 seconds — updates map and status,
+     but does NOT reset gpsReady (buttons stay unlocked during refresh)
+  ════════════════════════════════════════════════════════════════════ */
   function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(function () {
-      if (!isRefreshing && document.visibilityState === 'visible') { fetchGPS(false); }
+      if (!isRefreshing && document.visibilityState === 'visible') {
+        // Do NOT reset gpsReady here — buttons must stay unlocked
+        fetchGPS(false);
+      }
     }, 10000);
   }
 
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden') { if (autoRefreshTimer) clearInterval(autoRefreshTimer); }
-    else { startAutoRefresh(); }
+    if (document.visibilityState === 'hidden') {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    } else {
+      startAutoRefresh();
+    }
   });
 
-  /* ═══════════════ SUBMIT ATTENDANCE ═════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     SUBMIT ATTENDANCE — sends lat/lon/accuracy/timestamp to backend
+     Backend performs identical Haversine + accuracy validation.
+  ════════════════════════════════════════════════════════════════════ */
   async function submitAttendance(url, type) {
     if (!gpsReady || lat === null) {
-      showToast('Location not verified. Please wait for GPS confirmation.', 'error'); return;
+      showToast('Location not verified. Please wait for GPS confirmation.', 'error');
+      return;
     }
     setLoading(type, true);
     const fd = new FormData();
@@ -398,8 +517,13 @@
     fd.append('longitude', lon);
     fd.append('accuracy',  acc || 0);
     fd.append('timestamp', new Date().toISOString());
+
     try {
-      const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
+      const res  = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd,
+      });
       const data = await res.json();
       if (data.success) {
         let displayTime = data.time || '';
@@ -414,8 +538,10 @@
         setTimeout(() => location.reload(), 1800);
       } else {
         showToast(data.message || 'Action failed.', 'error');
+        // Show rejection detail from backend GPS validation
         if (data.gps) {
-          const d = (data.gps.distance_metres || 0).toFixed(1), a = data.gps.allowed_radius || OFFICE.radius;
+          const d = (data.gps.distance_metres || 0).toFixed(1);
+          const a = data.gps.allowed_radius || OFFICE.radius;
           const rb = el('rejection-box');
           if (rb && !data.gps.within_radius) {
             rb.style.display = '';
@@ -426,7 +552,10 @@
         }
         setLoading(type, false);
       }
-    } catch (e) { showToast('Network error. Check your connection and try again.', 'error'); setLoading(type, false); }
+    } catch (e) {
+      showToast('Network error. Check your connection and try again.', 'error');
+      setLoading(type, false);
+    }
   }
 
   function setLoading(type, on) {
@@ -441,51 +570,72 @@
     if (txt)  txt.textContent    = on ? 'Processing…' : (isCI ? 'Check In' : 'Check Out');
   }
 
-  /* ═══════════════ PHOTO UPLOAD ═══════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     PHOTO UPLOAD
+  ════════════════════════════════════════════════════════════════════ */
   function initPhotoUpload() {
     const zone = el('photo-zone'), inp = el('photo-input'),
           btn  = el('btn-upload-photo'), prev = el('photo-preview-img'),
           spin = el('photo-spin'), txt = el('photo-txt');
     if (!zone || !inp) return;
+
     zone.addEventListener('click', () => inp.click());
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
     zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
     inp.addEventListener('change', () => { if (inp.files[0]) handleFile(inp.files[0]); });
+
     function handleFile(f) {
       if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { showToast('Only JPG, PNG, WEBP.','error'); return; }
       if (f.size > 5*1024*1024) { showToast('Max 5 MB.','error'); return; }
-      const r = new FileReader(); r.onload = e => { if (prev) { prev.src = e.target.result; prev.style.display = 'block'; } }; r.readAsDataURL(f);
+      const r = new FileReader();
+      r.onload = e => { if (prev) { prev.src = e.target.result; prev.style.display = 'block'; } };
+      r.readAsDataURL(f);
       if (btn) btn.style.display = '';
     }
+
     btn?.addEventListener('click', async () => {
-      const f = inp.files[0]; if (!f) { showToast('Select a photo first.','warn'); return; }
-      btn.disabled = true; if (spin) spin.style.display = 'inline-block'; if (txt) txt.textContent = 'Uploading…';
+      const f = inp.files[0];
+      if (!f) { showToast('Select a photo first.','warn'); return; }
+      btn.disabled = true;
+      if (spin) spin.style.display = 'inline-block';
+      if (txt)  txt.textContent = 'Uploading…';
       const fd = new FormData(); fd.append('photo', f);
       try {
         const res = await fetch(PHOTO_URL, { method:'POST', headers:{'X-CSRFToken':CSRF_TOKEN,'X-Requested-With':'XMLHttpRequest'}, body: fd });
         const d = await res.json();
         if (d.success) { showToast('Photo uploaded.','success'); setTimeout(() => location.reload(), 1500); }
-        else { showToast(d.message||'Upload failed.','error'); btn.disabled=false; if(spin)spin.style.display='none'; if(txt)txt.textContent='Upload Photo'; }
-      } catch { showToast('Upload error.','error'); btn.disabled=false; if(spin)spin.style.display='none'; if(txt)txt.textContent='Upload Photo'; }
+        else { showToast(d.message||'Upload failed.','error'); btn.disabled = false; if (spin) spin.style.display='none'; if (txt) txt.textContent='Upload Photo'; }
+      } catch { showToast('Upload error.','error'); btn.disabled = false; if (spin) spin.style.display='none'; if (txt) txt.textContent='Upload Photo'; }
     });
   }
 
-  /* ═══════════════ TOAST ═══════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     TOAST
+  ════════════════════════════════════════════════════════════════════ */
   function showToast(msg, type) {
     let c = el('att-toasts') || el('att-toast-container');
-    if (!c) { c = document.createElement('div'); c.id = 'att-toasts'; c.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;min-width:300px'; document.body.appendChild(c); }
+    if (!c) {
+      c = document.createElement('div');
+      c.id = 'att-toasts';
+      c.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;min-width:300px';
+      document.body.appendChild(c);
+    }
     const icons = { success: '✅', error: '❌', warn: '⚠️' };
     const t = document.createElement('div');
     t.className = `att-toast${type === 'error' ? ' error' : type === 'warn' ? ' warn' : ''}`;
     t.innerHTML = `<span class="att-toast-icon">${icons[type]||'ℹ️'}</span><div class="att-toast-body">${msg}</div><button class="att-toast-close" onclick="this.parentElement.remove()">✕</button>`;
-    c.appendChild(t); setTimeout(() => { if (t.parentElement) t.remove(); }, 6000);
+    c.appendChild(t);
+    setTimeout(() => { if (t.parentElement) t.remove(); }, 6000);
   }
 
-  /* ═══════════════ BOOT ════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════
+     BOOT
+  ════════════════════════════════════════════════════════════════════ */
   el('btn-checkin')?.addEventListener('click',  () => submitAttendance(CI_URL, 'in'));
   el('btn-checkout')?.addEventListener('click', () => submitAttendance(CO_URL, 'out'));
 
+  // Inject spin animation style
   const styleEl = document.createElement('style');
   styleEl.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
   document.head.appendChild(styleEl);
@@ -500,8 +650,13 @@
   if (typeof L !== 'undefined') {
     document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();
   } else {
-    const lnk = document.createElement('link'); lnk.rel = 'stylesheet'; lnk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(lnk);
-    const scr = document.createElement('script'); scr.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; scr.onload = boot; document.head.appendChild(scr);
+    const lnk = document.createElement('link');
+    lnk.rel = 'stylesheet'; lnk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(lnk);
+    const scr = document.createElement('script');
+    scr.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    scr.onload = boot;
+    document.head.appendChild(scr);
   }
 
 })();
