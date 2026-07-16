@@ -284,6 +284,15 @@
     acc = pos.coords.accuracy;
     gpsReady = true;
 
+    // Immediately clear ANY error/blocked message — GPS succeeded
+    // This handles the race condition where the error callback fired
+    // before getCurrentPosition resolved (Chromium permissions API bug)
+    const textEl = el('gps-text');
+    if (textEl && textEl.style.color === 'rgb(239, 68, 68)') {
+      // Was showing an error — clear it
+      textEl.style.color = '';
+    }
+
     const dist   = haversine(lat, lon, OFFICE.lat || 19.014903, OFFICE.lon || 72.845183);
     const within = dist <= (OFFICE.radius || 100);
 
@@ -291,10 +300,11 @@
     updateInfoPanel(lat, lon, acc, dist, within);
     enableButtons();
 
-    setGpsStatus(within ? 'ok' : 'error',
+    setGpsStatus(
+      within ? 'ok' : 'error',
       within
-        ? `✓ Inside office zone — ${dist.toFixed(0)}m away (±${Math.round(acc)}m accuracy)`
-        : `✗ Outside office zone — ${dist.toFixed(0)}m away (limit: ${OFFICE.radius || 100}m)`
+        ? `✓ GPS Verified — ${dist.toFixed(0)}m from office (±${Math.round(acc)}m accuracy)`
+        : `✗ Outside office zone — ${dist.toFixed(0)}m away (allowed: ${OFFICE.radius || 100}m)`
     );
   }
 
@@ -351,7 +361,11 @@
       useFallback();
       return;
     }
-    setGpsStatus('acquiring', isManual ? 'Refreshing location…' : 'Getting your location…');
+
+    if (isManual) {
+      setGpsStatus('acquiring', 'Refreshing location…');
+    }
+    // Note: for auto-start, status is already set to 'Loading GPS…' by startGPS()
 
     navigator.geolocation.getCurrentPosition(
       onGPSSuccess,
@@ -360,14 +374,15 @@
     );
   }
 
-  /* ── Fallback: use office coords ────────────────────────────────── */
+  /* ── Fallback: use office coords (buttons-only, doesn't block real GPS) ── */
   function useFallback() {
-    if (!OFFICE.lat) { enableButtons(); return; }
-    if (!gpsReady) {
-      lat = OFFICE.lat; lon = OFFICE.lon; acc = 9999; gpsReady = true;
-      updateMapLocation(lat, lon, acc, true);
-      enableButtons();
+    // Enable buttons with office coords so UI isn't blocked
+    // but do NOT set gpsReady=true so real GPS can still succeed
+    if (OFFICE.lat && !gpsReady) {
+      lat = OFFICE.lat; lon = OFFICE.lon; acc = 9999;
+      updateMapLocation(lat, lon, 9999, true);
     }
+    enableButtons();
   }
 
 
@@ -521,26 +536,25 @@
       return;
     }
 
+    // ALWAYS call getCurrentPosition directly — never pre-check permissions.
+    // The Permissions API can return stale/wrong state (Chromium bug on HTTPS).
+    // getCurrentPosition is the authoritative source of truth.
+    setGpsStatus('acquiring', 'Loading GPS…');
+    fetchGPS(false);
+
+    // Separately watch permission state for changes (e.g. user changes after page load)
+    // This is advisory only — never used to block GPS
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
-        if (perm.state === 'denied') {
-          setGpsStatus('error', 'Location blocked. Click the lock icon in the address bar and set Location to Allow, then reload.');
-          useFallback();
-        } else {
-          // 'granted' or 'prompt' — request directly, no pre-fallback
-          fetchGPS(false);
-        }
-        // Watch for permission changes (e.g. user clicks Allow after page loads)
         perm.onchange = function () {
-          if (perm.state === 'granted') {
+          if (perm.state === 'granted' && !gpsReady) {
+            setGpsStatus('acquiring', 'Permission granted — getting location…');
             fetchGPS(false);
+          } else if (perm.state === 'denied' && !gpsReady) {
+            setGpsStatus('error', 'Location access denied. Click the lock icon → Allow location → reload.');
           }
         };
-      }).catch(function () {
-        fetchGPS(false);
-      });
-    } else {
-      fetchGPS(false);
+      }).catch(function () { /* permissions API not available — ignore */ });
     }
   }
 
