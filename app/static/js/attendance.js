@@ -312,35 +312,42 @@
      GPS ERROR
   ════════════════════════════════════════════════════════════════════ */
   function onGPSError(err) {
-    if (gpsReady) return; // already have a good fix — ignore subsequent errors
+    // CRITICAL: if GPS already succeeded (map shows location), NEVER show error
+    if (gpsReady) return;
+
+    // PERMISSION_DENIED (code 1) — Chromium HTTPS bug:
+    // The error fires even when permission IS granted.
+    // The watchPosition success callback fires shortly after.
+    // Strategy: always retry, never show "denied" immediately.
+    // Only show the error after 5 retries with no success.
+    if (err.code === 1) {
+      _permRetries++;
+      if (_permRetries <= 5) {
+        // Silent retry — don't show any error yet
+        setGpsStatus('acquiring', 'Getting location… (' + _permRetries + '/5)');
+        setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 1500);
+        return;
+      }
+      // After 5 retries, show actionable message
+      setGpsStatus('error', 'Location access denied. Click the lock icon → Location → Allow, then reload the page.');
+      lockButtons('GPS Denied');
+      return;
+    }
 
     // Timeout (code 3) — keep retrying silently, normal on first load
     if (err.code === 3) {
       _permRetries++;
       if (_permRetries <= 8) {
         setGpsStatus('acquiring', 'Getting GPS fix… (' + _permRetries + '/8)');
-        setTimeout(() => { if (!gpsReady) fetchGPS(false); }, 2500);
+        setTimeout(function () { if (!gpsReady) fetchGPS(false); }, 2500);
         return;
       }
       setGpsStatus('acquiring', 'GPS slow to respond. Buttons locked until location confirmed.');
       return;
     }
 
-    // PERMISSION_DENIED (code 1) — Chromium HTTPS bug: retry 3x
-    if (err.code === 1 && _permRetries < 3) {
-      _permRetries++;
-      setGpsStatus('acquiring', 'Retrying GPS (' + _permRetries + '/3)…');
-      setTimeout(() => { if (!gpsReady) fetchGPS(false); }, 1500 * _permRetries);
-      return;
-    }
-
-    let msg;
-    switch (err.code) {
-      case 1: msg = 'Location access denied. Click the lock icon → Location → Allow, then reload.'; break;
-      case 2: msg = 'Device location unavailable. Enable location services and reload.'; break;
-      default: msg = 'GPS error. Reload the page to try again.';
-    }
-    setGpsStatus('error', msg);
+    // Position unavailable (code 2)
+    setGpsStatus('error', 'Device location unavailable. Enable location services and reload.');
     lockButtons('GPS Required');
 
     const rb = el('btn-refresh-gps');
