@@ -95,37 +95,42 @@ def inject_navigation() -> dict:
     from flask_login import current_user  # noqa: PLC0415
     from app.constants.enums import UserRole  # noqa: PLC0415
 
+    if not (current_user and current_user.is_authenticated):
+        return {"nav_items": []}
+
+    role = getattr(current_user, "role", None)
+
+    # Safely get dept from session — may not exist if session was just cleared
+    dept = ""
     try:
-        if not (current_user and current_user.is_authenticated):
-            return {"nav_items": []}
-
-        role = getattr(current_user, "role", None)
-
-        # Safely get dept from session — may not exist if session was just cleared
-        dept = ""
+        from flask import session as _sess  # noqa: PLC0415
+        dept = _sess.get("login_department", "")
+    except Exception:  # noqa: BLE001
+        pass
+    if not dept:
         try:
-            from flask import session as _sess  # noqa: PLC0415
-            dept = _sess.get("login_department", "")
-        except Exception:  # noqa: BLE001
-            pass
-        if not dept:
             emp = getattr(current_user, "employee", None)
             dept = (emp.department or "") if emp else ""
+        except Exception:  # noqa: BLE001
+            pass
 
-        all_items = [
-            {"label": "Dashboard",    "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
-            {"label": "Employees",    "icon": "bi-people",         "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
-            {"label": "Attendance",   "icon": "bi-calendar-check", "url_endpoint": "attendance.index",    "roles": None},
-            {"label": "Leave",        "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
-            {"label": "Payroll",      "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
-            {"label": "Reports",      "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
-            {"label": "Notifications","icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
-            {"label": "Company",      "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-            {"label": "Settings",     "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-            {"label": "Admin Panel",  "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
-        ]
+    all_items = [
+        {"label": "Dashboard",    "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
+        {"label": "Employees",    "icon": "bi-people",         "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
+        {"label": "Attendance",   "icon": "bi-calendar-check", "url_endpoint": "attendance.index",    "roles": None},
+        {"label": "Leave",        "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
+        {"label": "Payroll",      "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
+        {"label": "Reports",      "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
+        {"label": "Notifications","icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
+        {"label": "Company",      "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Settings",     "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Admin Panel",  "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
+    ]
 
-        # FOSS Shift & Location Management — visible to FOSS dept and Admin
+    # FOSS Shift & Location Management — visible to FOSS dept and Admin
+    # Only add if the foss blueprint endpoint is registered (safety guard)
+    from flask import current_app as _app  # noqa: PLC0415
+    if "foss.index" in _app.view_functions:
         if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
             all_items.insert(-1, {
                 "label": "FOSS — Shift & Location",
@@ -134,14 +139,11 @@ def inject_navigation() -> dict:
                 "roles": None,
             })
 
-        filtered = [
-            item for item in all_items
-            if item["roles"] is None or role in item["roles"]
-        ]
-        return {"nav_items": filtered}
-
-    except Exception:  # noqa: BLE001
-        return {"nav_items": []}
+    filtered = [
+        item for item in all_items
+        if item["roles"] is None or role in item["roles"]
+    ]
+    return {"nav_items": filtered}
 
 
 def inject_enums() -> dict:
