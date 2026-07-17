@@ -300,16 +300,15 @@
                 <td class="text-center" style="width:90px">
                     {% if photo and (photo.image_data or photo.file_path) %}
                     {% set photo_src = photo.image_data if photo.image_data else url_for('attendance.serve_photo', filename=photo.file_path) %}
-                    <a href="{{ photo_src }}" target="_blank" title="View proof photo — {{ att.date.strftime('%d %b %Y') }}">
-                        <img src="{{ photo_src }}"
-                             alt="Proof photo"
-                             class="rounded-2 border"
-                             style="width:46px;height:46px;object-fit:cover;cursor:pointer;
-                                    transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.12)"
-                             onmouseover="this.style.transform='scale(1.15)'"
-                             onmouseout="this.style.transform='scale(1)'"
-                             onerror="this.parentElement.innerHTML='<span style=\'font-size:.72rem;color:#94a3b8\'>No File</span>'">
-                    </a>
+                    <img src="{{ photo_src }}"
+                         alt="Proof photo"
+                         class="rounded-2 border"
+                         style="width:46px;height:46px;object-fit:cover;cursor:pointer;
+                                transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.12)"
+                         onmouseover="this.style.transform='scale(1.15)'"
+                         onmouseout="this.style.transform='scale(1)'"
+                         onclick="showProofPhoto(this.src, '{{ att.date.strftime('%d %b %Y') }}')"
+                         onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\'font-size:.72rem;color:#94a3b8\'>No File</span>')">
                     {% else %}
                     <span style="font-size:.72rem;color:#94a3b8">No Proof</span>
                     {% endif %}
@@ -338,6 +337,26 @@
     {% endif %}
 </div>
 
+<!-- Proof Photo Modal -->
+<div class="modal fade" id="proofPhotoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-bold" id="proofPhotoModalLabel">Proof Photo</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-3">
+        <img id="proofPhotoImg" src="" alt="Proof photo"
+             style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:10px;
+                    box-shadow:0 4px 24px rgba(0,0,0,.15)">
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Export notification container -->
 <div id="export-notif-wrap"></div>
 
@@ -357,6 +376,13 @@
 <script>
 (function () {
     'use strict';
+
+    // ── Proof photo modal ─────────────────────────────────────────────
+    window.showProofPhoto = function (src, dateLabel) {
+        document.getElementById('proofPhotoImg').src          = src;
+        document.getElementById('proofPhotoModalLabel').textContent = 'Proof Photo — ' + (dateLabel || '');
+        new bootstrap.Modal(document.getElementById('proofPhotoModal')).show();
+    };
 
     // ── UTC → IST converter ───────────────────────────────────────────
     document.querySelectorAll('.utc-to-ist').forEach(function (s) {
