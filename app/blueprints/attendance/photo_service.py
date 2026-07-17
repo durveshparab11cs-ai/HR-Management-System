@@ -98,13 +98,24 @@ class PhotoService:
                 db.session.delete(existing)
                 db.session.flush()  # ensure deleted before new insert
 
-        # Read file bytes and encode as base64 data URL
+        # Read file bytes, optionally compress, then encode as base64 data URL
         try:
             file.seek(0)
             raw_bytes = file.read()
             mime      = MIME_MAP.get(ext, "image/jpeg")
-            b64       = base64.b64encode(raw_bytes).decode("utf-8")
-            data_url  = f"data:{mime};base64,{b64}"
+
+            # Compress/resize to keep DB storage manageable (max 800px, 85% quality)
+            # Falls back to raw bytes if Pillow not available
+            raw_bytes = self._compress_image(raw_bytes, ext)
+
+            # After compression we always output JPEG
+            mime     = "image/jpeg"
+            b64      = base64.b64encode(raw_bytes).decode("utf-8")
+            data_url = f"data:{mime};base64,{b64}"
+            logger.info(
+                "PHOTO_ENCODED | emp=%s | att=%s | original_size=%d | encoded_size=%d",
+                employee_id, attendance.id, size, len(raw_bytes),
+            )
         except Exception as exc:
             logger.error("PHOTO_ENCODE_FAILED | emp=%s | %s", employee_id, exc)
             return False, "Failed to process photo. Please try again.", None
@@ -172,6 +183,50 @@ class PhotoService:
             db.session.rollback()
             logger.error("Photo delete failed: %s", exc)
             return False
+
+    def _compress_image(self, raw_bytes: bytes, ext: str) -> bytes:
+        """
+        Resize and compress image to keep base64 data URL under ~200KB.
+        Max dimension: 1200px. JPEG quality: 80%.
+        Falls back to returning raw bytes if Pillow is not available.
+        """
+        try:
+            from PIL import Image  # noqa: PLC0415
+            import io              # noqa: PLC0415
+
+            img = Image.open(io.BytesIO(raw_bytes))
+
+            # Convert RGBA/P to RGB for JPEG compatibility
+            if img.mode in ("RGBA", "P", "LA"):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "P":
+                    img = img.convert("RGBA")
+                background.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+                img = background
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+
+            # Resize if larger than 1200px on either dimension
+            max_dim = 1200
+            w, h = img.size
+            if w > max_dim or h > max_dim:
+                ratio = min(max_dim / w, max_dim / h)
+                img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+
+            # Save as JPEG at 80% quality
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=80, optimize=True)
+            compressed = buf.getvalue()
+
+            logger.info(
+                "PHOTO_COMPRESSED | %d bytes → %d bytes (%.1f%%)",
+                len(raw_bytes), len(compressed),
+                100 * len(compressed) / max(len(raw_bytes), 1),
+            )
+            return compressed
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PHOTO_COMPRESS_SKIPPED | %s — using raw bytes", exc)
+            return raw_bytes
 
     def _is_valid_image(self, file: FileStorage) -> bool:
         """Check magic bytes — no Pillow needed."""
