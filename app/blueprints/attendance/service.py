@@ -255,11 +255,15 @@ class AttendanceService:
         office     = _repo.get_office_for_employee(employee)
 
         # Check photo using DB query — not the backref (which may be stale)
+        # has_photo is only True when the record has actual base64 image data.
+        # Old file-based records (image_data=NULL) are treated as "not uploaded"
+        # so the user can re-upload and get a durable base64 copy.
         has_photo = False
         if attendance and attendance.id:
-            has_photo = AttendancePhoto.query.filter_by(
+            photo_rec = AttendancePhoto.query.filter_by(
                 attendance_id=attendance.id
-            ).first() is not None
+            ).first()
+            has_photo = bool(photo_rec and photo_rec.image_data)
 
         # Photo can be uploaded after check-in OR after checkout (proof of day)
         can_upload = bool(

@@ -80,11 +80,23 @@ class PhotoService:
             logger.warning("PHOTO_UPLOAD | emp=%s | FAIL: magic bytes invalid", employee_id)
             return False, "File does not appear to be a valid image. Please select a JPG, PNG, or WEBP file.", None
 
-        # Duplicate check
+        # Duplicate check — but allow replacement if old record has no base64 data
+        # (happens when existing record was saved as a file that no longer exists
+        # after a Render redeploy wiped the ephemeral filesystem)
         existing = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
         if existing:
-            logger.info("PHOTO_UPLOAD | emp=%s | att=%s | FAIL: already uploaded", employee_id, attendance.id)
-            return False, "A photo has already been uploaded for this check-in.", None
+            if existing.image_data:
+                # Already has valid base64 data — truly a duplicate
+                logger.info("PHOTO_UPLOAD | emp=%s | att=%s | FAIL: already uploaded", employee_id, attendance.id)
+                return False, "A photo has already been uploaded for this check-in.", None
+            else:
+                # Old file-based record with no image_data — delete it and replace
+                logger.info(
+                    "PHOTO_UPLOAD | emp=%s | att=%s | replacing stale file-based record (id=%s)",
+                    employee_id, attendance.id, existing.id,
+                )
+                db.session.delete(existing)
+                db.session.flush()  # ensure deleted before new insert
 
         # Read file bytes and encode as base64 data URL
         try:
