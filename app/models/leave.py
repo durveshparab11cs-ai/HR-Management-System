@@ -56,6 +56,10 @@ class LeaveRequest(BaseModel):
     reviewed_on: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewer_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Reporting Manager
+    reporting_manager_code: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    reporting_manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
     # Relationships
     employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")
     leave_type = relationship("LeaveType", foreign_keys=[leave_type_id], lazy="joined")

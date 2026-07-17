@@ -46,17 +46,23 @@ class LeaveService:
         start = form_data.get("start_date")
         end   = form_data.get("end_date")
         lt_id = form_data.get("leave_type_id")
+        mgr_code = (form_data.get("reporting_manager_code") or "").strip().upper()
 
         if not start or not end or not lt_id:
             return False, "Please fill all required fields.", None
+        if not mgr_code:
+            return False, "Reporting Manager Employee Code is required.", None
 
         if end < start:
             return False, "End date cannot be before start date.", None
-
         if start < date.today():
             return False, "Cannot apply leave for a past date.", None
 
-        # Check balance
+        # Validate manager
+        ok, mgr_name, mgr_err = self._validate_manager(employee_id, mgr_code)
+        if not ok:
+            return False, mgr_err, None
+
         lt = leave_repo.get_type_by_id(int(lt_id))
         if not lt:
             return False, "Invalid leave type.", None
@@ -71,11 +77,9 @@ class LeaveService:
         if total_days > available:
             return False, f"Insufficient {lt.name} balance. Available: {available:.0f} days.", None
 
-        # Overlap check
         if leave_repo.has_overlapping(employee_id, start, end):
             return False, "You already have a pending or approved leave for this period.", None
 
-        # Handle attachment
         attachment_path = None
         if attachment and attachment.filename:
             try:
@@ -94,13 +98,19 @@ class LeaveService:
             total_days=total_days,
             reason=form_data.get("reason", "").strip(),
             attachment=attachment_path,
+            reporting_manager_code=mgr_code,
+            reporting_manager_name=mgr_name,
             status="pending",
             applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
         leave_repo.create(lr)
-        logger.info("LEAVE_APPLIED | emp=%s | type=%s | days=%s | from=%s to=%s",
-                    employee_id, lt.code, total_days, start, end)
+
+        # Notify the reporting manager
+        self._notify_manager(employee_id, mgr_code, "leave", start, lr.id)
+
+        logger.info("LEAVE_APPLIED | emp=%s | type=%s | days=%s | from=%s to=%s | mgr=%s",
+                    employee_id, lt.code, total_days, start, end, mgr_code)
         return True, f"{lt.name} leave applied for {total_days} day(s). Awaiting approval.", lr
 
     def approve_leave(self, lr_id: int, reviewer_id: int, comment: str = "") -> Tuple[bool, str]:

@@ -40,6 +40,26 @@
             {{ form.reason(class="form-control" + (" is-invalid" if form.reason.errors else "")) }}
             {% for e in form.reason.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
         </div>
+        <!-- Reporting Manager -->
+        <div class="mb-3">
+            <label class="form-label fw-medium small">Reporting Manager Employee Code <span class="text-danger">*</span></label>
+            <input type="text" name="reporting_manager_code" id="lr-mgr-code"
+                   class="form-control{% if form.reporting_manager_code.errors %} is-invalid{% endif %}"
+                   placeholder="e.g. E-2603028"
+                   value="{{ form.reporting_manager_code.data or '' }}"
+                   autocomplete="off"
+                   style="text-transform:uppercase">
+            {% for e in form.reporting_manager_code.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <!-- Manager info auto-fetched -->
+        <div id="lr-mgr-details" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:12px">
+            <div style="font-size:.7rem;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Reporting Manager</div>
+            <div style="font-weight:700;font-size:.9rem;color:#0f172a" id="lr-mgr-name"></div>
+            <div style="font-size:.78rem;color:#64748b" id="lr-mgr-dept"></div>
+        </div>
+        <div id="lr-mgr-error" style="display:none;color:#ef4444;font-size:.78rem;margin-bottom:12px">
+            <i class="bi bi-exclamation-circle me-1"></i><span id="lr-mgr-error-text"></span>
+        </div>
         <div class="mb-4">
             <label class="form-label fw-medium small">Attachment</label>
             {{ form.attachment(class="form-control form-control-sm") }}
@@ -58,8 +78,40 @@
 {% block extra_js %}
 <script>
 (function() {
-    const s = document.getElementById('leave_start_date') || document.querySelector('[name="start_date"]');
-    const e = document.getElementById('leave_end_date')   || document.querySelector('[name="end_date"]');
+    // ── Reporting Manager Lookup ─────────────────────────────────────
+    var mgrTimer = null;
+    var mgrInput = document.getElementById('lr-mgr-code');
+    if (mgrInput) {
+        mgrInput.addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+            clearTimeout(mgrTimer);
+            var code = this.value.trim();
+            document.getElementById('lr-mgr-details').style.display = 'none';
+            document.getElementById('lr-mgr-error').style.display = 'none';
+            if (code.length < 3) return;
+            mgrTimer = setTimeout(function () {
+                fetch('/leave/lookup-manager?code=' + encodeURIComponent(code))
+                    .then(function(r){ return r.json(); })
+                    .then(function(data){
+                        if (data.found) {
+                            document.getElementById('lr-mgr-name').textContent = data.name;
+                            document.getElementById('lr-mgr-dept').textContent = data.department + (data.designation && data.designation !== '—' ? ' · ' + data.designation : '');
+                            document.getElementById('lr-mgr-details').style.display = '';
+                            document.getElementById('lr-mgr-error').style.display = 'none';
+                        } else {
+                            document.getElementById('lr-mgr-details').style.display = 'none';
+                            document.getElementById('lr-mgr-error-text').textContent = data.message;
+                            document.getElementById('lr-mgr-error').style.display = '';
+                        }
+                    }).catch(function(){});
+            }, 500);
+        });
+        if (mgrInput.value.length >= 3) mgrInput.dispatchEvent(new Event('input'));
+    }
+
+    // ── Working day count ────────────────────────────────────────────
+    const s = document.querySelector('[name="start_date"]');
+    const e = document.querySelector('[name="end_date"]');
     const display = document.getElementById('day-count-display');
     const txt     = document.getElementById('day-count-text');
     function updateCount() {
@@ -73,7 +125,6 @@
     }
     s?.addEventListener('change', updateCount);
     e?.addEventListener('change', updateCount);
-    // Set minimum date to today
     const today = new Date().toISOString().split('T')[0];
     if (s) s.min = today;
     if (e) e.min = today;

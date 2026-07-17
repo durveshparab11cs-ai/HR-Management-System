@@ -63,6 +63,14 @@ def my_approvals():
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
 
+    from app.models.leave import LeaveRequest  # noqa: PLC0415
+    lr_q = LeaveRequest.query.filter_by(
+        reporting_manager_code=mgr_code, is_deleted=False
+    )
+    if status_filter:
+        lr_q = lr_q.filter_by(status=status_filter)
+    lr_list = lr_q.order_by(LeaveRequest.applied_on.desc()).limit(30).all()
+
     hd_pag = _repo.get_halfdays_for_manager(mgr_code, page=page, status=status_filter)
     el_pag = _repo.get_earlyleaves_for_manager(mgr_code, page=page, status=status_filter)
 
@@ -70,6 +78,7 @@ def my_approvals():
         "leave/my_approvals.html",
         title="Leave Approval",
         employee=emp,
+        lr_list=lr_list,
         hd_list=hd_pag.items,
         el_list=el_pag.items,
         hd_pag=hd_pag,
@@ -123,6 +132,7 @@ def apply():
                 "end_date": form.end_date.data,
                 "leave_type_id": form.leave_type_id.data,
                 "reason": form.reason.data,
+                "reporting_manager_code": form.reporting_manager_code.data,
             },
             attachment=att if (att and att.filename) else None,
         )

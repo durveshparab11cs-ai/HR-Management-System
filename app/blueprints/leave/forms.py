@@ -16,6 +16,11 @@ class ApplyLeaveForm(FlaskForm):
     end_date = DateField("End Date", validators=[DataRequired()])
     reason = TextAreaField("Reason", validators=[DataRequired(), Length(min=5, max=1000)],
                            render_kw={"rows": 3, "placeholder": "Briefly describe the reason for your leave…"})
+    reporting_manager_code = StringField(
+        "Reporting Manager Employee Code",
+        validators=[DataRequired(message="Reporting Manager Code is required.")],
+        render_kw={"placeholder": "e.g. E-2603028", "autocomplete": "off"},
+    )
     attachment = FileField("Supporting Document (optional)",
                            validators=[FileAllowed(["pdf", "jpg", "jpeg", "png", "doc", "docx"], "PDF, image, or Word doc only.")])
 
