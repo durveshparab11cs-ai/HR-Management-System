@@ -162,6 +162,9 @@ def history():
         per_page=30,
     )
 
+    # Pass office settings so the template can show shift timing
+    office = _repo.get_office_for_employee(employee)
+
     return render_template(
         "attendance/history.html",
         title="Attendance History",
@@ -170,6 +173,7 @@ def history():
         start_date=start_date,
         end_date=end_date,
         status=status,
+        office=office,
     )
 
 
