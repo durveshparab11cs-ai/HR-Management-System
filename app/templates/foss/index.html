@@ -153,8 +153,10 @@ document.getElementById('emp-search').addEventListener('input', function () {
     if (!data.employees.length) { box.style.display = 'none'; return; }
     box.innerHTML = data.employees.map(e =>
       `<div class="result-row" onclick="selectEmployee(${JSON.stringify(e).replace(/"/g,'&quot;')})">
-        <div class="name">${e.name}</div>
-        <div class="meta">${e.code} · ${e.department} · Shift: ${e.shift_name} · Office: ${e.office_name}</div>
+        <div class="name">${e.name}
+          ${!e.registered ? '<span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:4px">Not Registered</span>' : ''}
+        </div>
+        <div class="meta">${e.code} · ${e.department} · ${e.designation || ''} · Shift: ${e.shift_name} · Office: ${e.office_name}</div>
       </div>`
     ).join('');
     box.style.display = '';
@@ -169,11 +171,13 @@ function selectEmployee(e) {
   // Update card header
   document.getElementById('ec-name').textContent = e.name;
   document.getElementById('ec-code').textContent = e.code;
-  document.getElementById('ec-dept').textContent = e.department;
+  document.getElementById('ec-dept').textContent = e.department + (e.designation && e.designation !== '—' ? ' · ' + e.designation : '');
   document.getElementById('ec-shift-badge').textContent = e.shift_name;
 
+  var baseUrl = e.id ? '/foss/employee/' + e.id : '/foss/master/' + encodeURIComponent(e.code);
+
   // Prefill shift form
-  document.getElementById('shift-form').action = '/foss/employee/' + e.id + '/save-shift';
+  document.getElementById('shift-form').action = baseUrl + '/save-shift';
   document.getElementById('sf-name').value = e.shift_name !== '—' ? e.shift_name : '';
   document.getElementById('sf-start').value = e.start_time !== '—' ? e.start_time : '';
   document.getElementById('sf-end').value = e.end_time !== '—' ? e.end_time : '';
@@ -181,7 +185,7 @@ function selectEmployee(e) {
   document.getElementById('sf-date').value = new Date().toISOString().split('T')[0];
 
   // Prefill location form
-  document.getElementById('loc-form').action = '/foss/employee/' + e.id + '/save-location';
+  document.getElementById('loc-form').action = baseUrl + '/save-location';
   document.getElementById('lf-name').value = e.office_name !== '—' ? e.office_name : '';
   document.getElementById('lf-lat').value = e.office_lat || '';
   document.getElementById('lf-lon').value = e.office_lon || '';

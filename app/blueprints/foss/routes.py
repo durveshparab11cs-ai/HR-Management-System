@@ -56,34 +56,42 @@ def index():
 def search():
     _foss_required()
     q = request.args.get("q", "").strip()
-    employees = []
-    if q:
-        employees = (
-            db.session.query(Employee, User)
-            .join(User, Employee.user_id == User.id)
-            .filter(
-                Employee.is_deleted == False,
-                or_(
-                    Employee.employee_code.ilike(f"%{q}%"),
-                    User.first_name.ilike(f"%{q}%"),
-                    User.last_name.ilike(f"%{q}%"),
-                ),
-            )
-            .limit(20)
-            .all()
-        )
     results = []
-    for emp, usr in employees:
+    if not q or len(q) < 2:
+        return jsonify(employees=results)
+
+    from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+
+    # Step 1: Search registered employees (have full Employee + User records)
+    registered = (
+        db.session.query(Employee, User)
+        .join(User, Employee.user_id == User.id)
+        .filter(
+            Employee.is_deleted == False,
+            or_(
+                Employee.employee_code.ilike(f"%{q}%"),
+                User.first_name.ilike(f"%{q}%"),
+                User.last_name.ilike(f"%{q}%"),
+            ),
+        )
+        .limit(15)
+        .all()
+    )
+
+    seen_codes = set()
+    for emp, usr in registered:
         office = None
         if emp.office_settings_id:
             office = OfficeSettings.query.get(emp.office_settings_id)
         if not office:
             office = OfficeSettings.query.filter_by(is_default=True, is_deleted=False).first()
+        seen_codes.add(emp.employee_code)
         results.append({
             "id":           emp.id,
             "code":         emp.employee_code,
             "name":         usr.full_name,
             "department":   emp.department or "—",
+            "designation":  emp.designation or "—",
             "shift_name":   emp.shift_name or "—",
             "office_name":  office.name if office else "—",
             "office_lat":   office.latitude if office else None,
@@ -93,8 +101,48 @@ def search():
             "end_time":     office.office_end_time.strftime("%H:%M") if office else "—",
             "grace_min":    office.grace_period_minutes if office else None,
             "office_id":    office.id if office else None,
+            "registered":   True,
         })
-    return jsonify(employees=results)
+
+    # Step 2: Search EmployeeMaster for unregistered employees
+    unregistered = (
+        EmployeeMaster.query
+        .filter(
+            EmployeeMaster.is_active == True,
+            or_(
+                EmployeeMaster.employee_code.ilike(f"%{q}%"),
+                EmployeeMaster.employee_name.ilike(f"%{q}%"),
+            ),
+        )
+        .limit(15)
+        .all()
+    )
+
+    default_office = OfficeSettings.query.filter_by(is_default=True, is_deleted=False).first()
+    for master in unregistered:
+        if master.employee_code in seen_codes:
+            continue  # already in results from registered set
+        results.append({
+            "id":           None,   # no Employee record yet
+            "code":         master.employee_code,
+            "name":         master.employee_name,
+            "department":   master.department or "—",
+            "designation":  master.designation or "—",
+            "shift_name":   "—",
+            "office_name":  default_office.name if default_office else "—",
+            "office_lat":   default_office.latitude if default_office else None,
+            "office_lon":   default_office.longitude if default_office else None,
+            "radius":       default_office.radius_metres if default_office else None,
+            "start_time":   default_office.office_start_time.strftime("%H:%M") if default_office else "—",
+            "end_time":     default_office.office_end_time.strftime("%H:%M") if default_office else "—",
+            "grace_min":    default_office.grace_period_minutes if default_office else None,
+            "office_id":    default_office.id if default_office else None,
+            "registered":   False,
+        })
+
+    # Sort: registered first, then by name
+    results.sort(key=lambda x: (not x["registered"], x["name"].lower()))
+    return jsonify(employees=results[:20])
 
 
 # ── Employee detail ───────────────────────────────────────────────────
@@ -300,7 +348,6 @@ def save_location(emp_id: int):
 
 
 # ── Change history ────────────────────────────────────────────────────
-
 @foss_bp.route("/history")
 @login_required
 def history():
