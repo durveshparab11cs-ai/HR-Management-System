@@ -45,7 +45,13 @@ def compute_check_in_meta(
     grace_end_utc = office_start_utc + timedelta(minutes=office.grace_period_minutes)
 
     if ci > grace_end_utc:
-        delta = ci - grace_end_utc
+        # late_minutes = total minutes after office start (not after grace end).
+        # Grace is only used to decide WHETHER the employee is late.
+        # Once late, the count starts from the scheduled start time.
+        # Example: start=10:00, grace=15 min, check-in=10:35
+        #   → is_late = True (arrived after 10:15)
+        #   → late_minutes = 35 (10:35 - 10:00), NOT 20 (10:35 - 10:15)
+        delta = ci - office_start_utc
         return True, int(delta.total_seconds() / 60)
     return False, 0
 
