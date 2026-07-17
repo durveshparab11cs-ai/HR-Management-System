@@ -129,15 +129,18 @@ def inject_navigation() -> dict:
 
     # FOSS Shift & Location Management — visible to FOSS dept and Admin
     # Only add if the foss blueprint endpoint is registered (safety guard)
-    from flask import current_app as _app  # noqa: PLC0415
-    if "foss.index" in _app.view_functions:
-        if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
-            all_items.insert(-1, {
-                "label": "FOSS — Shift & Location",
-                "icon": "bi-geo-fill",
-                "url_endpoint": "foss.index",
-                "roles": None,
-            })
+    try:
+        from flask import current_app as _app  # noqa: PLC0415
+        if "foss.index" in _app.view_functions:
+            if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
+                all_items.insert(-1, {
+                    "label": "FOSS — Shift & Location",
+                    "icon": "bi-geo-fill",
+                    "url_endpoint": "foss.index",
+                    "roles": None,
+                })
+    except Exception:  # noqa: BLE001
+        pass
 
     filtered = [
         item for item in all_items
