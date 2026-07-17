@@ -9,7 +9,7 @@ from app.models.attendance import Attendance
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.user import User
-from sqlalchemy import extract, func
+from sqlalchemy import case, cast, extract, func, Integer
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +23,12 @@ class ReportService:
             db.session.query(
                 Employee, User,
                 func.count(Attendance.id).label("total_days"),
-                func.sum(db.case((Attendance.status == "present", 1), else_=0)).label("present"),
-                func.sum(db.case((Attendance.status == "absent",  1), else_=0)).label("absent"),
-                func.sum(db.case((Attendance.status == "half_day",1), else_=0)).label("half_day"),
-                func.sum(db.case((Attendance.status == "on_leave",1), else_=0)).label("on_leave"),
-                func.sum(db.case((Attendance.is_late == True,     1), else_=0)).label("late_days"),
-                func.sum(db.cast(Attendance.working_minutes, db.Integer)).label("total_minutes"),
+                func.sum(case((Attendance.status == "present", 1), else_=0)).label("present"),
+                func.sum(case((Attendance.status == "absent",  1), else_=0)).label("absent"),
+                func.sum(case((Attendance.status == "half_day",1), else_=0)).label("half_day"),
+                func.sum(case((Attendance.status == "on_leave",1), else_=0)).label("on_leave"),
+                func.sum(case((Attendance.is_late == True,     1), else_=0)).label("late_days"),
+                func.sum(cast(Attendance.working_minutes, Integer)).label("total_minutes"),
             )
             .join(User, Employee.user_id == User.id)
             .outerjoin(Attendance, (Attendance.employee_id == Employee.id) &
@@ -75,9 +75,9 @@ class ReportService:
             db.session.query(
                 Employee, User,
                 func.count(LeaveRequest.id).label("total_requests"),
-                func.sum(db.case((LeaveRequest.status == "approved", LeaveRequest.total_days), else_=0)).label("approved_days"),
-                func.sum(db.case((LeaveRequest.status == "pending",  1), else_=0)).label("pending_count"),
-                func.sum(db.case((LeaveRequest.status == "rejected", 1), else_=0)).label("rejected_count"),
+                func.sum(case((LeaveRequest.status == "approved", LeaveRequest.total_days), else_=0)).label("approved_days"),
+                func.sum(case((LeaveRequest.status == "pending",  1), else_=0)).label("pending_count"),
+                func.sum(case((LeaveRequest.status == "rejected", 1), else_=0)).label("rejected_count"),
             )
             .join(User, Employee.user_id == User.id)
             .outerjoin(LeaveRequest, (LeaveRequest.employee_id == Employee.id) &
