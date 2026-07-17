@@ -6,7 +6,7 @@ Flask-WTF forms for leave, half-day, and early-leave.
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import DateField, SelectField, TextAreaField, TimeField
+from wtforms import DateField, SelectField, StringField, TextAreaField, TimeField
 from wtforms.validators import DataRequired, Length, Optional as Opt
 
 
@@ -31,6 +31,12 @@ class ApplyHalfDayForm(FlaskForm):
                             validators=[DataRequired()])
     reason = TextAreaField("Reason", validators=[DataRequired(), Length(min=5, max=500)],
                            render_kw={"rows": 2})
+    reporting_manager_code = StringField(
+        "Reporting Manager Employee Code",
+        validators=[DataRequired(message="Reporting Manager Code is required.")],
+        render_kw={"placeholder": "e.g. E-2603028", "autocomplete": "off",
+                   "oninput": "this.value=this.value.toUpperCase();lookupManager(this.value,'hd')"},
+    )
 
 
 class ApplyEarlyLeaveForm(FlaskForm):
@@ -38,3 +44,9 @@ class ApplyEarlyLeaveForm(FlaskForm):
     requested_leave_time = TimeField("Planned Leave Time", validators=[DataRequired()])
     reason = TextAreaField("Reason", validators=[DataRequired(), Length(min=5, max=500)],
                            render_kw={"rows": 2})
+    reporting_manager_code = StringField(
+        "Reporting Manager Employee Code",
+        validators=[DataRequired(message="Reporting Manager Code is required.")],
+        render_kw={"placeholder": "e.g. E-2603028", "autocomplete": "off",
+                   "oninput": "this.value=this.value.toUpperCase();lookupManager(this.value,'el')"},
+    )

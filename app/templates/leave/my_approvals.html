@@ -1,0 +1,155 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Leave Approval — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Leave', url_for('leave.index')), ('My Approvals', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.status-badge { display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:50px;font-size:.78rem;font-weight:700;white-space:nowrap }
+.badge-pending  { background:#fef3c7;color:#92400e;border:1px solid #fde68a }
+.badge-approved { background:#d1fae5;color:#065f46;border:1px solid #a7f3d0 }
+.badge-rejected { background:#fee2e2;color:#991b1b;border:1px solid #fecaca }
+.req-card { background:#fff;border-radius:14px;border:1px solid #e8edf2;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:16px }
+.req-card-header { padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px }
+.req-card-body { padding:16px 20px }
+.info-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px }
+.info-item .lbl { font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px }
+.info-item .val { font-size:.88rem;font-weight:600;color:#0f172a }
+.action-bar { display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:14px 20px;border-top:1px solid #f1f5f9;background:#fafafa;border-radius:0 0 14px 14px }
+.comment-input { flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;font-family:inherit }
+.btn-approve { background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;font-size:.85rem;cursor:pointer;transition:background .15s }
+.btn-approve:hover { background:#059669 }
+.btn-reject  { background:#ef4444;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;font-size:.85rem;cursor:pointer;transition:background .15s }
+.btn-reject:hover { background:#dc2626 }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h4 fw-bold mb-0"><i class="bi bi-person-check me-2 text-primary"></i>Leave Approval</h1>
+    <p class="text-muted small mb-0">Requests assigned to you as Reporting Manager</p>
+  </div>
+  <!-- Status filter pills -->
+  <div class="d-flex gap-2 flex-wrap">
+    {% for s, l in [('','All'),('pending','Pending'),('approved','Approved'),('rejected','Rejected')] %}
+    <a href="{{ url_for('leave.my_approvals', status=s) }}"
+       class="btn btn-sm {% if status_filter == s %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      {{ l }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% set total = hd_list|length + el_list|length %}
+
+{% if total == 0 %}
+<div class="text-center py-5">
+  <i class="bi bi-inbox text-muted" style="font-size:3rem;opacity:.3;display:block;margin-bottom:12px"></i>
+  <div class="text-muted">No {{ status_filter or '' }} leave requests assigned to you.</div>
+</div>
+{% else %}
+
+<!-- ── Half Day Requests ── -->
+{% if hd_list %}
+<h6 class="fw-semibold text-muted small text-uppercase mb-3">
+  <i class="bi bi-clock-history me-1"></i>Half Day Requests ({{ hd_list|length }})
+</h6>
+{% for hd in hd_list %}
+<div class="req-card">
+  <div class="req-card-header">
+    <div>
+      <span class="fw-bold">{{ hd.employee.full_name }}</span>
+      <span class="text-muted small ms-2">{{ hd.employee.employee_code }}</span>
+    </div>
+    <span class="status-badge badge-{{ hd.status }}">
+      {% if hd.status == 'pending' %}<i class="bi bi-clock"></i>
+      {% elif hd.status == 'approved' %}<i class="bi bi-check-circle"></i>
+      {% else %}<i class="bi bi-x-circle"></i>{% endif %}
+      {{ hd.status.title() }}
+    </span>
+  </div>
+  <div class="req-card-body">
+    <div class="info-grid">
+      <div class="info-item"><div class="lbl">Department</div><div class="val">{{ hd.employee.department or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">Leave Date</div><div class="val">{{ hd.date.strftime('%d %b %Y') }}</div></div>
+      <div class="info-item"><div class="lbl">Half Type</div><div class="val">{{ hd.half_type.title() }}</div></div>
+      <div class="info-item"><div class="lbl">Applied On</div><div class="val">{{ hd.applied_on.strftime('%d %b %Y') }}</div></div>
+    </div>
+    <div class="info-item mb-2"><div class="lbl">Reason</div><div class="val text-muted fw-normal">{{ hd.reason }}</div></div>
+    {% if hd.reviewer_comment %}
+    <div class="info-item"><div class="lbl">Comment</div><div class="val text-muted fw-normal">{{ hd.reviewer_comment }}</div></div>
+    {% endif %}
+  </div>
+  {% if hd.status == 'pending' %}
+  <div class="action-bar">
+    <form method="POST" action="{{ url_for('leave.approve_halfday', hd_id=hd.id) }}" class="d-flex gap-2 align-items-end flex-grow-1">
+      {{ csrf_token_field() }}
+      <input type="text" name="comment" class="comment-input" placeholder="Optional comment…">
+      <button type="submit" class="btn-approve"><i class="bi bi-check2 me-1"></i>Approve</button>
+    </form>
+    <form method="POST" action="{{ url_for('leave.reject_halfday', hd_id=hd.id) }}" class="d-flex gap-2 align-items-end">
+      {{ csrf_token_field() }}
+      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason…">
+      <button type="submit" class="btn-reject"><i class="bi bi-x me-1"></i>Reject</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- ── Early Leave Requests ── -->
+{% if el_list %}
+<h6 class="fw-semibold text-muted small text-uppercase mt-4 mb-3">
+  <i class="bi bi-door-open me-1"></i>Early Leave Requests ({{ el_list|length }})
+</h6>
+{% for el in el_list %}
+<div class="req-card">
+  <div class="req-card-header">
+    <div>
+      <span class="fw-bold">{{ el.employee.full_name }}</span>
+      <span class="text-muted small ms-2">{{ el.employee.employee_code }}</span>
+    </div>
+    <span class="status-badge badge-{{ el.status }}">
+      {% if el.status == 'pending' %}<i class="bi bi-clock"></i>
+      {% elif el.status == 'approved' %}<i class="bi bi-check-circle"></i>
+      {% else %}<i class="bi bi-x-circle"></i>{% endif %}
+      {{ el.status.title() }}
+    </span>
+  </div>
+  <div class="req-card-body">
+    <div class="info-grid">
+      <div class="info-item"><div class="lbl">Department</div><div class="val">{{ el.employee.department or '—' }}</div></div>
+      <div class="info-item"><div class="lbl">Leave Date</div><div class="val">{{ el.date.strftime('%d %b %Y') }}</div></div>
+      <div class="info-item"><div class="lbl">Leave Time</div><div class="val">{{ el.requested_leave_time.strftime('%I:%M %p') }}</div></div>
+      <div class="info-item"><div class="lbl">Applied On</div><div class="val">{{ el.applied_on.strftime('%d %b %Y') }}</div></div>
+    </div>
+    <div class="info-item mb-2"><div class="lbl">Reason</div><div class="val text-muted fw-normal">{{ el.reason }}</div></div>
+    {% if el.reviewer_comment %}
+    <div class="info-item"><div class="lbl">Comment</div><div class="val text-muted fw-normal">{{ el.reviewer_comment }}</div></div>
+    {% endif %}
+  </div>
+  {% if el.status == 'pending' %}
+  <div class="action-bar">
+    <form method="POST" action="{{ url_for('leave.approve_earlyleave', el_id=el.id) }}" class="d-flex gap-2 align-items-end flex-grow-1">
+      {{ csrf_token_field() }}
+      <input type="text" name="comment" class="comment-input" placeholder="Optional comment…">
+      <button type="submit" class="btn-approve"><i class="bi bi-check2 me-1"></i>Approve</button>
+    </form>
+    <form method="POST" action="{{ url_for('leave.reject_earlyleave', el_id=el.id) }}" class="d-flex gap-2 align-items-end">
+      {{ csrf_token_field() }}
+      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason…">
+      <button type="submit" class="btn-reject"><i class="bi bi-x me-1"></i>Reject</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% endif %}
+{% endblock %}

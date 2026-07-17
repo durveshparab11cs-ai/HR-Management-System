@@ -86,6 +86,10 @@ class HalfDayRequest(BaseModel):
     reviewed_on: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewer_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Reporting Manager fields
+    reporting_manager_code: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    reporting_manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
     employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")
     reviewer = relationship("User", foreign_keys=[reviewed_by], lazy="select")
 
@@ -108,6 +112,10 @@ class EarlyLeaveRequest(BaseModel):
     reviewed_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     reviewed_on: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewer_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Reporting Manager fields
+    reporting_manager_code: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    reporting_manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")
     reviewer = relationship("User", foreign_keys=[reviewed_by], lazy="select")

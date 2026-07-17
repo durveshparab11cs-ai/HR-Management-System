@@ -30,6 +30,20 @@
             {{ form.reason(class="form-control" + (" is-invalid" if form.reason.errors else "")) }}
             {% for e in form.reason.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
         </div>
+        <!-- Reporting Manager -->
+        <div class="mb-3">
+            <label class="form-label fw-medium small">Reporting Manager Employee Code <span class="text-danger">*</span></label>
+            {{ form.reporting_manager_code(class="form-control" + (" is-invalid" if form.reporting_manager_code.errors else ""), id="el-mgr-code") }}
+            {% for e in form.reporting_manager_code.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div id="el-mgr-details" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+            <div style="font-size:.7rem;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Reporting Manager</div>
+            <div style="font-weight:700;font-size:.9rem;color:#0f172a" id="el-mgr-name"></div>
+            <div style="font-size:.78rem;color:#64748b" id="el-mgr-dept"></div>
+        </div>
+        <div id="el-mgr-error" style="display:none;color:#ef4444;font-size:.78rem;margin-bottom:12px">
+            <i class="bi bi-exclamation-circle me-1"></i><span id="el-mgr-error-text"></span>
+        </div>
         <div class="d-flex gap-3">
             <a href="{{ url_for('leave.index') }}" class="btn btn-outline-secondary">Cancel</a>
             <button type="submit" class="btn btn-info fw-semibold flex-grow-1 text-white">Submit Request</button>
@@ -39,4 +53,40 @@
 </div>
 </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    'use strict';
+    var mgrTimer = null;
+    var mgrInput = document.getElementById('el-mgr-code');
+    if (!mgrInput) return;
+    mgrInput.addEventListener('input', function () {
+        clearTimeout(mgrTimer);
+        var code = this.value.trim();
+        document.getElementById('el-mgr-details').style.display = 'none';
+        document.getElementById('el-mgr-error').style.display = 'none';
+        if (code.length < 3) return;
+        mgrTimer = setTimeout(function () {
+            fetch('/leave/lookup-manager?code=' + encodeURIComponent(code))
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    if (data.found) {
+                        document.getElementById('el-mgr-name').textContent = data.name;
+                        document.getElementById('el-mgr-dept').textContent = data.department + (data.designation && data.designation !== '—' ? ' · ' + data.designation : '');
+                        document.getElementById('el-mgr-details').style.display = '';
+                        document.getElementById('el-mgr-error').style.display = 'none';
+                    } else {
+                        document.getElementById('el-mgr-details').style.display = 'none';
+                        document.getElementById('el-mgr-error-text').textContent = data.message;
+                        document.getElementById('el-mgr-error').style.display = '';
+                    }
+                }).catch(function(){});
+        }, 500);
+    });
+    var dateField = document.querySelector('input[name="date"]');
+    if (dateField) dateField.setAttribute('min', new Date().toISOString().split('T')[0]);
+})();
+</script>
 {% endblock %}

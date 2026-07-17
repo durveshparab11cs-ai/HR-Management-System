@@ -120,13 +120,27 @@ class LeaveRepository:
             .paginate(page=page, per_page=per_page, error_out=False)
         )
 
-    def get_pending_halfdays(self, page: int = 1, per_page: int = 30):
-        return (
-            HalfDayRequest.query
-            .filter_by(status="pending", is_deleted=False)
-            .order_by(HalfDayRequest.applied_on.asc())
-            .paginate(page=page, per_page=per_page, error_out=False)
+    def get_pending_halfdays(self, page: int = 1, per_page: int = 30, department: str = None):
+        q = HalfDayRequest.query.filter_by(status="pending", is_deleted=False)
+        if department:
+            from app.models.employee import Employee  # noqa: PLC0415
+            q = q.join(Employee, HalfDayRequest.employee_id == Employee.id).filter(Employee.department == department)
+        return q.order_by(HalfDayRequest.applied_on.asc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def get_halfdays_for_manager(self, mgr_employee_code: str, page: int = 1, per_page: int = 30, status: str = ""):
+        """Return half-day requests where the logged-in employee is the reporting manager."""
+        q = HalfDayRequest.query.filter_by(
+            reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
         )
+        if status:
+            q = q.filter_by(status=status)
+        return q.order_by(HalfDayRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def count_manager_pending_halfdays(self, mgr_employee_code: str) -> int:
+        return HalfDayRequest.query.filter_by(
+            reporting_manager_code=mgr_employee_code.upper(),
+            status="pending", is_deleted=False
+        ).count()
 
     def create_halfday(self, hd: HalfDayRequest) -> HalfDayRequest:
         db.session.add(hd); db.session.commit(); return hd
@@ -156,13 +170,27 @@ class LeaveRepository:
             .paginate(page=page, per_page=per_page, error_out=False)
         )
 
-    def get_pending_earlyleaves(self, page: int = 1, per_page: int = 30):
-        return (
-            EarlyLeaveRequest.query
-            .filter_by(status="pending", is_deleted=False)
-            .order_by(EarlyLeaveRequest.applied_on.asc())
-            .paginate(page=page, per_page=per_page, error_out=False)
+    def get_pending_earlyleaves(self, page: int = 1, per_page: int = 30, department: str = None):
+        q = EarlyLeaveRequest.query.filter_by(status="pending", is_deleted=False)
+        if department:
+            from app.models.employee import Employee  # noqa: PLC0415
+            q = q.join(Employee, EarlyLeaveRequest.employee_id == Employee.id).filter(Employee.department == department)
+        return q.order_by(EarlyLeaveRequest.applied_on.asc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def get_earlyleaves_for_manager(self, mgr_employee_code: str, page: int = 1, per_page: int = 30, status: str = ""):
+        """Return early-leave requests where the logged-in employee is the reporting manager."""
+        q = EarlyLeaveRequest.query.filter_by(
+            reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
         )
+        if status:
+            q = q.filter_by(status=status)
+        return q.order_by(EarlyLeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def count_manager_pending_earlyleaves(self, mgr_employee_code: str) -> int:
+        return EarlyLeaveRequest.query.filter_by(
+            reporting_manager_code=mgr_employee_code.upper(),
+            status="pending", is_deleted=False
+        ).count()
 
     def create_earlyleave(self, el: EarlyLeaveRequest) -> EarlyLeaveRequest:
         db.session.add(el); db.session.commit(); return el
