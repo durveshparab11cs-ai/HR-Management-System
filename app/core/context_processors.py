@@ -35,7 +35,6 @@ def inject_user_context() -> dict:
     """
     Inject authenticated user information into every template.
     """
-    from flask import session  # noqa: PLC0415
     from flask_login import current_user  # noqa: PLC0415
     from app.constants.enums import UserRole, GLOBAL_ACCESS_DEPARTMENTS  # noqa: PLC0415
 
@@ -64,7 +63,13 @@ def inject_user_context() -> dict:
             context["is_manager"] = getattr(current_user, "role", None) in (
                 UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER
             )
-            dept = session.get("login_department", "")
+            # Safely read session — may not exist right after logout
+            dept = ""
+            try:
+                from flask import session as _sess  # noqa: PLC0415
+                dept = _sess.get("login_department", "")
+            except Exception:  # noqa: BLE001
+                pass
             if not dept:
                 emp = getattr(current_user, "employee", None)
                 dept = (emp.department or "") if emp else ""
@@ -86,12 +91,6 @@ def inject_user_context() -> dict:
 def inject_navigation() -> dict:
     """
     Inject the sidebar navigation structure.
-
-    Stores endpoint names only — url_for() is called in the template
-    so failures don't crash every page render.
-
-    Returns:
-        Dictionary with navigation items list.
     """
     from flask_login import current_user  # noqa: PLC0415
     from app.constants.enums import UserRole  # noqa: PLC0415
@@ -102,25 +101,31 @@ def inject_navigation() -> dict:
 
         role = getattr(current_user, "role", None)
 
-        all_items = [
-            {"label": "Dashboard",   "icon": "bi-speedometer2",  "url_endpoint": "dashboard.index",     "roles": None},
-            {"label": "Employees",   "icon": "bi-people",        "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
-            {"label": "Attendance",  "icon": "bi-calendar-check","url_endpoint": "attendance.index",    "roles": None},
-            {"label": "Leave",       "icon": "bi-calendar-x",    "url_endpoint": "leave.index",         "roles": None},
-            {"label": "Payroll",     "icon": "bi-cash-stack",    "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
-            {"label": "Reports",     "icon": "bi-bar-chart",     "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
-            {"label": "Notifications","icon": "bi-bell",         "url_endpoint": "notifications.index", "roles": None},
-            {"label": "Company",     "icon": "bi-building",      "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-            {"label": "Settings",    "icon": "bi-gear",          "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-            {"label": "Admin Panel", "icon": "bi-shield-lock",   "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
-        ]
-
-        # Add FOSS Shift & Location Management for FOSS dept and Admin
-        from flask import session  # noqa: PLC0415
-        dept = session.get("login_department", "")
+        # Safely get dept from session — may not exist if session was just cleared
+        dept = ""
+        try:
+            from flask import session as _sess  # noqa: PLC0415
+            dept = _sess.get("login_department", "")
+        except Exception:  # noqa: BLE001
+            pass
         if not dept:
             emp = getattr(current_user, "employee", None)
             dept = (emp.department or "") if emp else ""
+
+        all_items = [
+            {"label": "Dashboard",    "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
+            {"label": "Employees",    "icon": "bi-people",         "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
+            {"label": "Attendance",   "icon": "bi-calendar-check", "url_endpoint": "attendance.index",    "roles": None},
+            {"label": "Leave",        "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
+            {"label": "Payroll",      "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
+            {"label": "Reports",      "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
+            {"label": "Notifications","icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
+            {"label": "Company",      "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+            {"label": "Settings",     "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+            {"label": "Admin Panel",  "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
+        ]
+
+        # FOSS Shift & Location Management — visible to FOSS dept and Admin
         if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
             all_items.insert(-1, {
                 "label": "FOSS — Shift & Location",
