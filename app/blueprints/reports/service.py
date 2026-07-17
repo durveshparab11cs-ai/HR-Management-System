@@ -1,7 +1,7 @@
-"""blueprints/reports/service.py — real DB queries for all reports."""
+"""blueprints/reports/service.py — report queries using simple per-employee DB calls."""
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date
 from typing import Optional
 
 from app.extensions.database import db
@@ -9,7 +9,7 @@ from app.models.attendance import Attendance
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest
 from app.models.user import User
-from sqlalchemy import case, cast, extract, func, Integer
+from sqlalchemy import extract, func
 
 logger = logging.getLogger(__name__)
 
@@ -18,50 +18,71 @@ class ReportService:
 
     # ── Attendance Summary ────────────────────────────────────────────
 
-    def attendance_summary(self, start: date, end: date, department: str = "", employee_id: Optional[int] = None) -> list:
-        q = (
-            db.session.query(
-                Employee, User,
-                func.count(Attendance.id).label("total_days"),
-                func.sum(case((Attendance.status == "present", 1), else_=0)).label("present"),
-                func.sum(case((Attendance.status == "absent",  1), else_=0)).label("absent"),
-                func.sum(case((Attendance.status == "half_day",1), else_=0)).label("half_day"),
-                func.sum(case((Attendance.status == "on_leave",1), else_=0)).label("on_leave"),
-                func.sum(case((Attendance.is_late == True,     1), else_=0)).label("late_days"),
-                func.sum(cast(Attendance.working_minutes, Integer)).label("total_minutes"),
-            )
-            .join(User, Employee.user_id == User.id)
-            .outerjoin(Attendance, (Attendance.employee_id == Employee.id) &
-                       (Attendance.date >= start) & (Attendance.date <= end) &
-                       (Attendance.is_deleted == False))
-            .filter(Employee.is_deleted == False)
+    def attendance_summary(
+        self,
+        start: date,
+        end: date,
+        department: str = "",
+        employee_id: Optional[int] = None,
+    ) -> list:
+        """
+        Return one dict per employee with attendance counts for the date range.
+        Uses simple per-employee subqueries — avoids SQLAlchemy case() version issues.
+        """
+        emp_q = db.session.query(Employee, User).join(User, Employee.user_id == User.id).filter(
+            Employee.is_deleted == False
         )
         if department:
-            q = q.filter(Employee.department == department)
+            emp_q = emp_q.filter(Employee.department == department)
         if employee_id:
-            q = q.filter(Employee.id == employee_id)
-        rows = q.group_by(Employee.id, User.id).order_by(Employee.employee_code).all()
-        return [
-            {
-                "employee": r.Employee,
-                "user": r.User,
-                "total_days": r.total_days or 0,
-                "present": r.present or 0,
-                "absent": r.absent or 0,
-                "half_day": r.half_day or 0,
-                "on_leave": r.on_leave or 0,
-                "late_days": r.late_days or 0,
-                "total_hours": round((r.total_minutes or 0) / 60, 1),
-            }
-            for r in rows
-        ]
+            emp_q = emp_q.filter(Employee.id == employee_id)
+        employees = emp_q.order_by(Employee.employee_code).all()
+
+        results = []
+        for emp, usr in employees:
+            base = Attendance.query.filter(
+                Attendance.employee_id == emp.id,
+                Attendance.date >= start,
+                Attendance.date <= end,
+                Attendance.is_deleted == False,
+            )
+            present   = base.filter(Attendance.status == "present").count()
+            absent    = base.filter(Attendance.status == "absent").count()
+            half_day  = base.filter(Attendance.status == "half_day").count()
+            on_leave  = base.filter(Attendance.status == "on_leave").count()
+            late_days = base.filter(Attendance.is_late == True).count()
+            mins_row  = db.session.query(
+                func.coalesce(func.sum(Attendance.working_minutes), 0)
+            ).filter(
+                Attendance.employee_id == emp.id,
+                Attendance.date >= start,
+                Attendance.date <= end,
+                Attendance.is_deleted == False,
+            ).scalar() or 0
+
+            results.append({
+                "employee":   emp,
+                "user":       usr,
+                "total_days": present + absent + half_day + on_leave,
+                "present":    present,
+                "absent":     absent,
+                "half_day":   half_day,
+                "on_leave":   on_leave,
+                "late_days":  late_days,
+                "total_hours": round(mins_row / 60, 1),
+            })
+        return results
 
     def daily_attendance(self, for_date: date) -> list:
         rows = (
             db.session.query(Employee, User, Attendance)
             .join(User, Employee.user_id == User.id)
-            .outerjoin(Attendance, (Attendance.employee_id == Employee.id) &
-                       (Attendance.date == for_date) & (Attendance.is_deleted == False))
+            .outerjoin(
+                Attendance,
+                (Attendance.employee_id == Employee.id) &
+                (Attendance.date == for_date) &
+                (Attendance.is_deleted == False),
+            )
             .filter(Employee.is_deleted == False)
             .order_by(Employee.employee_code)
             .all()
@@ -71,32 +92,41 @@ class ReportService:
     # ── Leave Summary ─────────────────────────────────────────────────
 
     def leave_summary(self, year: int) -> list:
-        q = (
-            db.session.query(
-                Employee, User,
-                func.count(LeaveRequest.id).label("total_requests"),
-                func.sum(case((LeaveRequest.status == "approved", LeaveRequest.total_days), else_=0)).label("approved_days"),
-                func.sum(case((LeaveRequest.status == "pending",  1), else_=0)).label("pending_count"),
-                func.sum(case((LeaveRequest.status == "rejected", 1), else_=0)).label("rejected_count"),
-            )
+        employees = (
+            db.session.query(Employee, User)
             .join(User, Employee.user_id == User.id)
-            .outerjoin(LeaveRequest, (LeaveRequest.employee_id == Employee.id) &
-                       (extract("year", LeaveRequest.start_date) == year) &
-                       (LeaveRequest.is_deleted == False))
             .filter(Employee.is_deleted == False)
-            .group_by(Employee.id, User.id)
             .order_by(Employee.employee_code)
+            .all()
         )
-        return [
-            {
-                "employee": r.Employee, "user": r.User,
-                "total_requests": r.total_requests or 0,
-                "approved_days": float(r.approved_days or 0),
-                "pending_count": r.pending_count or 0,
-                "rejected_count": r.rejected_count or 0,
-            }
-            for r in q.all()
-        ]
+        results = []
+        for emp, usr in employees:
+            base = LeaveRequest.query.filter(
+                LeaveRequest.employee_id == emp.id,
+                LeaveRequest.is_deleted == False,
+                extract("year", LeaveRequest.start_date) == year,
+            )
+            total     = base.count()
+            approved  = db.session.query(
+                func.coalesce(func.sum(LeaveRequest.total_days), 0)
+            ).filter(
+                LeaveRequest.employee_id == emp.id,
+                LeaveRequest.is_deleted == False,
+                LeaveRequest.status == "approved",
+                extract("year", LeaveRequest.start_date) == year,
+            ).scalar() or 0
+            pending   = base.filter(LeaveRequest.status == "pending").count()
+            rejected  = base.filter(LeaveRequest.status == "rejected").count()
+
+            results.append({
+                "employee":       emp,
+                "user":           usr,
+                "total_requests": total,
+                "approved_days":  float(approved),
+                "pending_count":  pending,
+                "rejected_count": rejected,
+            })
+        return results
 
     # ── Employee Stats ────────────────────────────────────────────────
 
@@ -118,7 +148,7 @@ class ReportService:
         return {
             "total": total,
             "by_department": [{"dept": r.department or "Unassigned", "count": r.count} for r in by_dept],
-            "by_type": [{"type": r.employment_type.replace("_"," ").title(), "count": r.count} for r in by_type],
+            "by_type": [{"type": r.employment_type.replace("_", " ").title(), "count": r.count} for r in by_type],
         }
 
     def get_departments(self) -> list:
