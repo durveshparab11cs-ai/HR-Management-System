@@ -170,19 +170,19 @@
         <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
             <thead class="table-light">
                 <tr>
-                    <th class="ps-4">Date</th>
-                    <th>Gender</th>
-                    <th>Name</th>
-                    <th>Working Status</th>
-                    <th>Working Location</th>
-                    <th>Full Shift Timing</th>
-                    <th>In Time Shift Window</th>
-                    <th>In Time</th>
-                    <th>Out Time</th>
-                    <th>Working Hours</th>
-                    <th>Overtime</th>
-                    <th>On Time / Late</th>
-                    <th class="text-center">Proof Photo</th>
+                    <th class="ps-4" style="min-width:110px">Date</th>
+                    <th style="min-width:70px">Gender</th>
+                    <th style="min-width:140px">Name</th>
+                    <th style="min-width:110px">Working Status</th>
+                    <th style="min-width:130px">Working Location</th>
+                    <th style="min-width:130px">Full Shift Timing</th>
+                    <th style="min-width:150px">In Time Shift Window</th>
+                    <th style="min-width:90px">In Time</th>
+                    <th style="min-width:90px">Out Time</th>
+                    <th style="min-width:100px">Working Hours</th>
+                    <th style="min-width:80px">Overtime</th>
+                    <th style="min-width:110px">On Time / Late</th>
+                    <th class="text-center" style="min-width:90px;width:90px">Proof Photo</th>
                 </tr>
             </thead>
             <tbody>
@@ -243,7 +243,7 @@
                 <td class="small text-muted">
                     {% if office %}
                         {{ office.office_start_time.strftime('%I:%M %p') }}
-                        + {{ office.grace_period_minutes }}m grace
+                        + {{ office.grace_period_minutes }} min grace
                     {% else %}—{% endif %}
                 </td>
 
@@ -271,37 +271,48 @@
                     {% else %}—{% endif %}
                 </td>
 
-                <!-- On Time / Late -->
-                <td class="small">
+                <!-- On Time / Late — enlarged badge -->
+                <td>
                     {% if att.is_late %}
-                    <span class="badge bg-warning-subtle text-warning fw-semibold">
-                        <i class="bi bi-clock me-1"></i>Late {{ att.late_minutes | fmt_minutes }}
+                    <span style="display:inline-flex;align-items:center;gap:5px;
+                                 background:#fef3c7;color:#92400e;
+                                 font-size:13px;font-weight:700;
+                                 padding:5px 12px;border-radius:50px;
+                                 border:1px solid #fde68a;white-space:nowrap">
+                        <i class="bi bi-clock" style="font-size:12px"></i>
+                        Late {{ att.late_minutes }} min
                     </span>
                     {% elif att.check_in_time %}
-                    <span class="badge bg-success-subtle text-success fw-semibold">
-                        <i class="bi bi-check-circle me-1"></i>On Time
+                    <span style="display:inline-flex;align-items:center;gap:5px;
+                                 background:#d1fae5;color:#065f46;
+                                 font-size:13px;font-weight:700;
+                                 padding:5px 12px;border-radius:50px;
+                                 border:1px solid #a7f3d0;white-space:nowrap">
+                        <i class="bi bi-check-circle" style="font-size:12px"></i>
+                        On Time
                     </span>
                     {% else %}
-                    <span class="text-muted">—</span>
+                    <span class="text-muted small">—</span>
                     {% endif %}
                 </td>
 
                 <!-- Proof Photo -->
-                <td class="text-center">
+                <td class="text-center" style="width:90px">
                     {% if photo and photo.file_path %}
-                    <a href="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
-                       target="_blank"
-                       title="View proof photo — {{ att.date.strftime('%d %b %Y') }}">
-                        <img src="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
-                             alt="Proof photo"
-                             class="rounded-2 border"
-                             style="width:44px;height:44px;object-fit:cover;cursor:pointer;
-                                    transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.12)"
-                             onmouseover="this.style.transform='scale(1.15)'"
-                             onmouseout="this.style.transform='scale(1)'">
-                    </a>
+                    {% set photo_url = url_for('attendance.serve_photo', filename=photo.file_path) %}
+                    <img src="{{ photo_url }}"
+                         alt="Proof photo"
+                         class="rounded-2 border"
+                         style="width:46px;height:46px;object-fit:cover;cursor:pointer;
+                                transition:transform .15s,box-shadow .15s;
+                                box-shadow:0 2px 6px rgba(0,0,0,.12)"
+                         onmouseover="this.style.transform='scale(1.18)'"
+                         onmouseout="this.style.transform='scale(1)'"
+                         onclick="openPhotoModal('{{ photo_url }}','{{ att.date.strftime('%d %b %Y') }}','{{ photo.original_filename or '' }}','{{ photo.uploaded_at.strftime('%d %b %Y %H:%M') if photo.uploaded_at else '' }}')"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                    <span style="display:none;font-size:.68rem;color:#94a3b8">No File</span>
                     {% else %}
-                    <span class="text-muted" style="font-size:.75rem">—</span>
+                    <span style="font-size:.72rem;color:#94a3b8">No Proof</span>
                     {% endif %}
                 </td>
             </tr>
@@ -328,6 +339,33 @@
     {% endif %}
 </div>
 
+<!-- Photo preview modal -->
+<div class="modal fade" id="photoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="photoModalTitle">Proof Photo</h5>
+                    <div class="text-muted small mt-1" id="photoModalMeta"></div>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <img id="photoModalImg" src="" alt="Proof photo"
+                     style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:10px;
+                            box-shadow:0 4px 24px rgba(0,0,0,.15);cursor:zoom-in;transition:transform .2s"
+                     onclick="var s=this.style;s.transform=s.transform==='scale(1.7)'?'scale(1)':'scale(1.7)';s.cursor=s.transform==='scale(1)'?'zoom-in':'zoom-out'">
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 justify-content-between">
+                <a id="photoModalOpen" href="#" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-arrows-fullscreen me-1"></i>Open Full Size
+                </a>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Export notification container -->
 <div id="export-notif-wrap"></div>
 
@@ -347,6 +385,21 @@
 <script>
 (function () {
     'use strict';
+
+    // ── Photo modal ───────────────────────────────────────────────────
+    window.openPhotoModal = function (url, date, filename, uploadedAt) {
+        var img   = document.getElementById('photoModalImg');
+        var title = document.getElementById('photoModalTitle');
+        var meta  = document.getElementById('photoModalMeta');
+        var open  = document.getElementById('photoModalOpen');
+        img.src             = url;
+        img.style.transform = 'scale(1)';
+        img.style.cursor    = 'zoom-in';
+        title.textContent   = 'Proof Photo — ' + date;
+        meta.textContent    = (filename ? filename + '  •  ' : '') + (uploadedAt ? 'Uploaded ' + uploadedAt + ' IST' : '');
+        open.href           = url;
+        new bootstrap.Modal(document.getElementById('photoModal')).show();
+    };
 
     // ── UTC → IST converter ───────────────────────────────────────────
     document.querySelectorAll('.utc-to-ist').forEach(function (s) {

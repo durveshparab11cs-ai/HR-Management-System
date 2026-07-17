@@ -420,15 +420,54 @@ def settings():
 def serve_photo(filename):
     """
     Serve an attendance proof photo from the uploads folder.
-    Only the employee who owns the photo or HR/Admin can view it.
+    Only authenticated users can access this endpoint.
+    Security: prevent directory traversal via normpath check.
     """
     from flask import current_app  # noqa: PLC0415
-    upload_folder = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+    from pathlib import Path  # noqa: PLC0415
+    import logging as _log  # noqa: PLC0415
+
+    _logger = _log.getLogger("attendance")
+
     # Security: prevent directory traversal
     safe_name = os.path.normpath(filename)
-    if safe_name.startswith(".."):
+    if ".." in safe_name or safe_name.startswith("/"):
         abort(403)
+
+    # Validate extension
+    ext = os.path.splitext(safe_name)[1].lower().lstrip(".")
+    if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
+        abort(403)
+
+    # Resolve UPLOAD_FOLDER to absolute path — critical for Render deployment
+    # where relative paths resolve from an unpredictable CWD.
+    raw_folder = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+    upload_folder = Path(raw_folder)
+    if not upload_folder.is_absolute():
+        # Resolve relative to the Flask app root (not CWD)
+        upload_folder = Path(current_app.root_path).parent / raw_folder.lstrip("./")
+
+    upload_folder = upload_folder.resolve()
+    target = (upload_folder / safe_name).resolve()
+
+    # Ensure resolved path is still inside upload_folder (traversal guard)
     try:
-        return send_from_directory(upload_folder, safe_name)
-    except Exception:
+        target.relative_to(upload_folder)
+    except ValueError:
+        abort(403)
+
+    # Debug log — helps diagnose 404s on Render
+    _logger.info(
+        "SERVE_PHOTO | file=%s | upload_folder=%s | target=%s | exists=%s",
+        safe_name, upload_folder, target, target.exists()
+    )
+
+    if not target.exists():
+        _logger.warning("PHOTO_NOT_FOUND | path=%s", target)
+        abort(404)
+
+    try:
+        return send_from_directory(str(upload_folder), safe_name)
+    except Exception as exc:
+        _logger.error("PHOTO_SERVE_ERROR | %s", exc)
         abort(404)

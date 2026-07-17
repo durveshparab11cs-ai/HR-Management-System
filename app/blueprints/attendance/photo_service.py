@@ -80,14 +80,20 @@ class PhotoService:
         if existing:
             return False, "A photo has already been uploaded for this check-in.", None
 
-        # Build storage path
+        # Build storage path — resolve to absolute so saves work on Render
         today_str = date.today().isoformat()
         unique_id = uuid.uuid4().hex[:8]
         filename  = f"{today_str}_{unique_id}.{ext}"
         subfolder = f"attendance/{employee_id}"
         rel_path  = f"{subfolder}/{filename}"
 
-        upload_base = Path(current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")).resolve()
+        raw_folder  = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+        upload_base = Path(raw_folder)
+        if not upload_base.is_absolute():
+            # Resolve relative to Flask app root (parent of app/ package)
+            upload_base = Path(current_app.root_path).parent / raw_folder.lstrip("./")
+        upload_base = upload_base.resolve()
+
         dest_dir    = upload_base / subfolder
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path   = dest_dir / filename
@@ -140,7 +146,11 @@ class PhotoService:
             True on success.
         """
         try:
-            upload_base = Path(current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")).resolve()
+            raw_folder  = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+            upload_base = Path(raw_folder)
+            if not upload_base.is_absolute():
+                upload_base = Path(current_app.root_path).parent / raw_folder.lstrip("./")
+            upload_base = upload_base.resolve()
             file_path   = upload_base / photo.file_path
             if file_path.exists():
                 file_path.unlink()
