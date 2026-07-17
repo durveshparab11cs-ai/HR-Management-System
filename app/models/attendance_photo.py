@@ -12,7 +12,7 @@ Architecture note:
 """
 
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions.database import db
@@ -32,11 +32,16 @@ class AttendancePhoto(db.Model):
         Integer, ForeignKey("employees.id"), nullable=False, index=True
     )
 
-    # Relative path from UPLOAD_FOLDER — e.g. "attendance/5/abc123.jpg"
-    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Relative path from UPLOAD_FOLDER — kept for backward compatibility
+    file_path: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     original_filename: Mapped[str] = mapped_column(String(255), nullable=True)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Base64-encoded data URL — "data:image/jpeg;base64,..."
+    # Stored in DB so photos survive Render redeploys (ephemeral filesystem).
+    # Takes priority over file_path when present.
+    image_data: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow

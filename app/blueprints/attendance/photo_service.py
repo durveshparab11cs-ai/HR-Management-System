@@ -3,22 +3,21 @@ attendance/photo_service.py
 =============================
 AttendancePhoto service.
 
-Single responsibility: validate, store, and retrieve attendance proof
-photos. Does NOT perform any biometric analysis — photos are proof
-records only.
+Storage strategy: photos are stored as base64 data URLs directly in
+the PostgreSQL database (image_data column). This makes photos durable
+across Render redeploys — Render's filesystem is ephemeral and is wiped
+on every deploy, which would destroy any file-based uploads.
 
-File structure:
-    uploads/attendance/<employee_id>/<date_YYYY-MM-DD>_<uuid8>.jpg
+The file_path column is kept for backward compatibility but left empty
+for new uploads.
 """
 
+import base64
 import logging
-import os
-import uuid
-from datetime import date
 from pathlib import Path
 from typing import Optional, Tuple
 
-from flask import current_app, request
+from flask import request
 from werkzeug.datastructures import FileStorage
 
 from app.extensions.database import db
@@ -29,14 +28,19 @@ logger = logging.getLogger("attendance")
 ALLOWED_EXTENSIONS: frozenset = frozenset({"jpg", "jpeg", "png", "webp"})
 MAX_BYTES: int = 5 * 1024 * 1024  # 5 MB
 
+# MIME types mapped from extension
+MIME_MAP = {
+    "jpg":  "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png":  "image/png",
+    "webp": "image/webp",
+}
+
 
 class PhotoService:
     """
     Handles saving and retrieval of attendance proof photos.
-
-    Usage:
-        svc = PhotoService()
-        ok, msg, photo = svc.save_check_in_photo(attendance, employee_id, file)
+    Photos are stored as base64 data URLs in PostgreSQL for Render compatibility.
     """
 
     def save_check_in_photo(
@@ -46,15 +50,7 @@ class PhotoService:
         file: FileStorage,
     ) -> Tuple[bool, str, Optional[AttendancePhoto]]:
         """
-        Validate and persist a check-in proof photo.
-
-        Args:
-            attendance:  Attendance model instance that owns this photo.
-            employee_id: Employee's ID (for folder organisation).
-            file:        Werkzeug FileStorage from request.files.
-
-        Returns:
-            (success, message, AttendancePhoto_or_None)
+        Validate and persist a check-in proof photo as base64 in the DB.
         """
         if not file or not file.filename:
             logger.warning("PHOTO_UPLOAD | emp=%s | att=%s | FAIL: no file", employee_id, attendance.id)
@@ -71,7 +67,7 @@ class PhotoService:
         size = file.tell()
         file.seek(0)
         if size > MAX_BYTES:
-            logger.warning("PHOTO_UPLOAD | emp=%s | FAIL: size=%d", employee_id, size)
+            logger.warning("PHOTO_UPLOAD | emp=%s | FAIL: size=%d bytes", employee_id, size)
             return False, f"Photo exceeds 5 MB limit ({size / 1024 / 1024:.1f} MB).", None
 
         logger.info(
@@ -79,101 +75,84 @@ class PhotoService:
             employee_id, attendance.id, file.filename, ext, size, file.content_type,
         )
 
-        # Verify actual image content (prevent polyglot uploads)
+        # Magic-byte validation (no Pillow dependency)
         if not self._is_valid_image(file):
             logger.warning("PHOTO_UPLOAD | emp=%s | FAIL: magic bytes invalid", employee_id)
             return False, "File does not appear to be a valid image. Please select a JPG, PNG, or WEBP file.", None
 
-        # Check for existing photo on this attendance record
+        # Duplicate check
         existing = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
         if existing:
             logger.info("PHOTO_UPLOAD | emp=%s | att=%s | FAIL: already uploaded", employee_id, attendance.id)
             return False, "A photo has already been uploaded for this check-in.", None
 
-        # Build storage path — resolve to absolute so saves work on Render
-        today_str = date.today().isoformat()
-        unique_id = uuid.uuid4().hex[:8]
-        filename  = f"{today_str}_{unique_id}.{ext}"
-        subfolder = f"attendance/{employee_id}"
-        rel_path  = f"{subfolder}/{filename}"
-
-        raw_folder  = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
-        upload_base = Path(raw_folder)
-        if not upload_base.is_absolute():
-            # Strip leading "./" if present, then join to app root parent
-            # current_app.root_path = .../smart_hrms/app
-            # parent                = .../smart_hrms
-            clean = raw_folder
-            if clean.startswith("./"):
-                clean = clean[2:]
-            upload_base = Path(current_app.root_path).parent / clean
-        upload_base = upload_base.resolve()
-
-        logger.info("PHOTO_UPLOAD | upload_base=%s", upload_base)
-
-        dest_dir    = upload_base / subfolder
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_path   = dest_dir / filename
-
+        # Read file bytes and encode as base64 data URL
         try:
             file.seek(0)
-            file.save(str(dest_path))
-        except OSError as exc:
-            logger.error("Photo save failed: %s", exc)
-            return False, "Failed to save photo. Please try again.", None
+            raw_bytes = file.read()
+            mime      = MIME_MAP.get(ext, "image/jpeg")
+            b64       = base64.b64encode(raw_bytes).decode("utf-8")
+            data_url  = f"data:{mime};base64,{b64}"
+        except Exception as exc:
+            logger.error("PHOTO_ENCODE_FAILED | emp=%s | %s", employee_id, exc)
+            return False, "Failed to process photo. Please try again.", None
 
-        # Persist record
+        # Persist to DB
         try:
             photo = AttendancePhoto(
                 attendance_id=attendance.id,
                 employee_id=employee_id,
-                file_path=rel_path,
+                file_path="",           # empty — photo stored in image_data
+                image_data=data_url,    # base64 data URL stored in DB
                 original_filename=file.filename[:255],
                 file_size_bytes=size,
-                mime_type=file.content_type,
+                mime_type=mime,
                 ip_address=self._get_ip(),
             )
             db.session.add(photo)
             db.session.commit()
-            logger.info("PHOTO_SAVED | emp=%s | att=%s | path=%s", employee_id, attendance.id, rel_path)
+            logger.info(
+                "PHOTO_SAVED_DB | emp=%s | att=%s | size=%d | mime=%s",
+                employee_id, attendance.id, size, mime,
+            )
             return True, "Photo uploaded successfully.", photo
         except Exception as exc:  # noqa: BLE001
             db.session.rollback()
-            logger.error("Photo DB record failed: %s", exc)
-            # Clean up file on DB failure
-            if dest_path.exists():
-                dest_path.unlink(missing_ok=True)
+            logger.error("PHOTO_DB_SAVE_FAILED | emp=%s | %s", employee_id, exc)
             return False, "Failed to record photo. Please try again.", None
 
     def get_photo_url(self, photo: AttendancePhoto) -> Optional[str]:
-        """Build a URL for serving a stored attendance photo."""
-        if not photo or not photo.file_path:
+        """
+        Return the photo URL for the API response.
+        For DB-stored photos, return the data URL directly.
+        For old file-based photos, return the serve_photo URL.
+        """
+        if not photo:
             return None
-        from flask import url_for  # noqa: PLC0415
-        return url_for("attendance.serve_photo", filename=photo.file_path)
+        if photo.image_data:
+            return photo.image_data          # data URL — no HTTP request needed
+        if photo.file_path:
+            from flask import url_for        # noqa: PLC0415
+            return url_for("attendance.serve_photo", filename=photo.file_path)
+        return None
 
     def delete_photo(self, photo: AttendancePhoto) -> bool:
-        """
-        Remove an attendance photo file and its database record.
-
-        Args:
-            photo: AttendancePhoto model instance.
-
-        Returns:
-            True on success.
-        """
+        """Remove photo record from DB (and file if it exists)."""
         try:
-            raw_folder  = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
-            upload_base = Path(raw_folder)
-            if not upload_base.is_absolute():
-                clean = raw_folder
-                if clean.startswith("./"):
-                    clean = clean[2:]
-                upload_base = Path(current_app.root_path).parent / clean
-            upload_base = upload_base.resolve()
-            file_path   = upload_base / photo.file_path
-            if file_path.exists():
-                file_path.unlink()
+            # Also delete file if it exists (backward compat)
+            if photo.file_path:
+                from flask import current_app  # noqa: PLC0415
+                raw_folder = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
+                from pathlib import Path as _P  # noqa: PLC0415
+                upload_base = _P(raw_folder)
+                if not upload_base.is_absolute():
+                    clean = raw_folder
+                    if clean.startswith("./"):
+                        clean = clean[2:]
+                    upload_base = _P(current_app.root_path).parent / clean
+                fp = upload_base.resolve() / photo.file_path
+                if fp.exists():
+                    fp.unlink(missing_ok=True)
             db.session.delete(photo)
             db.session.commit()
             return True
@@ -183,18 +162,12 @@ class PhotoService:
             return False
 
     def _is_valid_image(self, file: FileStorage) -> bool:
-        """
-        Verify file is a real image by checking magic bytes in the header.
-        Uses raw bytes instead of Pillow to avoid false rejections on
-        progressive JPEGs, HEIC-converted files, and mobile camera photos
-        that have unusual EXIF structures.
-        Falls back to True (trust extension check) if read fails.
-        """
+        """Check magic bytes — no Pillow needed."""
         MAGIC = {
-            b'\xff\xd8\xff': 'jpeg',       # JPEG
-            b'\x89PNG': 'png',             # PNG
-            b'RIFF': 'webp_candidate',     # WebP starts with RIFF....WEBP
-            b'GIF8': 'gif',               # GIF87a / GIF89a
+            b'\xff\xd8\xff': 'jpeg',
+            b'\x89PNG':      'png',
+            b'RIFF':         'webp',
+            b'GIF8':         'gif',
         }
         try:
             file.seek(0)
@@ -202,19 +175,17 @@ class PhotoService:
             file.seek(0)
             if not header:
                 return False
-            for magic, _ in MAGIC.items():
+            for magic in MAGIC:
                 if header[:len(magic)] == magic:
-                    # Extra check for WebP
                     if magic == b'RIFF':
                         return header[8:12] == b'WEBP'
                     return True
-            # Unknown magic — reject
             logger.warning("PHOTO_UNKNOWN_MAGIC | first12=%r", header[:12])
             return False
         except Exception as exc:  # noqa: BLE001
-            logger.warning("PHOTO_MAGIC_CHECK_FAILED | %s — accepting on extension", exc)
+            logger.warning("PHOTO_MAGIC_CHECK_FAILED | %s — trusting extension", exc)
             file.seek(0)
-            return True  # Trust the extension check rather than blocking valid photos
+            return True
 
     def _get_ip(self) -> str:
         xff = request.headers.get("X-Forwarded-For", "")

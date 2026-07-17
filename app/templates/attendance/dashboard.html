@@ -479,9 +479,9 @@
 
         <!-- Proof Photo -->
         <td class="text-center" style="width:90px">
-          {% if photo and photo.file_path %}
-          {% set photo_url = url_for('attendance.serve_photo', filename=photo.file_path) %}
-          <img src="{{ photo_url }}"
+          {% if photo and (photo.image_data or photo.file_path) %}
+          {% set photo_src = photo.image_data if photo.image_data else url_for('attendance.serve_photo', filename=photo.file_path) %}
+          <img src="{{ photo_src }}"
                alt="Proof photo"
                class="rounded-2 border"
                style="width:46px;height:46px;object-fit:cover;cursor:pointer;
@@ -489,14 +489,11 @@
                       box-shadow:0 2px 6px rgba(0,0,0,.12)"
                onmouseover="this.style.transform='scale(1.18)';this.style.boxShadow='0 4px 14px rgba(0,0,0,.22)'"
                onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 2px 6px rgba(0,0,0,.12)'"
-               onclick="openPhotoModal('{{ photo_url }}','{{ att.date.strftime('%d %b %Y') }}','{{ photo.original_filename or '' }}','{{ photo.uploaded_at.strftime('%d %b %Y %H:%M') if photo.uploaded_at else '' }}')"
-               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="text-muted d-none align-items-center justify-content-center"
-               style="width:46px;height:46px;border-radius:6px;border:1px dashed #dee2e6;font-size:.6rem;text-align:center">
-            No File
-          </div>
+               onclick="window.open('{{ photo_src }}','_blank')"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+          <span style="display:none;font-size:.68rem;color:#94a3b8">No File</span>
           {% else %}
-          <span class="text-muted" style="font-size:.72rem;display:block;text-align:center">No Proof</span>
+          <span style="font-size:.72rem;color:#94a3b8">No Proof</span>
           {% endif %}
         </td>
       </tr>
