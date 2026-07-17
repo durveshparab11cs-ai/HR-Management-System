@@ -413,6 +413,77 @@ def settings():
     )
 
 
+# ── View proof photo (full page) ─────────────────────────────────────
+
+@attendance_bp.route("/photo-view/<int:photo_id>")
+@login_required
+def view_photo(photo_id):
+    """
+    Display a proof photo as a full-page image view.
+    Uses the base64 image_data stored in the DB — no filesystem needed.
+    Falls back to serve_photo redirect for old file-based records.
+    """
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    from flask import Response  # noqa: PLC0415
+
+    photo = AttendancePhoto.query.filter_by(id=photo_id).first_or_404()
+
+    # Security: only the employee who owns the photo can view it
+    # (HR/Admin access handled separately via admin routes)
+    employee = _emp_repo.get_by_user_id(current_user.id)
+    if not employee or photo.employee_id != employee.id:
+        # Allow if user is HR/Admin
+        from app.constants.enums import UserRole  # noqa: PLC0415
+        if not hasattr(current_user, 'role') or current_user.role not in (
+            UserRole.ADMIN.value, UserRole.SUPER_ADMIN.value, UserRole.HR_MANAGER.value
+        ):
+            abort(403)
+
+    if photo.image_data:
+        # Serve a minimal HTML page that displays the image full-screen
+        date_str = ""
+        if photo.uploaded_at:
+            import pytz  # noqa: PLC0415
+            ist = photo.uploaded_at.astimezone(pytz.timezone("Asia/Kolkata"))
+            date_str = ist.strftime("%d %b %Y %I:%M %p IST")
+
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Proof Photo — Smart HRMS</title>
+  <style>
+    *{{margin:0;padding:0;box-sizing:border-box}}
+    body{{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;
+         justify-content:center;min-height:100vh;font-family:system-ui,sans-serif}}
+    .info{{color:#94a3b8;font-size:.85rem;margin-bottom:16px;text-align:center}}
+    .info strong{{color:#e2e8f0;font-size:1rem;display:block;margin-bottom:4px}}
+    img{{max-width:95vw;max-height:85vh;object-fit:contain;border-radius:12px;
+         box-shadow:0 8px 40px rgba(0,0,0,.6)}}
+    .back{{margin-top:20px;color:#60a5fa;text-decoration:none;font-size:.85rem;
+           padding:8px 20px;border:1px solid #3b82f6;border-radius:8px}}
+    .back:hover{{background:#1d4ed8;color:#fff}}
+  </style>
+</head>
+<body>
+  <div class="info">
+    <strong>Proof Photo</strong>
+    {date_str}
+  </div>
+  <img src="{photo.image_data}" alt="Proof photo">
+  <a href="javascript:history.back()" class="back">← Back</a>
+</body>
+</html>"""
+        return Response(html, mimetype="text/html")
+
+    # Old file-based record — redirect to serve_photo
+    if photo.file_path:
+        return redirect(url_for("attendance.serve_photo", filename=photo.file_path))
+
+    abort(404)
+
+
 # ── Serve attendance proof photos ────────────────────────────────────
 
 @attendance_bp.route("/photo/<path:filename>")
