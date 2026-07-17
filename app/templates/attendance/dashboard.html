@@ -546,17 +546,20 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
-// Proof photo modal
-document.addEventListener('DOMContentLoaded', function () {
+// Proof photo modal — runs immediately; DOM is already ready at this point
+// (extra_js loads after </body>, DOMContentLoaded has already fired)
+(function () {
+    var modalEl = document.getElementById('proofPhotoModal');
     document.querySelectorAll('.proof-photo-thumb').forEach(function (img) {
-        img.addEventListener('click', function () {
-            var modalEl = document.getElementById('proofPhotoModal');
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', function (e) {
+            e.stopPropagation();
             document.getElementById('proofPhotoImg').src = this.src;
             document.getElementById('proofPhotoModalLabel').textContent =
                 'Proof Photo' + (this.dataset.date ? ' \u2014 ' + this.dataset.date : '');
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
         });
     });
-});
+})();
 </script>
 {% endblock %}
