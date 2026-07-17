@@ -192,7 +192,8 @@ function selectEmployee(e) {
   document.getElementById('lf-radius').value = e.radius || 50;
 
   // Show card
-  document.getElementById('emp-card').style.display = '';
+  document.getElementById('emp-card').style.display = 'block';
+  document.getElementById('emp-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Init map
   initMap(e.office_lat || 19.076, e.office_lon || 72.877, e.radius || 50);

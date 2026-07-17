@@ -174,7 +174,7 @@ def employee_detail(emp_id: int):
     )
 
 
-# ── Save shift changes ────────────────────────────────────────────────
+# ── Save shift changes for REGISTERED employees ───────────────────────
 
 @foss_bp.route("/employee/<int:emp_id>/save-shift", methods=["POST"])
 @login_required
@@ -264,7 +264,7 @@ def save_shift(emp_id: int):
     return redirect(url_for("foss.employee_detail", emp_id=emp_id))
 
 
-# ── Save office location changes ──────────────────────────────────────
+# ── Save office location changes for REGISTERED employees ─────────────
 
 @foss_bp.route("/employee/<int:emp_id>/save-location", methods=["POST"])
 @login_required
@@ -344,6 +344,116 @@ def save_location(emp_id: int):
     logger.info("LOCATION_CHANGED | emp=%s | by=%s | office=%s", emp_id, current_user.id, office_name)
     flash(f"Office location updated to '{office_name}' for {emp.full_name}.", "success")
     return redirect(url_for("foss.employee_detail", emp_id=emp_id))
+
+
+# ── Save shift / location for UNREGISTERED (master-only) employees ────
+#    These employees exist in employee_master but haven't registered yet.
+#    FOSS pre-configures their shift so it's ready when they register.
+
+@foss_bp.route("/master/<emp_code>/save-shift", methods=["POST"])
+@login_required
+def master_save_shift(emp_code: str):
+    _foss_required()
+    from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+    import datetime as _dt  # noqa: PLC0415
+
+    master = EmployeeMaster.query.filter_by(employee_code=emp_code.upper()).first_or_404()
+
+    shift_name     = request.form.get("shift_name", "").strip()
+    start_time_str = request.form.get("start_time", "").strip()
+    end_time_str   = request.form.get("end_time", "").strip()
+    grace_str      = request.form.get("grace_minutes", "15").strip()
+    reason         = request.form.get("reason", "").strip()
+    effective_date = request.form.get("effective_date", "").strip()
+
+    if not (shift_name and start_time_str and end_time_str):
+        flash("Shift name, start time, and end time are required.", "danger")
+        return redirect(url_for("foss.index"))
+
+    try:
+        new_start  = _dt.time(*map(int, start_time_str.split(":")))
+        new_end    = _dt.time(*map(int, end_time_str.split(":")))
+        new_grace  = int(grace_str) if grace_str.isdigit() else 15
+    except ValueError:
+        flash("Invalid time format.", "danger")
+        return redirect(url_for("foss.index"))
+
+    # Get or create a personal OfficeSettings for this master employee
+    default_office = OfficeSettings.query.filter_by(is_default=True, is_deleted=False).first()
+    personal_office = OfficeSettings(
+        name=f"{emp_code} — {shift_name}",
+        latitude=default_office.latitude if default_office else 19.0760,
+        longitude=default_office.longitude if default_office else 72.8777,
+        radius_metres=default_office.radius_metres if default_office else 50,
+        office_start_time=new_start,
+        office_end_time=new_end,
+        grace_period_minutes=new_grace,
+        is_default=False,
+    )
+    db.session.add(personal_office)
+    db.session.flush()
+
+    log = ShiftChangeLog(
+        employee_id=None,  # not registered yet — log by master row name
+        changed_by_user_id=current_user.id,
+        change_type="shift",
+        old_shift_name="(not set)",
+        new_shift_name=shift_name,
+        new_start_time=start_time_str,
+        new_end_time=end_time_str,
+        new_grace_minutes=new_grace,
+        reason=f"[MASTER:{emp_code}] {reason}",
+        effective_date=effective_date,
+    )
+    # Use employee_id=0 as sentinel for master-only entries
+    log.employee_id = 0
+    db.session.add(log)
+    db.session.commit()
+
+    flash(f"Shift '{shift_name}' pre-configured for {master.employee_name} ({emp_code}). Will apply on registration.", "success")
+    return redirect(url_for("foss.index"))
+
+
+@foss_bp.route("/master/<emp_code>/save-location", methods=["POST"])
+@login_required
+def master_save_location(emp_code: str):
+    _foss_required()
+    from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+
+    master = EmployeeMaster.query.filter_by(employee_code=emp_code.upper()).first_or_404()
+
+    office_name = request.form.get("office_name", "").strip()
+    lat_str     = request.form.get("latitude", "").strip()
+    lon_str     = request.form.get("longitude", "").strip()
+    radius_str  = request.form.get("radius", "50").strip()
+    reason      = request.form.get("reason", "").strip()
+
+    try:
+        new_lat    = float(lat_str)
+        new_lon    = float(lon_str)
+        new_radius = int(radius_str)
+    except ValueError:
+        flash("Invalid latitude, longitude, or radius.", "danger")
+        return redirect(url_for("foss.index"))
+
+    default_office = OfficeSettings.query.filter_by(is_default=True, is_deleted=False).first()
+
+    log = ShiftChangeLog(
+        employee_id=0,
+        changed_by_user_id=current_user.id,
+        change_type="location",
+        old_office_name="(not set)",
+        new_office_name=office_name,
+        new_latitude=str(new_lat),
+        new_longitude=str(new_lon),
+        new_radius=new_radius,
+        reason=f"[MASTER:{emp_code}] {reason}",
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    flash(f"Location '{office_name}' pre-configured for {master.employee_name} ({emp_code}).", "success")
+    return redirect(url_for("foss.index"))
 
 
 # ── Change history ────────────────────────────────────────────────────
