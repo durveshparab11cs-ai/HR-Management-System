@@ -483,13 +483,13 @@
           {% set photo_src = photo.image_data if photo.image_data else url_for('attendance.serve_photo', filename=photo.file_path) %}
           <img src="{{ photo_src }}"
                alt="Proof photo"
-               class="rounded-2 border"
+               class="rounded-2 border proof-photo-thumb"
+               data-date="{{ att.date.strftime('%d %b %Y') }}"
                style="width:46px;height:46px;object-fit:cover;cursor:pointer;
                       transition:transform .15s,box-shadow .15s;
                       box-shadow:0 2px 6px rgba(0,0,0,.12)"
                onmouseover="this.style.transform='scale(1.18)'"
                onmouseout="this.style.transform='scale(1)'"
-               onclick="showProofPhoto(this.src,'{{ att.date.strftime('%d %b %Y') }}')"
                onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\'font-size:.68rem;color:#94a3b8\'>No File</span>')">
           {% else %}
           <span style="font-size:.72rem;color:#94a3b8">No Proof</span>
@@ -546,10 +546,16 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
-function showProofPhoto(src, dateLabel) {
+// Proof photo modal — event delegation so data URL never goes through onclick attr
+document.addEventListener('click', function (e) {
+    var thumb = e.target.closest('.proof-photo-thumb');
+    if (!thumb) return;
+    var src  = thumb.src;
+    var date = thumb.dataset.date || '';
     document.getElementById('proofPhotoImg').src = src;
-    document.getElementById('proofPhotoModalLabel').textContent = 'Proof Photo' + (dateLabel ? ' — ' + dateLabel : '');
+    document.getElementById('proofPhotoModalLabel').textContent =
+        'Proof Photo' + (date ? ' — ' + date : '');
     new bootstrap.Modal(document.getElementById('proofPhotoModal')).show();
-}
+});
 </script>
 {% endblock %}
