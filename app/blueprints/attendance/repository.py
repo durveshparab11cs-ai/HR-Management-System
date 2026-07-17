@@ -99,20 +99,10 @@ class AttendanceRepository:
         Filtered history including photo objects for each attendance record.
         Returns a paginated list of (Attendance, AttendancePhoto|None) tuples.
         """
-        from app.models.attendance_photo import AttendancePhoto
-        from sqlalchemy.orm import outerjoin
+        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
 
-        q = (
-            db.session.query(Attendance, AttendancePhoto)
-            .outerjoin(
-                AttendancePhoto,
-                AttendancePhoto.attendance_id == Attendance.id,
-            )
-            .filter(
-                Attendance.employee_id == employee_id,
-                Attendance.is_deleted == False,
-            )
-        )
+        # Step 1: Fetch attendance records (paginated)
+        q = Attendance.query.filter_by(employee_id=employee_id, is_deleted=False)
         if start_date:
             q = q.filter(Attendance.date >= start_date)
         if end_date:
@@ -121,12 +111,25 @@ class AttendanceRepository:
             q = q.filter(Attendance.status == status)
 
         q = q.order_by(Attendance.date.desc())
-        total = q.count()
-
+        total  = q.count()
         offset = (page - 1) * per_page
-        items  = q.offset(offset).limit(per_page).all()
+        records = q.offset(offset).limit(per_page).all()
 
-        # Build a simple pagination-like object
+        # Step 2: Fetch photos for these attendance IDs in one query
+        # (avoids stale-session / ORM cache issues with JOIN approach)
+        att_ids = [a.id for a in records]
+        if att_ids:
+            photos = AttendancePhoto.query.filter(
+                AttendancePhoto.attendance_id.in_(att_ids)
+            ).all()
+            photo_map = {p.attendance_id: p for p in photos}
+        else:
+            photo_map = {}
+
+        # Step 3: Zip into (Attendance, Photo|None) tuples
+        items = [(att, photo_map.get(att.id)) for att in records]
+
+        # Build pagination object
         class _Pagination:
             def __init__(self, items, total, page, per_page):
                 self.items    = items
