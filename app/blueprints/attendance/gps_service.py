@@ -115,15 +115,39 @@ class GPSService:
             self._log(employee, None, None, None, None, action, str(e))
             return GPSVerificationResult(success=False, error=str(e))
 
-        # Step 2: Spoofing check
+        # Step 2: Spoofing check — only flags physically impossible values
         suspicious = is_suspicious_coordinate(lat, lon)
+
+        # ── DEBUG: detailed rejection log (helps diagnose false positives) ──
+        dist_for_log = None
+        if not suspicious and OFFICE := getattr(self, '_office_ref', None):
+            pass  # computed below after office coords available
+
         if suspicious:
+            # Compute distance for context logging even on spoof rejection
+            try:
+                dist_ctx = calc_distance(lat, lon,
+                                         office.latitude, office.longitude,
+                                         office.radius_metres)
+                dist_for_log = dist_ctx.distance_metres
+            except Exception:  # noqa: BLE001
+                dist_for_log = None
+
             reason = "Suspicious coordinates detected. Attendance rejected for security."
-            self._log(employee, lat, lon, accuracy, None, action, reason)
             logger.warning(
-                "SUSPICIOUS_GPS | emp=%s | lat=%s | lon=%s | action=%s",
-                employee.id, lat, lon, action,
+                "SUSPICIOUS_GPS_REJECTED | emp=%s | lat=%.7f | lon=%.7f"
+                " | accuracy=%s | office_lat=%.7f | office_lon=%.7f"
+                " | distance=%s | allowed_radius=%s | inside_geofence=%s"
+                " | spoof_detection=True | reason=%r | action=%s",
+                employee.id, lat, lon,
+                f"{accuracy:.1f}m" if accuracy is not None else "n/a",
+                office.latitude, office.longitude,
+                f"{dist_for_log:.1f}m" if dist_for_log is not None else "n/a",
+                f"{office.radius_metres}m",
+                (dist_for_log is not None and dist_for_log <= office.radius_metres),
+                reason, action,
             )
+            self._log(employee, lat, lon, accuracy, dist_for_log, action, reason)
             return GPSVerificationResult(
                 success=False, error=reason,
                 lat=lat, lon=lon, accuracy=accuracy, suspicious=True,
