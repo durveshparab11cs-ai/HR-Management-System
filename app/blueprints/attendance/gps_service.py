@@ -118,11 +118,6 @@ class GPSService:
         # Step 2: Spoofing check — only flags physically impossible values
         suspicious = is_suspicious_coordinate(lat, lon)
 
-        # ── DEBUG: detailed rejection log (helps diagnose false positives) ──
-        dist_for_log = None
-        if not suspicious and OFFICE := getattr(self, '_office_ref', None):
-            pass  # computed below after office coords available
-
         if suspicious:
             # Compute distance for context logging even on spoof rejection
             try:
