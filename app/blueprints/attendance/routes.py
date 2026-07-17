@@ -444,8 +444,10 @@ def serve_photo(filename):
     raw_folder = current_app.config.get("UPLOAD_FOLDER", "./instance/uploads")
     upload_folder = Path(raw_folder)
     if not upload_folder.is_absolute():
-        # Resolve relative to the Flask app root (not CWD)
-        upload_folder = Path(current_app.root_path).parent / raw_folder.lstrip("./")
+        clean = raw_folder
+        if clean.startswith("./"):
+            clean = clean[2:]
+        upload_folder = Path(current_app.root_path).parent / clean
 
     upload_folder = upload_folder.resolve()
     target = (upload_folder / safe_name).resolve()
