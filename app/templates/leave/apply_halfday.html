@@ -533,20 +533,26 @@
 
                 <!-- ── Reporting Manager ── -->
                 <p class="hd-section-label">Reporting Manager</p>
-                <div class="hd-field {% if form.reporting_manager_code.errors %}is-invalid{% endif %}">
-                    {{ form.reporting_manager_code(id="hd-mgr-code", class="") }}
-                    <label for="hd-mgr-code">Reporting Manager Employee Code <span style="color:#ef4444">*</span></label>
+                <div class="mb-2">
+                    <label class="small fw-semibold" style="color:#334155;display:block;margin-bottom:5px">
+                        Reporting Manager Employee Code <span style="color:#ef4444">*</span>
+                    </label>
+                    <input type="text" name="reporting_manager_code" id="hd-mgr-code"
+                           class="form-control form-control-sm{% if form.reporting_manager_code.errors %} is-invalid{% endif %}"
+                           placeholder="e.g. E-2603028"
+                           value="{{ form.reporting_manager_code.data or '' }}"
+                           autocomplete="off"
+                           style="text-transform:uppercase">
                     {% for e in form.reporting_manager_code.errors %}
-                    <div class="hd-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>
-                    {% endfor %}
+                    <div class="invalid-feedback">{{ e }}</div>{% endfor %}
                 </div>
                 <!-- Manager details auto-populated -->
-                <div id="hd-mgr-details" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-top:8px;margin-bottom:8px">
+                <div id="hd-mgr-details" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:8px">
                     <div style="font-size:.7rem;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Reporting Manager</div>
                     <div style="font-weight:700;font-size:.9rem;color:#0f172a" id="hd-mgr-name"></div>
                     <div style="font-size:.78rem;color:#64748b" id="hd-mgr-dept"></div>
                 </div>
-                <div id="hd-mgr-error" style="display:none;color:#ef4444;font-size:.78rem;margin-top:4px">
+                <div id="hd-mgr-error" style="display:none;color:#ef4444;font-size:.78rem;margin-bottom:8px">
                     <i class="bi bi-exclamation-circle me-1"></i><span id="hd-mgr-error-text"></span>
                 </div>
 
@@ -587,6 +593,7 @@
 
     if (mgrInput) {
         mgrInput.addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
             clearTimeout(mgrTimer);
             const code = this.value.trim();
             mgrDetails.style.display = 'none';
@@ -609,6 +616,8 @@
                 } catch (e) { /* silently ignore */ }
             }, 500);
         });
+        // Trigger lookup on page load if field already has a value (form error re-display)
+        if (mgrInput.value.length >= 3) mgrInput.dispatchEvent(new Event('input'));
     }
 
     // ── Float label for date ──────────────────────────────────────────

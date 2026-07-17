@@ -22,6 +22,9 @@
         <a href="{{ url_for('leave.apply_earlyleave') }}" class="btn btn-outline-info btn-sm d-flex align-items-center gap-2">
             <i class="bi bi-clock-history"></i> Early Leave
         </a>
+        <a href="{{ url_for('leave.my_approvals') }}" class="btn btn-outline-success btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-person-check"></i> Leave Approval
+        </a>
         {% if is_hr_manager %}
         <a href="{{ url_for('leave.pending') }}" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2">
             <i class="bi bi-hourglass-split"></i> Pending Approvals
