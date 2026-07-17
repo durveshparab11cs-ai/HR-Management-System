@@ -12,8 +12,8 @@ from datetime import datetime
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.blueprints.employees.repository import EmployeeRepository
 from app.constants.enums import UserRole
+from app.extensions.database import db
 from app.models.employee import Employee
 from app.models.notification import Notification
 from app.models.office_settings import OfficeSettings
@@ -23,7 +23,6 @@ from sqlalchemy import or_
 from . import foss_bp
 
 logger = logging.getLogger(__name__)
-_emp_repo = EmployeeRepository()
 
 
 def _foss_required():
