@@ -1,0 +1,80 @@
+{% extends 'layouts/base.html' %}
+{% block title %}FOSS Change History — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('FOSS', url_for('foss.index')), ('Change History', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="h4 fw-bold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Change History</h1>
+    <p class="text-muted small mb-0">All shift and office location changes made by FOSS.</p>
+  </div>
+  <a href="{{ url_for('foss.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.875rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Employee</th>
+          <th>Type</th>
+          <th>Old Value</th>
+          <th>New Value</th>
+          <th>Reason</th>
+          <th>Changed By</th>
+          <th>Date &amp; Time</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for log in logs %}
+      <tr>
+        <td class="ps-4 fw-medium small">
+          {{ log.employee.employee_code if log.employee else '—' }}<br>
+          <span class="text-muted">{{ log.employee.full_name if log.employee else '' }}</span>
+        </td>
+        <td>
+          {% if log.change_type == 'shift' %}
+          <span class="badge bg-primary-subtle text-primary">Shift</span>
+          {% else %}
+          <span class="badge bg-danger-subtle text-danger">Location</span>
+          {% endif %}
+        </td>
+        <td class="small text-muted">
+          {% if log.change_type == 'shift' %}
+            {{ log.old_shift_name or '—' }}<br>
+            {{ log.old_start_time or '' }}–{{ log.old_end_time or '' }}
+            {% if log.old_grace_minutes %} ({{ log.old_grace_minutes }}m grace){% endif %}
+          {% else %}
+            {{ log.old_office_name or '—' }}<br>
+            {{ log.old_latitude or '' }}, {{ log.old_longitude or '' }}
+            {% if log.old_radius %} r={{ log.old_radius }}m{% endif %}
+          {% endif %}
+        </td>
+        <td class="small fw-semibold">
+          {% if log.change_type == 'shift' %}
+            {{ log.new_shift_name or '—' }}<br>
+            {{ log.new_start_time or '' }}–{{ log.new_end_time or '' }}
+            {% if log.new_grace_minutes %} ({{ log.new_grace_minutes }}m grace){% endif %}
+          {% else %}
+            {{ log.new_office_name or '—' }}<br>
+            {{ log.new_latitude or '' }}, {{ log.new_longitude or '' }}
+            {% if log.new_radius %} r={{ log.new_radius }}m{% endif %}
+          {% endif %}
+        </td>
+        <td class="small text-muted">{{ log.reason or '—' }}</td>
+        <td class="small">{{ log.changed_by.full_name if log.changed_by else '—' }}</td>
+        <td class="small text-muted">{{ log.changed_at.strftime('%d %b %Y %H:%M') }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center py-5 text-muted">No changes recorded yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

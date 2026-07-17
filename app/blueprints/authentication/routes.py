@@ -37,6 +37,7 @@ def login():
                 success, message, user = _svc.attempt_login(
                     employee_code=login_form.employee_code.data,
                     password=login_form.password.data,
+                    department=login_form.department.data,
                     remember=login_form.remember_me.data,
                 )
                 if success:

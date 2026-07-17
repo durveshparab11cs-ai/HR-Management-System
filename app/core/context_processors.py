@@ -34,15 +34,10 @@ def inject_globals() -> dict:
 def inject_user_context() -> dict:
     """
     Inject authenticated user information into every template.
-
-    Provides convenience shortcuts so templates don't need to call
-    current_user.* for common checks.
-
-    Returns:
-        Dictionary with current_user details and role helpers.
     """
+    from flask import session  # noqa: PLC0415
     from flask_login import current_user  # noqa: PLC0415
-    from app.constants.enums import UserRole  # noqa: PLC0415
+    from app.constants.enums import UserRole, GLOBAL_ACCESS_DEPARTMENTS  # noqa: PLC0415
 
     context = {
         "is_authenticated": False,
@@ -50,6 +45,9 @@ def inject_user_context() -> dict:
         "is_admin": False,
         "is_hr_manager": False,
         "is_manager": False,
+        "is_foss": False,
+        "login_department": "",
+        "has_global_access": False,
         "unread_notification_count": 0,
     }
 
@@ -66,7 +64,20 @@ def inject_user_context() -> dict:
             context["is_manager"] = getattr(current_user, "role", None) in (
                 UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER
             )
-    except Exception:  # noqa: BLE001 — safe to swallow outside request context
+            dept = session.get("login_department", "")
+            if not dept:
+                emp = getattr(current_user, "employee", None)
+                dept = (emp.department or "") if emp else ""
+            context["login_department"] = dept
+            context["has_global_access"] = (
+                current_user.role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
+                or dept in GLOBAL_ACCESS_DEPARTMENTS
+            )
+            context["is_foss"] = (
+                dept == "FOSS"
+                or current_user.role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
+            )
+    except Exception:  # noqa: BLE001
         pass
 
     return context
@@ -103,6 +114,20 @@ def inject_navigation() -> dict:
             {"label": "Settings",    "icon": "bi-gear",          "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
             {"label": "Admin Panel", "icon": "bi-shield-lock",   "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
         ]
+
+        # Add FOSS Shift & Location Management for FOSS dept and Admin
+        from flask import session  # noqa: PLC0415
+        dept = session.get("login_department", "")
+        if not dept:
+            emp = getattr(current_user, "employee", None)
+            dept = (emp.department or "") if emp else ""
+        if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
+            all_items.insert(-1, {
+                "label": "FOSS — Shift & Location",
+                "icon": "bi-geo-fill",
+                "url_endpoint": "foss.index",
+                "roles": None,
+            })
 
         filtered = [
             item for item in all_items

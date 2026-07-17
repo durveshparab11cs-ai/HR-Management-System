@@ -92,10 +92,12 @@ def cancel(lr_id: int):
 @leave_bp.route("/pending")
 @login_required
 def pending():
+    from app.core.dept_filter import get_dept_filter  # noqa: PLC0415
     page = request.args.get("page", 1, type=int)
-    pagination = _repo.get_pending(page=page)
-    hd_pag = _repo.get_pending_halfdays(page=1, per_page=10)
-    el_pag = _repo.get_pending_earlyleaves(page=1, per_page=10)
+    dept_filter = get_dept_filter()
+    pagination = _repo.get_pending(page=page, department=dept_filter)
+    hd_pag = _repo.get_pending_halfdays(page=1, per_page=10, department=dept_filter)
+    el_pag = _repo.get_pending_earlyleaves(page=1, per_page=10, department=dept_filter)
     return render_template(
         "leave/pending.html", title="Pending Approvals",
         pagination=pagination,

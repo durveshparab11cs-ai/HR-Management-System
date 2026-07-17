@@ -175,6 +175,7 @@ def _init_extensions(app: Flask) -> None:
 
     # Import all models so Alembic discovers them for migrations
     from app.models import User  # noqa: F401, PLC0415
+    from app.models.shift_change_log import ShiftChangeLog  # noqa: F401, PLC0415
 
     app.logger.debug("Extensions initialized.")
 
@@ -478,8 +479,6 @@ def _migrate_add_columns(db) -> None:
         ('office_settings',   'min_gps_accuracy_metres', 'INTEGER'),
         # Base64 photo data — survives Render ephemeral filesystem redeploys
         ('attendance_photos', 'image_data',              'TEXT'),
-        # file_path must allow empty string for new records
-        # (already TEXT/VARCHAR, no migration needed)
     ]
 
     for table, col, col_type in new_cols:

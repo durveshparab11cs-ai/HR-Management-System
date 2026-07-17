@@ -151,6 +151,16 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
         </div>
 
         <div class="f-group">
+          <label class="f-label" for="l-dept">Department <span style="color:#c53030">*</span></label>
+          <div class="f-row {% if login_form.department.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-building"></i></span>
+            {{ login_form.department(id="l-dept", style="flex:1;border:none;outline:none;background:transparent;padding:10px 4px;font-size:.875rem;color:#0f1117;font-family:inherit") }}
+          </div>
+          {% for e in login_form.department.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="f-group">
           <div style="display:flex;justify-content:space-between;margin-bottom:5px">
             <label class="f-label" style="margin-bottom:0" for="l-pw">Password</label>
             <a href="{{ url_for('authentication.forgot_password') }}" class="forgot">Forgot password?</a>

@@ -8,8 +8,9 @@ Login and Registration now use Employee Code instead of Email.
 
 import re
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, StringField
+from wtforms import BooleanField, PasswordField, SelectField, StringField
 from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
+from app.constants.enums import DEPARTMENT_CHOICES
 
 
 def validate_password_strength(form, field):
@@ -38,7 +39,7 @@ def validate_password_strength(form, field):
 
 
 class LoginForm(FlaskForm):
-    """Login with Employee Code + Password."""
+    """Login with Employee Code + Password + Department."""
 
     employee_code = StringField(
         "Employee Code",
@@ -52,6 +53,12 @@ class LoginForm(FlaskForm):
             "autocomplete": "username",
             "class": "",
         },
+    )
+    department = SelectField(
+        "Department",
+        choices=[("", "— Select Your Department —")] + DEPARTMENT_CHOICES,
+        validators=[DataRequired(message="Please select your department.")],
+        default="",
     )
     password = PasswordField(
         "Password",

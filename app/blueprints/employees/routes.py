@@ -21,9 +21,12 @@ _repo = EmployeeRepository()
 @login_required
 @hr_required
 def index():
+    from app.core.dept_filter import get_dept_filter  # noqa: PLC0415
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "")
-    department = request.args.get("dept", "")
+    # Dept filter: if user has a forced department, override any URL param
+    forced_dept = get_dept_filter()
+    department = forced_dept if forced_dept else request.args.get("dept", "")
     branch = request.args.get("branch", "")
     pagination = _repo.get_all(page=page, per_page=25, search=search, department=department, branch=branch)
     departments = _repo.get_departments()
@@ -38,6 +41,7 @@ def index():
         branch=branch,
         departments=departments,
         branches=branches,
+        dept_locked=bool(forced_dept),
     )
 
 

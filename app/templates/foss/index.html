@@ -1,0 +1,232 @@
+{% extends 'layouts/base.html' %}
+{% block title %}FOSS — Shift & Location Management — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('FOSS',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+.search-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;box-shadow:0 2px 8px rgba(0,0,0,.05);padding:28px}
+.emp-card{background:#fff;border-radius:16px;border:1px solid #e8edf2;box-shadow:0 2px 8px rgba(0,0,0,.05);display:none}
+.result-row{padding:10px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;transition:background .15s}
+.result-row:hover{background:#f0f9ff}
+.result-row .name{font-weight:600;font-size:.9rem}
+.result-row .meta{font-size:.75rem;color:#64748b}
+#map-loc{height:280px;border-radius:10px;border:1px solid #e2e8f0}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h4 fw-bold mb-0"><i class="bi bi-geo-fill me-2 text-primary"></i>FOSS — Shift & Location Management</h1>
+    <p class="text-muted small mb-0">Search an employee to update their shift or office location.</p>
+  </div>
+  <a href="{{ url_for('foss.history') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-clock-history me-1"></i>Change History
+  </a>
+</div>
+
+<div class="search-card mb-4">
+  <label class="form-label fw-semibold">Search Employee</label>
+  <div class="input-group">
+    <span class="input-group-text"><i class="bi bi-search"></i></span>
+    <input type="text" id="emp-search" class="form-control"
+           placeholder="Type employee code or name…" autocomplete="off">
+  </div>
+  <div id="search-results" class="mt-2 border rounded-3 overflow-hidden" style="display:none;max-height:260px;overflow-y:auto"></div>
+</div>
+
+<div class="emp-card" id="emp-card">
+  <div class="px-4 py-3 border-bottom d-flex align-items-center justify-content-between">
+    <div>
+      <h6 class="fw-bold mb-0" id="ec-name"></h6>
+      <div class="text-muted small"><span id="ec-code"></span> · <span id="ec-dept"></span></div>
+    </div>
+    <span class="badge bg-primary-subtle text-primary" id="ec-shift-badge"></span>
+  </div>
+
+  <div class="row g-0">
+    <!-- Shift Editor -->
+    <div class="col-lg-6 p-4 border-end">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-clock me-2 text-primary"></i>Shift Settings</h6>
+      <form id="shift-form" method="POST">
+        <input type="hidden" id="shift-emp-id" name="emp_id">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Shift Name</label>
+          <input type="text" name="shift_name" id="sf-name" class="form-control form-control-sm" required placeholder="e.g. Morning Shift">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Start Time</label>
+            <input type="time" name="start_time" id="sf-start" class="form-control form-control-sm" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">End Time</label>
+            <input type="time" name="end_time" id="sf-end" class="form-control form-control-sm" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Grace Period (minutes)</label>
+          <input type="number" name="grace_minutes" id="sf-grace" class="form-control form-control-sm" min="0" max="120" placeholder="15">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Effective Date</label>
+          <input type="date" name="effective_date" id="sf-date" class="form-control form-control-sm">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Reason</label>
+          <textarea name="reason" id="sf-reason" class="form-control form-control-sm" rows="2" placeholder="Optional reason for change"></textarea>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-check2 me-1"></i>Save Shift
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Office Location Editor -->
+    <div class="col-lg-6 p-4">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-geo-alt me-2 text-danger"></i>Office Location</h6>
+      <form id="loc-form" method="POST">
+        <input type="hidden" id="loc-emp-id" name="emp_id">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Office Name</label>
+          <input type="text" name="office_name" id="lf-name" class="form-control form-control-sm" required>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Latitude</label>
+            <input type="text" name="latitude" id="lf-lat" class="form-control form-control-sm" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Longitude</label>
+            <input type="text" name="longitude" id="lf-lon" class="form-control form-control-sm" required>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Allowed Radius (m)</label>
+          <input type="number" name="radius" id="lf-radius" class="form-control form-control-sm" min="10" max="5000" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Address</label>
+          <input type="text" name="address" id="lf-address" class="form-control form-control-sm" placeholder="Optional">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Reason</label>
+          <textarea name="reason" id="lf-reason" class="form-control form-control-sm" rows="2"></textarea>
+        </div>
+        <!-- Interactive map -->
+        <div id="map-loc" class="mb-3"></div>
+        <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Click on the map to set coordinates.</p>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-danger btn-sm">
+            <i class="bi bi-geo-alt-fill me-1"></i>Save Location
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+let map = null, marker = null, circle = null;
+let selectedEmpId = null;
+
+// Search
+let searchTimer = null;
+document.getElementById('emp-search').addEventListener('input', function () {
+  clearTimeout(searchTimer);
+  const q = this.value.trim();
+  const box = document.getElementById('search-results');
+  if (q.length < 2) { box.style.display = 'none'; return; }
+  searchTimer = setTimeout(async () => {
+    const res = await fetch('/foss/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (!data.employees.length) { box.style.display = 'none'; return; }
+    box.innerHTML = data.employees.map(e =>
+      `<div class="result-row" onclick="selectEmployee(${JSON.stringify(e).replace(/"/g,'&quot;')})">
+        <div class="name">${e.name}</div>
+        <div class="meta">${e.code} · ${e.department} · Shift: ${e.shift_name} · Office: ${e.office_name}</div>
+      </div>`
+    ).join('');
+    box.style.display = '';
+  }, 350);
+});
+
+function selectEmployee(e) {
+  selectedEmpId = e.id;
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('emp-search').value = e.name + ' (' + e.code + ')';
+
+  // Update card header
+  document.getElementById('ec-name').textContent = e.name;
+  document.getElementById('ec-code').textContent = e.code;
+  document.getElementById('ec-dept').textContent = e.department;
+  document.getElementById('ec-shift-badge').textContent = e.shift_name;
+
+  // Prefill shift form
+  document.getElementById('shift-form').action = '/foss/employee/' + e.id + '/save-shift';
+  document.getElementById('sf-name').value = e.shift_name !== '—' ? e.shift_name : '';
+  document.getElementById('sf-start').value = e.start_time !== '—' ? e.start_time : '';
+  document.getElementById('sf-end').value = e.end_time !== '—' ? e.end_time : '';
+  document.getElementById('sf-grace').value = e.grace_min || 15;
+  document.getElementById('sf-date').value = new Date().toISOString().split('T')[0];
+
+  // Prefill location form
+  document.getElementById('loc-form').action = '/foss/employee/' + e.id + '/save-location';
+  document.getElementById('lf-name').value = e.office_name !== '—' ? e.office_name : '';
+  document.getElementById('lf-lat').value = e.office_lat || '';
+  document.getElementById('lf-lon').value = e.office_lon || '';
+  document.getElementById('lf-radius').value = e.radius || 50;
+
+  // Show card
+  document.getElementById('emp-card').style.display = '';
+
+  // Init map
+  initMap(e.office_lat || 19.076, e.office_lon || 72.877, e.radius || 50);
+}
+
+function clearSelection() {
+  document.getElementById('emp-card').style.display = 'none';
+  document.getElementById('emp-search').value = '';
+}
+
+function initMap(lat, lon, radius) {
+  if (!map) {
+    map = L.map('map-loc').setView([lat, lon], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap'
+    }).addTo(map);
+    map.on('click', function (e) {
+      const ll = e.latlng;
+      document.getElementById('lf-lat').value = ll.lat.toFixed(7);
+      document.getElementById('lf-lon').value = ll.lng.toFixed(7);
+      updateMapMarker(ll.lat, ll.lng, parseInt(document.getElementById('lf-radius').value) || 50);
+    });
+    document.getElementById('lf-radius').addEventListener('input', function () {
+      const r = parseInt(this.value) || 50;
+      const lat = parseFloat(document.getElementById('lf-lat').value);
+      const lon = parseFloat(document.getElementById('lf-lon').value);
+      if (!isNaN(lat) && !isNaN(lon)) updateMapMarker(lat, lon, r);
+    });
+  }
+  updateMapMarker(lat, lon, radius);
+  map.setView([lat, lon], 16);
+  setTimeout(() => map.invalidateSize(), 200);
+}
+
+function updateMapMarker(lat, lon, radius) {
+  if (marker) { map.removeLayer(marker); map.removeLayer(circle); }
+  marker = L.marker([lat, lon]).addTo(map).bindPopup('Office Location').openPopup();
+  circle = L.circle([lat, lon], { radius, color: '#1a3c6e', fillOpacity: 0.1 }).addTo(map);
+}
+</script>
+{% endblock %}

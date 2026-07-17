@@ -173,3 +173,36 @@ class AuditAction(str, enum.Enum):
     IMPORT = "import"
     APPROVE = "approve"
     REJECT = "reject"
+
+
+class Department(str, enum.Enum):
+    """
+    Canonical department list used for login validation and access control.
+    """
+    CEO           = "CEO"
+    PROPRIETOR    = "Proprietor"
+    AGM           = "AGM"
+    OPERATIONS    = "Operations"
+    BDM           = "BDM"
+    CLAIM         = "Claim"
+    MIS           = "MIS"
+    DATA_ANALYTICS = "Data Analytics"
+    HR            = "HR"
+    ADMIN         = "Admin"
+    ACCOUNTS      = "Accounts"
+    IT_HARDWARE   = "IT Hardware"
+    IT_SOFTWARE   = "IT Software"
+    FOSS          = "FOSS"
+    SOCIAL_MEDIA  = "Social Media"
+
+
+# Departments that can see ALL departments (no filter applied)
+GLOBAL_ACCESS_DEPARTMENTS = {
+    Department.CEO.value,
+    Department.PROPRIETOR.value,
+    Department.AGM.value,
+    Department.ADMIN.value,
+}
+
+# Department → label list for the login dropdown
+DEPARTMENT_CHOICES = [(d.value, d.value) for d in Department]

@@ -25,10 +25,8 @@ from app.blueprints.notifications import notifications_bp
 from app.blueprints.settings import settings_bp
 from app.blueprints.admin import admin_bp
 from app.blueprints.api import api_bp
+from app.blueprints.foss import foss_bp
 
-# Ordered list of all blueprints to register.
-# Tuples: (blueprint_instance, optional_url_prefix_override)
-# Pass None to use the blueprint's own url_prefix.
 _blueprints = [
     (authentication_bp, None),
     (dashboard_bp, None),
@@ -42,6 +40,7 @@ _blueprints = [
     (settings_bp, None),
     (admin_bp, None),
     (api_bp, None),
+    (foss_bp, None),
 ]
 
 

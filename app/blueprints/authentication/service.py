@@ -39,17 +39,23 @@ class AuthService:
         self,
         employee_code: str,
         password: str,
+        department: str = "",
         remember: bool = False,
     ) -> Tuple[bool, str, Optional[User]]:
         """
-        Authenticate using Employee Code + Password.
+        Authenticate using Employee Code + Password + Department.
 
         1. Look up User via Employee.employee_code
         2. Check account status / lock
         3. Verify password
-        4. Record login history
-        5. Call Flask-Login login_user()
+        4. Validate department matches employee's assigned department
+        5. Store department in session
+        6. Record login history
+        7. Call Flask-Login login_user()
         """
+        from flask import session  # noqa: PLC0415
+        from app.constants.enums import GLOBAL_ACCESS_DEPARTMENTS  # noqa: PLC0415
+
         ip = self._get_ip()
         ua = request.user_agent.string if request.user_agent else None
         code = employee_code.strip().upper()
@@ -87,13 +93,43 @@ class AuthService:
                 return False, "Account locked due to too many failed attempts. Contact HR.", None
             return False, f"Incorrect password. {remaining} attempt(s) remaining.", None
 
-        # Success
+        # ── Department validation ─────────────────────────────────────
+        # Super admin and Admin bypass department check
+        admin_roles = (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
+        if user.role not in admin_roles and department:
+            emp = getattr(user, "employee", None)
+            emp_dept = (emp.department or "").strip() if emp else ""
+            selected_dept = department.strip()
+
+            if emp_dept and emp_dept.lower() != selected_dept.lower():
+                auth_repo.record_login(user.id, code, False, ip, ua, "wrong_department")
+                logger.warning(
+                    "LOGIN_FAILED | user_id=%s | reason=wrong_department"
+                    " | selected=%s | assigned=%s | ip=%s",
+                    user.id, selected_dept, emp_dept, ip,
+                )
+                return (
+                    False,
+                    "You are not authorized to log in under the selected department.",
+                    None,
+                )
+
+        # ── Success ───────────────────────────────────────────────────
         user.record_successful_login(ip_address=ip)
         auth_repo.update_user(user)
         auth_repo.record_login(user.id, code, True, ip, ua)
         login_user(user, remember=remember)
-        logger.info("LOGIN_SUCCESS | user_id=%s | code=%s | role=%s | ip=%s",
-                    user.id, code, user.role, ip)
+
+        # Store department in session for access-control filtering
+        emp = getattr(user, "employee", None)
+        assigned_dept = (emp.department or "").strip() if emp else ""
+        # Admin/Super-Admin with global access store the selected dept or their own
+        session["login_department"] = assigned_dept or department or ""
+
+        logger.info(
+            "LOGIN_SUCCESS | user_id=%s | code=%s | role=%s | dept=%s | ip=%s",
+            user.id, code, user.role, session["login_department"], ip,
+        )
         return True, f"Welcome back, {user.first_name}!", user
 
     # ── Registration ──────────────────────────────────────────────────
@@ -257,6 +293,8 @@ class AuthService:
     # ── Logout ────────────────────────────────────────────────────────
 
     def logout_current_user(self) -> None:
+        from flask import session  # noqa: PLC0415
+        session.pop("login_department", None)
         logout_user()
 
     # ── Dashboard URL ─────────────────────────────────────────────────
