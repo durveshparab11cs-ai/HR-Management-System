@@ -358,35 +358,132 @@
       <thead class="table-light">
         <tr>
           <th class="ps-4">Date</th>
-          <th>Check In</th>
-          <th>Check Out</th>
-          <th>Hours</th>
-          <th>Status</th>
-          <th>Late</th>
+          <th>Gender</th>
+          <th>Name</th>
+          <th>Working Status</th>
+          <th>Working Location</th>
+          <th>Full Shift Timing</th>
+          <th>In Time Shift Window</th>
+          <th>In Time</th>
+          <th>Out Time</th>
+          <th>Working Hours</th>
+          <th>Overtime</th>
+          <th>On Time / Late</th>
+          <th class="text-center">Proof Photo</th>
         </tr>
       </thead>
       <tbody>
       {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary','work_from_home':'primary'} %}
-      {% for att in history.items %}
+      {% for att, photo in history.items %}
       <tr>
-        <td class="ps-4 fw-medium">
+        <!-- Date -->
+        <td class="ps-4 fw-medium small">
           {{ att.date.strftime('%d %b %Y') }}
           <div class="text-muted" style="font-size:.72rem">{{ att.date.strftime('%A') }}</div>
         </td>
-        <td><span class="utc-to-ist">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_in_time else '' }}</span>{% if not att.check_in_time %}—{% endif %}</td>
-        <td><span class="utc-to-ist">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_out_time else '' }}</span>{% if not att.check_out_time %}—{% endif %}</td>
-        <td class="fw-semibold">{{ att.working_hours_display }}</td>
+
+        <!-- Gender -->
+        <td class="small text-muted">
+          {{ employee.gender.title() if employee.gender else '—' }}
+        </td>
+
+        <!-- Name -->
+        <td class="small fw-semibold">{{ employee.full_name }}</td>
+
+        <!-- Working Status -->
         <td>
           <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
             {{ att.status.replace('_',' ').title() }}
           </span>
+          {% if att.is_half_day %}
+          <span class="badge bg-warning-subtle text-warning small ms-1">Half</span>
+          {% endif %}
         </td>
-        <td class="{% if att.is_late %}text-warning fw-semibold{% else %}text-muted{% endif %}">
-          {{ (att.late_minutes | fmt_minutes) if att.is_late else '—' }}
+
+        <!-- Working Location -->
+        <td class="small">
+          {% if att.check_in_latitude and att.check_in_longitude %}
+          <span class="text-success fw-semibold" style="font-size:.72rem">
+            <i class="bi bi-geo-alt-fill me-1"></i>Office
+          </span>
+          <div class="text-muted" style="font-size:.67rem">
+            {{ "%.4f"|format(att.check_in_latitude) }},
+            {{ "%.4f"|format(att.check_in_longitude) }}
+          </div>
+          {% if att.check_in_accuracy %}
+          <div class="text-muted" style="font-size:.67rem">±{{ att.check_in_accuracy|int }}m</div>
+          {% endif %}
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+
+        <!-- Full Shift Timing -->
+        <td class="small text-muted">
+          {% if office %}
+            {{ office.office_start_time.strftime('%I:%M %p') }} –
+            {{ office.office_end_time.strftime('%I:%M %p') }}
+          {% else %}—{% endif %}
+        </td>
+
+        <!-- In Time Shift Window -->
+        <td class="small text-muted">
+          {% if office %}
+            {{ office.office_start_time.strftime('%I:%M %p') }} + {{ office.grace_period_minutes }}m grace
+          {% else %}—{% endif %}
+        </td>
+
+        <!-- In Time -->
+        <td class="small">
+          {% if att.check_in_time %}
+          <span class="utc-to-ist fw-semibold">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+
+        <!-- Out Time -->
+        <td class="small">
+          {% if att.check_out_time %}
+          <span class="utc-to-ist fw-semibold">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+
+        <!-- Working Hours -->
+        <td class="small fw-semibold">{{ att.working_hours_display }}</td>
+
+        <!-- Overtime -->
+        <td class="small {% if att.overtime_minutes %}text-success fw-semibold{% else %}text-muted{% endif %}">
+          {% if att.overtime_minutes %}+{{ att.overtime_minutes // 60 }}h {{ att.overtime_minutes % 60 }}m
+          {% else %}—{% endif %}
+        </td>
+
+        <!-- On Time / Late -->
+        <td class="small">
+          {% if att.is_late %}
+          <span class="badge bg-warning-subtle text-warning fw-semibold">
+            <i class="bi bi-clock me-1"></i>Late {{ att.late_minutes | fmt_minutes }}
+          </span>
+          {% elif att.check_in_time %}
+          <span class="badge bg-success-subtle text-success fw-semibold">
+            <i class="bi bi-check-circle me-1"></i>On Time
+          </span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+
+        <!-- Proof Photo -->
+        <td class="text-center">
+          {% if photo and photo.file_path %}
+          <a href="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
+             target="_blank" title="View proof photo">
+            <img src="{{ url_for('attendance.serve_photo', filename=photo.file_path) }}"
+                 alt="Proof photo" class="rounded-2 border"
+                 style="width:44px;height:44px;object-fit:cover;cursor:pointer;
+                        transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.12)"
+                 onmouseover="this.style.transform='scale(1.15)'"
+                 onmouseout="this.style.transform='scale(1)'">
+          </a>
+          {% else %}<span class="text-muted" style="font-size:.75rem">—</span>{% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="text-center py-5 text-muted">No attendance records yet.</td></tr>
+      <tr><td colspan="13" class="text-center py-5 text-muted">No attendance records yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>

@@ -42,7 +42,7 @@ def index():
 
     status = _svc.get_today_status(employee)
     page   = request.args.get("page", 1, type=int)
-    history = _repo.get_history(employee.id, page=page, per_page=30)
+    history = _repo.get_history_with_photos(employee.id, page=page, per_page=30)
     office = status.get("office")
 
     return render_template(
