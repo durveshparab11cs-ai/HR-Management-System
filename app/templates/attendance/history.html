@@ -378,22 +378,16 @@
     'use strict';
 
     // ── Proof photo modal ─────────────────────────────────────────────
-    window.showProofPhoto = function (src, dateLabel) {
-        document.getElementById('proofPhotoImg').src = src;
-        document.getElementById('proofPhotoModalLabel').textContent = 'Proof Photo — ' + (dateLabel || '');
-        new bootstrap.Modal(document.getElementById('proofPhotoModal')).show();
-    };
-
-    // Thumbnail click — use event delegation to avoid inline onclick with data URLs
-    document.addEventListener('click', function (e) {
-        const thumb = e.target.closest('.proof-photo-thumb');
-        if (!thumb) return;
-        const src       = thumb.src;
-        const dateLabel = thumb.dataset.date || '';
-        document.getElementById('proofPhotoImg').src = src;
-        document.getElementById('proofPhotoModalLabel').textContent =
-            'Proof Photo' + (dateLabel ? ' — ' + dateLabel : '');
-        new bootstrap.Modal(document.getElementById('proofPhotoModal')).show();
+    // Bind directly to each thumbnail after DOM ready — avoids Bootstrap
+    // instance conflicts from creating new Modal() on every click.
+    document.querySelectorAll('.proof-photo-thumb').forEach(function (img) {
+        img.addEventListener('click', function () {
+            var modalEl = document.getElementById('proofPhotoModal');
+            document.getElementById('proofPhotoImg').src = this.src;
+            document.getElementById('proofPhotoModalLabel').textContent =
+                'Proof Photo' + (this.dataset.date ? ' \u2014 ' + this.dataset.date : '');
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        });
     });
 
     // ── UTC → IST converter ───────────────────────────────────────────
