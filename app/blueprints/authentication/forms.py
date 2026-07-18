@@ -9,7 +9,7 @@ Login and Registration now use Employee Code instead of Email.
 import re
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, SelectField, StringField
-from wtforms.validators import DataRequired, EqualTo, Length, ValidationError
+from wtforms.validators import DataRequired, EqualTo, Length, Optional as Opt, ValidationError
 from app.constants.enums import DEPARTMENT_CHOICES
 
 
@@ -57,7 +57,7 @@ class LoginForm(FlaskForm):
     department = SelectField(
         "Department",
         choices=[("", "— Select Your Department —")] + DEPARTMENT_CHOICES,
-        validators=[DataRequired(message="Please select your department.")],
+        validators=[Opt()],   # Optional — validated in service so Super Admin can bypass
         default="",
     )
     password = PasswordField(
