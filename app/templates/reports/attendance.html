@@ -4,40 +4,50 @@
 {% block page_header %}{% endblock %}
 {% block extra_css %}
 <style>
-.date-group-header {
-  background: linear-gradient(135deg,#1a3c6e 0%,#2a5298 100%);
-  color:#fff; font-weight:700; font-size:.8rem;
-  padding:8px 16px; letter-spacing:.04em;
-}
-.date-group-header .day-badge {
-  background:rgba(255,255,255,.18); border-radius:4px;
-  padding:1px 8px; font-size:.72rem; margin-left:8px; font-weight:600;
-}
-.status-badge-rpt {
-  display:inline-block; padding:2px 9px; border-radius:50px;
-  font-size:.72rem; font-weight:700;
-}
-.st-present  { background:#d1fae5; color:#065f46 }
-.st-absent   { background:#fee2e2; color:#991b1b }
-.st-half_day { background:#fef3c7; color:#92400e }
-.st-on_leave { background:#dbeafe; color:#1e40af }
-.st-holiday  { background:#f3e8ff; color:#6b21a8 }
-.st-weekend  { background:#f1f5f9; color:#475569 }
-.late-pill   { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; border-radius:50px; padding:1px 7px; font-size:.68rem; font-weight:700 }
 .view-toggle { display:inline-flex; border-radius:8px; overflow:hidden; border:1.5px solid #1a3c6e }
 .view-toggle a { padding:5px 16px; font-size:.8rem; font-weight:600; text-decoration:none; color:#1a3c6e; background:#fff; transition:all .15s }
 .view-toggle a.active { background:#1a3c6e; color:#fff }
+.date-header {
+  background:linear-gradient(135deg,#1a3c6e 0%,#2a5298 100%);
+  color:#fff; padding:9px 16px; display:flex; align-items:center; gap:10px;
+  font-weight:700; font-size:.82rem; letter-spacing:.03em;
+}
+.date-header .day-pill {
+  background:rgba(255,255,255,.2); border-radius:4px;
+  padding:1px 10px; font-size:.72rem; font-weight:600;
+}
+.date-header .rec-count { margin-left:auto; font-size:.72rem; opacity:.8 }
+.att-table { font-size:.83rem; width:100%; table-layout:fixed }
+.att-table th { background:#f8fafc; font-weight:600; font-size:.75rem; padding:8px 10px; white-space:nowrap; border-bottom:2px solid #e2e8f0 }
+.att-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; vertical-align:middle }
+.att-table tr:last-child td { border-bottom:none }
+/* Column widths */
+.att-table .col-emp  { width:22% }
+.att-table .col-dept { width:15% }
+.att-table .col-desig{ width:14% }
+.att-table .col-ci   { width:9% }
+.att-table .col-co   { width:9% }
+.att-table .col-hrs  { width:8% }
+.att-table .col-st   { width:11% }
+.att-table .col-late { width:12% }
+.st-badge { display:inline-block; padding:2px 9px; border-radius:50px; font-size:.7rem; font-weight:700; white-space:nowrap }
+.st-present   { background:#d1fae5; color:#065f46 }
+.st-absent    { background:#fee2e2; color:#991b1b }
+.st-half_day  { background:#fef3c7; color:#92400e }
+.st-on_leave  { background:#dbeafe; color:#1e40af }
+.st-holiday   { background:#f3e8ff; color:#6b21a8 }
+.st-weekend   { background:#f1f5f9; color:#475569 }
+.late-pill { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; border-radius:50px; padding:1px 8px; font-size:.68rem; font-weight:700; white-space:nowrap }
 </style>
 {% endblock %}
 {% block content %}
 
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
   <div>
     <h1 class="h4 fw-bold mb-0">Attendance Report</h1>
     <p class="text-muted small mb-0">{{ start.strftime('%d %b %Y') }} – {{ end.strftime('%d %b %Y') }}</p>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
-    <!-- View toggle -->
     <div class="view-toggle">
       <a href="{{ url_for('reports.attendance_report', start=start.isoformat(), end=end.isoformat(), dept=department, view='datewise') }}"
          class="{% if view=='datewise' %}active{% endif %}">
@@ -48,7 +58,6 @@
         <i class="bi bi-person-lines-fill me-1"></i>Summary
       </a>
     </div>
-    <!-- Export buttons -->
     <a href="{{ url_for('reports.export_attendance_datewise', start=start.isoformat(), end=end.isoformat(), dept=department) }}"
        class="btn btn-sm btn-success">
       <i class="bi bi-file-earmark-excel-fill me-1"></i>Date-wise Excel
@@ -89,123 +98,92 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     DATE-WISE VIEW — grouped by date, each row = one employee record
-════════════════════════════════════════════════════ -->
+<!-- ═══════════════ DATE-WISE VIEW ═══════════════════════════════════ -->
 {% if view == 'datewise' %}
 
-{% if not datewise_data %}
+{% if not grouped %}
 <div class="card border-0 shadow-sm">
   <div class="card-body text-center py-5 text-muted">
     <i class="bi bi-calendar-x" style="font-size:2.5rem;opacity:.3;display:block;margin-bottom:10px"></i>
     No attendance records found for the selected period.
   </div>
 </div>
+
 {% else %}
+{% for date_key, group in grouped.items() %}
+<div class="card border-0 shadow-sm mb-3" style="overflow:hidden">
 
-{# Group records by date #}
-{% set current_date = namespace(val='') %}
-{% set rec_count = namespace(val=0) %}
+  <!-- Date group header -->
+  <div class="date-header">
+    <i class="bi bi-calendar3"></i>
+    <span>{{ date_key }}</span>
+    <span class="day-pill">{{ group.day }}</span>
+    <span class="rec-count">{{ group.records|length }} record{{ 's' if group.records|length != 1 else '' }}</span>
+  </div>
 
-{% for rec in datewise_data %}
-  {% if rec.date != current_date.val %}
-    {# Close previous date group table if not first #}
-    {% if current_date.val %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-    {% set current_date.val = rec.date %}
-    {# Count records for this date #}
-    {% set ns = namespace(cnt=0) %}
-    {% for r2 in datewise_data if r2.date == rec.date %}{% set ns.cnt = ns.cnt + 1 %}{% endfor %}
-    <!-- Date group header -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="date-group-header d-flex align-items-center gap-3">
-        <i class="bi bi-calendar3"></i>
-        <span>{{ rec.date }}</span>
-        <span class="day-badge">{{ rec.day }}</span>
-        <span style="margin-left:auto;font-size:.72rem;opacity:.75">{{ ns.cnt }} record{{ 's' if ns.cnt != 1 else '' }}</span>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
-            <thead class="table-light">
-              <tr style="font-size:.75rem">
-                <th class="ps-3" style="min-width:180px">Employee</th>
-                <th style="min-width:110px">Department</th>
-                <th style="min-width:90px">Designation</th>
-                <th class="text-center" style="min-width:75px">Check In</th>
-                <th class="text-center" style="min-width:75px">Check Out</th>
-                <th class="text-center" style="min-width:70px">Hours</th>
-                <th class="text-center" style="min-width:90px">Status</th>
-                <th class="text-center" style="min-width:80px">Late</th>
-              </tr>
-            </thead>
-            <tbody>
-  {% endif %}
-
-              <tr>
-                <td class="ps-3">
-                  <div class="fw-semibold small">{{ rec.emp_name }}</div>
-                  <div class="text-muted" style="font-size:.7rem">{{ rec.emp_code }}</div>
-                </td>
-                <td class="small text-muted">{{ rec.department }}</td>
-                <td class="small text-muted">{{ rec.designation }}</td>
-                <td class="text-center small fw-semibold {% if rec.check_in != '—' %}text-success{% else %}text-muted{% endif %}">
-                  {{ rec.check_in }}
-                </td>
-                <td class="text-center small fw-semibold {% if rec.check_out != '—' %}text-danger{% else %}text-muted{% endif %}">
-                  {{ rec.check_out }}
-                </td>
-                <td class="text-center small fw-semibold">
-                  {% if rec.working_hours > 0 %}{{ rec.working_hours }}h{% else %}<span class="text-muted">—</span>{% endif %}
-                </td>
-                <td class="text-center">
-                  {% set st = rec.status.lower().replace(' ','_') %}
-                  <span class="status-badge-rpt st-{{ st }}">{{ rec.status }}</span>
-                </td>
-                <td class="text-center">
-                  {% if rec.is_late == 'Yes' %}
-                  <span class="late-pill"><i class="bi bi-clock me-1"></i>{{ rec.late_minutes }}m</span>
-                  {% else %}
-                  <span class="text-muted small">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-
-{% endfor %}
-
-{# Close last date group #}
-{% if current_date.val %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <!-- Records table for this date -->
+  <div class="table-responsive">
+    <table class="att-table">
+      <thead>
+        <tr>
+          <th class="col-emp ps-3">Employee</th>
+          <th class="col-dept">Department</th>
+          <th class="col-desig">Designation</th>
+          <th class="col-ci text-center">Check In (IST)</th>
+          <th class="col-co text-center">Check Out (IST)</th>
+          <th class="col-hrs text-center">Hours</th>
+          <th class="col-st text-center">Status</th>
+          <th class="col-late text-center">Late</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for rec in group.records %}
+      <tr>
+        <td class="ps-3">
+          <div class="fw-semibold">{{ rec.emp_name }}</div>
+          <div class="text-muted" style="font-size:.7rem">{{ rec.emp_code }}</div>
+        </td>
+        <td class="text-muted small">{{ rec.department }}</td>
+        <td class="text-muted small">{{ rec.designation }}</td>
+        <td class="text-center fw-semibold {% if rec.check_in != '—' %}text-success{% else %}text-muted{% endif %}">
+          {{ rec.check_in }}
+        </td>
+        <td class="text-center fw-semibold {% if rec.check_out != '—' %}text-danger{% else %}text-muted{% endif %}">
+          {{ rec.check_out }}
+        </td>
+        <td class="text-center fw-semibold small">
+          {% if rec.working_hours > 0 %}{{ rec.working_hours }}h{% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-center">
+          {% set st = rec.status.lower().replace(' ','_') %}
+          <span class="st-badge st-{{ st }}">{{ rec.status }}</span>
+        </td>
+        <td class="text-center">
+          {% if rec.is_late == 'Yes' %}
+          <span class="late-pill"><i class="bi bi-clock me-1"></i>{{ rec.late_minutes }}m late</span>
+          {% else %}
+          <span class="text-muted small">On time</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
+{% endfor %}
+{% endif %}
 {% endif %}
 
-{% endif %}
-{# END datewise_data check #}
-
-{% endif %}
-{# END datewise view #}
-
-
-<!-- ═══════════════════════════════════════════════════
-     SUMMARY VIEW — one row per employee with totals
-════════════════════════════════════════════════════ -->
+<!-- ═══════════════ SUMMARY VIEW ══════════════════════════════════════ -->
 {% if view == 'summary' %}
 <div class="card border-0 shadow-sm">
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle" style="font-size:.86rem">
       <thead class="table-light">
         <tr>
-          <th class="ps-4">Employee</th><th>Department</th>
+          <th class="ps-4">Employee</th>
+          <th>Department</th>
           <th class="text-center text-success">Present</th>
           <th class="text-center text-danger">Absent</th>
           <th class="text-center text-warning">Half Day</th>

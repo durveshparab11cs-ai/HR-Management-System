@@ -31,20 +31,31 @@ def attendance_report():
     start_str  = request.args.get("start", date.today().replace(day=1).isoformat())
     end_str    = request.args.get("end",   date.today().isoformat())
     department = request.args.get("dept",  "")
-    view       = request.args.get("view",  "datewise")  # "datewise" | "summary"
+    view       = request.args.get("view",  "datewise")
     try:
         start = date.fromisoformat(start_str)
         end   = date.fromisoformat(end_str)
     except ValueError:
         start = date.today().replace(day=1)
         end   = date.today()
-    summary_data = _svc.attendance_summary(start, end, department=department)
-    datewise_data = _svc.attendance_datewise(start, end, department=department)
+
+    summary_data  = _svc.attendance_summary(start, end, department=department)
+    datewise_flat = _svc.attendance_datewise(start, end, department=department)
+
+    # Group flat list by date for clean Jinja rendering
+    from collections import OrderedDict  # noqa: PLC0415
+    grouped = OrderedDict()
+    for rec in datewise_flat:
+        key = rec["date"]
+        if key not in grouped:
+            grouped[key] = {"day": rec["day"], "records": []}
+        grouped[key]["records"].append(rec)
+
     depts = _svc.get_departments()
     return render_template(
         "reports/attendance.html", title="Attendance Report",
         data=summary_data,
-        datewise_data=datewise_data,
+        grouped=grouped,
         start=start, end=end,
         department=department,
         departments=depts,
