@@ -73,6 +73,68 @@ class ReportService:
             })
         return results
 
+    def attendance_datewise(
+        self,
+        start: date,
+        end: date,
+        department: str = "",
+    ) -> list:
+        """
+        Return one dict per attendance record (one row per employee per date).
+        Sorted by date ASC, then employee code ASC.
+        Used for the date-wise Excel export.
+        """
+        import pytz  # noqa: PLC0415
+        IST = pytz.timezone("Asia/Kolkata")
+
+        q = (
+            db.session.query(Attendance, Employee, User)
+            .join(Employee, Attendance.employee_id == Employee.id)
+            .join(User, Employee.user_id == User.id)
+            .filter(
+                Attendance.date >= start,
+                Attendance.date <= end,
+                Attendance.is_deleted == False,
+                Employee.is_deleted == False,
+            )
+        )
+        if department:
+            q = q.filter(Employee.department == department)
+
+        rows = q.order_by(Attendance.date.asc(), Employee.employee_code.asc()).all()
+
+        def fmt_time(dt):
+            if not dt:
+                return "—"
+            try:
+                if dt.tzinfo is None:
+                    import pytz as _p  # noqa: PLC0415
+                    dt = _p.utc.localize(dt)
+                return dt.astimezone(IST).strftime("%H:%M")
+            except Exception:
+                return dt.strftime("%H:%M")
+
+        result = []
+        for att, emp, usr in rows:
+            working_h = round((att.working_minutes or 0) / 60, 2)
+            result.append({
+                "date":          att.date.strftime("%d-%m-%Y"),
+                "day":           att.date.strftime("%A"),
+                "emp_code":      emp.employee_code,
+                "emp_name":      usr.full_name,
+                "department":    emp.department or "—",
+                "designation":   emp.designation or "—",
+                "check_in":      fmt_time(att.check_in_time),
+                "check_out":     fmt_time(att.check_out_time),
+                "working_hours": working_h,
+                "status":        att.status.replace("_", " ").title(),
+                "is_late":       "Yes" if att.is_late else "No",
+                "late_minutes":  att.late_minutes or 0,
+                "overtime_min":  att.overtime_minutes or 0,
+                "location":      f"{att.check_in_latitude:.4f}, {att.check_in_longitude:.4f}" if att.check_in_latitude else "—",
+            })
+        return result
+
     def daily_attendance(self, for_date: date) -> list:
         rows = (
             db.session.query(Employee, User, Attendance)

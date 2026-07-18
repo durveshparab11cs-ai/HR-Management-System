@@ -9,8 +9,12 @@
     <h1 class="h4 fw-bold mb-0">Attendance Report</h1>
     <p class="text-muted small mb-0">{{ start.strftime('%d %b %Y') }} – {{ end.strftime('%d %b %Y') }}</p>
   </div>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('reports.export', report_type='attendance', fmt='xlsx', start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('reports.export_attendance_datewise', start=start.isoformat(), end=end.isoformat(), dept=department) }}"
+       class="btn btn-sm btn-success">
+      <i class="bi bi-file-earmark-excel-fill me-1"></i>Date-wise Excel
+    </a>
+    <a href="{{ url_for('reports.export', report_type='attendance', fmt='xlsx', start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Summary Excel</a>
     <a href="{{ url_for('reports.export', report_type='attendance', fmt='csv',  start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-text me-1"></i>CSV</a>
     <a href="{{ url_for('reports.export', report_type='attendance', fmt='pdf',  start=start.isoformat(), end=end.isoformat(), dept=department) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
   </div>
