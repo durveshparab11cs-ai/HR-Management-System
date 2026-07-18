@@ -478,6 +478,7 @@ def _migrate_add_columns(db) -> None:
         ('attendance',           'check_out_accuracy',         'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
         ('office_settings',      'min_gps_accuracy_metres',    'INTEGER'),
         ('attendance_photos',    'image_data',                 'TEXT'),
+        ('attendance_photos',    'checkout_image_data',        'TEXT'),
         # Reporting manager fields for all leave request types
         ('leave_requests',       'reporting_manager_code',     'VARCHAR(30)'),
         ('leave_requests',       'reporting_manager_name',     'VARCHAR(200)'),

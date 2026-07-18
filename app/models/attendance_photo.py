@@ -43,6 +43,9 @@ class AttendancePhoto(db.Model):
     # Takes priority over file_path when present.
     image_data: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Check-out proof photo (stored separately in same row)
+    checkout_image_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )

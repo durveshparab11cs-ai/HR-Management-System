@@ -126,6 +126,25 @@ def upload_photo():
     return jsonify(success=False, message=message), 400
 
 
+# ── Upload Checkout Photo (AJAX) ─────────────────────────────────────
+
+@attendance_bp.route("/upload-checkout-photo", methods=["POST"])
+@login_required
+def upload_checkout_photo():
+    employee = _emp_repo.get_by_user_id(current_user.id)
+    if not employee:
+        return jsonify(success=False, message="Employee profile not found."), 400
+
+    file = request.files.get("photo")
+    if not file:
+        return jsonify(success=False, message="No file received."), 400
+
+    ok, message, photo = _svc.upload_checkout_photo(employee, file)
+    if ok:
+        return jsonify(success=True, message=message)
+    return jsonify(success=False, message=message), 400
+
+
 # ── Attendance history ────────────────────────────────────────────────
 
 @attendance_bp.route("/history")

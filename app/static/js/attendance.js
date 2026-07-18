@@ -573,19 +573,17 @@
   /* ═══════════════════════════════════════════════════════════════════
      PHOTO UPLOAD
   ════════════════════════════════════════════════════════════════════ */
-  function initPhotoUpload() {
-    const zone = el('photo-zone'), inp = el('photo-input'),
-          btn  = el('btn-upload-photo'), prev = el('photo-preview-img'),
-          spin = el('photo-spin'), txt = el('photo-txt');
+  function _initZone(zoneId, inpId, btnId, prevId, spinId, txtId, uploadUrl, successMsg) {
+    const zone = el(zoneId), inp = el(inpId),
+          btn  = el(btnId),  prev = el(prevId),
+          spin = el(spinId), txt  = el(txtId);
     if (!zone || !inp) return;
-
     zone.addEventListener('click', () => inp.click());
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-    inp.addEventListener('change', () => { if (inp.files[0]) handleFile(inp.files[0]); });
-
-    function handleFile(f) {
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+    inp.addEventListener('change', () => { if (inp.files[0]) handle(inp.files[0]); });
+    function handle(f) {
       if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { showToast('Only JPG, PNG, WEBP.','error'); return; }
       if (f.size > 5*1024*1024) { showToast('Max 5 MB.','error'); return; }
       const r = new FileReader();
@@ -593,21 +591,24 @@
       r.readAsDataURL(f);
       if (btn) btn.style.display = '';
     }
-
     btn?.addEventListener('click', async () => {
-      const f = inp.files[0];
-      if (!f) { showToast('Select a photo first.','warn'); return; }
+      const f = inp.files[0]; if (!f) { showToast('Select a photo first.','warn'); return; }
       btn.disabled = true;
       if (spin) spin.style.display = 'inline-block';
       if (txt)  txt.textContent = 'Uploading…';
       const fd = new FormData(); fd.append('photo', f);
       try {
-        const res = await fetch(PHOTO_URL, { method:'POST', headers:{'X-CSRFToken':CSRF_TOKEN,'X-Requested-With':'XMLHttpRequest'}, body: fd });
+        const res = await fetch(uploadUrl, { method:'POST', headers:{'X-CSRFToken':CSRF_TOKEN,'X-Requested-With':'XMLHttpRequest'}, body: fd });
         const d = await res.json();
-        if (d.success) { showToast('Photo uploaded.','success'); setTimeout(() => location.reload(), 1500); }
-        else { showToast(d.message||'Upload failed.','error'); btn.disabled = false; if (spin) spin.style.display='none'; if (txt) txt.textContent='Upload Photo'; }
-      } catch { showToast('Upload error.','error'); btn.disabled = false; if (spin) spin.style.display='none'; if (txt) txt.textContent='Upload Photo'; }
+        if (d.success) { showToast(successMsg,'success'); setTimeout(() => location.reload(), 1500); }
+        else { showToast(d.message||'Upload failed.','error'); btn.disabled=false; if(spin)spin.style.display='none'; if(txt)txt.textContent=successMsg.replace(' uploaded successfully.',''); }
+      } catch { showToast('Upload error.','error'); btn.disabled=false; if(spin)spin.style.display='none'; }
     });
+  }
+
+  function initPhotoUpload() {
+    _initZone('photo-zone','photo-input','btn-upload-photo','photo-preview-img','photo-spin','photo-txt', PHOTO_URL, 'Check-in photo uploaded successfully.');
+    _initZone('co-photo-zone','co-photo-input','btn-upload-co-photo','co-photo-preview-img','co-photo-spin','co-photo-txt', '/attendance/upload-checkout-photo', 'Check-out photo uploaded successfully.');
   }
 
   /* ═══════════════════════════════════════════════════════════════════

@@ -343,6 +343,42 @@
         </button>
       </div>
 
+      <!-- ── Checkout Photo Upload ── -->
+      {% if status.attendance and status.attendance.check_out_time %}
+      <div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f5f9">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="small fw-semibold text-muted">
+            <i class="bi bi-camera2 me-1 text-danger"></i>Check-Out Proof Photo
+          </div>
+          {% if status.has_checkout_photo %}
+          <span class="badge bg-success-subtle text-success small">
+            <i class="bi bi-check-circle me-1"></i>Uploaded
+          </span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
+          {% endif %}
+        </div>
+        {% if status.has_checkout_photo %}
+        <div class="text-center py-2 text-muted small">
+          <i class="bi bi-check-circle-fill text-success fs-5 d-block mb-1"></i>
+          Check-out photo already uploaded for today.
+        </div>
+        {% else %}
+        <div class="photo-zone" id="co-photo-zone">
+          <img id="co-photo-preview-img" class="photo-preview" alt="Checkout proof" style="display:none">
+          <i class="bi bi-camera fs-3 text-muted d-block mb-1"></i>
+          <div class="small fw-medium text-muted">Check-out proof photo</div>
+          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
+          <input type="file" id="co-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        </div>
+        <button class="btn btn-sm btn-outline-danger w-100 mt-2" id="btn-upload-co-photo" style="display:none">
+          <span class="att-spinner" id="co-photo-spin" style="border-top-color:#dc2626"></span>
+          <i class="bi bi-upload me-1"></i> <span id="co-photo-txt">Upload Check-out Photo</span>
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </div>
@@ -539,6 +575,7 @@
   const CAN_CHECKIN  = {{ 'true' if status.can_check_in  else 'false' }};
   const CAN_CHECKOUT = {{ 'true' if status.can_check_out else 'false' }};
   const CAN_PHOTO    = {{ 'true' if status.can_upload_photo else 'false' }};
+  const CAN_CO_PHOTO = {{ 'true' if status.can_upload_checkout_photo else 'false' }};
 </script>
 {% endblock %}
 

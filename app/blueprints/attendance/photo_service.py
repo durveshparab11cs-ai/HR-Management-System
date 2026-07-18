@@ -144,6 +144,67 @@ class PhotoService:
             logger.error("PHOTO_DB_SAVE_FAILED | emp=%s | %s", employee_id, exc)
             return False, "Failed to record photo. Please try again.", None
 
+    def save_check_out_photo(
+        self,
+        attendance,
+        employee_id: int,
+        file: FileStorage,
+    ) -> Tuple[bool, str, Optional[AttendancePhoto]]:
+        """
+        Validate and persist a check-out proof photo.
+        Saves to checkout_image_data column in the existing AttendancePhoto row.
+        Creates the row if it doesn't exist yet.
+        """
+        if not file or not file.filename:
+            return False, "No photo file provided.", None
+
+        ext = Path(file.filename).suffix.lstrip(".").lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return False, f"Invalid file type '{ext}'. Only JPG, PNG, WEBP allowed.", None
+
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > MAX_BYTES:
+            return False, f"Photo exceeds 5 MB limit ({size / 1024 / 1024:.1f} MB).", None
+
+        if not self._is_valid_image(file):
+            return False, "File does not appear to be a valid image.", None
+
+        try:
+            file.seek(0)
+            raw_bytes = self._compress_image(file.read(), ext)
+            b64       = base64.b64encode(raw_bytes).decode("utf-8")
+            data_url  = f"data:image/jpeg;base64,{b64}"
+        except Exception as exc:
+            logger.error("CHECKOUT_PHOTO_ENCODE_FAILED | emp=%s | %s", employee_id, exc)
+            return False, "Failed to process photo. Please try again.", None
+
+        try:
+            photo = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
+            if photo:
+                photo.checkout_image_data = data_url
+            else:
+                photo = AttendancePhoto(
+                    attendance_id=attendance.id,
+                    employee_id=employee_id,
+                    file_path="",
+                    image_data=None,
+                    checkout_image_data=data_url,
+                    original_filename=file.filename[:255],
+                    file_size_bytes=size,
+                    mime_type="image/jpeg",
+                    ip_address=self._get_ip(),
+                )
+                db.session.add(photo)
+            db.session.commit()
+            logger.info("CHECKOUT_PHOTO_SAVED | emp=%s | att=%s", employee_id, attendance.id)
+            return True, "Check-out photo uploaded successfully.", photo
+        except Exception as exc:  # noqa: BLE001
+            db.session.rollback()
+            logger.error("CHECKOUT_PHOTO_DB_FAILED | emp=%s | %s", employee_id, exc)
+            return False, "Failed to record photo. Please try again.", None
+
     def get_photo_url(self, photo: AttendancePhoto) -> Optional[str]:
         """
         Return the photo URL for the API response.

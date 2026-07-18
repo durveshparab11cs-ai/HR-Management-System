@@ -224,27 +224,33 @@ class AttendanceService:
         employee: Employee,
         file: FileStorage,
     ) -> Tuple[bool, str, Optional[str]]:
-        """
-        Save a proof photo for today's check-in.
-
-        Args:
-            employee: Employee making the upload.
-            file:     FileStorage from request.files.
-
-        Returns:
-            (success, message, photo_url_or_None)
-        """
+        """Save a check-in proof photo for today's attendance."""
         today = date.today()
         attendance = _repo.get_today(employee.id, today)
         if not attendance or not attendance.check_in_time:
             return False, "No check-in found for today. Check in first.", None
-
         ok, msg, photo = _photo.save_check_in_photo(attendance, employee.id, file)
         if not ok:
             return False, msg, None
-
         photo_url = _photo.get_photo_url(photo)
         return True, msg, photo_url
+
+    def upload_checkout_photo(
+        self,
+        employee: Employee,
+        file: FileStorage,
+    ) -> Tuple[bool, str, Optional[str]]:
+        """Save a check-out proof photo for today's attendance."""
+        today = date.today()
+        attendance = _repo.get_today(employee.id, today)
+        if not attendance or not attendance.check_in_time:
+            return False, "No check-in found for today. Check in first.", None
+        if not attendance.check_out_time:
+            return False, "Please check out before uploading the check-out photo.", None
+        ok, msg, photo = _photo.save_check_out_photo(attendance, employee.id, file)
+        if not ok:
+            return False, msg, None
+        return True, msg, None
 
     # ── Today status ─────────────────────────────────────────────────
 
@@ -256,31 +262,37 @@ class AttendanceService:
 
         # Check photo using DB query — not the backref (which may be stale)
         # has_photo is only True when the record has actual base64 image data.
-        # Old file-based records (image_data=NULL) are treated as "not uploaded"
-        # so the user can re-upload and get a durable base64 copy.
-        has_photo = False
+        has_photo          = False
+        has_checkout_photo = False
         if attendance and attendance.id:
             photo_rec = AttendancePhoto.query.filter_by(
                 attendance_id=attendance.id
             ).first()
-            has_photo = bool(photo_rec and photo_rec.image_data)
+            has_photo          = bool(photo_rec and photo_rec.image_data)
+            has_checkout_photo = bool(photo_rec and photo_rec.checkout_image_data)
 
-        # Photo can be uploaded after check-in OR after checkout (proof of day)
         can_upload = bool(
             attendance
             and attendance.check_in_time
             and not has_photo
         )
+        can_upload_checkout = bool(
+            attendance
+            and attendance.check_out_time
+            and not has_checkout_photo
+        )
 
         return {
-            "attendance":       attendance,
-            "office":           office,
-            "can_check_in":     not (attendance and attendance.check_in_time),
-            "can_check_out":    bool(
+            "attendance":          attendance,
+            "office":              office,
+            "can_check_in":        not (attendance and attendance.check_in_time),
+            "can_check_out":       bool(
                 attendance and attendance.check_in_time and not attendance.check_out_time
             ),
-            "can_upload_photo": can_upload,
-            "has_photo":        has_photo,
+            "can_upload_photo":        can_upload,
+            "has_photo":               has_photo,
+            "can_upload_checkout_photo": can_upload_checkout,
+            "has_checkout_photo":      has_checkout_photo,
         }
 
     # ── Helpers ──────────────────────────────────────────────────────
