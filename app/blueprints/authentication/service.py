@@ -130,11 +130,11 @@ class AuthService:
         if emp and not emp.department and department:
             try:
                 emp.department = department
-                auth_repo.update_user(user)   # flush so it persists
-                from app.extensions.database import db as _db  # noqa: PLC0415
-                _db.session.commit()
+                db.session.add(emp)
+                db.session.commit()
                 logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, department)
             except Exception as _exc:  # noqa: BLE001
+                db.session.rollback()
                 logger.warning("Could not auto-set dept: %s", _exc)
 
         logger.info(
