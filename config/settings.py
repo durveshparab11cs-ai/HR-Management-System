@@ -279,9 +279,10 @@ class ProductionConfig(BaseConfig):
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com; "
-            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://unpkg.com; "
             "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org; "
-            "connect-src 'self' https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org; "
+            "connect-src 'self' https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org https://cdn.jsdelivr.net https://unpkg.com; "
+            "worker-src blob:; "
             "frame-src 'none';"
         ),
     }
