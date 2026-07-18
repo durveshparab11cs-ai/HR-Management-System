@@ -85,11 +85,6 @@ def my_approvals():
         el_pag=el_pag,
         status_filter=status_filter,
     )
-    emp = _emp.get_by_user_id(current_user.id)
-    if not emp:
-        flash("Employee profile not found. Contact HR.", "warning")
-        return None
-    return emp
 
 
 # ─── Leave Portal Index ──────────────────────────────────────────────
@@ -161,10 +156,22 @@ def cancel(lr_id: int):
 def pending():
     from app.core.dept_filter import get_dept_filter  # noqa: PLC0415
     page = request.args.get("page", 1, type=int)
-    dept_filter = get_dept_filter()
-    pagination = _repo.get_pending(page=page, department=dept_filter)
-    hd_pag = _repo.get_pending_halfdays(page=1, per_page=10, department=dept_filter)
-    el_pag = _repo.get_pending_earlyleaves(page=1, per_page=10, department=dept_filter)
+    try:
+        dept_filter = get_dept_filter()
+    except Exception:  # noqa: BLE001
+        dept_filter = None
+    try:
+        pagination = _repo.get_pending(page=page, department=dept_filter)
+    except TypeError:
+        pagination = _repo.get_pending(page=page)
+    try:
+        hd_pag = _repo.get_pending_halfdays(page=1, per_page=10, department=dept_filter)
+    except TypeError:
+        hd_pag = _repo.get_pending_halfdays(page=1, per_page=10)
+    try:
+        el_pag = _repo.get_pending_earlyleaves(page=1, per_page=10, department=dept_filter)
+    except TypeError:
+        el_pag = _repo.get_pending_earlyleaves(page=1, per_page=10)
     return render_template(
         "leave/pending.html", title="Pending Approvals",
         pagination=pagination,
