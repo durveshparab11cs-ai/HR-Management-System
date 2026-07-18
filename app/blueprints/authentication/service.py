@@ -126,6 +126,17 @@ class AuthService:
         # Admin/Super-Admin with global access store the selected dept or their own
         session["login_department"] = assigned_dept or department or ""
 
+        # ── Auto-sync: if employee profile has no department, save it from login selection
+        if emp and not emp.department and department:
+            try:
+                emp.department = department
+                auth_repo.update_user(user)   # flush so it persists
+                from app.extensions.database import db as _db  # noqa: PLC0415
+                _db.session.commit()
+                logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, department)
+            except Exception as _exc:  # noqa: BLE001
+                logger.warning("Could not auto-set dept: %s", _exc)
+
         logger.info(
             "LOGIN_SUCCESS | user_id=%s | code=%s | role=%s | dept=%s | ip=%s",
             user.id, code, user.role, session["login_department"], ip,

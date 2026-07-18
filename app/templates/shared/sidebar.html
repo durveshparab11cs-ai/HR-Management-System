@@ -50,6 +50,11 @@
             <div class="hrms-sidebar-user-info overflow-hidden">
                 <div class="text-truncate fw-semibold small">{{ current_user.full_name }}</div>
                 <div class="text-truncate hrms-role-badge small">{{ current_user.display_role }}</div>
+                {% if login_department %}
+                <div class="text-truncate small" style="color:rgba(255,255,255,.55);font-size:.7rem;margin-top:1px">
+                    <i class="bi bi-building" style="font-size:.65rem;margin-right:3px"></i>{{ login_department }}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
