@@ -28,20 +28,27 @@ def index():
 @login_required
 @manager_required
 def attendance_report():
-    start_str = request.args.get("start", date.today().replace(day=1).isoformat())
-    end_str   = request.args.get("end",   date.today().isoformat())
-    department = request.args.get("dept", "")
+    start_str  = request.args.get("start", date.today().replace(day=1).isoformat())
+    end_str    = request.args.get("end",   date.today().isoformat())
+    department = request.args.get("dept",  "")
+    view       = request.args.get("view",  "datewise")  # "datewise" | "summary"
     try:
         start = date.fromisoformat(start_str)
         end   = date.fromisoformat(end_str)
     except ValueError:
         start = date.today().replace(day=1)
         end   = date.today()
-    data  = _svc.attendance_summary(start, end, department=department)
+    summary_data = _svc.attendance_summary(start, end, department=department)
+    datewise_data = _svc.attendance_datewise(start, end, department=department)
     depts = _svc.get_departments()
     return render_template(
         "reports/attendance.html", title="Attendance Report",
-        data=data, start=start, end=end, department=department, departments=depts,
+        data=summary_data,
+        datewise_data=datewise_data,
+        start=start, end=end,
+        department=department,
+        departments=depts,
+        view=view,
     )
 
 
