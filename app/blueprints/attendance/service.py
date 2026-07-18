@@ -261,15 +261,20 @@ class AttendanceService:
         office     = _repo.get_office_for_employee(employee)
 
         # Check photo using DB query — not the backref (which may be stale)
-        # has_photo is only True when the record has actual base64 image data.
         has_photo          = False
         has_checkout_photo = False
         if attendance and attendance.id:
-            photo_rec = AttendancePhoto.query.filter_by(
-                attendance_id=attendance.id
-            ).first()
-            has_photo          = bool(photo_rec and photo_rec.image_data)
-            has_checkout_photo = bool(photo_rec and photo_rec.checkout_image_data)
+            try:
+                photo_rec = AttendancePhoto.query.filter_by(
+                    attendance_id=attendance.id
+                ).first()
+                has_photo          = bool(photo_rec and photo_rec.image_data)
+                # checkout_image_data may not exist yet on old Render DBs — use getattr
+                has_checkout_photo = bool(photo_rec and getattr(photo_rec, 'checkout_image_data', None))
+            except Exception:  # noqa: BLE001
+                # Column may not exist yet — silently degrade
+                has_photo          = False
+                has_checkout_photo = False
 
         can_upload = bool(
             attendance
