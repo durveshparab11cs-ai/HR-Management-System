@@ -71,7 +71,7 @@ class AttendanceService:
                 logger.error("SERVICE CHECK_IN FAILED: No office config for emp=%s", employee.id)
                 return False, "Office configuration not found. Contact HR.", None, None
             
-            logger.info("Office found: %s (radius=%sm)", office.name, office.gps_radius)
+            logger.info("Office found: %s (radius=%sm)", office.name, office.radius_metres)
 
             # GPS verification
             gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_IN)
