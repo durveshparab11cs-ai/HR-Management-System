@@ -611,6 +611,9 @@
   const CAN_CHECKOUT = {{ 'true' if status.can_check_out else 'false' }};
   const CAN_PHOTO    = {{ 'true' if status.can_upload_photo else 'false' }};
   const CAN_CO_PHOTO = {{ 'true' if status.can_upload_checkout_photo else 'false' }};
+  // ✅ NEW: Pass photo upload state from backend to frontend
+  const HAS_CI_PHOTO = {{ 'true' if status.has_photo else 'false' }};
+  const HAS_CO_PHOTO = {{ 'true' if status.has_checkout_photo else 'false' }};
 </script>
 {% endblock %}
 

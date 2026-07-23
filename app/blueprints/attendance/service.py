@@ -362,19 +362,41 @@ class AttendanceService:
         attendance = _repo.get_today(employee.id, today)
         office     = _repo.get_office_for_employee(employee)
 
+        logger.info("===== GET_TODAY_STATUS START =====")
+        logger.info("Employee ID: %s", employee.id)
+        logger.info("Today's date: %s", today)
+        logger.info("Attendance record exists: %s", bool(attendance))
+        if attendance:
+            logger.info("Attendance ID: %s", attendance.id)
+            logger.info("Attendance status: %s", attendance.status)
+            logger.info("Check-in time: %s", attendance.check_in_time)
+            logger.info("Check-out time: %s", attendance.check_out_time)
+
         # Check photo using DB query — not the backref (which may be stale)
         has_photo          = False
         has_checkout_photo = False
+        photo_rec = None
+        
         if attendance and attendance.id:
             try:
                 photo_rec = AttendancePhoto.query.filter_by(
                     attendance_id=attendance.id
                 ).first()
-                has_photo          = bool(photo_rec and photo_rec.image_data)
-                # checkout_image_data may not exist yet on old Render DBs — use getattr
-                has_checkout_photo = bool(photo_rec and getattr(photo_rec, 'checkout_image_data', None))
-            except Exception:  # noqa: BLE001
+                logger.info("Photo record found: %s", bool(photo_rec))
+                if photo_rec:
+                    logger.info("Photo ID: %s", photo_rec.id)
+                    logger.info("Photo has image_data: %s", bool(photo_rec.image_data))
+                    logger.info("Photo has file_path: %s", photo_rec.file_path)
+                    has_photo = bool(photo_rec and photo_rec.image_data)
+                    # checkout_image_data may not exist yet on old Render DBs — use getattr
+                    has_checkout_photo = bool(photo_rec and getattr(photo_rec, 'checkout_image_data', None))
+                    logger.info("Computed has_photo: %s", has_photo)
+                    logger.info("Computed has_checkout_photo: %s", has_checkout_photo)
+                else:
+                    logger.warning("No photo record found for attendance_id=%s", attendance.id)
+            except Exception as exc:  # noqa: BLE001
                 # Column may not exist yet — silently degrade
+                logger.error("Error checking photo: %s", str(exc))
                 has_photo          = False
                 has_checkout_photo = False
 
@@ -389,7 +411,7 @@ class AttendanceService:
             and not has_checkout_photo
         )
 
-        return {
+        result = {
             "attendance":          attendance,
             "office":              office,
             "can_check_in":        not (attendance and attendance.check_in_time),
@@ -401,6 +423,15 @@ class AttendanceService:
             "can_upload_checkout_photo": can_upload_checkout,
             "has_checkout_photo":      has_checkout_photo,
         }
+        
+        logger.info("===== GET_TODAY_STATUS RESULT =====")
+        logger.info("can_check_in: %s", result["can_check_in"])
+        logger.info("can_check_out: %s", result["can_check_out"])
+        logger.info("has_photo: %s", result["has_photo"])
+        logger.info("has_checkout_photo: %s", result["has_checkout_photo"])
+        logger.info("===== GET_TODAY_STATUS END =====")
+        
+        return result
 
     # ── Helpers ──────────────────────────────────────────────────────
 
