@@ -257,7 +257,7 @@ def _register_cli(app: Flask) -> None:
                 office_start_time=datetime.time(9, 0),
                 office_end_time=datetime.time(18, 0),
                 grace_period_minutes=10,
-                half_day_threshold_minutes=240,  # < 4h = half day
+                half_day_threshold_minutes=300,  # < 5h = half day
             )
             _db.session.add(office)
             click.secho("  ✓ Default office settings created", fg="green")

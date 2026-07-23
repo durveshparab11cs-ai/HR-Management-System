@@ -85,7 +85,7 @@ def compute_check_out_meta(
     overtime_minutes = max(0, int((co - office_end_utc).total_seconds() / 60)) \
                        if co > office_end_utc else 0
 
-    # Half-day: worked less than threshold (e.g. 240 min = 4 hours)
+    # Half-day: worked less than threshold (e.g. 300 min = 5 hours)
     is_half_day = working_minutes < office.half_day_threshold_minutes
 
     # Early leave: checked out before office end (minus grace)

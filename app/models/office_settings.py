@@ -56,7 +56,7 @@ class OfficeSettings(BaseModel):
         Time, nullable=False, default=datetime.time(18, 0)
     )
     grace_period_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    half_day_threshold_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=240)
+    half_day_threshold_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=300)  # 5 hours
     overtime_threshold_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
 
     # ── Policy ──────────────────────────────────────────────────────
