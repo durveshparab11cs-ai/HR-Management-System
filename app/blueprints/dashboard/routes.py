@@ -1,3 +1,4 @@
+
 """
 blueprints/dashboard/routes.py
 ================================
@@ -41,14 +42,24 @@ def index():
     balances  = []
     attendance_chart_data = _build_attendance_chart_data([])
     department_chart_data = {"labels": [], "values": []}
-
     if employee:
-        today_att = _att.get_today(employee.id, today)
-        office    = _att.get_office_for_employee(employee)
-        balances  = _lsvc.get_balance(employee.id)
-
-        # Build real 6-month attendance chart data
-        months_data = _build_attendance_chart_data_for_employee(employee.id)
+        try:
+            today_att = _att.get_today(employee.id, today)
+        except Exception:  # noqa: BLE001
+            today_att = None
+        try:
+            office = _att.get_office_for_employee(employee)
+        except Exception:  # noqa: BLE001
+            office = None
+        try:
+            balances = _lsvc.get_balance(employee.id)
+        except Exception:  # noqa: BLE001
+            balances = []
+        try:
+            months_data = _build_attendance_chart_data_for_employee(employee.id)
+            attendance_chart_data = months_data
+        except Exception:  # noqa: BLE001
+            passrt_data_for_employee(employee.id)
         attendance_chart_data = months_data
 
     return render_template(
