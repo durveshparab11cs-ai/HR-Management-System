@@ -64,7 +64,7 @@ def index():
 @attendance_bp.route("/checkin", methods=["POST"])
 @login_required
 def checkin():
-        """
+    """
     Check-in endpoint — validates GPS + photo, creates attendance record.
     """
     logger.info("===== CHECK IN START =====")
