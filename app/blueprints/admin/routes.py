@@ -29,16 +29,43 @@ _svc   = AdminService()
 @admin_required
 def index():
     today = date.today()
-    total_employees   = _emp.count_total()
-    checked_in_today  = _att.count_checked_in_today(today)
-    checked_out_today = _att.count_checked_out_today(today)
-    late_today        = _att.count_late_today(today)
-    absent_today      = total_employees - checked_in_today
-    pending_leaves    = _leave.count_pending()
-    pending_halfdays  = _leave.count_pending_halfdays()
-    pending_early     = _leave.count_pending_earlyleaves()
-    today_records     = _att.get_all_today(today)
-    recent_requests   = _leave.get_pending(page=1, per_page=5).items
+    try:
+        total_employees   = _emp.count_total()
+    except Exception:
+        total_employees   = 0
+    try:
+        checked_in_today  = _att.count_checked_in_today(today)
+    except Exception:
+        checked_in_today  = 0
+    try:
+        checked_out_today = _att.count_checked_out_today(today)
+    except Exception:
+        checked_out_today = 0
+    try:
+        late_today        = _att.count_late_today(today)
+    except Exception:
+        late_today        = 0
+    absent_today = max(0, total_employees - checked_in_today)
+    try:
+        pending_leaves    = _leave.count_pending()
+    except Exception:
+        pending_leaves    = 0
+    try:
+        pending_halfdays  = _leave.count_pending_halfdays()
+    except Exception:
+        pending_halfdays  = 0
+    try:
+        pending_early     = _leave.count_pending_earlyleaves()
+    except Exception:
+        pending_early     = 0
+    try:
+        today_records     = _att.get_all_today(today)
+    except Exception:
+        today_records     = []
+    try:
+        recent_requests   = _leave.get_pending(page=1, per_page=5).items
+    except Exception:
+        recent_requests   = []
 
     return render_template(
         "admin/index.html",

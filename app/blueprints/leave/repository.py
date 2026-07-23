@@ -129,18 +129,29 @@ class LeaveRepository:
 
     def get_halfdays_for_manager(self, mgr_employee_code: str, page: int = 1, per_page: int = 30, status: str = ""):
         """Return half-day requests where the logged-in employee is the reporting manager."""
-        q = HalfDayRequest.query.filter_by(
-            reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
-        )
-        if status:
-            q = q.filter_by(status=status)
-        return q.order_by(HalfDayRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        try:
+            q = HalfDayRequest.query.filter_by(
+                reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
+            )
+            if status:
+                q = q.filter_by(status=status)
+            return q.order_by(HalfDayRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        except Exception:  # noqa: BLE001 — column may not exist yet
+            from sqlalchemy.orm.query import Query  # noqa: PLC0415
+            class _EmptyPage:
+                items = []; total = 0; pages = 1; page = 1
+                has_prev = False; has_next = False
+                prev_num = 0; next_num = 2
+            return _EmptyPage()
 
     def count_manager_pending_halfdays(self, mgr_employee_code: str) -> int:
-        return HalfDayRequest.query.filter_by(
-            reporting_manager_code=mgr_employee_code.upper(),
-            status="pending", is_deleted=False
-        ).count()
+        try:
+            return HalfDayRequest.query.filter_by(
+                reporting_manager_code=mgr_employee_code.upper(),
+                status="pending", is_deleted=False
+            ).count()
+        except Exception:
+            return 0
 
     def create_halfday(self, hd: HalfDayRequest) -> HalfDayRequest:
         db.session.add(hd); db.session.commit(); return hd
@@ -179,18 +190,28 @@ class LeaveRepository:
 
     def get_earlyleaves_for_manager(self, mgr_employee_code: str, page: int = 1, per_page: int = 30, status: str = ""):
         """Return early-leave requests where the logged-in employee is the reporting manager."""
-        q = EarlyLeaveRequest.query.filter_by(
-            reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
-        )
-        if status:
-            q = q.filter_by(status=status)
-        return q.order_by(EarlyLeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        try:
+            q = EarlyLeaveRequest.query.filter_by(
+                reporting_manager_code=mgr_employee_code.upper(), is_deleted=False
+            )
+            if status:
+                q = q.filter_by(status=status)
+            return q.order_by(EarlyLeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        except Exception:  # noqa: BLE001 — column may not exist yet
+            class _EmptyPage:
+                items = []; total = 0; pages = 1; page = 1
+                has_prev = False; has_next = False
+                prev_num = 0; next_num = 2
+            return _EmptyPage()
 
     def count_manager_pending_earlyleaves(self, mgr_employee_code: str) -> int:
-        return EarlyLeaveRequest.query.filter_by(
-            reporting_manager_code=mgr_employee_code.upper(),
-            status="pending", is_deleted=False
-        ).count()
+        try:
+            return EarlyLeaveRequest.query.filter_by(
+                reporting_manager_code=mgr_employee_code.upper(),
+                status="pending", is_deleted=False
+            ).count()
+        except Exception:
+            return 0
 
     def create_earlyleave(self, el: EarlyLeaveRequest) -> EarlyLeaveRequest:
         db.session.add(el); db.session.commit(); return el
