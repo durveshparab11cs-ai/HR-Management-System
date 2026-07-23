@@ -33,6 +33,7 @@
   let lon      = null;   // confirmed employee longitude
   let acc      = null;   // confirmed GPS accuracy metres
   let gpsReady = false;  // true ONLY after real GPS with acceptable accuracy
+  let withinRadius = false;  // true ONLY when employee is inside allowed geofence
   let _watchId = null;
   let _permRetries = 0;
   let autoRefreshTimer = null;
@@ -44,11 +45,11 @@
 
   /* ── CENTRALIZED BUTTON STATE MANAGER ──────────────────────────── */
   function updateAttendanceButtons() {
-    console.group('[BUTTON STATE UPDATE]');
-    console.log('GPS Verified:', gpsReady);
-    console.log('Inside Radius:', gpsReady);
-    console.log('Check-In Photo Uploaded:', ciPhotoReady);
-    console.log('Check-Out Photo Uploaded:', coPhotoReady);
+    console.group('[🔘 BUTTON STATE UPDATE]');
+    console.log('📍 GPS Verified:', gpsReady);
+    console.log('📍 Inside Radius:', withinRadius);
+    console.log('📷 Check-In Photo Uploaded:', ciPhotoReady);
+    console.log('📷 Check-Out Photo Uploaded:', coPhotoReady);
     
     const ci = el('btn-checkin');
     const co = el('btn-checkout');
@@ -63,17 +64,24 @@
       console.log('Check-In Button - Already Checked In:', isAlreadyCheckedIn);
       
       if (!isAlreadyCheckedIn) {
-        // Check BOTH conditions
-        if (gpsReady && ciPhotoReady) {
-          // ✅ BOTH conditions met — ENABLE BUTTON
+        // Check ALL THREE conditions
+        const allConditionsMet = gpsReady && withinRadius && ciPhotoReady;
+        
+        console.log('🔍 Final Enable Decision:', allConditionsMet);
+        console.log('   → GPS Ready:', gpsReady);
+        console.log('   → Within Radius:', withinRadius);
+        console.log('   → Photo Ready:', ciPhotoReady);
+        
+        if (allConditionsMet) {
+          // ✅ ALL conditions met — ENABLE BUTTON
           ci.disabled = false;
           ci.removeAttribute('disabled');  // Force remove
           ci.classList.remove('disabled');
           ci.setAttribute('aria-disabled', 'false');
           ciText.textContent = 'Check In';
           console.log('✅ Check-In Button: ENABLED');
-          console.log('   Button disabled attribute:', ci.disabled);
-          console.log('   Button classList:', ci.className);
+          console.log('   Button.disabled:', ci.disabled);
+          console.log('   Button.className:', ci.className);
         } else {
           // ❌ Missing condition — KEEP DISABLED
           ci.disabled = true;
@@ -81,15 +89,15 @@
           ci.classList.add('disabled');
           ci.setAttribute('aria-disabled', 'true');
           
-          if (!gpsReady && !ciPhotoReady) {
-            ciText.textContent = 'Upload Photo + GPS to Enable';
+          if (!withinRadius) {
+            ciText.textContent = 'Outside Allowed Area';
           } else if (!ciPhotoReady) {
             ciText.textContent = 'Upload Proof Photo First';
           } else if (!gpsReady) {
             ciText.textContent = 'Waiting for GPS…';
           }
           console.log('❌ Check-In Button: DISABLED');
-          console.log('   Reason - GPS:', gpsReady, 'Photo:', ciPhotoReady);
+          console.log('   Missing: GPS=' + gpsReady + ', Radius=' + withinRadius + ', Photo=' + ciPhotoReady);
         }
       }
     }
@@ -104,16 +112,18 @@
       console.log('Check-Out Button - Needs Check In First:', needsCheckinFirst);
       
       if (!isAlreadyCheckedOut && !needsCheckinFirst) {
-        // Check BOTH conditions
-        if (gpsReady && coPhotoReady) {
-          // ✅ BOTH conditions met — ENABLE BUTTON
+        // Check ALL THREE conditions
+        const allConditionsMet = gpsReady && withinRadius && coPhotoReady;
+        
+        if (allConditionsMet) {
+          // ✅ ALL conditions met — ENABLE BUTTON
           co.disabled = false;
           co.removeAttribute('disabled');  // Force remove
           co.classList.remove('disabled');
           co.setAttribute('aria-disabled', 'false');
           coText.textContent = 'Check Out';
           console.log('✅ Check-Out Button: ENABLED');
-          console.log('   Button disabled attribute:', co.disabled);
+          console.log('   Button.disabled:', co.disabled);
         } else {
           // ❌ Missing condition — KEEP DISABLED
           co.disabled = true;
@@ -121,15 +131,15 @@
           co.classList.add('disabled');
           co.setAttribute('aria-disabled', 'true');
           
-          if (!gpsReady && !coPhotoReady) {
-            coText.textContent = 'Upload Photo + GPS to Enable';
+          if (!withinRadius) {
+            coText.textContent = 'Outside Allowed Area';
           } else if (!coPhotoReady) {
             coText.textContent = 'Upload Proof Photo First';
           } else if (!gpsReady) {
             coText.textContent = 'Waiting for GPS…';
           }
           console.log('❌ Check-Out Button: DISABLED');
-          console.log('   Reason - GPS:', gpsReady, 'Photo:', coPhotoReady);
+          console.log('   Missing: GPS=' + gpsReady + ', Radius=' + withinRadius + ', Photo=' + coPhotoReady);
         }
       }
     }
@@ -422,6 +432,9 @@
     // Haversine distance — only validation criterion
     const dist   = (oLat && oLon) ? haversineMetres(empLat, empLon, oLat, oLon) : 0;
     const within = dist <= oRad;
+    
+    // Store radius check result
+    withinRadius = within;
 
     // ── Console logging (requirement 7) ──────────────────────────────
     console.group('[Smart HRMS] GPS Verification');
@@ -439,15 +452,16 @@
     updateMapEmployee(empLat, empLon, empAcc, within);
     updateInfoPanel(empLat, empLon, empAcc, dist, within);
 
+    // Always call updateAttendanceButtons - it handles the radius check internally
+    updateAttendanceButtons();
+    
     if (within) {
       // ── Inside radius — PASS ──────────────────────────────────────
-      updateAttendanceButtons();
       setGpsStatus('ok',
         '✓ GPS Verified — ' + dist.toFixed(1) + 'm from office (±' + Math.round(empAcc) + 'm accuracy)'
       );
     } else {
       // ── Outside radius — FAIL ─────────────────────────────────────
-      lockButtons('Outside Zone');
       setGpsStatus('error',
         '✗ Outside Allowed Area — ' + dist.toFixed(1) + 'm from office (allowed: ' + oRad + 'm)'
       );
