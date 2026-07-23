@@ -224,14 +224,44 @@ class AttendanceService:
         employee: Employee,
         file: FileStorage,
     ) -> Tuple[bool, str, Optional[str]]:
-        """Save a check-in proof photo for today's attendance."""
+        """
+        Save a check-in proof photo for today.
+        CHANGED: Now allows upload BEFORE check-in (creates attendance record if needed).
+        """
+        from datetime import date  # noqa: PLC0415
         today = date.today()
+        
+        # Get or create attendance record for today
         attendance = _repo.get_today(employee.id, today)
-        if not attendance or not attendance.check_in_time:
-            return False, "No check-in found for today. Check in first.", None
+        if not attendance:
+            # Create placeholder attendance record for photo upload
+            attendance = Attendance(
+                employee_id=employee.id,
+                date=today,
+                status=AttendanceStatus.PRESENT,
+            )
+            db.session.add(attendance)
+            db.session.flush()  # Get ID for photo reference
+            logger.info(
+                "ATTENDANCE_PLACEHOLDER_CREATED | emp=%s | date=%s | for pre-checkin photo",
+                employee.id, today
+            )
+        
         ok, msg, photo = _photo.save_check_in_photo(attendance, employee.id, file)
         if not ok:
+            # Rollback placeholder if photo save failed
+            if not attendance.check_in_time:
+                db.session.rollback()
             return False, msg, None
+        
+        # Commit the attendance record (placeholder or existing)
+        try:
+            db.session.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.session.rollback()
+            logger.error("PHOTO_ATTENDANCE_COMMIT_FAILED | emp=%s | %s", employee.id, exc)
+            return False, "Failed to save photo. Please try again.", None
+        
         photo_url = _photo.get_photo_url(photo)
         return True, msg, photo_url
 
@@ -240,13 +270,17 @@ class AttendanceService:
         employee: Employee,
         file: FileStorage,
     ) -> Tuple[bool, str, Optional[str]]:
-        """Save a check-out proof photo for today's attendance."""
+        """
+        Save a check-out proof photo for today.
+        CHANGED: Now allows upload after check-in but BEFORE check-out.
+        """
         today = date.today()
         attendance = _repo.get_today(employee.id, today)
-        if not attendance or not attendance.check_in_time:
+        if not attendance:
+            return False, "No attendance record found for today. Check in first.", None
+        if not attendance.check_in_time:
             return False, "No check-in found for today. Check in first.", None
-        if not attendance.check_out_time:
-            return False, "Please check out before uploading the check-out photo.", None
+        # REMOVED: check for check_out_time — allow upload BEFORE checkout
         ok, msg, photo = _photo.save_check_out_photo(attendance, employee.id, file)
         if not ok:
             return False, msg, None

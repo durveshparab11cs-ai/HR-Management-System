@@ -830,7 +830,13 @@
           updateAttendanceButtons();
         }
         else { 
-          showToast(d.message||'Upload failed. Please try again.','error'); 
+          // Show ACTUAL server error message
+          const serverError = d.message || 'Upload failed. Please try again.';
+          console.error('Upload failed:', serverError);
+          if (d.error_detail) {
+            console.error('Error detail:', d.error_detail);
+          }
+          showToast(serverError, 'error'); 
           if (btn) btn.disabled = false; 
           if (spin) spin.style.display = 'none'; 
           if (txt) txt.textContent = 'Upload Proof Photo';
@@ -844,7 +850,7 @@
         }
       } catch (err) { 
         console.error('Upload error:', err);
-        showToast('Upload error. Please check your connection and try again.','error'); 
+        showToast('Upload error: ' + err.message, 'error'); 
         if (btn) btn.disabled = false; 
         if (spin) spin.style.display = 'none'; 
         if (txt) txt.textContent = 'Upload Proof Photo';
@@ -852,7 +858,7 @@
         // Reset label
         const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
         if (label) {
-          label.textContent = 'Upload Failed — Try Again';
+          label.textContent = 'Network Error — Try Again';
           label.style.color = '#dc2626';
         }
       }

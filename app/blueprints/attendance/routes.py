@@ -5,6 +5,8 @@ Attendance routes — thin HTTP layer only.
 """
 
 import os
+import traceback
+import logging
 from datetime import date
 from flask import flash, jsonify, redirect, render_template, request, url_for, send_from_directory, abort
 from flask_login import current_user, login_required
@@ -16,6 +18,8 @@ from .office_settings_service import OfficeSettingsService
 from .repository import AttendanceRepository
 from .service import AttendanceService
 from . import attendance_bp
+
+logger = logging.getLogger("attendance")
 
 _svc      = AttendanceService()
 _repo     = AttendanceRepository()
@@ -152,10 +156,21 @@ def upload_photo():
     if not file:
         return jsonify(success=False, message="No file received."), 400
 
-    ok, message, photo_url = _svc.upload_photo(employee, file)
-    if ok:
-        return jsonify(success=True, message=message, photo_url=photo_url)
-    return jsonify(success=False, message=message), 400
+    try:
+        ok, message, photo_url = _svc.upload_photo(employee, file)
+        if ok:
+            return jsonify(success=True, message=message, photo_url=photo_url)
+        return jsonify(success=False, message=message), 400
+    except Exception as exc:
+        # Return actual error to frontend for debugging
+        import traceback
+        error_detail = f"{str(exc)}\n{traceback.format_exc()}"
+        logger.error("UPLOAD_PHOTO_EXCEPTION | emp=%s | %s", employee.id, error_detail)
+        return jsonify(
+            success=False,
+            message=f"Upload failed: {str(exc)}",
+            error_detail=error_detail if current_user.is_admin else None
+        ), 500
 
 
 # ── Upload Checkout Photo (AJAX) ─────────────────────────────────────
