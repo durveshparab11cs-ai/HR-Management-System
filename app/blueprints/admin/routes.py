@@ -487,3 +487,55 @@ def reset_attendance():
             success=False,
             message=f"Reset failed: {str(exc)}"
         ), 500
+
+
+@admin_bp.route("/attendance/emergency-reset")
+@login_required
+@admin_required
+def emergency_reset_attendance():
+    """
+    EMERGENCY: Delete all attendance via GET request (for immediate access).
+    Can be accessed directly via browser URL.
+    """
+    import logging
+    from app.models.attendance import Attendance
+    from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_log import AttendanceLog
+    from app.extensions.database import db
+
+    logger = logging.getLogger("admin")
+
+    try:
+        # Count before deletion
+        attendance_count = Attendance.query.count()
+        photo_count = AttendancePhoto.query.count()
+        log_count = AttendanceLog.query.count()
+
+        logger.info(
+            "EMERGENCY_ATTENDANCE_RESET | by_user=%s | att=%d | photos=%d | logs=%d",
+            current_user.id, attendance_count, photo_count, log_count
+        )
+
+        # Delete in correct order
+        AttendanceLog.query.delete()
+        AttendancePhoto.query.delete()
+        Attendance.query.delete()
+        db.session.commit()
+
+        logger.info(
+            "EMERGENCY_RESET_SUCCESS | by_user=%s | deleted att=%d, photos=%d, logs=%d",
+            current_user.id, attendance_count, photo_count, log_count
+        )
+
+        flash(
+            f"✅ ATTENDANCE DELETED SUCCESSFULLY! "
+            f"Deleted: {attendance_count} attendance records, {photo_count} photos, {log_count} logs.",
+            "success"
+        )
+        return redirect(url_for("admin.index"))
+
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("EMERGENCY_RESET_FAILED | by_user=%s | error=%s", current_user.id, str(exc))
+        flash(f"❌ ERROR: {str(exc)}", "danger")
+        return redirect(url_for("admin.index"))
