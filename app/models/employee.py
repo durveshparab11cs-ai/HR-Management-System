@@ -10,7 +10,7 @@ Separation of concerns:
 
 from datetime import date
 from sqlalchemy import Date, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref as sa_backref
 
 from app.core.base_model import BaseModel
 from app.constants.enums import EmploymentType, Gender
@@ -62,7 +62,10 @@ class Employee(BaseModel):
     profile_photo: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────
-    user = relationship("User", backref="employee", lazy="joined", foreign_keys=[user_id])
+    # uselist=False on the backref makes user.employee return a single
+    # Employee object instead of an InstrumentedList — required because
+    # user_id has unique=True (one User → one Employee, 1-to-1).
+    user = relationship("User", backref=sa_backref("employee", uselist=False), lazy="joined", foreign_keys=[user_id])
     manager = relationship("Employee", remote_side="Employee.id", foreign_keys=[manager_id], lazy="select")
     office = relationship("OfficeSettings", foreign_keys=[office_settings_id], lazy="select")
 
