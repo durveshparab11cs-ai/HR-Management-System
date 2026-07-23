@@ -138,13 +138,23 @@
                 <div class="mb-3">
                     <div class="d-flex justify-content-between mb-1">
                         <span class="small fw-medium">{{ b.type.name }}</span>
+                        {% if b.is_unlimited %}
+                        <span class="badge bg-success-subtle text-success">Unlimited</span>
+                        {% else %}
                         <span class="small text-muted">{{ b.available | int }} / {{ b.max }} days</span>
+                        {% endif %}
                     </div>
+                    {% if not b.is_unlimited %}
                     <div class="progress" style="height:6px;border-radius:10px">
                         <div class="progress-bar" role="progressbar"
                              style="width:{{ b.pct }}%;background:{{ b.type.color }};border-radius:10px">
                         </div>
                     </div>
+                    {% else %}
+                    <div class="text-muted" style="font-size:0.7rem">
+                        <i class="bi bi-infinity"></i> No limit
+                    </div>
+                    {% endif %}
                 </div>
                 {% else %}
                 <div class="text-center text-muted py-4 small">

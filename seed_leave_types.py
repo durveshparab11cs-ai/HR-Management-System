@@ -25,14 +25,10 @@ with app.app_context():
     db.create_all()
 
     leave_types = [
-        {"name": "Casual Leave",      "code": "CL",   "max_days_per_year": 12, "is_paid": True,  "color": "#3b82f6"},
-        {"name": "Sick Leave",        "code": "SL",   "max_days_per_year": 12, "is_paid": True,  "color": "#ef4444", "requires_document": True},
-        {"name": "Paid Leave",        "code": "PL",   "max_days_per_year": 15, "is_paid": True,  "color": "#10b981"},
-        {"name": "Loss of Pay",       "code": "LOP",  "max_days_per_year": 30, "is_paid": False, "color": "#f59e0b"},
-        {"name": "Comp Off",          "code": "COMP", "max_days_per_year": 6,  "is_paid": True,  "color": "#8b5cf6"},
-        {"name": "Maternity Leave",   "code": "ML",   "max_days_per_year": 180,"is_paid": True,  "color": "#ec4899"},
-        {"name": "Paternity Leave",   "code": "PTL",  "max_days_per_year": 15, "is_paid": True,  "color": "#0891b2"},
-        {"name": "Bereavement Leave", "code": "BL",   "max_days_per_year": 5,  "is_paid": True,  "color": "#6b7280"},
+        {"name": "Paid Leave",   "code": "PL",   "max_days_per_year": 6,  "is_paid": True,  "color": "#10b981", "description": "Maximum 6 per year, one per 2-month period"},
+        {"name": "Casual Leave", "code": "CL",   "max_days_per_year": 999,"is_paid": True,  "color": "#3b82f6", "description": "Unlimited"},
+        {"name": "Sick Leave",   "code": "SL",   "max_days_per_year": 999,"is_paid": True,  "color": "#ef4444", "description": "Unlimited", "requires_document": True},
+        {"name": "Comp Off",     "code": "COMP", "max_days_per_year": 999,"is_paid": True,  "color": "#8b5cf6", "description": "Unlimited"},
     ]
 
     added = 0

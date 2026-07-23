@@ -29,15 +29,28 @@ class LeaveService:
         types = leave_repo.get_all_types()
         balances = []
         for lt in types:
-            taken = leave_repo.count_days_taken(employee_id, lt.id, year)
-            available = max(0, lt.max_days_per_year - taken)
-            balances.append({
-                "type": lt,
-                "max": lt.max_days_per_year,
-                "taken": taken,
-                "available": available,
-                "pct": int((taken / lt.max_days_per_year * 100)) if lt.max_days_per_year else 0,
-            })
+            # For unlimited leave types (CL, SL, COMP) show as unlimited
+            if lt.max_days_per_year >= 999:
+                balances.append({
+                    "type": lt,
+                    "max": "Unlimited",
+                    "taken": 0,
+                    "available": "Unlimited",
+                    "pct": 0,
+                    "is_unlimited": True,
+                })
+            else:
+                # For Paid Leave (PL) — show actual balance
+                taken = leave_repo.count_days_taken(employee_id, lt.id, year)
+                available = max(0, lt.max_days_per_year - taken)
+                balances.append({
+                    "type": lt,
+                    "max": lt.max_days_per_year,
+                    "taken": taken,
+                    "available": available,
+                    "pct": int((taken / lt.max_days_per_year * 100)) if lt.max_days_per_year else 0,
+                    "is_unlimited": False,
+                })
         return balances
 
     # ── Apply Leave ───────────────────────────────────────────────────
@@ -71,11 +84,49 @@ class LeaveService:
         if total_days <= 0:
             return False, "Selected dates fall on weekends only.", None
 
-        year = start.year
-        taken = leave_repo.count_days_taken(employee_id, lt.id, year)
-        available = lt.max_days_per_year - taken
-        if total_days > available:
-            return False, f"Insufficient {lt.name} balance. Available: {available:.0f} days.", None
+        # ── PAID LEAVE (PL) VALIDATION ───────────────────────────────────
+        if lt.code.upper() == "PL":
+            # Rule 1: Maximum 6 Paid Leaves per calendar year
+            year = start.year
+            taken_this_year = leave_repo.count_days_taken(employee_id, lt.id, year)
+            if taken_this_year + total_days > 6:
+                available = max(0, 6 - taken_this_year)
+                return False, f"Paid Leave limit exceeded. You have {available} Paid Leave(s) remaining for {year}.", None
+            
+            # Rule 2: Only ONE Paid Leave per 2-month period
+            # Find the most recent APPROVED Paid Leave
+            from sqlalchemy import and_, extract  # noqa: PLC0415
+            last_pl = LeaveRequest.query.filter(
+                and_(
+                    LeaveRequest.employee_id == employee_id,
+                    LeaveRequest.leave_type_id == lt.id,
+                    LeaveRequest.status == "approved",
+                    LeaveRequest.is_deleted == False,
+                    extract("year", LeaveRequest.start_date) == year
+                )
+            ).order_by(LeaveRequest.start_date.desc()).first()
+            
+            if last_pl:
+                # Calculate 2 months from the last PL start date
+                from dateutil.relativedelta import relativedelta  # noqa: PLC0415
+                next_eligible_date = last_pl.start_date + relativedelta(months=2)
+                
+                if start < next_eligible_date:
+                    return False, (
+                        f"You can take only one Paid Leave every 2 months. "
+                        f"Your last Paid Leave was on {last_pl.start_date.strftime('%d %B %Y')}. "
+                        f"Your next eligible Paid Leave date is {next_eligible_date.strftime('%d %B %Y')}."
+                    ), None
+        
+        # ── UNLIMITED LEAVE TYPES (CL, SL, COMP) ─────────────────────────
+        # No balance validation required for unlimited types
+        if lt.max_days_per_year < 999:
+            # Only validate balance for limited leave types (e.g., PL)
+            year = start.year
+            taken = leave_repo.count_days_taken(employee_id, lt.id, year)
+            available = lt.max_days_per_year - taken
+            if total_days > available:
+                return False, f"Insufficient {lt.name} balance. Available: {available:.0f} days.", None
 
         if leave_repo.has_overlapping(employee_id, start, end):
             return False, "You already have a pending or approved leave for this period.", None
@@ -119,6 +170,47 @@ class LeaveService:
             return False, "Leave request not found."
         if lr.status != "pending":
             return False, f"Cannot approve a request with status '{lr.status}'."
+        
+        # ── RE-VALIDATE PAID LEAVE BEFORE APPROVAL ───────────────────────
+        if lr.leave_type.code.upper() == "PL":
+            year = lr.start_date.year
+            # Rule 1: Check yearly limit (exclude this request from count)
+            from sqlalchemy import and_, extract  # noqa: PLC0415
+            taken_this_year = db.session.query(db.func.sum(LeaveRequest.total_days)).filter(
+                and_(
+                    LeaveRequest.employee_id == lr.employee_id,
+                    LeaveRequest.leave_type_id == lr.leave_type_id,
+                    LeaveRequest.status == "approved",
+                    LeaveRequest.is_deleted == False,
+                    LeaveRequest.id != lr.id,  # exclude current request
+                    extract("year", LeaveRequest.start_date) == year
+                )
+            ).scalar() or 0
+            
+            if taken_this_year + lr.total_days > 6:
+                return False, f"Cannot approve. Employee would exceed 6 Paid Leaves for {year}."
+            
+            # Rule 2: Check 2-month gap
+            last_pl = LeaveRequest.query.filter(
+                and_(
+                    LeaveRequest.employee_id == lr.employee_id,
+                    LeaveRequest.leave_type_id == lr.leave_type_id,
+                    LeaveRequest.status == "approved",
+                    LeaveRequest.is_deleted == False,
+                    LeaveRequest.id != lr.id,  # exclude current request
+                    extract("year", LeaveRequest.start_date) == year
+                )
+            ).order_by(LeaveRequest.start_date.desc()).first()
+            
+            if last_pl:
+                from dateutil.relativedelta import relativedelta  # noqa: PLC0415
+                next_eligible_date = last_pl.start_date + relativedelta(months=2)
+                if lr.start_date < next_eligible_date:
+                    return False, (
+                        f"Cannot approve. Employee's last Paid Leave was on {last_pl.start_date.strftime('%d %B %Y')}. "
+                        f"Next eligible date is {next_eligible_date.strftime('%d %B %Y')}."
+                    )
+        
         lr.status = "approved"
         lr.reviewed_by = reviewer_id
         lr.reviewed_on = datetime.utcnow()
