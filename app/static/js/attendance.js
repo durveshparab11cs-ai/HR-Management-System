@@ -42,6 +42,74 @@
   let ciPhotoReady = false;  // true ONLY after check-in photo uploaded successfully
   let coPhotoReady = false;  // true ONLY after check-out photo uploaded successfully
 
+  /* ── CENTRALIZED BUTTON STATE MANAGER ──────────────────────────── */
+  function updateAttendanceButtons() {
+    console.group('[Button State Update]');
+    console.log('GPS Verified:', gpsReady);
+    console.log('Check-In Photo Uploaded:', ciPhotoReady);
+    console.log('Check-Out Photo Uploaded:', coPhotoReady);
+    
+    const ci = el('btn-checkin');
+    const co = el('btn-checkout');
+    const ciText = el('ci-text');
+    const coText = el('co-text');
+    
+    // ── Check-In Button ──────────────────────────────────────────────
+    if (ci && ciText) {
+      const ciCurrentText = ciText.textContent || '';
+      const isAlreadyCheckedIn = ciCurrentText.indexOf('Already') !== -1;
+      
+      if (!isAlreadyCheckedIn) {
+        if (gpsReady && ciPhotoReady) {
+          // Both conditions met — ENABLE
+          ci.disabled = false;
+          ciText.textContent = 'Check In';
+          console.log('✅ Check-In Button: ENABLED');
+        } else {
+          // Missing condition — DISABLE
+          ci.disabled = true;
+          if (!gpsReady && !ciPhotoReady) {
+            ciText.textContent = 'Upload Photo + GPS to Enable';
+          } else if (!ciPhotoReady) {
+            ciText.textContent = 'Upload Proof Photo First';
+          } else if (!gpsReady) {
+            ciText.textContent = 'Waiting for GPS…';
+          }
+          console.log('❌ Check-In Button: DISABLED');
+        }
+      }
+    }
+    
+    // ── Check-Out Button ─────────────────────────────────────────────
+    if (co && coText) {
+      const coCurrentText = coText.textContent || '';
+      const isAlreadyCheckedOut = coCurrentText.indexOf('Already') !== -1;
+      const needsCheckinFirst = coCurrentText.indexOf('First') !== -1;
+      
+      if (!isAlreadyCheckedOut && !needsCheckinFirst) {
+        if (gpsReady && coPhotoReady) {
+          // Both conditions met — ENABLE
+          co.disabled = false;
+          coText.textContent = 'Check Out';
+          console.log('✅ Check-Out Button: ENABLED');
+        } else {
+          // Missing condition — DISABLE
+          co.disabled = true;
+          if (!gpsReady && !coPhotoReady) {
+            coText.textContent = 'Upload Photo + GPS to Enable';
+          } else if (!coPhotoReady) {
+            coText.textContent = 'Upload Proof Photo First';
+          } else if (!gpsReady) {
+            coText.textContent = 'Waiting for GPS…';
+          }
+          console.log('❌ Check-Out Button: DISABLED');
+        }
+      }
+    }
+    
+    console.groupEnd();
+  }
+
   /* ── Leaflet map state ───────────────────────────────────────────── */
   let map = null, empMarker = null, accCircle = null;
 
@@ -265,7 +333,12 @@
   }
 
   function unlockButtons() {
-    // CRITICAL: Only unlock buttons if BOTH GPS AND PHOTO are ready
+    // DEPRECATED: Use updateAttendanceButtons() instead
+    updateAttendanceButtons();
+  }
+
+  function _unlockButtons_OLD() {
+    // OLD FUNCTION - KEPT FOR REFERENCE ONLY
     const ci = el('btn-checkin'), co = el('btn-checkout');
     if (ci && (typeof CAN_CHECKIN === 'undefined' || CAN_CHECKIN)) {
       // Check-in requires GPS + check-in photo
@@ -341,7 +414,7 @@
 
     if (within) {
       // ── Inside radius — PASS ──────────────────────────────────────
-      unlockButtons();
+      updateAttendanceButtons();
       setGpsStatus('ok',
         '✓ GPS Verified — ' + dist.toFixed(1) + 'm from office (±' + Math.round(empAcc) + 'm accuracy)'
       );
@@ -724,7 +797,7 @@
           showToast(successMsg,'success'); 
           
           // Re-evaluate button states
-          unlockButtons();
+          updateAttendanceButtons();
         }
         else { 
           showToast(d.message||'Upload failed. Please try again.','error'); 
@@ -782,10 +855,27 @@
   document.head.appendChild(styleEl);
 
   function boot() {
+    // Check if photos are already uploaded (set by server template)
+    const ciPreview = el('photo-preview-img');
+    const coPreview = el('co-photo-preview-img');
+    
+    if (ciPreview && ciPreview.src && ciPreview.src.indexOf('/static/uploads/') !== -1) {
+      console.log('✅ Check-in photo already uploaded (from server)');
+      ciPhotoReady = true;
+    }
+    
+    if (coPreview && coPreview.src && coPreview.src.indexOf('/static/uploads/') !== -1) {
+      console.log('✅ Check-out photo already uploaded (from server)');
+      coPhotoReady = true;
+    }
+    
     initMap();
     startGPS();
     startAutoRefresh();
     initPhotoUpload();
+    
+    // Initial button state evaluation
+    updateAttendanceButtons();
   }
 
   if (typeof L !== 'undefined') {
