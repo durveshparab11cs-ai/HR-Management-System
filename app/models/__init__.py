@@ -26,6 +26,8 @@ from app.models.leave import LeaveType, LeaveRequest, HalfDayRequest, EarlyLeave
 from app.models.notification import Notification  # noqa: F401
 from app.models.company import CompanyProfile, Department, Position, Shift  # noqa: F401
 from app.models.payroll import SalaryStructure, SalaryComponent, PayrollRun, Payslip  # noqa: F401
+from app.models.employee_shift_assignment import EmployeeShiftAssignment  # noqa: F401
+from app.models.shift_change_request import ShiftChangeRequest  # noqa: F401
 
 __all__ = [
     "User", "OfficeSettings", "Employee", "EmployeeMaster", "LoginHistory",
@@ -34,4 +36,5 @@ __all__ = [
     "Notification",
     "CompanyProfile", "Department", "Position", "Shift",
     "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip",
+    "EmployeeShiftAssignment", "ShiftChangeRequest",
 ]

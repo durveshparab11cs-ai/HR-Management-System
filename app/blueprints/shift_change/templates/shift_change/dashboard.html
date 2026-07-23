@@ -1,0 +1,246 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Shift Change Portal — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Shift Change', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+{% set status_badge = {'pending':'warning','approved':'success','rejected':'danger','returned':'info','cancelled':'secondary','expired':'dark'} %}
+
+<!-- Quick Actions -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">🕒 Shift Change Portal</h1>
+        <p class="text-muted small mb-0">Manage your shift change requests and view schedule</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('shift_change.create_request') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-plus-lg"></i> Request Shift Change
+        </a>
+        <a href="{{ url_for('shift_change.my_requests') }}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-list-ul"></i> My Requests
+        </a>
+        <a href="{{ url_for('shift_change.shift_history') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history"></i> History
+        </a>
+        {% if current_user.role in ['manager', 'agm', 'ceo', 'hr', 'super_admin'] %}
+        <a href="{{ url_for('shift_change.approvals') }}" class="btn btn-outline-success btn-sm d-flex align-items-center gap-2">
+            <i class="bi bi-person-check"></i> Approvals
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Current & Upcoming Shift -->
+<div class="row g-3 mb-4">
+    <!-- Current Shift -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #0d6efd !important;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                        <h6 class="fw-semibold mb-1">Current Shift</h6>
+                        <p class="text-muted small mb-0">Active work schedule</p>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary">Active</span>
+                </div>
+                {% if current_shift %}
+                <div class="text-center py-3">
+                    <h4 class="fw-bold mb-2">{{ current_shift.shift_name }}</h4>
+                    <div class="d-flex justify-content-center align-items-center gap-3 mb-2">
+                        <span class="badge bg-light text-dark px-3 py-2" style="font-size:1rem">
+                            <i class="bi bi-clock"></i> {{ current_shift.start_time.strftime('%I:%M %p') }}
+                        </span>
+                        <i class="bi bi-arrow-right text-muted"></i>
+                        <span class="badge bg-light text-dark px-3 py-2" style="font-size:1rem">
+                            <i class="bi bi-clock-fill"></i> {{ current_shift.end_time.strftime('%I:%M %p') }}
+                        </span>
+                    </div>
+                    <p class="text-muted small mb-0">{{ current_shift.working_hours }} hours per day</p>
+                    {% if current_shift.effective_from %}
+                    <p class="text-muted small mb-0">Since {{ current_shift.effective_from.strftime('%d %b %Y') }}</p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size:2.5rem"></i>
+                    <p class="mt-2 mb-0">No shift assigned</p>
+                    <p class="text-muted small">Contact HR to assign your shift</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Shift -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100" style="border-top:3px solid #198754 !important;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                        <h6 class="fw-semibold mb-1">Upcoming Shift</h6>
+                        <p class="text-muted small mb-0">Scheduled change</p>
+                    </div>
+                    {% if upcoming_shift %}
+                    <span class="badge bg-success-subtle text-success">Scheduled</span>
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">None</span>
+                    {% endif %}
+                </div>
+                {% if upcoming_shift %}
+                <div class="text-center py-3">
+                    <h4 class="fw-bold mb-2">{{ upcoming_shift.shift_name }}</h4>
+                    <div class="d-flex justify-content-center align-items-center gap-3 mb-2">
+                        <span class="badge bg-light text-dark px-3 py-2" style="font-size:1rem">
+                            <i class="bi bi-clock"></i> {{ upcoming_shift.start_time.strftime('%I:%M %p') }}
+                        </span>
+                        <i class="bi bi-arrow-right text-muted"></i>
+                        <span class="badge bg-light text-dark px-3 py-2" style="font-size:1rem">
+                            <i class="bi bi-clock-fill"></i> {{ upcoming_shift.end_time.strftime('%I:%M %p') }}
+                        </span>
+                    </div>
+                    <p class="text-success fw-semibold mb-0">
+                        <i class="bi bi-calendar-check"></i> Effective from {{ upcoming_shift.effective_from.strftime('%d %b %Y') }}
+                    </p>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-calendar-x text-muted" style="font-size:2.5rem"></i>
+                    <p class="mt-2 mb-0">No upcoming shift</p>
+                    <p class="text-muted small">Current shift will continue</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-hourglass-split text-warning" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ pending_count }}</h3>
+                <p class="text-muted small mb-0">Pending Requests</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-check-circle text-success" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ approved_count }}</h3>
+                <p class="text-muted small mb-0">Approved</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-x-circle text-danger" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ rejected_count }}</h3>
+                <p class="text-muted small mb-0">Rejected</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <i class="bi bi-clock-history text-info" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ shift_history|length }}</h3>
+                <p class="text-muted small mb-0">Total Changes</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Requests -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+                <h6 class="fw-semibold mb-0">Recent Requests</h6>
+                <a href="{{ url_for('shift_change.my_requests') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Requested Shift</th>
+                            <th>Effective Date</th>
+                            <th>Status</th>
+                            <th class="pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for req in recent_requests %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="small fw-semibold">{{ req.requested_start_time.strftime('%I:%M %p') }} - {{ req.requested_end_time.strftime('%I:%M %p') }}</div>
+                            <div class="text-muted" style="font-size:0.75rem">{{ req.requested_working_hours }}h</div>
+                        </td>
+                        <td class="small">{{ req.effective_date.strftime('%d %b %Y') }}</td>
+                        <td>
+                            <span class="badge bg-{{ status_badge.get(req.status, 'secondary') }}-subtle text-{{ status_badge.get(req.status, 'secondary') }}">
+                                {{ req.status.replace('_', ' ').title() }}
+                            </span>
+                        </td>
+                        <td class="pe-4">
+                            <a href="{{ url_for('shift_change.view_request', request_id=req.id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size:2rem"></i>
+                            <p class="mb-0 mt-2">No requests yet</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Shift History -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+                <h6 class="fw-semibold mb-0">Shift History</h6>
+                <a href="{{ url_for('shift_change.shift_history') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-4">
+                {% for hist in shift_history %}
+                <div class="d-flex align-items-start gap-3 mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+                    <div class="bg-primary-subtle rounded-circle p-2" style="width:40px;height:40px;flex-shrink:0">
+                        <i class="bi bi-arrow-repeat text-primary d-flex align-items-center justify-content-center" style="font-size:1.2rem"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold small">{{ hist.shift.name }}</div>
+                        <div class="text-muted" style="font-size:0.75rem">
+                            {{ hist.shift.start_time.strftime('%I:%M %p') }} - {{ hist.shift.end_time.strftime('%I:%M %p') }}
+                        </div>
+                        <div class="text-muted" style="font-size:0.7rem">
+                            <i class="bi bi-calendar3"></i>
+                            {{ hist.effective_from.strftime('%d %b %Y') }}
+                            {% if hist.effective_until %}
+                            - {{ hist.effective_until.strftime('%d %b %Y') }}
+                            {% else %}
+                            - Present
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-clock-history" style="font-size:2rem"></i>
+                    <p class="mb-0 mt-2 small">No shift history</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

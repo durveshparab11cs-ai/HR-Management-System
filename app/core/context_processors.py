@@ -120,6 +120,7 @@ def inject_navigation() -> dict:
         {"label": "Attendance",     "icon": "bi-calendar-check", "url_endpoint": "attendance.index",    "roles": None},
         {"label": "Leave",          "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
         {"label": "Leave Approval", "icon": "bi-person-check",   "url_endpoint": "leave.my_approvals",  "roles": None},
+        {"label": "Shift Change",   "icon": "bi-clock-history",  "url_endpoint": "shift_change.dashboard", "roles": None},
         {"label": "Payroll",        "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
         {"label": "Reports",        "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
         {"label": "Notifications",  "icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},

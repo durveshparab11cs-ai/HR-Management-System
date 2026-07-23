@@ -19,6 +19,7 @@ from app.blueprints.company import company_bp
 from app.blueprints.employees import employees_bp
 from app.blueprints.attendance import attendance_bp
 from app.blueprints.leave import leave_bp
+from app.blueprints.shift_change.routes import bp as shift_change_bp
 from app.blueprints.payroll import payroll_bp
 from app.blueprints.reports import reports_bp
 from app.blueprints.notifications import notifications_bp
@@ -34,6 +35,7 @@ _blueprints = [
     (employees_bp, None),
     (attendance_bp, None),
     (leave_bp, None),
+    (shift_change_bp, None),
     (payroll_bp, None),
     (reports_bp, None),
     (notifications_bp, None),

@@ -1,0 +1,195 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Request Shift Change — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Shift Change', url_for('shift_change.dashboard')), ('New Request', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Request Shift Change</h5>
+            </div>
+            <div class="card-body p-4">
+                <!-- Current Shift Info -->
+                {% if current_shift %}
+                <div class="alert alert-info mb-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-info-circle" style="font-size:1.5rem"></i>
+                        <div>
+                            <div class="fw-semibold">Your Current Shift</div>
+                            <div>{{ current_shift.shift_name }}: {{ current_shift.start_time.strftime('%I:%M %p') }} - {{ current_shift.end_time.strftime('%I:%M %p') }} ({{ current_shift.working_hours }}h)</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <form method="POST" enctype="multipart/form-data" id="shiftChangeForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Current Shift (Read-only) -->
+                    <div class="mb-4">
+                        {{ form.current_shift_display.label(class="form-label fw-semibold") }}
+                        {{ form.current_shift_display(class="form-control", readonly=True) }}
+                        {{ form.current_shift_id }}
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h6 class="fw-semibold mb-3">Requested Shift Details</h6>
+                    
+                    <!-- Option 1: Select Predefined Shift -->
+                    <div class="mb-4">
+                        {{ form.requested_shift_id.label(class="form-label") }}
+                        {{ form.requested_shift_id(class="form-select", id="requestedShiftSelect") }}
+                        <div class="form-text">Select a predefined shift or choose "Custom Timing" to enter your own hours</div>
+                    </div>
+                    
+                    <!-- Option 2: Custom Timing -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            {{ form.requested_start_time.label(class="form-label fw-semibold required") }}
+                            {{ form.requested_start_time(class="form-control", required=True) }}
+                            {% if form.requested_start_time.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.requested_start_time.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.requested_end_time.label(class="form-label fw-semibold required") }}
+                            {{ form.requested_end_time(class="form-control", required=True) }}
+                            {% if form.requested_end_time.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.requested_end_time.errors %}{{ error }}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Effective Date -->
+                    <div class="mb-4">
+                        {{ form.effective_date.label(class="form-label fw-semibold required") }}
+                        {{ form.effective_date(class="form-control", required=True) }}
+                        <div class="form-text">The date from which the new shift will be effective</div>
+                        {% if form.effective_date.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.effective_date.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Reason -->
+                    <div class="mb-4">
+                        {{ form.reason.label(class="form-label fw-semibold required") }}
+                        {{ form.reason(class="form-control", required=True) }}
+                        <div class="form-text">Explain why you need this shift change</div>
+                        {% if form.reason.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.reason.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Attachment -->
+                    <div class="mb-4">
+                        {{ form.attachment.label(class="form-label") }}
+                        {{ form.attachment(class="form-control") }}
+                        <div class="form-text">Attach supporting documents (PDF, images, or Word documents)</div>
+                        {% if form.attachment.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.attachment.errors %}{{ error }}{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Remarks -->
+                    <div class="mb-4">
+                        {{ form.remarks.label(class="form-label") }}
+                        {{ form.remarks(class="form-control") }}
+                        <div class="form-text">Any additional information</div>
+                    </div>
+                    
+                    <!-- Submission Info -->
+                    <div class="alert alert-warning mb-4">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Please Note:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Your shift change request will be sent to your reporting manager for approval</li>
+                            <li>The new shift will only be effective after approval</li>
+                            <li>Historical attendance will not be affected</li>
+                            <li>You will be notified of the approval status</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('shift_change.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-fill times when predefined shift is selected
+document.getElementById('requestedShiftSelect').addEventListener('change', function() {
+    const shiftId = this.value;
+    if (shiftId && shiftId != '0') {
+        // Fetch shift details via API
+        fetch(`/shift-change/api/shift/${shiftId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.querySelector('input[name="requested_start_time"]').value = data.start_time;
+                document.querySelector('input[name="requested_end_time"]').value = data.end_time;
+            })
+            .catch(error => console.error('Error fetching shift details:', error));
+    }
+});
+
+// Form validation
+document.getElementById('shiftChangeForm').addEventListener('submit', function(e) {
+    const startTime = document.querySelector('input[name="requested_start_time"]').value;
+    const endTime = document.querySelector('input[name="requested_end_time"]').value;
+    const effectiveDate = document.querySelector('input[name="effective_date"]').value;
+    const reason = document.querySelector('textarea[name="reason"]').value;
+    
+    if (!startTime || !endTime || !effectiveDate || !reason.trim()) {
+        e.preventDefault();
+        alert('Please fill in all required fields');
+        return false;
+    }
+    
+    // Check if end time is after start time
+    if (endTime <= startTime) {
+        e.preventDefault();
+        alert('End time must be after start time');
+        return false;
+    }
+    
+    // Check if effective date is not in the past
+    const today = new Date().toISOString().split('T')[0];
+    if (effectiveDate < today) {
+        e.preventDefault();
+        alert('Effective date cannot be in the past');
+        return false;
+    }
+});
+</script>
+
+<style>
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+</style>
+
+{% endblock %}

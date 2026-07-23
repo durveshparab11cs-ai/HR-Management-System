@@ -103,7 +103,7 @@ class AttendanceService:
                 return False, "You have already checked in today.", None, None
 
             now = datetime.utcnow()
-            is_late, late_minutes = compute_check_in_meta(now, office)
+            is_late, late_minutes = compute_check_in_meta(now, office, employee.id, today)
             logger.info("Check-in meta: is_late=%s, late_minutes=%s", is_late, late_minutes)
 
             if existing:
@@ -228,7 +228,7 @@ class AttendanceService:
                 return False, "You have already checked out today.", None, None
 
             now  = datetime.utcnow()
-            meta = compute_check_out_meta(attendance, now, office)
+            meta = compute_check_out_meta(attendance, now, office, employee.id)
             logger.info("Check-out meta: working=%dm, overtime=%dm", 
                        meta["working_minutes"], meta["overtime_minutes"])
 
