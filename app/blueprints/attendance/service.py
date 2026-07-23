@@ -109,12 +109,14 @@ class AttendanceService:
             if existing:
                 logger.info("Updating existing attendance record: id=%s", existing.id)
                 attendance = existing
+                # ✅ Update status from "pending" to "present" when checking in
+                attendance.status = "present"
             else:
                 logger.info("Creating new attendance record")
                 attendance = Attendance(
                     employee_id=employee.id,
                     date=today,
-                    status=AttendanceStatus.PRESENT,
+                    status="present",  # ✅ Set to "present" on check-in
                     created_by=employee.user_id,
                 )
 
@@ -299,16 +301,17 @@ class AttendanceService:
         # Get or create attendance record for today
         attendance = _repo.get_today(employee.id, today)
         if not attendance:
-            # Create placeholder attendance record for photo upload
+            # ✅ Create placeholder attendance record for photo upload
+            # Status = "pending" until actual check-in happens
             attendance = Attendance(
                 employee_id=employee.id,
                 date=today,
-                status=AttendanceStatus.PRESENT,
+                status="pending",  # ✅ Use "pending" status for placeholder
             )
             db.session.add(attendance)
             db.session.flush()  # Get ID for photo reference
             logger.info(
-                "ATTENDANCE_PLACEHOLDER_CREATED | emp=%s | date=%s | for pre-checkin photo",
+                "ATTENDANCE_PLACEHOLDER_CREATED | emp=%s | date=%s | status=pending",
                 employee.id, today
             )
         

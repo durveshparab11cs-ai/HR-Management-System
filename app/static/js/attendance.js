@@ -806,13 +806,16 @@
         const d = await res.json();
         
         if (d.success) { 
-          // Set photo ready flag
+          // ✅ SYNC STATE FROM BACKEND RESPONSE
+          // Backend now returns has_photo and can_check_in for accurate state
           if (isCheckout) {
-            coPhotoReady = true;
+            coPhotoReady = d.has_checkout_photo !== undefined ? d.has_checkout_photo : true;
             console.log('✅ Check-out photo uploaded successfully');
+            console.log('   Backend confirmed has_checkout_photo:', coPhotoReady);
           } else {
-            ciPhotoReady = true;
+            ciPhotoReady = d.has_photo !== undefined ? d.has_photo : true;
             console.log('✅ Check-in photo uploaded successfully');
+            console.log('   Backend confirmed has_photo:', ciPhotoReady);
           }
           
           // Update badge and zone
@@ -839,8 +842,10 @@
           
           showToast(successMsg,'success'); 
           
-          // ✅ IMMEDIATELY UPDATE BUTTON STATES
+          // ✅ IMMEDIATELY UPDATE BUTTON STATES (critical fix!)
           console.log('🔄 Calling updateAttendanceButtons() after photo upload');
+          console.log('   Current state: gpsReady=' + gpsReady + ', withinRadius=' + withinRadius + 
+                     ', ciPhotoReady=' + ciPhotoReady + ', coPhotoReady=' + coPhotoReady);
           updateAttendanceButtons();
         }
         else { 
@@ -932,19 +937,43 @@
   document.head.appendChild(styleEl);
 
   function boot() {
-    // Check if photos are already uploaded (set by server template)
+    // ✅ Check if photos are already uploaded by looking at badge status (more reliable)
+    const ciBadge = el('ci-photo-badge');
+    const coBadge = el('co-photo-badge');
+    
+    // Check-in photo status
+    if (ciBadge) {
+      const badgeText = ciBadge.textContent || '';
+      if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
+        console.log('✅ Check-in photo already uploaded (detected from badge)');
+        ciPhotoReady = true;
+      }
+    }
+    
+    // Check-out photo status
+    if (coBadge) {
+      const badgeText = coBadge.textContent || '';
+      if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
+        console.log('✅ Check-out photo already uploaded (detected from badge)');
+        coPhotoReady = true;
+      }
+    }
+    
+    // Fallback: check image preview (legacy)
     const ciPreview = el('photo-preview-img');
     const coPreview = el('co-photo-preview-img');
     
-    if (ciPreview && ciPreview.src && ciPreview.src.indexOf('/static/uploads/') !== -1) {
-      console.log('✅ Check-in photo already uploaded (from server)');
+    if (!ciPhotoReady && ciPreview && ciPreview.src && ciPreview.src.indexOf('/static/uploads/') !== -1) {
+      console.log('✅ Check-in photo detected from preview image');
       ciPhotoReady = true;
     }
     
-    if (coPreview && coPreview.src && coPreview.src.indexOf('/static/uploads/') !== -1) {
-      console.log('✅ Check-out photo already uploaded (from server)');
+    if (!coPhotoReady && coPreview && coPreview.src && coPreview.src.indexOf('/static/uploads/') !== -1) {
+      console.log('✅ Check-out photo detected from preview image');
       coPhotoReady = true;
     }
+    
+    console.log('🚀 Initial photo state: ciPhotoReady=' + ciPhotoReady + ', coPhotoReady=' + coPhotoReady);
     
     initMap();
     startGPS();

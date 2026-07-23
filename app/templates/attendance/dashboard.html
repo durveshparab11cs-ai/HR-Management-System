@@ -198,6 +198,12 @@
           Signed In — <span class="utc-to-ist">{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span> IST
         {% endif %}
       </div>
+    {% elif status.attendance and status.attendance.status == 'pending' %}
+      {# ✅ Show "Attendance Pending" when record exists but no check-in yet #}
+      <div class="att-pill" style="background:rgba(59,130,246,.15)">
+        <div class="att-dot" style="background:#3b82f6"></div>
+        Attendance Pending
+      </div>
     {% else %}
       <div class="att-pill"><div class="att-dot off"></div> Not Checked In</div>
     {% endif %}
@@ -438,7 +444,7 @@
         </tr>
       </thead>
       <tbody>
-      {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary','work_from_home':'primary'} %}
+      {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary','weekend':'secondary','work_from_home':'primary','pending':'primary'} %}
       {% for att, photo in history.items %}
       <tr>
         <!-- Date -->
