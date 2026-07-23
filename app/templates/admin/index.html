@@ -30,6 +30,9 @@
         <a href="{{ url_for('admin.office_settings') }}" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-gear me-1"></i>Office Settings
         </a>
+        <button type="button" class="btn btn-sm btn-outline-danger" id="btn-reset-attendance">
+            <i class="bi bi-trash me-1"></i>Reset Attendance
+        </button>
         <a href="{{ url_for('employees.create') }}" class="btn btn-sm btn-primary">
             <i class="bi bi-person-plus me-1"></i>Add Employee
         </a>
@@ -217,4 +220,71 @@
     </div>
 </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('btn-reset-attendance').addEventListener('click', function() {
+    // Show confirmation dialog
+    const confirmed = confirm(
+        'DANGER: This will permanently delete ALL attendance data!\n\n' +
+        '- All check-in and check-out records\n' +
+        '- All attendance photos\n' +
+        '- All GPS logs\n' +
+        '- All audit logs\n\n' +
+        'This CANNOT be undone!\n\n' +
+        'Click OK to proceed or Cancel to abort.'
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Second confirmation
+    const secondConfirm = confirm(
+        'Are you ABSOLUTELY SURE?\n\n' +
+        'This will delete ALL attendance history for ALL employees.\n\n' +
+        'Type OK in your mind and click OK to proceed.'
+    );
+    
+    if (!secondConfirm) {
+        return;
+    }
+    
+    // Disable button
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resetting...';
+    
+    // Send request
+    fetch('{{ url_for("admin.reset_attendance") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ confirm: 'DELETE ALL' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(
+                'SUCCESS!\n\n' +
+                data.message + '\n\n' +
+                'The page will now reload.'
+            );
+            window.location.reload();
+        } else {
+            alert('ERROR: ' + data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Reset Attendance';
+        }
+    })
+    .catch(error => {
+        alert('ERROR: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Reset Attendance';
+    });
+});
+</script>
 {% endblock %}

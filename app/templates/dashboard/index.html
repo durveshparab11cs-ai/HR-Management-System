@@ -116,6 +116,90 @@
     </div>
 </div>
 
+<!-- ── Employee Master Information ── -->
+{% if employee_master %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3 pb-0 px-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="bi bi-person-lines-fill me-2 text-primary"></i>Employee Master Information
+                    </h6>
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="bi bi-check-circle me-1"></i>Registered
+                    </span>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Employee Code</div>
+                        <div class="fw-semibold"><code>{{ employee_master.employee_code }}</code></div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Employee Name</div>
+                        <div class="fw-semibold">{{ employee_master.employee_name }}</div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Department</div>
+                        <div class="fw-semibold">{{ employee_master.department or '—' }}</div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Designation</div>
+                        <div class="fw-semibold">{{ employee_master.designation or '—' }}</div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Date of Joining</div>
+                        <div class="fw-semibold">
+                            {% if employee_master.date_of_joining %}
+                                {{ employee_master.date_of_joining.strftime('%d %b %Y') }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Official Email</div>
+                        <div class="fw-semibold">{{ employee_master.official_email or '—' }}</div>
+                    </div>
+                    {% if employee_master.phone_number %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Phone Number</div>
+                        <div class="fw-semibold">{{ employee_master.phone_number }}</div>
+                    </div>
+                    {% endif %}
+                    {% if employee_master.reporting_manager_code %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Reporting Manager Code</div>
+                        <div class="fw-semibold"><code>{{ employee_master.reporting_manager_code }}</code></div>
+                    </div>
+                    {% endif %}
+                    {% if employee_master.reporting_manager_name %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Reporting Manager Name</div>
+                        <div class="fw-semibold">{{ employee_master.reporting_manager_name }}</div>
+                    </div>
+                    {% endif %}
+                    {% if employee_master.location %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Location</div>
+                        <div class="fw-semibold">{{ employee_master.location }}</div>
+                    </div>
+                    {% endif %}
+                    {% if employee_master.employee_status %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Employment Status</div>
+                        <div class="fw-semibold">{{ employee_master.employee_status }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ── Charts row ── -->
 <div class="row g-4 mb-4">
     <div class="col-lg-8">

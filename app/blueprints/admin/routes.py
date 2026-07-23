@@ -421,3 +421,69 @@ def export_daily_attendance():
         as_attachment=True,
         download_name=filename,
     )
+
+
+@admin_bp.route("/attendance/reset", methods=["POST"])
+@login_required
+@admin_required
+def reset_attendance():
+    """
+    Reset ALL attendance data (development/testing only).
+    Requires confirmation via JSON body: {"confirm": "DELETE ALL"}
+    """
+    import logging
+    from app.models.attendance import Attendance
+    from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_log import AttendanceLog
+    from app.extensions.database import db
+
+    logger = logging.getLogger("admin")
+
+    data = request.get_json() or {}
+    confirm = data.get("confirm", "")
+
+    if confirm != "DELETE ALL":
+        return jsonify(
+            success=False,
+            message="Confirmation failed. Send {\"confirm\": \"DELETE ALL\"} to proceed."
+        ), 400
+
+    try:
+        # Count before deletion
+        attendance_count = Attendance.query.count()
+        photo_count = AttendancePhoto.query.count()
+        log_count = AttendanceLog.query.count()
+
+        logger.info(
+            "ATTENDANCE_RESET_START | by_user=%s | att=%d | photos=%d | logs=%d",
+            current_user.id, attendance_count, photo_count, log_count
+        )
+
+        # Delete in correct order (respect foreign keys)
+        AttendanceLog.query.delete()
+        AttendancePhoto.query.delete()
+        Attendance.query.delete()
+        db.session.commit()
+
+        logger.info(
+            "ATTENDANCE_RESET_SUCCESS | by_user=%s | deleted att=%d, photos=%d, logs=%d",
+            current_user.id, attendance_count, photo_count, log_count
+        )
+
+        return jsonify(
+            success=True,
+            message=f"Successfully deleted {attendance_count} attendance records, {photo_count} photos, and {log_count} logs.",
+            deleted={
+                "attendance": attendance_count,
+                "photos": photo_count,
+                "logs": log_count
+            }
+        )
+
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("ATTENDANCE_RESET_FAILED | by_user=%s | error=%s", current_user.id, str(exc))
+        return jsonify(
+            success=False,
+            message=f"Reset failed: {str(exc)}"
+        ), 500

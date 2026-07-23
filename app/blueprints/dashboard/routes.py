@@ -29,6 +29,8 @@ _lsvc  = LeaveService()
 @login_required
 def index():
     from app.constants.enums import UserRole
+    from app.models.employee_master import EmployeeMaster
+    
     if current_user.role in (
         UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value,
         UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value,
@@ -40,8 +42,10 @@ def index():
     today_att = None
     office    = None
     balances  = []
+    employee_master = None
     attendance_chart_data = _build_attendance_chart_data([])
     department_chart_data = {"labels": [], "values": []}
+    
     if employee:
         try:
             today_att = _att.get_today(employee.id, today)
@@ -56,16 +60,23 @@ def index():
         except Exception:  # noqa: BLE001
             balances = []
         try:
+            # Fetch employee master data by employee code
+            employee_master = EmployeeMaster.query.filter_by(
+                employee_code=employee.employee_code
+            ).first()
+        except Exception:  # noqa: BLE001
+            employee_master = None
+        try:
             months_data = _build_attendance_chart_data_for_employee(employee.id)
             attendance_chart_data = months_data
         except Exception:  # noqa: BLE001
-            passrt_data_for_employee(employee.id)
-        attendance_chart_data = months_data
+            pass
 
     return render_template(
         "dashboard/index.html",
         title="Dashboard",
         employee=employee,
+        employee_master=employee_master,
         today_att=today_att,
         today=today,
         office=office,
