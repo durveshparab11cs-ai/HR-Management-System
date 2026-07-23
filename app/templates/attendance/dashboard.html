@@ -283,101 +283,130 @@
     <div class="att-action-card">
       <h6 class="fw-semibold mb-3 small text-uppercase text-muted">Mark Attendance</h6>
 
-      <!-- ── Photo upload — always visible, above buttons ── -->
+      <!-- ── Check-In Proof Photo (MANDATORY — must upload before Check In) ── -->
+      {% if not (status.attendance and status.attendance.check_in_time) %}
+      <div id="checkin-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="small fw-bold" style="color:#0f172a">
+            <i class="bi bi-camera-fill me-1 text-danger"></i>Proof Photo <span class="text-danger">*</span>
+          </div>
+          <span id="ci-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
+        </div>
+        <div class="small text-danger mb-2" style="font-size:.72rem">
+          <i class="bi bi-info-circle me-1"></i>Upload your GPS Map Camera selfie before checking in.
+        </div>
+        <div class="photo-zone" id="photo-zone" style="border:2px solid #fca5a5">
+          <img id="photo-preview-img" class="photo-preview" alt="Proof photo" style="display:none">
+          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-1" id="ci-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#dc2626" id="ci-photo-label">Upload Proof Photo</div>
+          <div style="font-size:.7rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        </div>
+        <div id="ci-photo-error" style="display:none;color:#dc2626;font-size:.75rem;margin-top:6px;font-weight:600">
+          <i class="bi bi-exclamation-circle me-1"></i>Proof Photo is required to mark attendance.
+        </div>
+        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo" style="display:none">
+          <span class="att-spinner" id="photo-spin" style="border-top-color:var(--att-navy)"></span>
+          <i class="bi bi-upload me-1"></i> <span id="photo-txt">Upload Proof Photo</span>
+        </button>
+      </div>
+      {% else %}
+      <!-- Already checked in — show uploaded status -->
       <div style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
         <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="small fw-semibold text-muted">
-            <i class="bi bi-camera2 me-1 text-primary"></i>Proof Photo
+          <div class="small fw-bold" style="color:#0f172a">
+            <i class="bi bi-camera-fill me-1 text-primary"></i>Check-In Proof Photo
           </div>
           {% if status.has_photo %}
           <span class="badge bg-success-subtle text-success small">
-            <i class="bi bi-check-circle me-1"></i>Uploaded
+            <i class="bi bi-check-circle me-1"></i>✓ Uploaded
           </span>
           {% else %}
-          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
+          <span class="badge bg-warning-subtle text-warning small">Not uploaded</span>
           {% endif %}
         </div>
-
-        {% if status.has_photo %}
-        <div class="text-center py-3 text-muted small">
-          <i class="bi bi-check-circle-fill text-success fs-4 d-block mb-1"></i>
-          Proof photo already uploaded for today.
-        </div>
-        {% else %}
+        {% if not status.has_photo %}
         <div class="photo-zone" id="photo-zone">
           <img id="photo-preview-img" class="photo-preview" alt="Proof photo" style="display:none">
           <i class="bi bi-camera fs-3 text-muted d-block mb-1"></i>
-          <div class="small fw-medium text-muted">Click or drag photo here</div>
-          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB · Optional</div>
-          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp"
-                 style="display:none">
+          <div class="small fw-medium text-muted">Upload check-in proof photo</div>
+          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
+          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
         </div>
-        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo"
-                style="display:none">
-          <span class="att-spinner" id="photo-spin" style="border-top-color:var(--att-navy)"></span>
+        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo" style="display:none">
+          <span class="att-spinner" id="photo-spin"></span>
           <i class="bi bi-upload me-1"></i> <span id="photo-txt">Upload Photo</span>
         </button>
         {% endif %}
       </div>
+      {% endif %}
 
-      <!-- ── Check In / Check Out buttons ── -->
-      <div class="d-grid gap-3">
-        <button class="btn-checkin" id="btn-checkin"
-                {% if not status.can_check_in %}disabled{% endif %}>
-          <div class="att-spinner" id="ci-spin"></div>
-          <i class="bi bi-box-arrow-in-right" id="ci-icon"></i>
-          <span id="ci-text">
-            {% if status.attendance and status.attendance.check_in_time %}Already Checked In{% else %}Check In{% endif %}
-          </span>
-        </button>
-
-        <button class="btn-checkout" id="btn-checkout"
-                {% if not status.can_check_out %}disabled{% endif %}>
-          <div class="att-spinner" id="co-spin"></div>
-          <i class="bi bi-box-arrow-right" id="co-icon"></i>
-          <span id="co-text">
-            {% if not status.attendance or not status.attendance.check_in_time %}Check In First
-            {% elif status.attendance.check_out_time %}Already Checked Out
-            {% else %}Check Out{% endif %}
-          </span>
-        </button>
-      </div>
-
-      <!-- ── Checkout Photo Upload ── -->
-      {% if status.attendance and status.attendance.check_out_time %}
-      <div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f5f9">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="small fw-semibold text-muted">
-            <i class="bi bi-camera2 me-1 text-danger"></i>Check-Out Proof Photo
+      <!-- ── Check-Out Proof Photo (MANDATORY — shown when checked in, before checkout) ── -->
+      {% if status.attendance and status.attendance.check_in_time and not status.attendance.check_out_time %}
+      <div id="checkout-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="small fw-bold" style="color:#0f172a">
+            <i class="bi bi-camera-fill me-1 text-danger"></i>Check-Out Proof Photo <span class="text-danger">*</span>
           </div>
-          {% if status.has_checkout_photo %}
-          <span class="badge bg-success-subtle text-success small">
-            <i class="bi bi-check-circle me-1"></i>Uploaded
-          </span>
-          {% else %}
-          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
-          {% endif %}
+          <span id="co-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
         </div>
-        {% if status.has_checkout_photo %}
-        <div class="text-center py-2 text-muted small">
-          <i class="bi bi-check-circle-fill text-success fs-5 d-block mb-1"></i>
-          Check-out photo already uploaded for today.
+        <div class="small text-danger mb-2" style="font-size:.72rem">
+          <i class="bi bi-info-circle me-1"></i>Upload your GPS Map Camera selfie before checking out.
         </div>
-        {% else %}
-        <div class="photo-zone" id="co-photo-zone">
-          <img id="co-photo-preview-img" class="photo-preview" alt="Checkout proof" style="display:none">
-          <i class="bi bi-camera fs-3 text-muted d-block mb-1"></i>
-          <div class="small fw-medium text-muted">Check-out proof photo</div>
-          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
+        <div class="photo-zone" id="co-photo-zone" style="border:2px solid #fca5a5">
+          <img id="co-photo-preview-img" class="photo-preview" alt="Check-out proof" style="display:none">
+          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-1" id="co-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#dc2626" id="co-photo-label">Upload Proof Photo</div>
+          <div style="font-size:.7rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
           <input type="file" id="co-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        </div>
+        <div id="co-photo-error" style="display:none;color:#dc2626;font-size:.75rem;margin-top:6px;font-weight:600">
+          <i class="bi bi-exclamation-circle me-1"></i>Proof Photo is required to mark attendance.
         </div>
         <button class="btn btn-sm btn-outline-danger w-100 mt-2" id="btn-upload-co-photo" style="display:none">
           <span class="att-spinner" id="co-photo-spin" style="border-top-color:#dc2626"></span>
           <i class="bi bi-upload me-1"></i> <span id="co-photo-txt">Upload Check-out Photo</span>
         </button>
-        {% endif %}
+      </div>
+      {% elif status.attendance and status.attendance.check_out_time %}
+      <!-- Already checked out — show status -->
+      <div style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="small fw-bold" style="color:#0f172a">
+            <i class="bi bi-camera-fill me-1 text-danger"></i>Check-Out Proof Photo
+          </div>
+          {% if status.has_checkout_photo %}
+          <span class="badge bg-success-subtle text-success small">
+            <i class="bi bi-check-circle me-1"></i>✓ Uploaded
+          </span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
+          {% endif %}
+        </div>
       </div>
       {% endif %}
+
+      <!-- ── Check In / Check Out buttons ── -->
+      <div class="d-grid gap-3">
+        <button class="btn-checkin" id="btn-checkin" disabled>
+          <div class="att-spinner" id="ci-spin"></div>
+          <i class="bi bi-box-arrow-in-right" id="ci-icon"></i>
+          <span id="ci-text">
+            {% if status.attendance and status.attendance.check_in_time %}Already Checked In
+            {% else %}Upload Photo + GPS to Enable{% endif %}
+          </span>
+        </button>
+
+        <button class="btn-checkout" id="btn-checkout" disabled>
+          <div class="att-spinner" id="co-spin"></div>
+          <i class="bi bi-box-arrow-right" id="co-icon"></i>
+          <span id="co-text">
+            {% if not status.attendance or not status.attendance.check_in_time %}Check In First
+            {% elif status.attendance.check_out_time %}Already Checked Out
+            {% else %}Upload Photo + GPS to Enable{% endif %}
+          </span>
+        </button>
+      </div>
 
     </div>
   </div>

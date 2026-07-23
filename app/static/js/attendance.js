@@ -38,6 +38,10 @@
   let autoRefreshTimer = null;
   let isRefreshing = false;
 
+  /* ── Photo state (MANDATORY for both check-in and check-out) ─────── */
+  let ciPhotoReady = false;  // true ONLY after check-in photo uploaded successfully
+  let coPhotoReady = false;  // true ONLY after check-out photo uploaded successfully
+
   /* ── Leaflet map state ───────────────────────────────────────────── */
   let map = null, empMarker = null, accCircle = null;
 
@@ -261,17 +265,39 @@
   }
 
   function unlockButtons() {
-    // Only called from onGPSSuccess when real coordinates verified
+    // CRITICAL: Only unlock buttons if BOTH GPS AND PHOTO are ready
     const ci = el('btn-checkin'), co = el('btn-checkout');
     if (ci && (typeof CAN_CHECKIN === 'undefined' || CAN_CHECKIN)) {
-      ci.disabled = false;
-      const t = el('ci-text'); if (t) t.textContent = 'Check In';
-      const i = el('ci-icon'); if (i) i.className = 'bi bi-box-arrow-in-right';
+      // Check-in requires GPS + check-in photo
+      if (gpsReady && ciPhotoReady) {
+        ci.disabled = false;
+        const t = el('ci-text'); if (t) t.textContent = 'Check In';
+        const i = el('ci-icon'); if (i) i.className = 'bi bi-box-arrow-in-right';
+      } else {
+        ci.disabled = true;
+        const t = el('ci-text');
+        if (t) {
+          if (!gpsReady && !ciPhotoReady) t.textContent = 'Upload Photo + GPS to Enable';
+          else if (!ciPhotoReady) t.textContent = 'Upload Proof Photo First';
+          else if (!gpsReady) t.textContent = 'Waiting for GPS…';
+        }
+      }
     }
     if (co && (typeof CAN_CHECKOUT === 'undefined' || CAN_CHECKOUT)) {
-      co.disabled = false;
-      const t = el('co-text'); if (t) t.textContent = 'Check Out';
-      const i = el('co-icon'); if (i) i.className = 'bi bi-box-arrow-right';
+      // Check-out requires GPS + check-out photo
+      if (gpsReady && coPhotoReady) {
+        co.disabled = false;
+        const t = el('co-text'); if (t) t.textContent = 'Check Out';
+        const i = el('co-icon'); if (i) i.className = 'bi bi-box-arrow-right';
+      } else {
+        co.disabled = true;
+        const t = el('co-text');
+        if (t) {
+          if (!gpsReady && !coPhotoReady) t.textContent = 'Upload Photo + GPS to Enable';
+          else if (!coPhotoReady) t.textContent = 'Upload Proof Photo First';
+          else if (!gpsReady) t.textContent = 'Waiting for GPS…';
+        }
+      }
     }
   }
 
@@ -505,12 +531,33 @@
   /* ═══════════════════════════════════════════════════════════════════
      SUBMIT ATTENDANCE — sends lat/lon/accuracy/timestamp to backend
      Backend performs identical Haversine + accuracy validation.
+     CRITICAL: Also validates that photo was uploaded before submitting.
   ════════════════════════════════════════════════════════════════════ */
   async function submitAttendance(url, type) {
     if (!gpsReady || lat === null) {
       showToast('Location not verified. Please wait for GPS confirmation.', 'error');
+      const errEl = el(type === 'in' ? 'ci-photo-error' : 'co-photo-error');
+      if (errEl) { errEl.style.display = ''; errEl.textContent = '⚠️ Location not verified. Please wait for GPS confirmation.'; }
       return;
     }
+
+    // Mandatory photo validation — check-in requires ciPhotoReady, check-out requires coPhotoReady
+    const needsPhoto = (type === 'in' && !ciPhotoReady) || (type === 'out' && !coPhotoReady);
+    if (needsPhoto) {
+      showToast('Proof Photo is required to mark attendance.', 'error');
+      const errEl = el(type === 'in' ? 'ci-photo-error' : 'co-photo-error');
+      if (errEl) { errEl.style.display = ''; errEl.textContent = '⚠️ Proof Photo is required to mark attendance.'; }
+      // Also highlight the photo zone
+      const zone = el(type === 'in' ? 'photo-zone' : 'co-photo-zone');
+      if (zone) {
+        zone.style.borderColor = '#dc2626';
+        zone.style.borderWidth = '3px';
+        zone.style.animation = 'shake 0.4s';
+        setTimeout(() => { zone.style.borderWidth = '2px'; }, 400);
+      }
+      return;
+    }
+
     setLoading(type, true);
     const fd = new FormData();
     fd.append('latitude',  lat);
@@ -571,44 +618,137 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════
-     PHOTO UPLOAD
+     PHOTO UPLOAD — with state management and UI feedback
   ════════════════════════════════════════════════════════════════════ */
-  function _initZone(zoneId, inpId, btnId, prevId, spinId, txtId, uploadUrl, successMsg) {
+  function _initZone(zoneId, inpId, btnId, prevId, spinId, txtId, uploadUrl, successMsg, isCheckout) {
     const zone = el(zoneId), inp = el(inpId),
           btn  = el(btnId),  prev = el(prevId),
           spin = el(spinId), txt  = el(txtId);
     if (!zone || !inp) return;
+    
     zone.addEventListener('click', () => inp.click());
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+    zone.addEventListener('drop', e => { 
+      e.preventDefault(); 
+      zone.classList.remove('drag-over'); 
+      if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); 
+    });
     inp.addEventListener('change', () => { if (inp.files[0]) handle(inp.files[0]); });
+    
     function handle(f) {
-      if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { showToast('Only JPG, PNG, WEBP.','error'); return; }
-      if (f.size > 5*1024*1024) { showToast('Max 5 MB.','error'); return; }
+      // Validate file type
+      if (!['image/jpeg','image/png','image/webp'].includes(f.type)) { 
+        showToast('Only JPG, PNG, WEBP images allowed.','error'); 
+        return; 
+      }
+      // Validate file size (5MB max)
+      if (f.size > 5*1024*1024) { 
+        showToast('Image must be less than 5 MB.','error'); 
+        return; 
+      }
+      
+      // Show preview
       const r = new FileReader();
-      r.onload = e => { if (prev) { prev.src = e.target.result; prev.style.display = 'block'; } };
+      r.onload = e => { 
+        if (prev) { 
+          prev.src = e.target.result; 
+          prev.style.display = 'block'; 
+        } 
+        // Update zone styling to show success
+        zone.style.borderColor = '#10b981';
+        zone.style.background = '#f0fdf4';
+        const icon = el(isCheckout ? 'co-photo-icon' : 'ci-photo-icon');
+        const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
+        if (icon) icon.style.display = 'none';
+        if (label) label.textContent = 'Photo Selected ✓';
+      };
       r.readAsDataURL(f);
       if (btn) btn.style.display = '';
     }
+    
     btn?.addEventListener('click', async () => {
-      const f = inp.files[0]; if (!f) { showToast('Select a photo first.','warn'); return; }
+      const f = inp.files[0]; 
+      if (!f) { 
+        showToast('Please select a photo first.','warn'); 
+        const errEl = el(isCheckout ? 'co-photo-error' : 'ci-photo-error');
+        if (errEl) errEl.style.display = '';
+        return; 
+      }
+      
       btn.disabled = true;
       if (spin) spin.style.display = 'inline-block';
       if (txt)  txt.textContent = 'Uploading…';
-      const fd = new FormData(); fd.append('photo', f);
+      
+      const fd = new FormData(); 
+      fd.append('photo', f);
+      
       try {
-        const res = await fetch(uploadUrl, { method:'POST', headers:{'X-CSRFToken':CSRF_TOKEN,'X-Requested-With':'XMLHttpRequest'}, body: fd });
+        const res = await fetch(uploadUrl, { 
+          method:'POST', 
+          headers:{'X-CSRFToken':CSRF_TOKEN,'X-Requested-With':'XMLHttpRequest'}, 
+          body: fd 
+        });
         const d = await res.json();
-        if (d.success) { showToast(successMsg,'success'); setTimeout(() => location.reload(), 1500); }
-        else { showToast(d.message||'Upload failed.','error'); btn.disabled=false; if(spin)spin.style.display='none'; if(txt)txt.textContent=successMsg.replace(' uploaded successfully.',''); }
-      } catch { showToast('Upload error.','error'); btn.disabled=false; if(spin)spin.style.display='none'; }
+        
+        if (d.success) { 
+          // Set photo ready flag
+          if (isCheckout) {
+            coPhotoReady = true;
+          } else {
+            ciPhotoReady = true;
+          }
+          
+          // Update badge and zone
+          const badge = el(isCheckout ? 'co-photo-badge' : 'ci-photo-badge');
+          if (badge) {
+            badge.className = 'badge bg-success-subtle text-success small';
+            badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Uploaded';
+          }
+          
+          zone.style.borderColor = '#10b981';
+          zone.style.borderWidth = '2px';
+          const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
+          if (label) {
+            label.style.color = '#059669';
+            label.innerHTML = '✅ Proof Photo Uploaded Successfully';
+          }
+          
+          // Hide error message if visible
+          const errEl = el(isCheckout ? 'co-photo-error' : 'ci-photo-error');
+          if (errEl) errEl.style.display = 'none';
+          
+          // Hide upload button
+          if (btn) btn.style.display = 'none';
+          
+          showToast(successMsg,'success'); 
+          
+          // Re-evaluate button states
+          unlockButtons();
+        }
+        else { 
+          showToast(d.message||'Upload failed. Please try again.','error'); 
+          btn.disabled=false; 
+          if(spin)spin.style.display='none'; 
+          if(txt)txt.textContent='Upload Proof Photo'; 
+        }
+      } catch (err) { 
+        console.error('Upload error:', err);
+        showToast('Upload error. Please check your connection and try again.','error'); 
+        btn.disabled=false; 
+        if(spin)spin.style.display='none'; 
+        if(txt)txt.textContent='Upload Proof Photo';
+      }
     });
   }
 
   function initPhotoUpload() {
-    _initZone('photo-zone','photo-input','btn-upload-photo','photo-preview-img','photo-spin','photo-txt', PHOTO_URL, 'Check-in photo uploaded successfully.');
-    _initZone('co-photo-zone','co-photo-input','btn-upload-co-photo','co-photo-preview-img','co-photo-spin','co-photo-txt', '/attendance/upload-checkout-photo', 'Check-out photo uploaded successfully.');
+    // Check-in photo
+    _initZone('photo-zone','photo-input','btn-upload-photo','photo-preview-img','photo-spin','photo-txt', 
+              PHOTO_URL, '✅ Check-in Proof Photo uploaded successfully!', false);
+    // Check-out photo
+    _initZone('co-photo-zone','co-photo-input','btn-upload-co-photo','co-photo-preview-img','co-photo-spin','co-photo-txt', 
+              '/attendance/upload-checkout-photo', '✅ Check-out Proof Photo uploaded successfully!', true);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -638,7 +778,7 @@
 
   // Inject spin animation style
   const styleEl = document.createElement('style');
-  styleEl.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+  styleEl.textContent = '@keyframes spin{to{transform:rotate(360deg)}} @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-10px)}20%,40%,60%,80%{transform:translateX(10px)}}';
   document.head.appendChild(styleEl);
 
   function boot() {

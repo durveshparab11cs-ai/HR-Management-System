@@ -64,6 +64,22 @@ def checkin():
     if not employee:
         return jsonify(success=False, message="Employee profile not found."), 400
 
+    # MANDATORY PHOTO VALIDATION — check if photo was uploaded before check-in
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    today = date.today()
+    photo = AttendancePhoto.query.filter_by(
+        employee_id=employee.id,
+        date=today,
+        is_checkout=False,
+        is_deleted=False
+    ).first()
+    
+    if not photo or (not photo.image_data and not photo.file_path):
+        return jsonify(
+            success=False,
+            message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
+        ), 400
+
     lat = request.form.get("latitude", "")
     lon = request.form.get("longitude", "")
     acc = request.form.get("accuracy", "")
@@ -89,6 +105,22 @@ def checkout():
     employee = _emp_repo.get_by_user_id(current_user.id)
     if not employee:
         return jsonify(success=False, message="Employee profile not found."), 400
+
+    # MANDATORY PHOTO VALIDATION — check if checkout photo was uploaded
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    today = date.today()
+    photo = AttendancePhoto.query.filter_by(
+        employee_id=employee.id,
+        date=today,
+        is_checkout=True,
+        is_deleted=False
+    ).first()
+    
+    if not photo or (not photo.image_data and not photo.file_path):
+        return jsonify(
+            success=False,
+            message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie for check-out first."
+        ), 400
 
     lat = request.form.get("latitude", "")
     lon = request.form.get("longitude", "")
