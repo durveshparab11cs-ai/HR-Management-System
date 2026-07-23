@@ -761,22 +761,22 @@
         const icon = el(isCheckout ? 'co-photo-icon' : 'ci-photo-icon');
         const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
         if (icon) icon.style.display = 'none';
-        if (label) label.textContent = 'Photo Selected ✓';
+        if (label) {
+          label.textContent = 'Photo Selected — Uploading...';
+          label.style.color = '#0284c7';
+        }
+        
+        // ✅ AUTOMATICALLY UPLOAD IMMEDIATELY AFTER SELECTION
+        uploadPhoto(f);
       };
       r.readAsDataURL(f);
-      if (btn) btn.style.display = '';
     }
     
-    btn?.addEventListener('click', async () => {
-      const f = inp.files[0]; 
-      if (!f) { 
-        showToast('Please select a photo first.','warn'); 
-        const errEl = el(isCheckout ? 'co-photo-error' : 'ci-photo-error');
-        if (errEl) errEl.style.display = '';
-        return; 
+    async function uploadPhoto(f) {
+      if (btn) {
+        btn.disabled = true;
+        btn.style.display = '';
       }
-      
-      btn.disabled = true;
       if (spin) spin.style.display = 'inline-block';
       if (txt)  txt.textContent = 'Uploading…';
       
@@ -795,8 +795,10 @@
           // Set photo ready flag
           if (isCheckout) {
             coPhotoReady = true;
+            console.log('✅ Check-out photo uploaded successfully');
           } else {
             ciPhotoReady = true;
+            console.log('✅ Check-in photo uploaded successfully');
           }
           
           // Update badge and zone
@@ -823,22 +825,50 @@
           
           showToast(successMsg,'success'); 
           
-          // Re-evaluate button states
+          // ✅ IMMEDIATELY UPDATE BUTTON STATES
+          console.log('🔄 Calling updateAttendanceButtons() after photo upload');
           updateAttendanceButtons();
         }
         else { 
           showToast(d.message||'Upload failed. Please try again.','error'); 
-          btn.disabled=false; 
-          if(spin)spin.style.display='none'; 
-          if(txt)txt.textContent='Upload Proof Photo'; 
+          if (btn) btn.disabled = false; 
+          if (spin) spin.style.display = 'none'; 
+          if (txt) txt.textContent = 'Upload Proof Photo';
+          
+          // Reset label
+          const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
+          if (label) {
+            label.textContent = 'Upload Failed — Try Again';
+            label.style.color = '#dc2626';
+          }
         }
       } catch (err) { 
         console.error('Upload error:', err);
         showToast('Upload error. Please check your connection and try again.','error'); 
-        btn.disabled=false; 
-        if(spin)spin.style.display='none'; 
-        if(txt)txt.textContent='Upload Proof Photo';
+        if (btn) btn.disabled = false; 
+        if (spin) spin.style.display = 'none'; 
+        if (txt) txt.textContent = 'Upload Proof Photo';
+        
+        // Reset label
+        const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
+        if (label) {
+          label.textContent = 'Upload Failed — Try Again';
+          label.style.color = '#dc2626';
+        }
       }
+    }
+    
+    // OLD: Manual upload button click handler — now automatic
+    // Kept for backward compatibility if needed
+    btn?.addEventListener('click', async () => {
+      const f = inp.files[0]; 
+      if (!f) { 
+        showToast('Please select a photo first.','warn'); 
+        const errEl = el(isCheckout ? 'co-photo-error' : 'ci-photo-error');
+        if (errEl) errEl.style.display = '';
+        return; 
+      }
+      await uploadPhoto(f);
     });
   }
 
