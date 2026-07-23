@@ -64,41 +64,95 @@ def index():
 @attendance_bp.route("/checkin", methods=["POST"])
 @login_required
 def checkin():
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        return jsonify(success=False, message="Employee profile not found."), 400
-
-    # MANDATORY PHOTO VALIDATION — check if photo was uploaded before check-in
-    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    today = date.today()
-    photo = AttendancePhoto.query.filter_by(
-        employee_id=employee.id,
-        date=today,
-        is_checkout=False,
-        is_deleted=False
-    ).first()
+    """
+    Check-in endpoint — validates GPS + photo, creates attendance record.
+    """
+    logger.info("===== CHECK IN START =====")
+    logger.info("User ID: %s", current_user.id)
+    logger.info("User Email: %s", current_user.email)
     
-    if not photo or (not photo.image_data and not photo.file_path):
+    try:
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("CHECK IN FAILED: Employee profile not found for user_id=%s", current_user.id)
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+        logger.info("Employee Code: %s", employee.employee_code)
+        logger.info("Employee Name: %s", employee.full_name)
+
+        # MANDATORY PHOTO VALIDATION — check if photo was uploaded
+        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+        today = date.today()
+        logger.info("Today's date: %s", today)
+        
+        # Get today's attendance to check for photo
+        attendance_today = _repo.get_today(employee.id, today)
+        logger.info("Existing attendance today: %s", attendance_today)
+        
+        if attendance_today and attendance_today.id:
+            # Check if photo exists for this attendance
+            photo = AttendancePhoto.query.filter_by(
+                attendance_id=attendance_today.id
+            ).first()
+            logger.info("Photo record found: %s", photo)
+            
+            if not photo or (not photo.image_data and not photo.file_path):
+                logger.error("CHECK IN FAILED: No photo found for attendance_id=%s", attendance_today.id)
+                return jsonify(
+                    success=False,
+                    message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
+                ), 400
+            
+            logger.info("Photo validation PASSED - image_data exists: %s, file_path: %s", 
+                       bool(photo.image_data), photo.file_path)
+        else:
+            logger.error("CHECK IN FAILED: No attendance record exists yet (photo should have created one)")
+            return jsonify(
+                success=False,
+                message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
+            ), 400
+
+        lat = request.form.get("latitude", "")
+        lon = request.form.get("longitude", "")
+        acc = request.form.get("accuracy", "")
+        
+        logger.info("GPS Data - Lat: %s, Lon: %s, Accuracy: %s", lat, lon, acc)
+
+        ok, message, attendance, gps_detail = _svc.check_in(employee, lat, lon, acc)
+        
+        logger.info("Service check_in result: ok=%s, message=%s", ok, message)
+        logger.info("GPS Detail: %s", gps_detail)
+        
+        if ok:
+            logger.info("CHECK IN SUCCESS: attendance_id=%s, time=%s", 
+                       attendance.id, attendance.check_in_time)
+            logger.info("===== CHECK IN END (SUCCESS) =====")
+            return jsonify(
+                success=True,
+                message=message,
+                time=attendance.check_in_time.strftime("%H:%M"),
+                is_late=attendance.is_late,
+                late_minutes=attendance.late_minutes or 0,
+                gps=gps_detail,
+            )
+        
+        logger.error("CHECK IN FAILED: %s", message)
+        logger.info("===== CHECK IN END (FAILED) =====")
+        return jsonify(success=False, message=message, gps=gps_detail), 400
+        
+    except Exception as exc:
+        logger.error("===== CHECK IN EXCEPTION =====")
+        logger.error("Exception Type: %s", type(exc).__name__)
+        logger.error("Exception Message: %s", str(exc))
+        import traceback
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CHECK IN END (EXCEPTION) =====")
         return jsonify(
             success=False,
-            message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
-        ), 400
-
-    lat = request.form.get("latitude", "")
-    lon = request.form.get("longitude", "")
-    acc = request.form.get("accuracy", "")
-
-    ok, message, attendance, gps_detail = _svc.check_in(employee, lat, lon, acc)
-    if ok:
-        return jsonify(
-            success=True,
-            message=message,
-            time=attendance.check_in_time.strftime("%H:%M"),
-            is_late=attendance.is_late,
-            late_minutes=attendance.late_minutes or 0,
-            gps=gps_detail,
-        )
-    return jsonify(success=False, message=message, gps=gps_detail), 400
+            message=f"Check-in failed: {str(exc)}",
+            error_type=type(exc).__name__
+        ), 500
 
 
 # ── Check Out (AJAX) ─────────────────────────────────────────────────
@@ -106,41 +160,97 @@ def checkin():
 @attendance_bp.route("/checkout", methods=["POST"])
 @login_required
 def checkout():
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        return jsonify(success=False, message="Employee profile not found."), 400
-
-    # MANDATORY PHOTO VALIDATION — check if checkout photo was uploaded
-    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    today = date.today()
-    photo = AttendancePhoto.query.filter_by(
-        employee_id=employee.id,
-        date=today,
-        is_checkout=True,
-        is_deleted=False
-    ).first()
+    """
+    Check-out endpoint — validates GPS + photo, updates attendance record.
+    """
+    logger.info("===== CHECK OUT START =====")
+    logger.info("User ID: %s", current_user.id)
     
-    if not photo or (not photo.image_data and not photo.file_path):
+    try:
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("CHECK OUT FAILED: Employee profile not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+        logger.info("Employee Name: %s", employee.full_name)
+
+        # MANDATORY PHOTO VALIDATION — check if checkout photo was uploaded
+        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+        today = date.today()
+        
+        # Get today's attendance
+        attendance_today = _repo.get_today(employee.id, today)
+        logger.info("Existing attendance today: %s", attendance_today)
+        
+        if not attendance_today:
+            logger.error("CHECK OUT FAILED: No attendance record for today")
+            return jsonify(
+                success=False,
+                message="No check-in found for today. Please check in first."
+            ), 400
+        
+        if not attendance_today.check_in_time:
+            logger.error("CHECK OUT FAILED: No check-in time")
+            return jsonify(
+                success=False,
+                message="No check-in found for today. Please check in first."
+            ), 400
+        
+        # Check if checkout photo exists
+        photo = AttendancePhoto.query.filter_by(
+            attendance_id=attendance_today.id
+        ).first()
+        logger.info("Photo record found: %s", photo)
+        
+        if not photo or not photo.checkout_image_data:
+            logger.error("CHECK OUT FAILED: No checkout photo found")
+            return jsonify(
+                success=False,
+                message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie for check-out first."
+            ), 400
+        
+        logger.info("Checkout photo validation PASSED")
+
+        lat = request.form.get("latitude", "")
+        lon = request.form.get("longitude", "")
+        acc = request.form.get("accuracy", "")
+        
+        logger.info("GPS Data - Lat: %s, Lon: %s, Accuracy: %s", lat, lon, acc)
+
+        ok, message, attendance, gps_detail = _svc.check_out(employee, lat, lon, acc)
+        
+        logger.info("Service check_out result: ok=%s, message=%s", ok, message)
+        
+        if ok:
+            logger.info("CHECK OUT SUCCESS: attendance_id=%s, time=%s", 
+                       attendance.id, attendance.check_out_time)
+            logger.info("===== CHECK OUT END (SUCCESS) =====")
+            return jsonify(
+                success=True,
+                message=message,
+                time=attendance.check_out_time.strftime("%H:%M"),
+                working=attendance.working_hours_display,
+                overtime_minutes=attendance.overtime_minutes or 0,
+                gps=gps_detail,
+            )
+        
+        logger.error("CHECK OUT FAILED: %s", message)
+        logger.info("===== CHECK OUT END (FAILED) =====")
+        return jsonify(success=False, message=message, gps=gps_detail), 400
+        
+    except Exception as exc:
+        logger.error("===== CHECK OUT EXCEPTION =====")
+        logger.error("Exception Type: %s", type(exc).__name__)
+        logger.error("Exception Message: %s", str(exc))
+        import traceback
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CHECK OUT END (EXCEPTION) =====")
         return jsonify(
             success=False,
-            message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie for check-out first."
-        ), 400
-
-    lat = request.form.get("latitude", "")
-    lon = request.form.get("longitude", "")
-    acc = request.form.get("accuracy", "")
-
-    ok, message, attendance, gps_detail = _svc.check_out(employee, lat, lon, acc)
-    if ok:
-        return jsonify(
-            success=True,
-            message=message,
-            time=attendance.check_out_time.strftime("%H:%M"),
-            working=attendance.working_hours_display,
-            overtime_minutes=attendance.overtime_minutes or 0,
-            gps=gps_detail,
-        )
-    return jsonify(success=False, message=message, gps=gps_detail), 400
+            message=f"Check-out failed: {str(exc)}",
+            error_type=type(exc).__name__
+        ), 500
 
 
 # ── Photo Upload (AJAX) ──────────────────────────────────────────────

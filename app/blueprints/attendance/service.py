@@ -61,81 +61,113 @@ class AttendanceService:
             (success, message, attendance_or_None, gps_detail_or_None)
             gps_detail contains distance/office info for UI display on rejection.
         """
-        today  = date.today()
-        office = _repo.get_office_for_employee(employee)
-        if not office:
-            return False, "Office configuration not found. Contact HR.", None, None
+        try:
+            logger.info("SERVICE CHECK_IN START | emp_id=%s | lat=%s | lon=%s", 
+                       employee.id, lat_str, lon_str)
+            
+            today  = date.today()
+            office = _repo.get_office_for_employee(employee)
+            if not office:
+                logger.error("SERVICE CHECK_IN FAILED: No office config for emp=%s", employee.id)
+                return False, "Office configuration not found. Contact HR.", None, None
+            
+            logger.info("Office found: %s (radius=%sm)", office.name, office.gps_radius)
 
-        # GPS verification
-        gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_IN)
+            # GPS verification
+            gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_IN)
+            logger.info("GPS verification result: success=%s, distance=%.1fm", 
+                       gps.success, gps.distance_metres or 0)
 
-        if not gps.success:
+            if not gps.success:
+                logger.warning("GPS verification FAILED: %s", gps.error)
+                _repo.log_action(AttendanceLog(
+                    employee_id=employee.id,
+                    action=LogAction.REJECTED_CHECKIN,
+                    latitude=gps.lat,
+                    longitude=gps.lon,
+                    distance_metres=gps.distance_metres,
+                    within_radius=False,
+                    ip_address=self._get_ip(),
+                    user_agent=self._get_ua(),
+                    rejection_reason=gps.error,
+                ))
+                gps_detail = self._build_gps_detail(gps, office)
+                return False, gps.error, None, gps_detail
+
+            # Duplicate check
+            existing = _repo.get_today(employee.id, today)
+            logger.info("Existing attendance for today: %s", existing)
+            
+            if existing and existing.check_in_time:
+                logger.warning("Duplicate check-in attempt for emp=%s", employee.id)
+                return False, "You have already checked in today.", None, None
+
+            now = datetime.utcnow()
+            is_late, late_minutes = compute_check_in_meta(now, office)
+            logger.info("Check-in meta: is_late=%s, late_minutes=%s", is_late, late_minutes)
+
+            if existing:
+                logger.info("Updating existing attendance record: id=%s", existing.id)
+                attendance = existing
+            else:
+                logger.info("Creating new attendance record")
+                attendance = Attendance(
+                    employee_id=employee.id,
+                    date=today,
+                    status=AttendanceStatus.PRESENT,
+                    created_by=employee.user_id,
+                )
+
+            attendance.check_in_time              = now
+            attendance.check_in_latitude          = gps.lat
+            attendance.check_in_longitude         = gps.lon
+            attendance.check_in_accuracy          = gps.accuracy
+            attendance.check_in_distance_metres   = gps.distance_metres
+            attendance.check_in_ip                = self._get_ip()
+            attendance.check_in_device            = self._get_ua()
+            attendance.is_late                    = is_late
+            attendance.late_minutes               = late_minutes
+
+            logger.info("Saving attendance to database...")
+            try:
+                if existing:
+                    _repo.update(attendance)
+                else:
+                    _repo.create(attendance)
+                logger.info("Database commit SUCCESS: attendance_id=%s", attendance.id)
+            except Exception as db_exc:
+                logger.error("DATABASE COMMIT FAILED: %s", str(db_exc))
+                import traceback
+                logger.error("Database traceback:\n%s", traceback.format_exc())
+                raise
+
+            logger.info("Creating audit log...")
             _repo.log_action(AttendanceLog(
                 employee_id=employee.id,
-                action=LogAction.REJECTED_CHECKIN,
+                attendance_id=attendance.id,
+                action=LogAction.CHECK_IN,
                 latitude=gps.lat,
                 longitude=gps.lon,
                 distance_metres=gps.distance_metres,
-                within_radius=False,
+                within_radius=True,
                 ip_address=self._get_ip(),
                 user_agent=self._get_ua(),
-                rejection_reason=gps.error,
             ))
+
+            import pytz  # noqa: PLC0415
+            IST = pytz.timezone("Asia/Kolkata")
+            ist_time = datetime.now(IST).strftime("%H:%M")
+            late_msg = f" You are late by {late_minutes} min." if is_late else ""
+            logger.info("CHECK_IN SUCCESS | emp=%s | att_id=%s | dist=%.0fm | late=%s", 
+                       employee.id, attendance.id, gps.distance_metres, is_late)
             gps_detail = self._build_gps_detail(gps, office)
-            return False, gps.error, None, gps_detail
-
-        # Duplicate check
-        existing = _repo.get_today(employee.id, today)
-        if existing and existing.check_in_time:
-            return False, "You have already checked in today.", None, None
-
-        now = datetime.utcnow()
-        is_late, late_minutes = compute_check_in_meta(now, office)
-
-        if existing:
-            attendance = existing
-        else:
-            attendance = Attendance(
-                employee_id=employee.id,
-                date=today,
-                status=AttendanceStatus.PRESENT,
-                created_by=employee.user_id,
-            )
-
-        attendance.check_in_time              = now
-        attendance.check_in_latitude          = gps.lat
-        attendance.check_in_longitude         = gps.lon
-        attendance.check_in_accuracy          = gps.accuracy
-        attendance.check_in_distance_metres   = gps.distance_metres
-        attendance.check_in_ip                = self._get_ip()
-        attendance.check_in_device            = self._get_ua()
-        attendance.is_late                    = is_late
-        attendance.late_minutes               = late_minutes
-
-        if existing:
-            _repo.update(attendance)
-        else:
-            _repo.create(attendance)
-
-        _repo.log_action(AttendanceLog(
-            employee_id=employee.id,
-            attendance_id=attendance.id,
-            action=LogAction.CHECK_IN,
-            latitude=gps.lat,
-            longitude=gps.lon,
-            distance_metres=gps.distance_metres,
-            within_radius=True,
-            ip_address=self._get_ip(),
-            user_agent=self._get_ua(),
-        ))
-
-        import pytz  # noqa: PLC0415
-        IST = pytz.timezone("Asia/Kolkata")
-        ist_time = datetime.now(IST).strftime("%H:%M")
-        late_msg = f" You are late by {late_minutes} min." if is_late else ""
-        logger.info("CHECK_IN | emp=%s | dist=%.0fm | late=%s", employee.id, gps.distance_metres, is_late)
-        gps_detail = self._build_gps_detail(gps, office)
-        return True, f"Check-in recorded at {ist_time} IST.{late_msg}", attendance, gps_detail
+            return True, f"Check-in recorded at {ist_time} IST.{late_msg}", attendance, gps_detail
+            
+        except Exception as exc:
+            logger.error("SERVICE CHECK_IN EXCEPTION | emp=%s | %s", employee.id, str(exc))
+            import traceback
+            logger.error("Service traceback:\n%s", traceback.format_exc())
+            raise
 
     # ── Check Out ────────────────────────────────────────────────────
 
@@ -152,70 +184,103 @@ class AttendanceService:
         Returns:
             (success, message, attendance_or_None, gps_detail_or_None)
         """
-        today  = date.today()
-        office = _repo.get_office_for_employee(employee)
-        if not office:
-            return False, "Office configuration not found.", None, None
+        try:
+            logger.info("SERVICE CHECK_OUT START | emp_id=%s | lat=%s | lon=%s", 
+                       employee.id, lat_str, lon_str)
+            
+            today  = date.today()
+            office = _repo.get_office_for_employee(employee)
+            if not office:
+                logger.error("SERVICE CHECK_OUT FAILED: No office config")
+                return False, "Office configuration not found.", None, None
+            
+            logger.info("Office found: %s", office.name)
 
-        gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_OUT)
+            gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_OUT)
+            logger.info("GPS verification result: success=%s, distance=%.1fm", 
+                       gps.success, gps.distance_metres or 0)
 
-        if not gps.success:
+            if not gps.success:
+                logger.warning("GPS verification FAILED: %s", gps.error)
+                _repo.log_action(AttendanceLog(
+                    employee_id=employee.id,
+                    action=LogAction.REJECTED_CHECKOUT,
+                    latitude=gps.lat,
+                    longitude=gps.lon,
+                    distance_metres=gps.distance_metres,
+                    within_radius=False,
+                    ip_address=self._get_ip(),
+                    user_agent=self._get_ua(),
+                    rejection_reason=gps.error,
+                ))
+                return False, gps.error, None, self._build_gps_detail(gps, office)
+
+            attendance = _repo.get_today(employee.id, today)
+            logger.info("Attendance record for today: %s", attendance)
+            
+            if not attendance or not attendance.check_in_time:
+                logger.error("CHECK_OUT FAILED: No check-in found")
+                return False, "No check-in found for today. Please check in first.", None, None
+            if attendance.check_out_time:
+                logger.warning("CHECK_OUT FAILED: Already checked out")
+                return False, "You have already checked out today.", None, None
+
+            now  = datetime.utcnow()
+            meta = compute_check_out_meta(attendance, now, office)
+            logger.info("Check-out meta: working=%dm, overtime=%dm", 
+                       meta["working_minutes"], meta["overtime_minutes"])
+
+            attendance.check_out_time              = now
+            attendance.check_out_latitude          = gps.lat
+            attendance.check_out_longitude         = gps.lon
+            attendance.check_out_accuracy          = gps.accuracy
+            attendance.check_out_distance_metres   = gps.distance_metres
+            attendance.working_minutes             = meta["working_minutes"]
+            attendance.overtime_minutes            = meta["overtime_minutes"]
+            attendance.is_half_day                 = meta["is_half_day"]
+            attendance.is_early_leave              = meta["is_early_leave"]
+            attendance.status                      = meta["status"]
+            
+            logger.info("Updating attendance in database...")
+            try:
+                _repo.update(attendance)
+                logger.info("Database commit SUCCESS: attendance_id=%s", attendance.id)
+            except Exception as db_exc:
+                logger.error("DATABASE COMMIT FAILED: %s", str(db_exc))
+                import traceback
+                logger.error("Database traceback:\n%s", traceback.format_exc())
+                raise
+
+            logger.info("Creating audit log...")
             _repo.log_action(AttendanceLog(
                 employee_id=employee.id,
-                action=LogAction.REJECTED_CHECKOUT,
+                attendance_id=attendance.id,
+                action=LogAction.CHECK_OUT,
                 latitude=gps.lat,
                 longitude=gps.lon,
                 distance_metres=gps.distance_metres,
-                within_radius=False,
+                within_radius=True,
                 ip_address=self._get_ip(),
                 user_agent=self._get_ua(),
-                rejection_reason=gps.error,
             ))
-            return False, gps.error, None, self._build_gps_detail(gps, office)
 
-        attendance = _repo.get_today(employee.id, today)
-        if not attendance or not attendance.check_in_time:
-            return False, "No check-in found for today. Please check in first.", None, None
-        if attendance.check_out_time:
-            return False, "You have already checked out today.", None, None
-
-        now  = datetime.utcnow()
-        meta = compute_check_out_meta(attendance, now, office)
-
-        attendance.check_out_time              = now
-        attendance.check_out_latitude          = gps.lat
-        attendance.check_out_longitude         = gps.lon
-        attendance.check_out_accuracy          = gps.accuracy
-        attendance.check_out_distance_metres   = gps.distance_metres
-        attendance.working_minutes             = meta["working_minutes"]
-        attendance.overtime_minutes            = meta["overtime_minutes"]
-        attendance.is_half_day                 = meta["is_half_day"]
-        attendance.is_early_leave              = meta["is_early_leave"]
-        attendance.status                      = meta["status"]
-        _repo.update(attendance)
-
-        _repo.log_action(AttendanceLog(
-            employee_id=employee.id,
-            attendance_id=attendance.id,
-            action=LogAction.CHECK_OUT,
-            latitude=gps.lat,
-            longitude=gps.lon,
-            distance_metres=gps.distance_metres,
-            within_radius=True,
-            ip_address=self._get_ip(),
-            user_agent=self._get_ua(),
-        ))
-
-        h, m = divmod(meta["working_minutes"], 60)
-        overtime = meta["overtime_minutes"]
-        ot_msg = f" (+{overtime}m overtime)" if overtime > 0 else ""
-        logger.info("CHECK_OUT | emp=%s | worked=%dh%dm", employee.id, h, m)
-        return (
-            True,
-            f"Checked out. You worked {h}h {m}m today.{ot_msg}",
-            attendance,
-            self._build_gps_detail(gps, office),
-        )
+            h, m = divmod(meta["working_minutes"], 60)
+            overtime = meta["overtime_minutes"]
+            ot_msg = f" (+{overtime}m overtime)" if overtime > 0 else ""
+            logger.info("CHECK_OUT SUCCESS | emp=%s | att_id=%s | worked=%dh%dm", 
+                       employee.id, attendance.id, h, m)
+            return (
+                True,
+                f"Checked out. You worked {h}h {m}m today.{ot_msg}",
+                attendance,
+                self._build_gps_detail(gps, office),
+            )
+            
+        except Exception as exc:
+            logger.error("SERVICE CHECK_OUT EXCEPTION | emp=%s | %s", employee.id, str(exc))
+            import traceback
+            logger.error("Service traceback:\n%s", traceback.format_exc())
+            raise
 
     # ── Photo upload ─────────────────────────────────────────────────
 
