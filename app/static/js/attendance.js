@@ -44,8 +44,9 @@
 
   /* ── CENTRALIZED BUTTON STATE MANAGER ──────────────────────────── */
   function updateAttendanceButtons() {
-    console.group('[Button State Update]');
+    console.group('[BUTTON STATE UPDATE]');
     console.log('GPS Verified:', gpsReady);
+    console.log('Inside Radius:', gpsReady);
     console.log('Check-In Photo Uploaded:', ciPhotoReady);
     console.log('Check-Out Photo Uploaded:', coPhotoReady);
     
@@ -59,15 +60,27 @@
       const ciCurrentText = ciText.textContent || '';
       const isAlreadyCheckedIn = ciCurrentText.indexOf('Already') !== -1;
       
+      console.log('Check-In Button - Already Checked In:', isAlreadyCheckedIn);
+      
       if (!isAlreadyCheckedIn) {
+        // Check BOTH conditions
         if (gpsReady && ciPhotoReady) {
-          // Both conditions met — ENABLE
+          // ✅ BOTH conditions met — ENABLE BUTTON
           ci.disabled = false;
+          ci.removeAttribute('disabled');  // Force remove
+          ci.classList.remove('disabled');
+          ci.setAttribute('aria-disabled', 'false');
           ciText.textContent = 'Check In';
           console.log('✅ Check-In Button: ENABLED');
+          console.log('   Button disabled attribute:', ci.disabled);
+          console.log('   Button classList:', ci.className);
         } else {
-          // Missing condition — DISABLE
+          // ❌ Missing condition — KEEP DISABLED
           ci.disabled = true;
+          ci.setAttribute('disabled', 'disabled');
+          ci.classList.add('disabled');
+          ci.setAttribute('aria-disabled', 'true');
+          
           if (!gpsReady && !ciPhotoReady) {
             ciText.textContent = 'Upload Photo + GPS to Enable';
           } else if (!ciPhotoReady) {
@@ -76,6 +89,7 @@
             ciText.textContent = 'Waiting for GPS…';
           }
           console.log('❌ Check-In Button: DISABLED');
+          console.log('   Reason - GPS:', gpsReady, 'Photo:', ciPhotoReady);
         }
       }
     }
@@ -84,17 +98,29 @@
     if (co && coText) {
       const coCurrentText = coText.textContent || '';
       const isAlreadyCheckedOut = coCurrentText.indexOf('Already') !== -1;
-      const needsCheckinFirst = coCurrentText.indexOf('First') !== -1;
+      const needsCheckinFirst = coCurrentText.indexOf('Check In First') !== -1;
+      
+      console.log('Check-Out Button - Already Checked Out:', isAlreadyCheckedOut);
+      console.log('Check-Out Button - Needs Check In First:', needsCheckinFirst);
       
       if (!isAlreadyCheckedOut && !needsCheckinFirst) {
+        // Check BOTH conditions
         if (gpsReady && coPhotoReady) {
-          // Both conditions met — ENABLE
+          // ✅ BOTH conditions met — ENABLE BUTTON
           co.disabled = false;
+          co.removeAttribute('disabled');  // Force remove
+          co.classList.remove('disabled');
+          co.setAttribute('aria-disabled', 'false');
           coText.textContent = 'Check Out';
           console.log('✅ Check-Out Button: ENABLED');
+          console.log('   Button disabled attribute:', co.disabled);
         } else {
-          // Missing condition — DISABLE
+          // ❌ Missing condition — KEEP DISABLED
           co.disabled = true;
+          co.setAttribute('disabled', 'disabled');
+          co.classList.add('disabled');
+          co.setAttribute('aria-disabled', 'true');
+          
           if (!gpsReady && !coPhotoReady) {
             coText.textContent = 'Upload Photo + GPS to Enable';
           } else if (!coPhotoReady) {
@@ -103,6 +129,7 @@
             coText.textContent = 'Waiting for GPS…';
           }
           console.log('❌ Check-Out Button: DISABLED');
+          console.log('   Reason - GPS:', gpsReady, 'Photo:', coPhotoReady);
         }
       }
     }
