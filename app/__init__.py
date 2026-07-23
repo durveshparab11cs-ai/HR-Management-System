@@ -176,6 +176,7 @@ def _init_extensions(app: Flask) -> None:
     # Import all models so Alembic discovers them for migrations
     from app.models import User  # noqa: F401, PLC0415
     from app.models.shift_change_log import ShiftChangeLog  # noqa: F401, PLC0415
+    # v2 — force redeploy 2026-07-22
 
     app.logger.debug("Extensions initialized.")
 
@@ -441,20 +442,29 @@ def _auto_create_tables(app: Flask) -> None:
     """
     Create all DB tables on first boot and auto-seed employee master data.
     Also adds new columns to existing tables via ALTER TABLE when needed.
+    Wrapped in a broad try/except so DB issues never prevent the app from starting.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
-            db.create_all()
-            app.logger.info("db.create_all() — tables ready.")
+            try:
+                db.create_all()
+                app.logger.info("db.create_all() — tables ready.")
+            except Exception as exc:
+                app.logger.warning("db.create_all() failed: %s", exc)
 
-            # Add new GPS accuracy columns if they don't exist yet
-            _migrate_add_columns(db)
+            try:
+                _migrate_add_columns(db)
+            except Exception as exc:
+                app.logger.warning("_migrate_add_columns() failed: %s", exc)
 
-            # Auto-seed employee master if table is empty
-            _auto_seed_employees(app)
+            try:
+                _auto_seed_employees(app)
+            except Exception as exc:
+                app.logger.warning("_auto_seed_employees() failed: %s", exc)
+
     except Exception as exc:
-        app.logger.warning("db.create_all() skipped: %s", exc)
+        app.logger.warning("_auto_create_tables() outer failed: %s", exc)
 
 
 def _migrate_add_columns(db) -> None:
