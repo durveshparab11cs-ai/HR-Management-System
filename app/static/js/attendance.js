@@ -812,33 +812,73 @@
             coPhotoReady = d.has_checkout_photo !== undefined ? d.has_checkout_photo : true;
             console.log('✅ Check-out photo uploaded successfully');
             console.log('   Backend confirmed has_checkout_photo:', coPhotoReady);
+            console.log('   Photo URL:', d.photo_url || 'N/A');
           } else {
             ciPhotoReady = d.has_photo !== undefined ? d.has_photo : true;
             console.log('✅ Check-in photo uploaded successfully');
             console.log('   Backend confirmed has_photo:', ciPhotoReady);
+            console.log('   Photo URL:', d.photo_url || 'N/A');
           }
           
-          // Update badge and zone
+          // ✅ CRITICAL: LOCK THE UPLOAD COMPONENT COMPLETELY
+          // 1. Disable file input to prevent opening file picker
+          if (inp) {
+            inp.disabled = true;
+            inp.style.display = 'none';
+          }
+          
+          // 2. Remove all click handlers from zone
+          const newZone = zone.cloneNode(true);  // Clone without event listeners
+          zone.parentNode.replaceChild(newZone, zone);
+          newZone.style.cursor = 'default';
+          newZone.style.pointerEvents = 'none';  // Disable all interactions
+          
+          // 3. Update badge
           const badge = el(isCheckout ? 'co-photo-badge' : 'ci-photo-badge');
           if (badge) {
             badge.className = 'badge bg-success-subtle text-success small';
             badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Uploaded';
           }
           
-          zone.style.borderColor = '#10b981';
-          zone.style.borderWidth = '2px';
+          // 4. Transform zone into locked completion state
+          newZone.style.borderColor = '#10b981';
+          newZone.style.borderWidth = '2px';
+          newZone.style.borderStyle = 'solid';
+          newZone.style.background = '#f0fdf4';
+          
+          // 5. Update content to show completion (not uploadable)
+          const icon = el(isCheckout ? 'co-photo-icon' : 'ci-photo-icon');
           const label = el(isCheckout ? 'co-photo-label' : 'ci-photo-label');
+          if (icon) icon.style.display = 'none';
           if (label) {
             label.style.color = '#059669';
-            label.innerHTML = '✅ Proof Photo Uploaded Successfully';
+            label.style.fontWeight = '600';
+            label.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>✅ Proof Photo Uploaded Successfully';
           }
           
-          // Hide error message if visible
+          // 6. Show preview if photo URL provided
+          if (prev && d.photo_url) {
+            prev.src = d.photo_url;
+            prev.style.display = 'block';
+            prev.style.width = '100px';
+            prev.style.height = '100px';
+            prev.style.objectFit = 'cover';
+            prev.style.margin = '0 auto 12px';
+          }
+          
+          // 7. Hide error message if visible
           const errEl = el(isCheckout ? 'co-photo-error' : 'ci-photo-error');
           if (errEl) errEl.style.display = 'none';
           
-          // Hide upload button
-          if (btn) btn.style.display = 'none';
+          // 8. Hide upload button completely
+          if (btn) {
+            btn.style.display = 'none';
+            btn.disabled = true;
+          }
+          
+          // 9. Add "locked" marker to zone for easy detection
+          newZone.setAttribute('data-upload-locked', 'true');
+          newZone.setAttribute('data-photo-uploaded', 'true');
           
           showToast(successMsg,'success'); 
           
@@ -846,6 +886,7 @@
           console.log('🔄 Calling updateAttendanceButtons() after photo upload');
           console.log('   Current state: gpsReady=' + gpsReady + ', withinRadius=' + withinRadius + 
                      ', ciPhotoReady=' + ciPhotoReady + ', coPhotoReady=' + coPhotoReady);
+          console.log('   Upload component locked: true');
           updateAttendanceButtons();
         }
         else { 
@@ -937,7 +978,9 @@
   document.head.appendChild(styleEl);
 
   function boot() {
-    // ✅ Check if photos are already uploaded by looking at badge status (more reliable)
+    console.log('🚀 Attendance page initializing...');
+    
+    // ✅ Check if photos are already uploaded by looking at badge status (most reliable)
     const ciBadge = el('ci-photo-badge');
     const coBadge = el('co-photo-badge');
     
@@ -947,6 +990,9 @@
       if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
         console.log('✅ Check-in photo already uploaded (detected from badge)');
         ciPhotoReady = true;
+        
+        // ✅ LOCK the upload component on page load
+        lockUploadComponent('photo-zone', 'photo-input', 'btn-upload-photo', 'ci-photo-icon', 'ci-photo-label', false);
       }
     }
     
@@ -956,6 +1002,9 @@
       if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
         console.log('✅ Check-out photo already uploaded (detected from badge)');
         coPhotoReady = true;
+        
+        // ✅ LOCK the upload component on page load
+        lockUploadComponent('co-photo-zone', 'co-photo-input', 'btn-upload-co-photo', 'co-photo-icon', 'co-photo-label', true);
       }
     }
     
@@ -966,11 +1015,13 @@
     if (!ciPhotoReady && ciPreview && ciPreview.src && ciPreview.src.indexOf('/static/uploads/') !== -1) {
       console.log('✅ Check-in photo detected from preview image');
       ciPhotoReady = true;
+      lockUploadComponent('photo-zone', 'photo-input', 'btn-upload-photo', 'ci-photo-icon', 'ci-photo-label', false);
     }
     
     if (!coPhotoReady && coPreview && coPreview.src && coPreview.src.indexOf('/static/uploads/') !== -1) {
       console.log('✅ Check-out photo detected from preview image');
       coPhotoReady = true;
+      lockUploadComponent('co-photo-zone', 'co-photo-input', 'btn-upload-co-photo', 'co-photo-icon', 'co-photo-label', true);
     }
     
     console.log('🚀 Initial photo state: ciPhotoReady=' + ciPhotoReady + ', coPhotoReady=' + coPhotoReady);
@@ -982,6 +1033,56 @@
     
     // Initial button state evaluation
     updateAttendanceButtons();
+  }
+  
+  // ✅ NEW: Function to lock upload component (prevents re-upload)
+  function lockUploadComponent(zoneId, inputId, btnId, iconId, labelId, isCheckout) {
+    const zone = el(zoneId);
+    const inp = el(inputId);
+    const btn = el(btnId);
+    const icon = el(iconId);
+    const label = el(labelId);
+    
+    if (!zone) return;
+    
+    console.log('🔒 Locking upload component:', zoneId);
+    
+    // 1. Disable and hide file input
+    if (inp) {
+      inp.disabled = true;
+      inp.style.display = 'none';
+    }
+    
+    // 2. Remove click functionality from zone
+    zone.style.cursor = 'default';
+    zone.style.pointerEvents = 'none';
+    zone.onclick = null;
+    
+    // 3. Style as completed/locked
+    zone.style.borderColor = '#10b981';
+    zone.style.borderWidth = '2px';
+    zone.style.borderStyle = 'solid';
+    zone.style.background = '#f0fdf4';
+    
+    // 4. Update icon and label
+    if (icon) icon.style.display = 'none';
+    if (label) {
+      label.style.color = '#059669';
+      label.style.fontWeight = '600';
+      label.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>✅ Proof Photo Uploaded Successfully';
+    }
+    
+    // 5. Hide upload button
+    if (btn) {
+      btn.style.display = 'none';
+      btn.disabled = true;
+    }
+    
+    // 6. Mark as locked
+    zone.setAttribute('data-upload-locked', 'true');
+    zone.setAttribute('data-photo-uploaded', 'true');
+    
+    console.log('✅ Upload component locked:', zoneId);
   }
 
   if (typeof L !== 'undefined') {
