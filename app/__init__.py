@@ -189,11 +189,16 @@ def _register_cli(app: Flask) -> None:
         flask db-init       — create all tables (non-migration quick start)
         flask create-admin  — create a superadmin user interactively
         flask seed-db       — seed reference data for development
+        flask clear-attendance — clear ALL attendance data (with --confirm flag)
 
     Args:
         app: Flask instance.
     """
     import click  # noqa: PLC0415
+    
+    # Register clear-attendance command
+    from clear_attendance_cli import init_app as init_clear_attendance  # noqa: PLC0415
+    init_clear_attendance(app)
 
     @app.cli.command("db-init")
     def db_init():
