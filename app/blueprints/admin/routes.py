@@ -539,3 +539,50 @@ def emergency_reset_attendance():
         logger.error("EMERGENCY_RESET_FAILED | by_user=%s | error=%s", current_user.id, str(exc))
         flash(f"❌ ERROR: {str(exc)}", "danger")
         return redirect(url_for("admin.index"))
+
+
+# ── Shift Assignment Routes ───────────────────────────────────────────
+
+@admin_bp.route("/shift-assignment")
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def shift_assignment():
+    """Bulk shift assignment page."""
+    from .shift_assignment import assign_shifts_bulk
+    return assign_shifts_bulk()
+
+
+@admin_bp.route("/shift-assignment/assign", methods=["POST"])
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def assign_single_shift():
+    """Assign shift to a single employee (AJAX)."""
+    from .shift_assignment import assign_shift_to_employee
+    return assign_shift_to_employee()
+
+
+@admin_bp.route("/shift-assignment/bulk", methods=["POST"])
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def assign_bulk_shifts():
+    """Bulk assign shifts (AJAX)."""
+    from .shift_assignment import assign_shifts_bulk_submit
+    return assign_shifts_bulk_submit()
+
+
+@admin_bp.route("/shift-assignment/remove", methods=["POST"])
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def remove_shift():
+    """Remove shift from employee (AJAX)."""
+    from .shift_assignment import remove_shift_assignment
+    return remove_shift_assignment()
+
+
+@admin_bp.route("/shift-assignment/employee-info")
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def get_employee_shift():
+    """Get employee shift info (AJAX)."""
+    from .shift_assignment import get_employee_shift_info
+    return get_employee_shift_info()

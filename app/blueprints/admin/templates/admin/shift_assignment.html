@@ -1,0 +1,396 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Shift Assignment — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Admin Panel', url_for('admin.index')), ('Shift Assignment', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">🕒 Bulk Shift Assignment</h4>
+        <p class="text-muted small mb-0">Assign shifts to all employees at once</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="assignAllShifts()">
+            <i class="bi bi-check-all"></i> Assign All
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportToExcel()">
+            <i class="bi bi-file-excel"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-people text-primary" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ employees|length }}</h3>
+                <p class="text-muted small mb-0">Total Employees</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-check-circle text-success" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0" id="assignedCount">
+                    {{ employee_shifts.values()|select('ne', None)|list|length }}
+                </h3>
+                <p class="text-muted small mb-0">Assigned</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0" id="unassignedCount">
+                    {{ employees|length - (employee_shifts.values()|select('ne', None)|list|length) }}
+                </h3>
+                <p class="text-muted small mb-0">Unassigned</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-clock-history text-info" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ shifts|length }}</h3>
+                <p class="text-muted small mb-0">Available Shifts</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Assignment Form -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light border-0 py-3">
+        <h6 class="fw-semibold mb-0"><i class="bi bi-sliders"></i> Bulk Assignment Options</h6>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Default Shift for All</label>
+                <select class="form-select" id="bulkShiftSelect">
+                    <option value="">-- Select Shift --</option>
+                    {% for shift in shifts %}
+                    <option value="{{ shift.id }}">
+                        {{ shift.name }} ({{ shift.start_time.strftime('%I:%M %p') }} - {{ shift.end_time.strftime('%I:%M %p') }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Effective From</label>
+                <input type="date" class="form-control" id="bulkEffectiveDate" value="{{ today() }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">&nbsp;</label>
+                <button type="button" class="btn btn-primary w-100" onclick="applyBulkShift()">
+                    <i class="bi bi-arrow-down-circle"></i> Apply to All Unassigned
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Employee List -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
+        <h6 class="fw-semibold mb-0">Employee Shift Assignments</h6>
+        <div class="input-group" style="max-width:300px">
+            <span class="input-group-text bg-white">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control border-start-0" 
+                   placeholder="Search employees..." 
+                   id="searchInput"
+                   onkeyup="filterTable()">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="employeeTable">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4" style="width:5%">#</th>
+                    <th style="width:10%">Emp Code</th>
+                    <th style="width:20%">Name</th>
+                    <th style="width:15%">Department</th>
+                    <th style="width:25%">Assigned Shift</th>
+                    <th style="width:15%">Status</th>
+                    <th class="pe-4" style="width:10%">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for employee in employees %}
+            <tr data-employee-id="{{ employee.id }}" 
+                data-employee-name="{{ employee.name }}"
+                data-department="{{ employee.department or 'N/A' }}">
+                <td class="ps-4">{{ loop.index }}</td>
+                <td class="fw-semibold">{{ employee.employee_code }}</td>
+                <td>{{ employee.name }}</td>
+                <td class="text-muted small">{{ employee.department or 'N/A' }}</td>
+                <td>
+                    <select class="form-select form-select-sm shift-select" 
+                            data-employee-id="{{ employee.id }}"
+                            onchange="assignShiftToEmployee({{ employee.id }}, this.value)">
+                        <option value="">-- Select Shift --</option>
+                        {% for shift in shifts %}
+                        <option value="{{ shift.id }}"
+                                {% if employee_shifts[employee.id] and employee_shifts[employee.id].id == shift.id %}selected{% endif %}>
+                            {{ shift.name }} ({{ shift.start_time.strftime('%I:%M %p') }} - {{ shift.end_time.strftime('%I:%M %p') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    {% if employee_shifts[employee.id] %}
+                    <span class="badge bg-success-subtle text-success status-badge">
+                        <i class="bi bi-check-circle"></i> Assigned
+                    </span>
+                    {% else %}
+                    <span class="badge bg-warning-subtle text-warning status-badge">
+                        <i class="bi bi-exclamation-triangle"></i> Unassigned
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="pe-4">
+                    {% if employee_shifts[employee.id] %}
+                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                            onclick="removeShiftFromEmployee({{ employee.id }})"
+                            title="Remove Shift">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            onclick="quickAssign({{ employee.id }})"
+                            title="Quick Assign">
+                        <i class="bi bi-lightning"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Update counts
+function updateCounts() {
+    const assigned = document.querySelectorAll('.status-badge:has(.bi-check-circle)').length;
+    const total = {{ employees|length }};
+    document.getElementById('assignedCount').textContent = assigned;
+    document.getElementById('unassignedCount').textContent = total - assigned;
+}
+
+// Filter table
+function filterTable() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#employeeTable tbody tr');
+    
+    rows.forEach(row => {
+        const name = row.dataset.employeeName.toLowerCase();
+        const dept = row.dataset.department.toLowerCase();
+        const empCode = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        
+        if (name.includes(input) || dept.includes(input) || empCode.includes(input)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Assign shift to single employee
+async function assignShiftToEmployee(employeeId, shiftId) {
+    if (!shiftId) return;
+    
+    const formData = new FormData();
+    formData.append('employee_id', employeeId);
+    formData.append('shift_id', shiftId);
+    formData.append('effective_date', document.getElementById('bulkEffectiveDate').value || '{{ today() }}');
+    
+    try {
+        const response = await fetch('{{ url_for("admin.assign_single_shift") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update status badge
+            const row = document.querySelector(`tr[data-employee-id="${employeeId}"]`);
+            const statusBadge = row.querySelector('.status-badge');
+            statusBadge.className = 'badge bg-success-subtle text-success status-badge';
+            statusBadge.innerHTML = '<i class="bi bi-check-circle"></i> Assigned';
+            
+            // Update action button
+            const actionBtn = row.querySelector('td:last-child button');
+            actionBtn.className = 'btn btn-sm btn-outline-danger';
+            actionBtn.setAttribute('onclick', `removeShiftFromEmployee(${employeeId})`);
+            actionBtn.setAttribute('title', 'Remove Shift');
+            actionBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
+            
+            // Show success message
+            showToast(data.message, 'success');
+            updateCounts();
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error assigning shift', 'danger');
+        console.error(error);
+    }
+}
+
+// Remove shift from employee
+async function removeShiftFromEmployee(employeeId) {
+    if (!confirm('Remove shift assignment from this employee?')) return;
+    
+    const formData = new FormData();
+    formData.append('employee_id', employeeId);
+    
+    try {
+        const response = await fetch('{{ url_for("admin.remove_shift") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update UI
+            const row = document.querySelector(`tr[data-employee-id="${employeeId}"]`);
+            const select = row.querySelector('.shift-select');
+            select.value = '';
+            
+            const statusBadge = row.querySelector('.status-badge');
+            statusBadge.className = 'badge bg-warning-subtle text-warning status-badge';
+            statusBadge.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Unassigned';
+            
+            const actionBtn = row.querySelector('td:last-child button');
+            actionBtn.className = 'btn btn-sm btn-outline-primary';
+            actionBtn.setAttribute('onclick', `quickAssign(${employeeId})`);
+            actionBtn.setAttribute('title', 'Quick Assign');
+            actionBtn.innerHTML = '<i class="bi bi-lightning"></i>';
+            
+            showToast(data.message, 'success');
+            updateCounts();
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error removing shift', 'danger');
+        console.error(error);
+    }
+}
+
+// Quick assign using bulk shift
+function quickAssign(employeeId) {
+    const bulkShift = document.getElementById('bulkShiftSelect').value;
+    if (!bulkShift) {
+        showToast('Please select a default shift first', 'warning');
+        return;
+    }
+    const select = document.querySelector(`select[data-employee-id="${employeeId}"]`);
+    select.value = bulkShift;
+    assignShiftToEmployee(employeeId, bulkShift);
+}
+
+// Apply bulk shift to all unassigned
+function applyBulkShift() {
+    const bulkShift = document.getElementById('bulkShiftSelect').value;
+    if (!bulkShift) {
+        showToast('Please select a shift', 'warning');
+        return;
+    }
+    
+    const unassignedRows = document.querySelectorAll('.status-badge:has(.bi-exclamation-triangle)');
+    if (unassignedRows.length === 0) {
+        showToast('All employees already have shifts assigned', 'info');
+        return;
+    }
+    
+    if (!confirm(`Assign shift to ${unassignedRows.length} unassigned employees?`)) return;
+    
+    unassignedRows.forEach(badge => {
+        const row = badge.closest('tr');
+        const employeeId = row.dataset.employeeId;
+        const select = row.querySelector('.shift-select');
+        select.value = bulkShift;
+        assignShiftToEmployee(employeeId, bulkShift);
+    });
+}
+
+// Assign all (including already assigned)
+async function assignAllShifts() {
+    const bulkShift = document.getElementById('bulkShiftSelect').value;
+    if (!bulkShift) {
+        showToast('Please select a shift', 'warning');
+        return;
+    }
+    
+    if (!confirm('Assign this shift to ALL employees (including those already assigned)?')) return;
+    
+    const assignments = [];
+    document.querySelectorAll('tr[data-employee-id]').forEach(row => {
+        assignments.push({
+            employee_id: parseInt(row.dataset.employeeId),
+            shift_id: parseInt(bulkShift)
+        });
+    });
+    
+    try {
+        const response = await fetch('{{ url_for("admin.assign_bulk_shifts") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                assignments: assignments,
+                effective_date: document.getElementById('bulkEffectiveDate').value || '{{ today() }}'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Reload page to show updated assignments
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error in bulk assignment', 'danger');
+        console.error(error);
+    }
+}
+
+// Export to Excel
+function exportToExcel() {
+    window.location.href = '{{ url_for("admin.export_daily_attendance") }}';
+}
+
+// Toast notification
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+
+{% endblock %}
