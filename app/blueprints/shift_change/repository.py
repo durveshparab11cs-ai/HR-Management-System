@@ -137,6 +137,8 @@ class ShiftChangeRequestRepository:
         requested_end_time: datetime.time,
         effective_date: datetime.date,
         reason: str,
+        reporting_manager_code: str,
+        reporting_manager_name: str,
         attachment_path: str = None,
         remarks: str = None,
         requested_shift_id: int = None
@@ -150,6 +152,8 @@ class ShiftChangeRequestRepository:
             requested_end_time=requested_end_time,
             effective_date=effective_date,
             reason=reason,
+            reporting_manager_code=reporting_manager_code,
+            reporting_manager_name=reporting_manager_name,
             attachment_path=attachment_path,
             remarks=remarks,
             status="pending",

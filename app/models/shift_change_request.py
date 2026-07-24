@@ -35,6 +35,10 @@ class ShiftChangeRequest(BaseModel):
     attachment_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
     
+    # Reporting Manager (who will approve/reject)
+    reporting_manager_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    reporting_manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    
     # Status
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending", index=True

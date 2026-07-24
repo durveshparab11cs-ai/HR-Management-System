@@ -43,6 +43,58 @@ assignment_repo = EmployeeShiftAssignmentRepository()
 # EMPLOYEE ROUTES
 # ============================================================================
 
+@bp.route("/lookup-manager")
+@login_required
+def lookup_manager():
+    """AJAX: validate a reporting manager code and return their details."""
+    from app.models.employee_master import EmployeeMaster
+    
+    code = request.args.get("code", "").strip().upper()
+    if not code:
+        return jsonify(found=False, message="Please enter a manager code.")
+    
+    # Check if user is trying to select themselves
+    employee = Employee.query.filter_by(user_id=current_user.id).first()
+    if employee and employee.employee_code.upper() == code:
+        return jsonify(found=False, message="You cannot select yourself as Reporting Manager.")
+    
+    # Look up manager in employee master
+    master = EmployeeMaster.query.filter_by(employee_code=code, is_active=True).first()
+    if not master:
+        return jsonify(found=False, message="Reporting Manager not found or inactive.")
+    
+    return jsonify(
+        found=True,
+        name=master.employee_name,
+        designation=master.designation or "N/A",
+        department=master.department or "N/A"
+    )
+
+
+@bp.route("/my-approvals")
+@login_required
+def my_approvals():
+    """Shift change requests assigned to me as reporting manager."""
+    employee = Employee.query.filter_by(user_id=current_user.id).first()
+    if not employee:
+        flash("Employee profile not found", "danger")
+        return redirect(url_for("dashboard.index"))
+    
+    # Get pending requests where this employee is the reporting manager
+    from app.models.shift_change_request import ShiftChangeRequest
+    
+    pending_requests = ShiftChangeRequest.query.filter_by(
+        reporting_manager_code=employee.employee_code.upper(),
+        status="pending",
+        is_deleted=False
+    ).order_by(ShiftChangeRequest.submitted_date.desc()).all()
+    
+    return render_template(
+        "shift_change/my_approvals.html",
+        requests=pending_requests
+    )
+
+
 @bp.route("/")
 @bp.route("/dashboard")
 @login_required
@@ -126,6 +178,7 @@ def create_request():
             requested_end_time=form.requested_end_time.data,
             effective_date=form.effective_date.data,
             reason=form.reason.data,
+            reporting_manager_code=form.reporting_manager_code.data,
             remarks=form.remarks.data,
             requested_shift_id=form.requested_shift_id.data if form.requested_shift_id.data > 0 else None,
             attachment=form.attachment.data

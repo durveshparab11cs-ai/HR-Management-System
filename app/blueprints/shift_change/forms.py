@@ -56,6 +56,13 @@ class ShiftChangeRequestForm(FlaskForm):
         render_kw={"rows": 4, "placeholder": "Explain why you need this shift change..."}
     )
     
+    # Reporting Manager Code (like in leave system)
+    reporting_manager_code = StringField(
+        "Reporting Manager Employee Code",
+        validators=[DataRequired(message="Reporting Manager Code is required.")],
+        render_kw={"placeholder": "e.g. E-2603028", "autocomplete": "off"}
+    )
+    
     # Attachment (optional)
     attachment = FileField(
         "Supporting Document (Optional)",

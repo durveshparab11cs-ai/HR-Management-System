@@ -78,6 +78,7 @@ class ShiftChangeService:
         requested_end_time: datetime.time,
         effective_date: datetime.date,
         reason: str,
+        reporting_manager_code: str,
         remarks: str = None,
         requested_shift_id: int = None,
         attachment: FileStorage = None
@@ -89,6 +90,24 @@ class ShiftChangeService:
             (success: bool, message: str, request_id: int or None)
         """
         try:
+            # Validation: reporting manager code
+            manager_code = reporting_manager_code.strip().upper()
+            if not manager_code:
+                return False, "Reporting Manager Code is required", None
+            
+            # Validate manager exists and get name
+            from app.models.employee_master import EmployeeMaster
+            manager = EmployeeMaster.query.filter_by(employee_code=manager_code, is_active=True).first()
+            if not manager:
+                return False, f"Reporting Manager with code {manager_code} not found or inactive", None
+            
+            # Prevent self-approval
+            employee = Employee.query.get(employee_id)
+            if employee and employee.employee_code.upper() == manager_code:
+                return False, "You cannot select yourself as Reporting Manager", None
+            
+            manager_name = manager.employee_name
+            
             # Validation: effective date not in past
             if effective_date < datetime.date.today():
                 return False, "Effective date cannot be in the past", None
@@ -128,28 +147,28 @@ class ShiftChangeService:
                 reason=reason,
                 attachment_path=attachment_path,
                 remarks=remarks,
-                requested_shift_id=requested_shift_id
+                requested_shift_id=requested_shift_id,
+                reporting_manager_code=manager_code,
+                reporting_manager_name=manager_name
             )
             
-            # Set initial approver (reporting manager)
-            employee = Employee.query.get(employee_id)
-            if employee and employee.reporting_manager_code:
-                manager_emp = Employee.query.filter_by(employee_code=employee.reporting_manager_code).first()
-                if manager_emp and manager_emp.user_id:
-                    self.request_repo.update_approver(request.id, "Manager", manager_emp.user_id)
-                    
-                    # Notify manager
-                    self._send_notification(
-                        user_id=manager_emp.user_id,
-                        title="New Shift Change Request",
-                        message=f"{employee.name} ({employee.employee_code}) has requested a shift change effective from {effective_date.strftime('%d %b %Y')}",
-                        category="shift_change",
-                        link=f"/shift-change/approvals/{request.id}"
-                    )
+            # Find manager's user account and set as approver
+            manager_emp = Employee.query.filter_by(employee_code=manager_code).first()
+            if manager_emp and manager_emp.user_id:
+                self.request_repo.update_approver(request.id, "Manager", manager_emp.user_id)
+                
+                # Notify manager
+                self._send_notification(
+                    user_id=manager_emp.user_id,
+                    title="New Shift Change Request",
+                    message=f"{employee.name} ({employee.employee_code}) has requested a shift change effective from {effective_date.strftime('%d %b %Y')}",
+                    category="shift_change",
+                    link=f"/shift-change/approvals/{request.id}"
+                )
             
             db.session.commit()
             
-            return True, f"Shift change request submitted successfully for {effective_date.strftime('%d %b %Y')}", request.id
+            return True, f"Shift change request submitted successfully to {manager_name}", request.id
             
         except Exception as e:
             db.session.rollback()
