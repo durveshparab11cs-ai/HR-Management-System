@@ -74,6 +74,11 @@ class Employee(BaseModel):
         return self.user.full_name if self.user else f"Employee #{self.id}"
 
     @property
+    def name(self) -> str:
+        """Alias for full_name for template compatibility."""
+        return self.full_name
+
+    @property
     def email(self) -> str:
         return self.user.email if self.user else ""
 
