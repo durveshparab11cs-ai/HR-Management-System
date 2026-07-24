@@ -286,6 +286,101 @@ def _register_cli(app: Flask) -> None:
         _db.session.commit()
         click.secho("\nSeed complete.", fg="green")
 
+    @app.cli.command("migrate-shift-change")
+    def migrate_shift_change():
+        """Add reporting_manager fields to shift_change_requests table."""
+        from app.extensions.database import db as _db  # noqa: PLC0415
+        from sqlalchemy import text  # noqa: PLC0415
+        
+        click.secho("=" * 60, fg="cyan")
+        click.secho("SHIFT CHANGE MANAGER FIELDS MIGRATION", fg="cyan", bold=True)
+        click.secho("=" * 60, fg="cyan")
+        click.echo()
+        
+        try:
+            # Check if columns exist
+            click.echo("Checking if columns exist...")
+            result = _db.session.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'shift_change_requests' 
+                AND column_name IN ('reporting_manager_code', 'reporting_manager_name')
+            """))
+            existing_columns = [row[0] for row in result]
+            
+            if len(existing_columns) == 2:
+                click.secho("✅ Columns already exist. Migration not needed.", fg="green")
+                return
+            
+            click.echo(f"Found {len(existing_columns)} of 2 required columns.")
+            click.echo("Running migration...")
+            click.echo()
+            
+            # Add reporting_manager_code
+            if 'reporting_manager_code' not in existing_columns:
+                click.echo("Adding column: reporting_manager_code...")
+                _db.session.execute(text("""
+                    ALTER TABLE shift_change_requests 
+                    ADD COLUMN IF NOT EXISTS reporting_manager_code VARCHAR(50)
+                """))
+                _db.session.commit()
+                click.secho("✅ Added reporting_manager_code", fg="green")
+            
+            # Add reporting_manager_name
+            if 'reporting_manager_name' not in existing_columns:
+                click.echo("Adding column: reporting_manager_name...")
+                _db.session.execute(text("""
+                    ALTER TABLE shift_change_requests 
+                    ADD COLUMN IF NOT EXISTS reporting_manager_name VARCHAR(200)
+                """))
+                _db.session.commit()
+                click.secho("✅ Added reporting_manager_name", fg="green")
+            
+            # Update existing records
+            click.echo("Updating existing records...")
+            _db.session.execute(text("""
+                UPDATE shift_change_requests 
+                SET reporting_manager_code = 'PENDING', 
+                    reporting_manager_name = 'To Be Assigned'
+                WHERE reporting_manager_code IS NULL OR reporting_manager_code = ''
+            """))
+            _db.session.commit()
+            click.secho("✅ Updated existing records", fg="green")
+            
+            # Set NOT NULL constraint
+            click.echo("Setting NOT NULL constraint...")
+            _db.session.execute(text("""
+                ALTER TABLE shift_change_requests 
+                ALTER COLUMN reporting_manager_code SET DEFAULT ''
+            """))
+            _db.session.execute(text("""
+                ALTER TABLE shift_change_requests 
+                ALTER COLUMN reporting_manager_code SET NOT NULL
+            """))
+            _db.session.commit()
+            click.secho("✅ Set NOT NULL constraint", fg="green")
+            
+            # Create index
+            click.echo("Creating index...")
+            _db.session.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_shift_change_requests_manager_code 
+                ON shift_change_requests(reporting_manager_code)
+            """))
+            _db.session.commit()
+            click.secho("✅ Created index", fg="green")
+            
+            click.echo()
+            click.secho("=" * 60, fg="green")
+            click.secho("✅ MIGRATION COMPLETED SUCCESSFULLY", fg="green", bold=True)
+            click.secho("=" * 60, fg="green")
+            click.echo()
+            
+        except Exception as e:
+            _db.session.rollback()
+            click.secho(f"❌ ERROR: {str(e)}", fg="red", bold=True)
+            click.echo()
+            click.secho("Migration failed. Please check the error above.", fg="red")
+
     app.logger.debug("CLI commands registered.")
 
 
@@ -501,6 +596,9 @@ def _migrate_add_columns(db) -> None:
         ('half_day_requests',    'reporting_manager_name',     'VARCHAR(200)'),
         ('early_leave_requests', 'reporting_manager_code',     'VARCHAR(30)'),
         ('early_leave_requests', 'reporting_manager_name',     'VARCHAR(200)'),
+        # Reporting manager fields for shift change requests
+        ('shift_change_requests', 'reporting_manager_code',    'VARCHAR(50)'),
+        ('shift_change_requests', 'reporting_manager_name',    'VARCHAR(200)'),
     ]
 
     for table, col, col_type in new_cols:
