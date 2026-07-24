@@ -50,7 +50,8 @@ def assign_shifts_bulk():
         'admin/shift_assignment.html',
         employees=employees,
         shifts=shifts,
-        employee_shifts=employee_shifts
+        employee_shifts=employee_shifts,
+        today=date.today
     )
 
 
