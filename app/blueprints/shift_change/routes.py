@@ -100,48 +100,59 @@ def my_approvals():
 @login_required
 def dashboard():
     """Shift change dashboard."""
-    # Get current employee
-    employee = Employee.query.filter_by(user_id=current_user.id).first()
-    if not employee:
-        flash("Employee profile not found", "danger")
+    try:
+        # Get current employee
+        employee = Employee.query.filter_by(user_id=current_user.id).first()
+        if not employee:
+            flash("Employee profile not found", "danger")
+            return redirect(url_for("dashboard.index"))
+        
+        # Get current shift
+        current_shift = service.get_employee_current_shift(employee.id)
+        
+        # Get upcoming shift (if any approved request exists)
+        upcoming_shift = None
+        try:
+            future_assignment = assignment_repo.get_current_assignment(
+                employee.id,
+                datetime.date.today() + datetime.timedelta(days=1)
+            )
+            if future_assignment and future_assignment.shift and future_assignment.effective_from > datetime.date.today():
+                upcoming_shift = {
+                    "shift_name": future_assignment.shift.name,
+                    "start_time": future_assignment.shift.start_time,
+                    "end_time": future_assignment.shift.end_time,
+                    "effective_from": future_assignment.effective_from
+                }
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.error(f"Error getting upcoming shift: {str(e)}")
+            upcoming_shift = None
+        
+        # Get requests summary
+        all_requests = request_repo.get_employee_requests(employee.id)
+        pending_requests = [r for r in all_requests if r.status == "pending"]
+        approved_requests = [r for r in all_requests if r.status == "approved"]
+        rejected_requests = [r for r in all_requests if r.status == "rejected"]
+        
+        # Get shift history
+        shift_history = assignment_repo.get_assignment_history(employee.id, limit=10)
+        
+        return render_template(
+            "shift_change/dashboard.html",
+            current_shift=current_shift,
+            upcoming_shift=upcoming_shift,
+            pending_count=len(pending_requests),
+            approved_count=len(approved_requests),
+            rejected_count=len(rejected_requests),
+            recent_requests=all_requests[:5] if all_requests else [],
+            shift_history=shift_history[:5] if shift_history else []
+        )
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Error in shift change dashboard: {str(e)}")
+        flash(f"Error loading dashboard: {str(e)}", "danger")
         return redirect(url_for("dashboard.index"))
-    
-    # Get current shift
-    current_shift = service.get_employee_current_shift(employee.id)
-    
-    # Get upcoming shift (if any approved request exists)
-    upcoming_shift = None
-    future_assignment = assignment_repo.get_current_assignment(
-        employee.id,
-        datetime.date.today() + datetime.timedelta(days=1)
-    )
-    if future_assignment and future_assignment.effective_from > datetime.date.today():
-        upcoming_shift = {
-            "shift_name": future_assignment.shift.name,
-            "start_time": future_assignment.shift.start_time,
-            "end_time": future_assignment.shift.end_time,
-            "effective_from": future_assignment.effective_from
-        }
-    
-    # Get requests summary
-    all_requests = request_repo.get_employee_requests(employee.id)
-    pending_requests = [r for r in all_requests if r.status == "pending"]
-    approved_requests = [r for r in all_requests if r.status == "approved"]
-    rejected_requests = [r for r in all_requests if r.status == "rejected"]
-    
-    # Get shift history
-    shift_history = assignment_repo.get_assignment_history(employee.id, limit=10)
-    
-    return render_template(
-        "shift_change/dashboard.html",
-        current_shift=current_shift,
-        upcoming_shift=upcoming_shift,
-        pending_count=len(pending_requests),
-        approved_count=len(approved_requests),
-        rejected_count=len(rejected_requests),
-        recent_requests=all_requests[:5],
-        shift_history=shift_history[:5]
-    )
 
 
 @bp.route("/request", methods=["GET", "POST"])
