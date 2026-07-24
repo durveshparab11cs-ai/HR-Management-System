@@ -10,18 +10,26 @@ from flask_login import login_required, current_user
 
 from app.extensions.database import db
 from app.models.employee import Employee
+from app.models.user import User
 from app.models.company import Shift
 from app.models.employee_shift_assignment import EmployeeShiftAssignment
+from app.constants.enums import UserStatus
 
 
 def assign_shifts_bulk():
     """Bulk shift assignment page for HR/Admin."""
     
-    # Get all active employees
-    employees = Employee.query.filter_by(is_active=True).order_by(Employee.employee_code).all()
+    # Get all active employees (join with User to check status)
+    employees = (
+        Employee.query
+        .join(User, Employee.user_id == User.id)
+        .filter(Employee.is_deleted == False, User.status == UserStatus.ACTIVE.value)
+        .order_by(Employee.employee_code)
+        .all()
+    )
     
     # Get all active shifts
-    shifts = Shift.query.filter_by(is_active=True).order_by(Shift.name).all()
+    shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
     
     # Get current assignments for each employee
     employee_shifts = {}
