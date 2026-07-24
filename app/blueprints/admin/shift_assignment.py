@@ -7,6 +7,7 @@ Bulk shift assignment for HR/Admin to assign shifts to employees.
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 
 from app.extensions.database import db
 from app.models.employee import Employee
@@ -31,14 +32,19 @@ def assign_shifts_bulk():
     # Get all active shifts
     shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
     
-    # Get current assignments for each employee
+    # Get current assignments for each employee with shift relationship loaded
     employee_shifts = {}
     for emp in employees:
-        assignment = EmployeeShiftAssignment.query.filter(
-            EmployeeShiftAssignment.employee_id == emp.id,
-            EmployeeShiftAssignment.effective_until.is_(None)
-        ).first()
-        employee_shifts[emp.id] = assignment.shift if assignment else None
+        assignment = (
+            EmployeeShiftAssignment.query
+            .options(joinedload(EmployeeShiftAssignment.shift))
+            .filter(
+                EmployeeShiftAssignment.employee_id == emp.id,
+                EmployeeShiftAssignment.effective_until.is_(None)
+            )
+            .first()
+        )
+        employee_shifts[emp.id] = assignment.shift if assignment and assignment.shift else None
     
     return render_template(
         'admin/shift_assignment.html',
