@@ -4,7 +4,7 @@ admin/shift_assignment.py
 Bulk shift assignment for HR/Admin to assign shifts to employees.
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 
@@ -12,10 +12,8 @@ from app.extensions.database import db
 from app.models.employee import Employee
 from app.models.company import Shift
 from app.models.employee_shift_assignment import EmployeeShiftAssignment
-from app.decorators import role_required
 
 
-@role_required(['super_admin', 'hr', 'admin'])
 def assign_shifts_bulk():
     """Bulk shift assignment page for HR/Admin."""
     
@@ -42,7 +40,6 @@ def assign_shifts_bulk():
     )
 
 
-@role_required(['super_admin', 'hr', 'admin'])
 def assign_shift_to_employee():
     """Assign shift to a single employee."""
     
@@ -82,7 +79,7 @@ def assign_shift_to_employee():
                 }), 400
             
             # Close previous assignment
-            current_assignment.effective_until = effective_date - datetime.timedelta(days=1)
+            current_assignment.effective_until = effective_date - timedelta(days=1)
             db.session.add(current_assignment)
         
         # Create new assignment
@@ -112,7 +109,6 @@ def assign_shift_to_employee():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
-@role_required(['super_admin', 'hr', 'admin'])
 def assign_shifts_bulk_submit():
     """Bulk assign shifts to multiple employees at once."""
     
@@ -161,7 +157,7 @@ def assign_shifts_bulk_submit():
                 
                 # Close current assignment if exists
                 if current_assignment:
-                    current_assignment.effective_until = effective_date - datetime.timedelta(days=1)
+                    current_assignment.effective_until = effective_date - timedelta(days=1)
                     db.session.add(current_assignment)
                 
                 # Create new assignment
@@ -202,7 +198,6 @@ def assign_shifts_bulk_submit():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
-@role_required(['super_admin', 'hr', 'admin'])
 def remove_shift_assignment():
     """Remove shift assignment from employee."""
     
@@ -240,7 +235,6 @@ def remove_shift_assignment():
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
-@role_required(['super_admin', 'hr', 'admin'])
 def get_employee_shift_info():
     """Get current shift info for an employee."""
     
