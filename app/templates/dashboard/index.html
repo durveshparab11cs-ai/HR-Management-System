@@ -37,7 +37,7 @@
                         <div class="text-muted small">Check In</div>
                         <div class="fw-bold h5 mb-0">
                             {% if today_att and today_att.check_in_time %}
-                                {{ today_att.check_in_time.strftime('%H:%M') }}
+                                <span class="utc-to-ist">{{ today_att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
                             {% else %}
                                 <span class="text-muted fs-6 fw-normal">Not checked in</span>
                             {% endif %}
@@ -62,7 +62,7 @@
                         <div class="text-muted small">Check Out</div>
                         <div class="fw-bold h5 mb-0">
                             {% if today_att and today_att.check_out_time %}
-                                {{ today_att.check_out_time.strftime('%H:%M') }}
+                                <span class="utc-to-ist">{{ today_att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
                             {% else %}
                                 <span class="text-muted fs-6 fw-normal">Not checked out</span>
                             {% endif %}
@@ -307,5 +307,6 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
