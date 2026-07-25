@@ -232,7 +232,14 @@ def approve(lr_id: int):
 @login_required
 def reject(lr_id: int):
     form = ReviewLeaveForm()
-    ok, msg = _svc.reject_leave(lr_id, current_user.id, form.comment.data or "")
+    comment = form.comment.data or ""
+    
+    # Validate that rejection reason is provided
+    if not comment or comment.strip() == "":
+        flash("Rejection reason is mandatory. Please provide a reason for rejection.", "danger")
+        return redirect(request.referrer or url_for("leave.pending"))
+    
+    ok, msg = _svc.reject_leave(lr_id, current_user.id, comment)
     flash(msg, "success" if ok else "danger")
     return redirect(request.referrer or url_for("leave.pending"))
 
@@ -275,6 +282,14 @@ def approve_halfday(hd_id: int):
 @leave_bp.route("/halfday/<int:hd_id>/reject", methods=["POST"])
 @login_required
 def reject_halfday(hd_id: int):
+    form = ReviewLeaveForm()
+    comment = form.comment.data or ""
+    
+    # Validate that rejection reason is provided
+    if not comment or comment.strip() == "":
+        flash("Rejection reason is mandatory. Please provide a reason for rejection.", "danger")
+        return redirect(request.referrer or url_for("leave.pending"))
+    
     ok, msg = _svc.reject_halfday(hd_id, current_user.id)
     flash(msg, "success" if ok else "danger")
     return redirect(request.referrer or url_for("leave.pending"))
@@ -318,6 +333,14 @@ def approve_earlyleave(el_id: int):
 @leave_bp.route("/earlyleave/<int:el_id>/reject", methods=["POST"])
 @login_required
 def reject_earlyleave(el_id: int):
+    form = ReviewLeaveForm()
+    comment = form.comment.data or ""
+    
+    # Validate that rejection reason is provided
+    if not comment or comment.strip() == "":
+        flash("Rejection reason is mandatory. Please provide a reason for rejection.", "danger")
+        return redirect(request.referrer or url_for("leave.pending"))
+    
     ok, msg = _svc.reject_earlyleave(el_id, current_user.id)
     flash(msg, "success" if ok else "danger")
     return redirect(request.referrer or url_for("leave.pending"))
