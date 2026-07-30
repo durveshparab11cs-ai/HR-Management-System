@@ -71,8 +71,11 @@ def inject_user_context() -> dict:
             except Exception:  # noqa: BLE001
                 pass
             if not dept:
-                emp = getattr(current_user, "employee", None)
-                dept = (emp.department or "") if emp else ""
+                try:
+                    emp = getattr(current_user, "employee", None)
+                    dept = (emp.department or "") if emp else ""
+                except Exception:  # noqa: BLE001
+                    dept = ""
             context["login_department"] = dept
             context["has_global_access"] = (
                 current_user.role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
@@ -112,7 +115,7 @@ def inject_navigation() -> dict:
             emp = getattr(current_user, "employee", None)
             dept = (emp.department or "") if emp else ""
         except Exception:  # noqa: BLE001
-            pass
+            dept = ""
 
     all_items = [
         {"label": "Dashboard",      "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
