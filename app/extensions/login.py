@@ -38,6 +38,10 @@ def configure_login_manager(app) -> None:
     login_manager.refresh_view = "authentication.login"
     login_manager.needs_refresh_message = ""
     login_manager.needs_refresh_message_category = "info"
+    # Disable strong session protection but refresh user on every request
+    # This ensures role changes take effect immediately
+    app.config['SESSION_PERMANENT'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 
     @login_manager.user_loader
     def load_user(user_id: str):

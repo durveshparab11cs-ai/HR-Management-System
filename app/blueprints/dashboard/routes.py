@@ -31,6 +31,8 @@ def index():
     from app.constants.enums import UserRole
     from app.models.employee_master import EmployeeMaster
     
+    # ALWAYS check current role and redirect if user is admin
+    # This catches cases where role was updated after login
     if current_user.role in (
         UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value,
         UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value,
