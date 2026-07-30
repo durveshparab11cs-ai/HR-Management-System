@@ -104,6 +104,34 @@ def logout():
     return redirect(url_for("authentication.login"))
 
 
+# ── Refresh Session (Force role update) ────────────────────────────────
+
+@authentication_bp.route("/refresh-session")
+@login_required
+def refresh_session():
+    """
+    Force refresh the current user session from database.
+    This ensures role changes take effect immediately without logout.
+    """
+    from flask_login import fresh_login_required, request as flask_request
+    from flask import session
+    
+    # Refresh the user from database
+    from app.models.user import User  # noqa: PLC0415
+    user = User.query.get(current_user.id)
+    
+    if user:
+        # Clear the session and re-login with fresh user
+        from flask_login import login_user, logout_user
+        logout_user()
+        login_user(user, remember=False)
+        
+        # Redirect to appropriate dashboard based on new role
+        return redirect(_svc.get_dashboard_url(user))
+    
+    return redirect(url_for("authentication.login"))
+
+
 # ── Forgot Password ───────────────────────────────────────────────────
 
 @authentication_bp.route("/forgot-password", methods=["GET", "POST"])

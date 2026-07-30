@@ -89,12 +89,8 @@ def admin_required(fn: Callable) -> Callable:
             return redirect(url_for("authentication.login", next=request.url))
 
         user_role = getattr(current_user, "role", None)
-        # Direct string comparison for reliability
-        if user_role not in ("super_admin", "admin"):
-            logger.warning(
-                "ADMIN_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
-                current_user.id, user_role, request.endpoint
-            )
+        # Use direct string comparison to avoid enum issues
+        if user_role not in ('super_admin', 'admin'):
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -111,14 +107,10 @@ def hr_required(fn: Callable) -> Callable:
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
 
-        # Direct string comparison for reliability
-        allowed = ("super_admin", "admin", "hr_manager", "hr_staff")
+        # Use direct string comparison
+        allowed = ('super_admin', 'admin', 'hr_manager', 'hr_staff')
         user_role = getattr(current_user, "role", None)
         if user_role not in allowed:
-            logger.warning(
-                "HR_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
-                current_user.id, user_role, request.endpoint
-            )
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -135,14 +127,10 @@ def manager_required(fn: Callable) -> Callable:
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
 
-        # Direct string comparison for reliability
-        allowed = ("super_admin", "admin", "hr_manager", "manager")
+        # Use direct string comparison
+        allowed = ('super_admin', 'admin', 'hr_manager', 'manager')
         user_role = getattr(current_user, "role", None)
         if user_role not in allowed:
-            logger.warning(
-                "MANAGER_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
-                current_user.id, user_role, request.endpoint
-            )
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -174,7 +162,8 @@ def owner_or_admin_required(get_owner_id_fn: Callable) -> Callable:
 
             owner_id = get_owner_id_fn(*args, **kwargs)
             user_role = getattr(current_user, "role", None)
-            is_admin = user_role in (UserRole.SUPER_ADMIN, UserRole.ADMIN)
+            # Use direct string comparison
+            is_admin = user_role in ('super_admin', 'admin')
 
             if not is_admin and current_user.id != owner_id:
                 abort(403)

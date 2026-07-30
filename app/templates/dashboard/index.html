@@ -6,9 +6,8 @@
 
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <div>
-        {% set hour = today.strftime('%H') | int %}
         <h1 class="h4 fw-bold mb-0">
-            Good {% if hour < 12 %}Morning{% elif hour < 17 %}Afternoon{% elif hour < 21 %}Evening{% else %}Night{% endif %}, {{ current_user.first_name }}!
+            Good {% set hour = today.strftime('%H') | int %}{% if hour < 12 %}Morning{% elif hour < 17 %}Afternoon{% elif hour < 21 %}Evening{% else %}Night{% endif %}, {{ current_user.first_name }}!
         </h1>
         <p class="text-muted small mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
     </div>

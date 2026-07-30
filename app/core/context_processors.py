@@ -55,13 +55,13 @@ def inject_user_context() -> dict:
             context["is_authenticated"] = True
             context["current_user_role"] = getattr(current_user, "role", None)
             context["is_admin"] = getattr(current_user, "role", None) in (
-                UserRole.SUPER_ADMIN, UserRole.ADMIN
+                UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value
             )
             context["is_hr_manager"] = getattr(current_user, "role", None) in (
-                UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER
+                UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value
             )
             context["is_manager"] = getattr(current_user, "role", None) in (
-                UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER
+                UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value
             )
             # Safely read session — may not exist right after logout
             dept = ""

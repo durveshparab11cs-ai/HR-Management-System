@@ -28,13 +28,12 @@ _lsvc  = LeaveService()
 @dashboard_bp.route("")
 @login_required
 def index():
-    from app.constants.enums import UserRole
     from app.models.employee_master import EmployeeMaster
     
-    if current_user.role in (
-        UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value,
-        UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value,
-    ):
+    # HARDCODED check for admin roles - direct string comparison
+    # This ensures admin users go to admin dashboard immediately
+    admin_roles = ('super_admin', 'admin', 'hr_manager', 'hr_staff')
+    if current_user.role in admin_roles:
         return redirect(url_for("admin.index"))
 
     employee = _emp.get_by_user_id(current_user.id)

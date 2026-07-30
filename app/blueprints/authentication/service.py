@@ -374,14 +374,14 @@ class AuthService:
 
     def get_dashboard_url(self, user: User) -> str:
         """Return the post-login URL based on role."""
-        # Use direct string comparison for reliability
+        # Use direct string comparison to avoid enum issues
         role_map = {
-            "super_admin":  "/admin/",
-            "admin":        "/admin/",
-            "hr_manager":   "/admin/",
-            "hr_staff":     "/admin/",
-            "manager":      "/dashboard/",
-            "employee":     "/dashboard/",
+            'super_admin': "/admin/",
+            'admin':       "/admin/",
+            'hr_manager':  "/admin/",
+            'hr_staff':    "/admin/",
+            'manager':     "/dashboard/",
+            'employee':    "/dashboard/",
         }
         return role_map.get(user.role, "/dashboard/")
 
