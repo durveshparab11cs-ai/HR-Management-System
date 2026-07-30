@@ -25,4 +25,12 @@ admin_bp = Blueprint(
 )
 
 from . import routes  # noqa: E402, F401
-from . import routes_hospital  # noqa: E402, F401
+
+# Hospital routes - safely import with error handling
+try:
+    from . import routes_hospital  # noqa: E402, F401
+except Exception as e:
+    # If hospital tables don't exist yet, skip these routes
+    # They will be available after database migration
+    import logging
+    logging.getLogger(__name__).warning(f"Hospital routes disabled: {e}")
