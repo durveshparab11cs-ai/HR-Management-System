@@ -89,7 +89,12 @@ def admin_required(fn: Callable) -> Callable:
             return redirect(url_for("authentication.login", next=request.url))
 
         user_role = getattr(current_user, "role", None)
-        if user_role not in (UserRole.SUPER_ADMIN, UserRole.ADMIN):
+        # Direct string comparison for reliability
+        if user_role not in ("super_admin", "admin"):
+            logger.warning(
+                "ADMIN_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
+                current_user.id, user_role, request.endpoint
+            )
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -106,9 +111,14 @@ def hr_required(fn: Callable) -> Callable:
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
 
-        allowed = (UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_STAFF)
+        # Direct string comparison for reliability
+        allowed = ("super_admin", "admin", "hr_manager", "hr_staff")
         user_role = getattr(current_user, "role", None)
         if user_role not in allowed:
+            logger.warning(
+                "HR_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
+                current_user.id, user_role, request.endpoint
+            )
             abort(403)
         return fn(*args, **kwargs)
     return wrapper
@@ -125,9 +135,14 @@ def manager_required(fn: Callable) -> Callable:
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
 
-        allowed = (UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER)
+        # Direct string comparison for reliability
+        allowed = ("super_admin", "admin", "hr_manager", "manager")
         user_role = getattr(current_user, "role", None)
         if user_role not in allowed:
+            logger.warning(
+                "MANAGER_ACCESS_DENIED | user_id=%s | role=%s | endpoint=%s",
+                current_user.id, user_role, request.endpoint
+            )
             abort(403)
         return fn(*args, **kwargs)
     return wrapper

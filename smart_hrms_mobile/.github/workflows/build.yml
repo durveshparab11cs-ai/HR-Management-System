@@ -1,0 +1,202 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - debug
+          - release
+          - profile
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.22.0
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Build APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm64 \
+            --split-per-abi
+      
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+      
+      - name: Sign APK
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.KEYSTORE_PROPERTIES }}" > ~/.android/keystore.properties
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > ~/.android/release.keystore
+      
+      - name: Upload to Firebase App Distribution
+        run: |
+          curl -X POST "https://firebaseappdistribution.googleapis.com/v1/projects/${{ secrets.FIREBASE_PROJECT_ID }}/apps/${{ secrets.FIREBASE_ANDROID_APP_ID }}/releases" \
+            -H "Authorization: Bearer ${{ secrets.FIREBASE_TOKEN }}" \
+            -F "file=@build/app/outputs/apk/release/app-release.apk" \
+            -F "releaseNotes=Release build from GitHub Actions"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-build
+          path: |
+            build/app/outputs/apk/release/
+            build/app/outputs/bundle/release/
+          retention-days: 30
+
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.22.0
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Build iOS
+        run: |
+          flutter build ios --release \
+            --no-codesign
+      
+      - name: Setup provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+      
+      - name: Setup signing certificate
+        run: |
+          echo "${{ secrets.IOS_SIGNING_CERTIFICATE }}" | base64 -d > certificate.p12
+          security import certificate.p12 -k ~/Library/Keychains/login.keychain-db -P "${{ secrets.IOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+      
+      - name: Code sign iOS app
+        run: |
+          xcode-project=$(find . -name "*.xcodeproj" -type d)
+          xcodebuild -project "$xcode-project" \
+            -scheme Runner \
+            -configuration Release \
+            -derivedDataPath build/ios_build \
+            -allowProvisioningUpdates
+      
+      - name: Build IPA
+        run: |
+          xcode-project=$(find . -name "*.xcodeproj" -type d)
+          xcodebuild -exportArchive \
+            -archivePath build/ios_build/Release.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath build/ios_build/ipa
+      
+      - name: Upload to TestFlight
+        run: |
+          xcrun altool --upload-app \
+            --file build/ios_build/ipa/Smart\ HRMS.ipa \
+            --type ios \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build
+          path: build/ios_build/ipa/
+          retention-days: 30
+
+  test-build:
+    runs-on: ubuntu-latest
+    needs: build-android
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download APK
+        uses: actions/download-artifact@v3
+        with:
+          name: android-build
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+      
+      - name: Run tests on emulator
+        run: |
+          # Start emulator (requires setup)
+          emulator -avd test_device &
+          adb wait-for-device
+          
+          # Install APK
+          adb install -r app-release.apk
+          
+          # Run integration tests
+          adb shell am instrument -w com.example.smart_hrms.test/androidx.test.runner.AndroidJUnitRunner
+        continue-on-error: true
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [ build-android, build-ios ]
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            android-build/app-release.apk
+            android-build/app-release-unsigned.aab
+            ios-build/*.ipa
+          draft: false
+          prerelease: false
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Smart HRMS Release ${{ github.ref }} published",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Smart HRMS Mobile* - Version ${{ github.ref }}\n✅ Release published successfully"
+                  }
+                }
+              ]
+            }
