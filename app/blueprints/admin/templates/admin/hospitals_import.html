@@ -1,0 +1,61 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Import Hospitals — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Import Hospitals from Excel</h5>
+            </div>
+            <div class="card-body p-4">
+                <!-- Instructions -->
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Excel Format Requirements</h6>
+                    <p class="mb-2">Your Excel file must contain the following columns:</p>
+                    <ul class="mb-0">
+                        <li><strong>Hospital  Name</strong> - Full hospital name (required)</li>
+                        <li><strong>Location</strong> - City/Location name</li>
+                        <li><strong>Latitude</strong> - GPS latitude coordinate (required)</li>
+                        <li><strong>Longitude</strong> - GPS longitude coordinate (required)</li>
+                        <li><strong>Status</strong> - Active or Inactive</li>
+                    </ul>
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.csrf_token }}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.file.label }}</label>
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else "")) }}
+                        {% if form.file.errors %}
+                        <div class="invalid-feedback">{{ form.file.errors[0] }}</div>
+                        {% endif %}
+                        <small class="text-muted">Allowed formats: .xlsx, .xls</small>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Note:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Duplicate hospitals (by name) will be updated with new coordinates</li>
+                            <li>Invalid coordinates will be skipped</li>
+                            <li>Missing GPS data will result in import failure for that row</li>
+                        </ul>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Import Hospitals
+                        </button>
+                        <a href="{{ url_for('admin.hospitals_list') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -47,6 +47,25 @@ class EmployeeMaster(db.Model):
 
     department: Mapped[str | None] = mapped_column(String(100), nullable=True)
     designation: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    
+    # Hospital Allocation fields (imported from Excel)
+    working_location: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+        doc="Hospital/location name from Excel (e.g., 'Head Office', 'Claim Department')"
+    )
+    
+    shift_timing: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        doc="Shift timing from Excel (e.g., '10:00 AM to 7:00 PM', 'Flexible Shift')"
+    )
+    
+    working_status: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        doc="Working status from Excel (e.g., 'Active', 'Flexible')"
+    )
 
     # Registration state
     is_registered: Mapped[bool] = mapped_column(

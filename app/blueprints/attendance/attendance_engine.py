@@ -60,8 +60,18 @@ def compute_check_in_meta(
     attendance_date: Optional - date to check shift assignment
 
     Late if: check_in_UTC > (shift_start_IST - 5:30) + grace_period
+    
+    FLEXIBLE SHIFT: If employee is on flexible shift, never mark as late.
     """
     ci = _ensure_naive(check_in_time)
+    
+    # Check if employee has flexible shift
+    if employee_id:
+        from app.models.employee import Employee
+        employee = Employee.query.get(employee_id)
+        if employee and employee.is_flexible_shift:
+            # Flexible employees are never late
+            return False, 0
     
     # Try to get employee-specific shift
     shift_start_time = office.office_start_time
@@ -100,6 +110,12 @@ def compute_check_out_meta(
     working_minutes = actual time between check-in and check-out (in minutes).
     
     If employee has custom shift for this date, use shift timings instead of office settings.
+    
+    FLEXIBLE SHIFT LOGIC:
+    - For flexible employees, only working hours matter (no late/early checks)
+    - Present if working_hours >= required_working_hours (default: 9)
+    - Half-day if working_hours < required but >= half_day_threshold
+    - No overtime calculation for flexible shifts
     """
     check_in = attendance.check_in_time
     if not check_in:
@@ -116,7 +132,43 @@ def compute_check_out_meta(
 
     # Actual working minutes (check-out minus check-in)
     working_minutes = max(0, int((co - ci).total_seconds() / 60))
-
+    
+    # Check if employee has flexible shift
+    is_flexible = False
+    required_hours = 9  # Default
+    
+    if employee_id:
+        from app.models.employee import Employee
+        employee = Employee.query.get(employee_id)
+        if employee:
+            is_flexible = bool(employee.is_flexible_shift)
+            required_hours = employee.required_working_hours or 9
+    
+    # FLEXIBLE SHIFT LOGIC
+    if is_flexible:
+        required_minutes = required_hours * 60
+        half_day_threshold = office.half_day_threshold_minutes
+        
+        # For flexible: Present if >= required hours, else check half-day threshold
+        if working_minutes >= required_minutes:
+            status = AttendanceStatus.PRESENT
+            is_half_day = False
+        elif working_minutes >= half_day_threshold:
+            status = AttendanceStatus.HALF_DAY
+            is_half_day = True
+        else:
+            status = AttendanceStatus.HALF_DAY
+            is_half_day = True
+        
+        return {
+            "working_minutes": working_minutes,
+            "overtime_minutes": 0,  # No overtime for flexible
+            "is_half_day": is_half_day,
+            "is_early_leave": False,  # No early leave concept for flexible
+            "status": status,
+        }
+    
+    # FIXED SHIFT LOGIC (existing logic)
     # Try to get employee-specific shift
     shift_end_time = office.office_end_time
     half_day_threshold = office.half_day_threshold_minutes

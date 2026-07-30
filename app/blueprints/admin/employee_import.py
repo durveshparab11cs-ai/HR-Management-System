@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 class EmployeeImportService:
 
     REQUIRED_COLUMNS = {"EMP-CODE", "NAME"}
+    # Note: Column names are case-insensitive and normalized during parsing
+    OPTIONAL_COLUMNS = {
+        "DEPARTMENT", 
+        "DESIGNATION", 
+        "WORKING LOCATION",      # Hospital/location name
+        "FULL SHIFT TIMING",     # Shift hours (e.g., "8:00 AM to 5:00 PM")
+        "WORKING STATUS"         # Status (e.g., "Active", "Active- OUTSTATION")
+    }
 
     def preview(self, file: FileStorage) -> dict:
         """
@@ -119,6 +127,11 @@ class EmployeeImportService:
                 master = EmployeeMaster(
                     employee_code=code,
                     employee_name=name,
+                    department=row.get("DEPARTMENT"),
+                    designation=row.get("DESIGNATION"),
+                    working_location=row.get("WORKING LOCATION"),
+                    shift_timing=row.get("FULL SHIFT TIMING"),
+                    working_status=row.get("WORKING STATUS"),
                 )
                 db.session.add(master)
                 imported += 1
@@ -174,6 +187,13 @@ class EmployeeImportService:
 
         code_idx = headers.index("EMP-CODE")
         name_idx = headers.index("NAME")
+        
+        # Optional columns
+        dept_idx = headers.index("DEPARTMENT") if "DEPARTMENT" in headers else None
+        desig_idx = headers.index("DESIGNATION") if "DESIGNATION" in headers else None
+        location_idx = headers.index("WORKING LOCATION") if "WORKING LOCATION" in headers else None
+        shift_idx = headers.index("FULL SHIFT TIMING") if "FULL SHIFT TIMING" in headers else None
+        status_idx = headers.index("WORKING STATUS") if "WORKING STATUS" in headers else None
 
         rows = []
         for sheet_row in rows_iter:
@@ -182,7 +202,22 @@ class EmployeeImportService:
                 continue
             code = str(vals[code_idx]).strip() if len(vals) > code_idx and vals[code_idx] else ""
             name = str(vals[name_idx]).strip() if len(vals) > name_idx and vals[name_idx] else ""
+            
             if code and code.lower() not in ("none", "nan", "emp-code"):
-                rows.append({"EMP-CODE": code, "NAME": name})
+                row_data = {"EMP-CODE": code, "NAME": name}
+                
+                # Add optional fields if present
+                if dept_idx is not None and len(vals) > dept_idx and vals[dept_idx]:
+                    row_data["DEPARTMENT"] = str(vals[dept_idx]).strip()
+                if desig_idx is not None and len(vals) > desig_idx and vals[desig_idx]:
+                    row_data["DESIGNATION"] = str(vals[desig_idx]).strip()
+                if location_idx is not None and len(vals) > location_idx and vals[location_idx]:
+                    row_data["WORKING LOCATION"] = str(vals[location_idx]).strip()
+                if shift_idx is not None and len(vals) > shift_idx and vals[shift_idx]:
+                    row_data["FULL SHIFT TIMING"] = str(vals[shift_idx]).strip()
+                if status_idx is not None and len(vals) > status_idx and vals[status_idx]:
+                    row_data["WORKING STATUS"] = str(vals[status_idx]).strip()
+                
+                rows.append(row_data)
 
         return headers, rows, []

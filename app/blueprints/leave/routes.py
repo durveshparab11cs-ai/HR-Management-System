@@ -26,6 +26,18 @@ def _get_employee_or_redirect():
     return emp
 
 
+def _get_manager_code_by_name(manager_name: str) -> str:
+    """Look up manager's employee code from employee_master by name."""
+    from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+    if not manager_name:
+        return ""
+    master = EmployeeMaster.query.filter_by(
+        employee_name=manager_name,
+        is_active=True
+    ).first()
+    return master.employee_code if master else ""
+
+
 # ── Manager Code Lookup (AJAX) ────────────────────────────────────────
 
 @leave_bp.route("/lookup-manager")
@@ -59,11 +71,25 @@ def my_approvals():
     emp = _get_employee_or_redirect()
     if not emp:
         return redirect(url_for("dashboard.index"))
+    
+    # Get manager's name from employee_master
+    from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+    manager_master = EmployeeMaster.query.filter_by(
+        employee_code=emp.employee_code.upper(),
+        is_active=True
+    ).first()
+    
+    if not manager_master:
+        flash("Your employee profile not found in master data.", "warning")
+        return redirect(url_for("dashboard.index"))
+    
+    mgr_name = manager_master.employee_name
     mgr_code = emp.employee_code.upper()
+    
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
 
-    # Safely query — new columns may not exist on Render yet
+    # Safely query — filter by both name and code for backward compatibility
     lr_list = []
     hd_list = []
     el_list = []
@@ -72,8 +98,13 @@ def my_approvals():
 
     try:
         from app.models.leave import LeaveRequest  # noqa: PLC0415
-        lr_q = LeaveRequest.query.filter_by(
-            reporting_manager_code=mgr_code, is_deleted=False
+        from sqlalchemy import or_  # noqa: PLC0415
+        lr_q = LeaveRequest.query.filter(
+            or_(
+                LeaveRequest.reporting_manager_name == mgr_name,
+                LeaveRequest.reporting_manager_code == mgr_code
+            ),
+            LeaveRequest.is_deleted == False
         )
         if status_filter:
             lr_q = lr_q.filter_by(status=status_filter)
@@ -82,16 +113,26 @@ def my_approvals():
         lr_list = []
 
     try:
-        hd_pag = _repo.get_halfdays_for_manager(mgr_code, page=page, status=status_filter)
+        hd_pag = _repo.get_halfdays_for_manager_by_name(mgr_name, page=page, status=status_filter)
         hd_list = hd_pag.items
     except Exception:  # noqa: BLE001
-        hd_list = []
+        # Fallback to code-based filter
+        try:
+            hd_pag = _repo.get_halfdays_for_manager(mgr_code, page=page, status=status_filter)
+            hd_list = hd_pag.items
+        except Exception:  # noqa: BLE001
+            hd_list = []
 
     try:
-        el_pag = _repo.get_earlyleaves_for_manager(mgr_code, page=page, status=status_filter)
+        el_pag = _repo.get_earlyleaves_for_manager_by_name(mgr_name, page=page, status=status_filter)
         el_list = el_pag.items
     except Exception:  # noqa: BLE001
-        el_list = []
+        # Fallback to code-based filter
+        try:
+            el_pag = _repo.get_earlyleaves_for_manager(mgr_code, page=page, status=status_filter)
+            el_list = el_pag.items
+        except Exception:  # noqa: BLE001
+            el_list = []
 
     return render_template(
         "leave/my_approvals.html",
@@ -133,12 +174,19 @@ def index():
 @leave_bp.route("/apply", methods=["GET", "POST"])
 @login_required
 def apply():
+    from .forms import get_manager_choices  # noqa: PLC0415
     emp = _get_employee_or_redirect()
     if not emp: return redirect(url_for("dashboard.index"))
     form = ApplyLeaveForm()
     form.leave_type_id.choices = [(lt.id, lt.name) for lt in _repo.get_all_types()]
+    form.reporting_manager.choices = get_manager_choices()
+    
     if form.validate_on_submit():
         att = request.files.get("attachment")
+        # Get manager code from employee_master if exists
+        manager_name = form.reporting_manager.data
+        manager_code = _get_manager_code_by_name(manager_name)
+        
         ok, msg, lr = _svc.apply_leave(
             employee_id=emp.id,
             form_data={
@@ -146,7 +194,8 @@ def apply():
                 "end_date": form.end_date.data,
                 "leave_type_id": form.leave_type_id.data,
                 "reason": form.reason.data,
-                "reporting_manager_code": form.reporting_manager_code.data,
+                "reporting_manager_name": manager_name,
+                "reporting_manager_code": manager_code or "",
             },
             attachment=att if (att and att.filename) else None,
         )
@@ -222,15 +271,22 @@ def reject(lr_id: int):
 @leave_bp.route("/halfday/apply", methods=["GET", "POST"])
 @login_required
 def apply_halfday():
+    from .forms import get_manager_choices  # noqa: PLC0415
     emp = _get_employee_or_redirect()
     if not emp: return redirect(url_for("dashboard.index"))
     form = ApplyHalfDayForm()
+    form.reporting_manager.choices = get_manager_choices()
+    
     if form.validate_on_submit():
+        manager_name = form.reporting_manager.data
+        manager_code = _get_manager_code_by_name(manager_name)
+        
         ok, msg, _ = _svc.apply_halfday(emp.id, {
             "date": form.date.data,
             "half_type": form.half_type.data,
             "reason": form.reason.data,
-            "reporting_manager_code": form.reporting_manager_code.data,
+            "reporting_manager_name": manager_name,
+            "reporting_manager_code": manager_code or "",
         })
         flash(msg, "success" if ok else "danger")
         if ok: return redirect(url_for("leave.index"))
@@ -258,15 +314,22 @@ def reject_halfday(hd_id: int):
 @leave_bp.route("/earlyleave/apply", methods=["GET", "POST"])
 @login_required
 def apply_earlyleave():
+    from .forms import get_manager_choices  # noqa: PLC0415
     emp = _get_employee_or_redirect()
     if not emp: return redirect(url_for("dashboard.index"))
     form = ApplyEarlyLeaveForm()
+    form.reporting_manager.choices = get_manager_choices()
+    
     if form.validate_on_submit():
+        manager_name = form.reporting_manager.data
+        manager_code = _get_manager_code_by_name(manager_name)
+        
         ok, msg, _ = _svc.apply_earlyleave(emp.id, {
             "date": form.date.data,
             "requested_leave_time": form.requested_leave_time.data,
             "reason": form.reason.data,
-            "reporting_manager_code": form.reporting_manager_code.data,
+            "reporting_manager_name": manager_name,
+            "reporting_manager_code": manager_code or "",
         })
         flash(msg, "success" if ok else "danger")
         if ok: return redirect(url_for("leave.index"))

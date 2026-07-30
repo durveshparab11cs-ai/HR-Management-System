@@ -1,0 +1,132 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Import Employee Allocations — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Import Employee Allocations</h5>
+            </div>
+            <div class="card-body p-4">
+                <!-- Instructions -->
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Excel Format Requirements</h6>
+                    <p class="mb-2">Your Excel file must contain the following columns:</p>
+                    <ul class="mb-0">
+                        <li><strong>EMP-CODE</strong> - Employee code (must exist in database)</li>
+                        <li><strong>NAME</strong> - Employee name</li>
+                        <li><strong>WORKING LOCATION</strong> - Hospital name (must be imported first)</li>
+                        <li><strong>full Shift timing</strong> - Shift hours (e.g., "10:00 AM to 7:00 PM" or "Flexible Shift")</li>
+                        <li><strong>WORKING STATUS</strong> - Active, Active-OUTSTATION, etc.</li>
+                    </ul>
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.csrf_token }}
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">{{ form.file.label }}</label>
+                        {{ form.file(class="form-control" + (" is-invalid" if form.file.errors else "")) }}
+                        {% if form.file.errors %}
+                        <div class="invalid-feedback">{{ form.file.errors[0] }}</div>
+                        {% endif %}
+                        <small class="text-muted">Allowed formats: .xlsx, .xls</small>
+                    </div>
+                    
+                    <!-- Examples -->
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">Shift Timing Examples:</h6>
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Input</th>
+                                        <th>Shift Detected</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>10:00 AM to 7:00 PM</code></td>
+                                        <td>Afternoon Shift</td>
+                                        <td>Fixed</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>9:00 AM to 6:00 PM</code></td>
+                                        <td>Morning Shift</td>
+                                        <td>Fixed</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>9:00 PM to 6:00 AM</code></td>
+                                        <td>Night Shift</td>
+                                        <td>Fixed</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>Flexible Shift</code></td>
+                                        <td>Flexible Shift</td>
+                                        <td>Flexible (9hr based)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Important Notes:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Employees must exist in the database (matched by EMP-CODE)</li>
+                            <li>Hospitals must be imported before allocating employees</li>
+                            <li>System will try to match hospital names (partial match supported)</li>
+                            <li>Flexible shift employees: attendance based on 9+ working hours</li>
+                            <li>Fixed shift employees: attendance based on shift timings</li>
+                        </ul>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Import Allocations
+                        </button>
+                        <a href="{{ url_for('admin.employee_allocation') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Process Overview -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-diagram-3"></i> Import Process</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="badge bg-primary rounded-circle p-3 mb-2">1</div>
+                        <p class="small mb-0">Read Excel</p>
+                    </div>
+                    <div class="col">
+                        <div class="badge bg-primary rounded-circle p-3 mb-2">2</div>
+                        <p class="small mb-0">Match Employees</p>
+                    </div>
+                    <div class="col">
+                        <div class="badge bg-primary rounded-circle p-3 mb-2">3</div>
+                        <p class="small mb-0">Find Hospitals</p>
+                    </div>
+                    <div class="col">
+                        <div class="badge bg-primary rounded-circle p-3 mb-2">4</div>
+                        <p class="small mb-0">Parse Shifts</p>
+                    </div>
+                    <div class="col">
+                        <div class="badge bg-success rounded-circle p-3 mb-2">5</div>
+                        <p class="small mb-0">Update Database</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

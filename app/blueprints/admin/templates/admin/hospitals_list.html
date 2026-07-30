@@ -1,0 +1,189 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Hospital Management — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin', url_for('admin.index')), ('Hospitals', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-0">🏥 Hospital Management</h1>
+        <p class="text-muted small mb-0">Manage hospital locations and GPS coordinates</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.hospitals_import') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-upload"></i> Import Excel
+        </a>
+        <a href="{{ url_for('admin.hospital_add') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i> Add Hospital
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.hospitals_list') }}" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" name="search_query" class="form-control" 
+                       placeholder="Search by name, code, location..." 
+                       value="{{ query or '' }}">
+            </div>
+            <div class="col-md-2">
+                <select name="status_filter" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-hospital text-primary" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ hospitals|length }}</h3>
+                <p class="text-muted small mb-0">Total Hospitals</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle text-success" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ hospitals|selectattr('is_active', 'equalto', true)|list|length }}</h3>
+                <p class="text-muted small mb-0">Active</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-x-circle text-danger" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ hospitals|selectattr('is_active', 'equalto', false)|list|length }}</h3>
+                <p class="text-muted small mb-0">Inactive</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-people text-info" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ hospitals|sum(attribute='employee_count') }}</h3>
+                <p class="text-muted small mb-0">Employees Allocated</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hospitals Table -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">Hospital Name</th>
+                    <th>Code</th>
+                    <th>Location</th>
+                    <th>GPS Coordinates</th>
+                    <th>Radius</th>
+                    <th>Employees</th>
+                    <th>Status</th>
+                    <th class="pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hospital in hospitals %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-semibold">{{ hospital.hospital_name }}</div>
+                    </td>
+                    <td>
+                        {% if hospital.hospital_code %}
+                        <code class="small">{{ hospital.hospital_code }}</code>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="small">{{ hospital.location or '—' }}</div>
+                        {% if hospital.city %}
+                        <div class="text-muted" style="font-size:0.75rem">{{ hospital.city }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="small text-monospace">
+                            <i class="bi bi-geo-alt text-danger"></i>
+                            {{ "%.6f"|format(hospital.latitude) }}, {{ "%.6f"|format(hospital.longitude) }}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">{{ hospital.allowed_radius_metres }}m</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-info-subtle text-info">{{ hospital.employee_count }}</span>
+                    </td>
+                    <td>
+                        {% if hospital.is_active %}
+                        <span class="badge bg-success-subtle text-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-4">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('admin.hospital_view', hospital_id=hospital.id) }}" 
+                               class="btn btn-outline-secondary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('admin.hospital_edit', hospital_id=hospital.id) }}" 
+                               class="btn btn-outline-primary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% if hospital.employee_count == 0 %}
+                            <button type="button" class="btn btn-outline-danger" title="Delete"
+                                    onclick="deleteHospital({{ hospital.id }}, '{{ hospital.hospital_name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <i class="bi bi-inbox text-muted" style="font-size:3rem"></i>
+                        <p class="text-muted mt-3 mb-0">No hospitals found</p>
+                        <a href="{{ url_for('admin.hospital_add') }}" class="btn btn-primary btn-sm mt-2">
+                            Add Your First Hospital
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<form method="POST" id="deleteForm" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<script>
+function deleteHospital(hospitalId, hospitalName) {
+    if (confirm(`Are you sure you want to delete "${hospitalName}"?\n\nThis action cannot be undone.`)) {
+        const form = document.getElementById('deleteForm');
+        form.action = "{{ url_for('admin.hospital_delete', hospital_id=0) }}".replace('0', hospitalId);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

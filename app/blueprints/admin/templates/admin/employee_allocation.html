@@ -1,0 +1,342 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Employee Allocation — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-0">👥 Employee Hospital Allocation</h1>
+        <p class="text-muted small mb-0">Assign employees to hospitals and manage shift allocations</p>
+    </div>
+    <a href="{{ url_for('admin.employee_allocation_import') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-upload"></i> Import Allocations
+    </a>
+</div>
+
+<!-- Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-people text-primary" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ stats.total_employees or 0 }}</h3>
+                <p class="text-muted small mb-0">Total Employees</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle text-success" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ stats.allocated or 0 }}</h3>
+                <p class="text-muted small mb-0">Allocated to Hospitals</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-x-circle text-warning" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ stats.unallocated or 0 }}</h3>
+                <p class="text-muted small mb-0">Unallocated</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-clock text-info" style="font-size:2rem"></i>
+                <h3 class="fw-bold mt-2 mb-0">{{ stats.flexible_shift or 0 }}</h3>
+                <p class="text-muted small mb-0">Flexible Shift</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Information Cards -->
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Allocation Process</h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">Prepare your Excel file with employee data</li>
+                    <li class="mb-2">Ensure all hospitals are imported first</li>
+                    <li class="mb-2">Upload the employee allocation file</li>
+                    <li class="mb-2">System will match employees and assign hospitals</li>
+                    <li>Review allocation results and fix any errors</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-excel"></i> Excel Requirements</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Required Columns:</strong></p>
+                <ul class="mb-3">
+                    <li><code>EMP-CODE</code> - Employee code (must exist)</li>
+                    <li><code>WORKING LOCATION</code> - Hospital name</li>
+                    <li><code>full Shift timing</code> - Shift hours</li>
+                    <li><code>WORKING STATUS</code> - Active/Flexible</li>
+                </ul>
+                <p class="mb-0"><strong>Examples:</strong></p>
+                <ul class="mb-0 small text-muted">
+                    <li>10:00 AM to 7:00 PM</li>
+                    <li>Flexible Shift</li>
+                    <li>9:00 PM to 6:00 AM (Night)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Allocations List -->
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-table"></i> Employee Hospital Allocations</h6>
+        <span class="badge bg-primary">{{ pagination.total if pagination else 0 }} employees</span>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card-body border-bottom">
+        <form method="GET" action="{{ url_for('admin.employee_allocation') }}" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small">Search Employee</label>
+                <input 
+                    type="text" 
+                    name="search" 
+                    class="form-control form-control-sm" 
+                    placeholder="Code, Name..." 
+                    value="{{ search_query or '' }}"
+                >
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Hospital</label>
+                <select name="hospital" class="form-select form-select-sm">
+                    <option value="">All Hospitals</option>
+                    {% for hospital in all_hospitals %}
+                    <option value="{{ hospital.id }}" {% if hospital_filter == hospital.id %}selected{% endif %}>
+                        {{ hospital.hospital_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Shift Type</label>
+                <select name="shift" class="form-select form-select-sm">
+                    <option value="">All Shifts</option>
+                    <option value="flexible" {% if shift_filter == 'flexible' %}selected{% endif %}>Flexible Shift</option>
+                    <option value="fixed" {% if shift_filter == 'fixed' %}selected{% endif %}>Fixed Shift</option>
+                    <option value="Morning" {% if shift_filter == 'Morning' %}selected{% endif %}>Morning Shift</option>
+                    <option value="Evening" {% if shift_filter == 'Evening' %}selected{% endif %}>Evening Shift</option>
+                    <option value="Night" {% if shift_filter == 'Night' %}selected{% endif %}>Night Shift</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                    <i class="bi bi-search"></i> Filter
+                </button>
+                <a href="{{ url_for('admin.employee_allocation') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Employee Table -->
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 5%">#</th>
+                    <th style="width: 10%">Emp Code</th>
+                    <th style="width: 15%">Name</th>
+                    <th style="width: 20%">Hospital</th>
+                    <th style="width: 15%">Current Shift</th>
+                    <th style="width: 12%">Shift Time</th>
+                    <th style="width: 10%">Type</th>
+                    <th style="width: 8%">Req. Hours</th>
+                    <th style="width: 5%">GPS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if employees_with_hospitals %}
+                    {% for employee, hospital in employees_with_hospitals %}
+                    <tr>
+                        <td class="text-muted small">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+                        <td><code class="small">{{ employee.employee_code }}</code></td>
+                        <td>
+                            <span class="fw-medium">{{ employee.name or 'N/A' }}</span>
+                            {% if employee.department %}
+                            <br><small class="text-muted">{{ employee.department }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if hospital %}
+                                <span class="text-primary fw-medium">{{ hospital.hospital_name }}</span>
+                                <br><small class="text-muted">
+                                    <i class="bi bi-geo-alt"></i> {{ hospital.location or 'N/A' }}
+                                </small>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Not Allocated</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if employee.current_shift %}
+                                <span class="badge bg-info">{{ employee.current_shift }}</span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if employee.shift_start_time and employee.shift_end_time %}
+                                <small>
+                                    {{ employee.shift_start_time.strftime('%I:%M %p') if employee.shift_start_time else '—' }}
+                                    <br>
+                                    {{ employee.shift_end_time.strftime('%I:%M %p') if employee.shift_end_time else '—' }}
+                                </small>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if employee.is_flexible_shift %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-clock-history"></i> Flexible
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-clock"></i> Fixed
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark">
+                                {{ employee.required_working_hours or 9 }}h
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if hospital %}
+                                <i class="bi bi-check-circle text-success" title="GPS Enabled"></i>
+                            {% else %}
+                                <i class="bi bi-dash-circle text-muted" title="Using Office GPS"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="mt-3 mb-0">No employees found</p>
+                            {% if search_query or hospital_filter or shift_filter %}
+                                <a href="{{ url_for('admin.employee_allocation') }}" class="btn btn-sm btn-outline-primary mt-2">
+                                    Clear Filters
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="card-footer bg-light">
+        <nav aria-label="Employee pagination">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                <!-- Previous -->
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.employee_allocation', page=pagination.prev_num, search=search_query, hospital=hospital_filter, shift=shift_filter) }}">
+                        Previous
+                    </a>
+                </li>
+                
+                <!-- Page numbers -->
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('admin.employee_allocation', page=page_num, search=search_query, hospital=hospital_filter, shift=shift_filter) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next -->
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.employee_allocation', page=pagination.next_num, search=search_query, hospital=hospital_filter, shift=shift_filter) }}">
+                        Next
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <p class="text-center text-muted small mt-2 mb-0">
+            Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} to 
+            {{ min(pagination.page * pagination.per_page, pagination.total) }} of 
+            {{ pagination.total }} employees
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Features -->
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="bi bi-gear"></i> Features</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary">GPS-Based Attendance</h6>
+                <p class="small text-muted mb-3">Employees can only mark attendance when within their allocated hospital's GPS radius.</p>
+                
+                <h6 class="text-primary">Flexible Shift Support</h6>
+                <p class="small text-muted mb-3">Flexible employees are evaluated only on total working hours (default: 9 hours).</p>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-primary">Automatic Shift Detection</h6>
+                <p class="small text-muted mb-3">System automatically determines shift type (Morning/Evening/Night) from timing.</p>
+                
+                <h6 class="text-primary">Bulk Import</h6>
+                <p class="small text-muted mb-3">Import thousands of employee allocations in seconds with detailed error reporting.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa !important;
+    }
+    
+    .badge {
+        font-weight: 500;
+    }
+    
+    code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

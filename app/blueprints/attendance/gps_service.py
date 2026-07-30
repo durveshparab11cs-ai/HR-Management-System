@@ -93,13 +93,13 @@ class GPSService:
         Full GPS verification pipeline:
             1. Parse and validate raw coordinate strings.
             2. Check for suspicious/spoofed coordinates.
-            3. Calculate Haversine distance from office.
+            3. Calculate Haversine distance from office OR allocated hospital.
             4. Log every attempt to gps_logs table.
             5. Return structured verification result.
 
         Args:
             employee:     Employee model instance.
-            office:       OfficeSettings model instance.
+            office:       OfficeSettings model instance (fallback if no hospital assigned).
             lat_str:      Raw latitude from form.
             lon_str:      Raw longitude from form.
             accuracy_str: Raw accuracy from browser.
@@ -108,6 +108,28 @@ class GPSService:
         Returns:
             GPSVerificationResult with full details.
         """
+        # Determine GPS reference point: Hospital (priority) or Office (fallback)
+        if employee.hospital_id and employee.hospital:
+            # Use allocated hospital coordinates
+            reference_lat = employee.hospital.latitude
+            reference_lon = employee.hospital.longitude
+            allowed_radius = employee.hospital.allowed_radius_metres
+            location_name = employee.hospital.hospital_name
+            logger.info(
+                "GPS_REFERENCE | emp=%s | using_hospital=%s | lat=%.7f | lon=%.7f | radius=%dm",
+                employee.id, location_name, reference_lat, reference_lon, allowed_radius
+            )
+        else:
+            # Fallback to office settings
+            reference_lat = office.latitude
+            reference_lon = office.longitude
+            allowed_radius = office.radius_metres
+            location_name = office.name if hasattr(office, 'name') else "Office"
+            logger.info(
+                "GPS_REFERENCE | emp=%s | using_office=%s | lat=%.7f | lon=%.7f | radius=%dm",
+                employee.id, location_name, reference_lat, reference_lon, allowed_radius
+            )
+        
         # Step 1: Parse
         try:
             lat, lon, accuracy = parse_and_validate(lat_str, lon_str, accuracy_str)
@@ -121,9 +143,7 @@ class GPSService:
         if suspicious:
             # Compute distance for context logging even on spoof rejection
             try:
-                dist_ctx = calc_distance(lat, lon,
-                                         office.latitude, office.longitude,
-                                         office.radius_metres)
+                dist_ctx = calc_distance(lat, lon, reference_lat, reference_lon, allowed_radius)
                 dist_for_log = dist_ctx.distance_metres
             except Exception:  # noqa: BLE001
                 dist_for_log = None
@@ -131,15 +151,15 @@ class GPSService:
             reason = "Suspicious coordinates detected. Attendance rejected for security."
             logger.warning(
                 "SUSPICIOUS_GPS_REJECTED | emp=%s | lat=%.7f | lon=%.7f"
-                " | accuracy=%s | office_lat=%.7f | office_lon=%.7f"
+                " | accuracy=%s | ref_lat=%.7f | ref_lon=%.7f | location=%s"
                 " | distance=%s | allowed_radius=%s | inside_geofence=%s"
                 " | spoof_detection=True | reason=%r | action=%s",
                 employee.id, lat, lon,
                 f"{accuracy:.1f}m" if accuracy is not None else "n/a",
-                office.latitude, office.longitude,
+                reference_lat, reference_lon, location_name,
                 f"{dist_for_log:.1f}m" if dist_for_log is not None else "n/a",
-                f"{office.radius_metres}m",
-                (dist_for_log is not None and dist_for_log <= office.radius_metres),
+                f"{allowed_radius}m",
+                (dist_for_log is not None and dist_for_log <= allowed_radius),
                 reason, action,
             )
             self._log(employee, lat, lon, accuracy, dist_for_log, action, reason)
@@ -149,12 +169,6 @@ class GPSService:
             )
 
         # Step 2b: Log accuracy for audit — no hard rejection on accuracy alone.
-        # The frontend already performs smart GPS refinement (watchPosition with
-        # up to 30s wait for best reading). By the time the submission arrives,
-        # it contains the best accuracy the device could achieve. Rejecting on
-        # accuracy here would punish users in poor GPS environments even when
-        # their Haversine distance is clearly inside the geofence.
-        # Accuracy is stored and displayed to admins for audit purposes only.
         min_accuracy = getattr(office, 'min_gps_accuracy_metres', 50)
         if accuracy is not None and accuracy > min_accuracy:
             logger.info(
@@ -162,8 +176,8 @@ class GPSService:
                 employee.id, accuracy, min_accuracy, action,
             )
 
-        # Step 3: Distance
-        result = calc_distance(lat, lon, office.latitude, office.longitude, office.radius_metres)
+        # Step 3: Distance - calculate from reference point (hospital or office)
+        result = calc_distance(lat, lon, reference_lat, reference_lon, allowed_radius)
 
         # Step 4: Log
         self._log(employee, lat, lon, accuracy, result.distance_metres, action)
@@ -171,12 +185,12 @@ class GPSService:
         # Step 5: Evaluate
         if not result.within_radius:
             reason = (
-                f"You are {result.distance_metres:.0f}m from the office. "
-                f"Allowed radius: {office.radius_metres}m."
+                f"You are {result.distance_metres:.0f}m from {location_name}. "
+                f"Allowed radius: {allowed_radius}m."
             )
             logger.info(
-                "GPS_REJECTED | emp=%s | dist=%.0fm | limit=%dm | action=%s",
-                employee.id, result.distance_metres, office.radius_metres, action,
+                "GPS_REJECTED | emp=%s | location=%s | dist=%.0fm | limit=%dm | action=%s",
+                employee.id, location_name, result.distance_metres, allowed_radius, action,
             )
             return GPSVerificationResult(
                 success=False, error=reason,
@@ -184,8 +198,8 @@ class GPSService:
             )
 
         logger.info(
-            "GPS_OK | emp=%s | dist=%.0fm | action=%s",
-            employee.id, result.distance_metres, action,
+            "GPS_OK | emp=%s | location=%s | dist=%.0fm | action=%s",
+            employee.id, location_name, result.distance_metres, action,
         )
         return GPSVerificationResult(
             success=True, lat=lat, lon=lon,

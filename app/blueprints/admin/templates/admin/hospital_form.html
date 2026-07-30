@@ -1,0 +1,129 @@
+{% extends 'layouts/base.html' %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} Hospital — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-hospital"></i> 
+                    {{ 'Edit Hospital' if mode == 'edit' else 'Add New Hospital' }}
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" novalidate>
+                    {{ form.csrf_token }}
+                    
+                    <div class="row g-3">
+                        <!-- Hospital Name -->
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">{{ form.hospital_name.label }}</label>
+                            {{ form.hospital_name(class="form-control" + (" is-invalid" if form.hospital_name.errors else "")) }}
+                            {% if form.hospital_name.errors %}
+                            <div class="invalid-feedback">{{ form.hospital_name.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Hospital Code -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">{{ form.hospital_code.label }}</label>
+                            {{ form.hospital_code(class="form-control" + (" is-invalid" if form.hospital_code.errors else "")) }}
+                            {% if form.hospital_code.errors %}
+                            <div class="invalid-feedback">{{ form.hospital_code.errors[0] }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Location -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">{{ form.location.label }}</label>
+                            {{ form.location(class="form-control") }}
+                        </div>
+                        
+                        <!-- City -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">{{ form.city.label }}</label>
+                            {{ form.city(class="form-control") }}
+                        </div>
+                        
+                        <!-- State -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">{{ form.state.label }}</label>
+                            {{ form.state(class="form-control") }}
+                        </div>
+                        
+                        <!-- Address -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">{{ form.address.label }}</label>
+                            {{ form.address(class="form-control") }}
+                        </div>
+                        
+                        <!-- GPS Coordinates -->
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>GPS Coordinates:</strong> Use Google Maps to find accurate coordinates. 
+                                Right-click on location → Copy coordinates.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">{{ form.latitude.label }} <span class="text-danger">*</span></label>
+                            {{ form.latitude(class="form-control" + (" is-invalid" if form.latitude.errors else "")) }}
+                            {% if form.latitude.errors %}
+                            <div class="invalid-feedback">{{ form.latitude.errors[0] }}</div>
+                            {% endif %}
+                            <small class="text-muted">Range: -90 to 90</small>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">{{ form.longitude.label }} <span class="text-danger">*</span></label>
+                            {{ form.longitude(class="form-control" + (" is-invalid" if form.longitude.errors else "")) }}
+                            {% if form.longitude.errors %}
+                            <div class="invalid-feedback">{{ form.longitude.errors[0] }}</div>
+                            {% endif %}
+                            <small class="text-muted">Range: -180 to 180</small>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">{{ form.allowed_radius_metres.label }} <span class="text-danger">*</span></label>
+                            {{ form.allowed_radius_metres(class="form-control" + (" is-invalid" if form.allowed_radius_metres.errors else "")) }}
+                            {% if form.allowed_radius_metres.errors %}
+                            <div class="invalid-feedback">{{ form.allowed_radius_metres.errors[0] }}</div>
+                            {% endif %}
+                            <small class="text-muted">Default: 100 metres</small>
+                        </div>
+                        
+                        <!-- Status -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">{{ form.status.label }}</label>
+                            {{ form.status(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold d-block">&nbsp;</label>
+                            <div class="form-check">
+                                {{ form.is_active(class="form-check-input") }}
+                                <label class="form-check-label">
+                                    {{ form.is_active.label }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Update Hospital' if mode == 'edit' else 'Create Hospital' }}
+                        </button>
+                        <a href="{{ url_for('admin.hospitals_list') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

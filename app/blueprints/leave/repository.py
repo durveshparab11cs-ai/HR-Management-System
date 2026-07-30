@@ -144,6 +144,24 @@ class LeaveRepository:
                 prev_num = 0; next_num = 2
             return _EmptyPage()
 
+    def get_halfdays_for_manager_by_name(self, mgr_name: str, page: int = 1, per_page: int = 30, status: str = ""):
+        """Return half-day requests where the manager is identified by name."""
+        try:
+            from sqlalchemy import or_  # noqa: PLC0415
+            q = HalfDayRequest.query.filter(
+                HalfDayRequest.reporting_manager_name == mgr_name,
+                HalfDayRequest.is_deleted == False
+            )
+            if status:
+                q = q.filter_by(status=status)
+            return q.order_by(HalfDayRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        except Exception:  # noqa: BLE001
+            class _EmptyPage:
+                items = []; total = 0; pages = 1; page = 1
+                has_prev = False; has_next = False
+                prev_num = 0; next_num = 2
+            return _EmptyPage()
+
     def count_manager_pending_halfdays(self, mgr_employee_code: str) -> int:
         try:
             return HalfDayRequest.query.filter_by(
@@ -198,6 +216,24 @@ class LeaveRepository:
                 q = q.filter_by(status=status)
             return q.order_by(EarlyLeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
         except Exception:  # noqa: BLE001 — column may not exist yet
+            class _EmptyPage:
+                items = []; total = 0; pages = 1; page = 1
+                has_prev = False; has_next = False
+                prev_num = 0; next_num = 2
+            return _EmptyPage()
+
+    def get_earlyleaves_for_manager_by_name(self, mgr_name: str, page: int = 1, per_page: int = 30, status: str = ""):
+        """Return early-leave requests where the manager is identified by name."""
+        try:
+            from sqlalchemy import or_  # noqa: PLC0415
+            q = EarlyLeaveRequest.query.filter(
+                EarlyLeaveRequest.reporting_manager_name == mgr_name,
+                EarlyLeaveRequest.is_deleted == False
+            )
+            if status:
+                q = q.filter_by(status=status)
+            return q.order_by(EarlyLeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        except Exception:  # noqa: BLE001
             class _EmptyPage:
                 items = []; total = 0; pages = 1; page = 1
                 has_prev = False; has_next = False

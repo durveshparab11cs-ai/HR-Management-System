@@ -599,6 +599,17 @@ def _migrate_add_columns(db) -> None:
         # Reporting manager fields for shift change requests
         ('shift_change_requests', 'reporting_manager_code',    'VARCHAR(50)'),
         ('shift_change_requests', 'reporting_manager_name',    'VARCHAR(200)'),
+        # Hospital allocation fields for employees
+        ('employee', 'hospital_id', 'INTEGER'),
+        ('employee', 'current_shift', 'VARCHAR(50)'),
+        ('employee', 'shift_start_time', 'VARCHAR(20)'),
+        ('employee', 'shift_end_time', 'VARCHAR(20)'),
+        ('employee', 'is_flexible_shift', 'INTEGER DEFAULT 0'),
+        ('employee', 'required_working_hours', 'INTEGER DEFAULT 9'),
+        # Hospital allocation fields for employee_master
+        ('employee_master', 'working_location', 'VARCHAR(200)'),
+        ('employee_master', 'shift_timing', 'VARCHAR(100)'),
+        ('employee_master', 'working_status', 'VARCHAR(50)'),
     ]
 
     for table, col, col_type in new_cols:

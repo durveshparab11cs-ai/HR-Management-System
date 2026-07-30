@@ -179,10 +179,17 @@ class AuthService:
         1. Validate code exists in EmployeeMaster
         2. Prevent duplicate registration
         3. Create User record
-        4. Create Employee profile
+        4. Create Employee profile with AUTO-POPULATED hospital allocation
         5. Mark master as registered
+
+        Hospital Allocation Auto-Population:
+        - Fetches employee's allocated hospital from master data
+        - Sets hospital_id, shift times, flexible shift flag
+        - GPS validation will use hospital coordinates automatically
         """
         from app.models.employee import Employee  # noqa: PLC0415
+        from app.models.hospital import Hospital  # noqa: PLC0415
+        from app.services.employee_allocation_service import EmployeeAllocationService  # noqa: PLC0415
 
         code = employee_code.strip().upper()
         master = auth_repo.get_master_by_code(code)
@@ -230,12 +237,53 @@ class AuthService:
             user.set_password(password)
             auth_repo.create_user(user)
 
-            # Create Employee profile
+            # ══════════════════════════════════════════════════════════════
+            # AUTO-POPULATE HOSPITAL ALLOCATION FROM MASTER DATA
+            # ══════════════════════════════════════════════════════════════
+            allocation_service = EmployeeAllocationService()
+            
+            # Fetch hospital allocation data from master
+            hospital_id = None
+            shift_info = None
+            
+            # Try to get hospital from master's working location
+            if hasattr(master, 'working_location') and master.working_location:
+                # Find matching hospital by fuzzy match
+                hospitals = Hospital.query.filter_by(status='Active').all()
+                for hospital in hospitals:
+                    similarity = allocation_service._calculate_similarity(
+                        master.working_location.strip(),
+                        hospital.hospital_name.strip()
+                    )
+                    if similarity >= 0.6:  # 60% match threshold
+                        hospital_id = hospital.id
+                        logger.info(
+                            "AUTO_ALLOCATED_HOSPITAL | code=%s | hospital=%s | similarity=%.2f",
+                            code, hospital.hospital_name, similarity
+                        )
+                        break
+            
+            # Parse shift timing from master data
+            if hasattr(master, 'shift_timing') and master.shift_timing:
+                shift_info = allocation_service._parse_shift_timing(master.shift_timing)
+                logger.info(
+                    "AUTO_PARSED_SHIFT | code=%s | shift=%s | flexible=%s",
+                    code, shift_info.get('shift_name'), shift_info.get('is_flexible')
+                )
+
+            # Create Employee profile with hospital allocation
             employee = Employee(
                 user_id=user.id,
                 employee_code=code,
                 department=master.department or None,
                 designation=master.designation or None,
+                # Hospital allocation fields
+                hospital_id=hospital_id,
+                current_shift=shift_info.get('shift_name') if shift_info else None,
+                shift_start_time=shift_info.get('start_time') if shift_info else None,
+                shift_end_time=shift_info.get('end_time') if shift_info else None,
+                is_flexible_shift=shift_info.get('is_flexible', False) if shift_info else False,
+                required_working_hours=shift_info.get('required_hours', 9.0) if shift_info else 9.0,
                 created_by=user.id,
             )
             db.session.add(employee)
@@ -245,8 +293,22 @@ class AuthService:
             auth_repo.mark_registered(master, user.id)
 
             role_label = "Super Admin" if is_first else "Employee"
-            logger.info("REGISTERED | user_id=%s | code=%s | role=%s", user.id, code, role)
-            return True, f"Account created as {role_label}. You can now sign in.", user
+            
+            # Build success message with allocation info
+            success_msg = f"Account created as {role_label}."
+            if hospital_id:
+                hospital = Hospital.query.get(hospital_id)
+                success_msg += f" Allocated to {hospital.hospital_name}."
+            if shift_info:
+                success_msg += f" {shift_info.get('shift_name')} assigned."
+            success_msg += " You can now sign in."
+            
+            logger.info(
+                "REGISTERED | user_id=%s | code=%s | role=%s | hospital_id=%s | shift=%s",
+                user.id, code, role, hospital_id, 
+                shift_info.get('shift_name') if shift_info else 'None'
+            )
+            return True, success_msg, user
 
         except Exception as exc:
             db.session.rollback()

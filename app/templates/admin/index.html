@@ -88,9 +88,27 @@
 <!-- ── Quick Actions ── -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
+        <a href="{{ url_for('admin.hospitals_list') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-hospital text-danger" style="font-size:2.5rem"></i>
+                <h6 class="fw-semibold mt-3 mb-1">Hospitals</h6>
+                <p class="text-muted small mb-0">Manage hospital locations & GPS</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('admin.employee_allocation') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-geo-alt-fill text-primary" style="font-size:2.5rem"></i>
+                <h6 class="fw-semibold mt-3 mb-1">Employee Allocation</h6>
+                <p class="text-muted small mb-0">View hospital & shift assignments</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
         <a href="{{ url_for('admin.shift_assignment') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
             <div class="card-body p-4 text-center">
-                <i class="bi bi-clock-history text-primary" style="font-size:2.5rem"></i>
+                <i class="bi bi-clock-history text-success" style="font-size:2.5rem"></i>
                 <h6 class="fw-semibold mt-3 mb-1">Assign Shifts</h6>
                 <p class="text-muted small mb-0">Bulk shift assignment to employees</p>
             </div>
@@ -99,12 +117,15 @@
     <div class="col-md-3">
         <a href="{{ url_for('admin.employee_master') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
             <div class="card-body p-4 text-center">
-                <i class="bi bi-person-lines-fill text-success" style="font-size:2.5rem"></i>
+                <i class="bi bi-person-lines-fill text-info" style="font-size:2.5rem"></i>
                 <h6 class="fw-semibold mt-3 mb-1">Employee Master</h6>
                 <p class="text-muted small mb-0">View all employee records</p>
             </div>
         </a>
     </div>
+</div>
+
+<div class="row g-3 mb-4">
     <div class="col-md-3">
         <a href="{{ url_for('admin.import_employees') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
             <div class="card-body p-4 text-center">
@@ -117,9 +138,27 @@
     <div class="col-md-3">
         <a href="{{ url_for('admin.office_settings') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
             <div class="card-body p-4 text-center">
-                <i class="bi bi-gear text-info" style="font-size:2.5rem"></i>
+                <i class="bi bi-gear text-secondary" style="font-size:2.5rem"></i>
                 <h6 class="fw-semibold mt-3 mb-1">Office Settings</h6>
                 <p class="text-muted small mb-0">Configure office parameters</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('leave.pending') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-calendar-check text-primary" style="font-size:2.5rem"></i>
+                <h6 class="fw-semibold mt-3 mb-1">Leave Approvals</h6>
+                <p class="text-muted small mb-0">Review pending leave requests</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('admin.users') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-shield-lock text-danger" style="font-size:2.5rem"></i>
+                <h6 class="fw-semibold mt-3 mb-1">User Management</h6>
+                <p class="text-muted small mb-0">Manage user accounts & roles</p>
             </div>
         </a>
     </div>
