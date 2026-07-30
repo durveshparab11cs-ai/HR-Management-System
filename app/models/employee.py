@@ -52,16 +52,6 @@ class Employee(BaseModel):
     office_settings_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("office_settings.id"), nullable=True
     )
-    
-    # ── Hospital & Shift Allocation ──────────────────────────────────
-    hospital_id: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, index=True  # ForeignKey removed temporarily until hospitals table migrated
-    )
-    current_shift: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    shift_start_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    shift_end_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    is_flexible_shift: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
-    required_working_hours: Mapped[float | None] = mapped_column(Integer, nullable=True, default=9)
 
     # ── Hierarchy ─────────────────────────────────────────────────────
     manager_id: Mapped[int | None] = mapped_column(
