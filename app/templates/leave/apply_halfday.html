@@ -11,9 +11,6 @@
 {% block page_header %}{% endblock %}
 
 {% block extra_css %}
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
 /* ── Page layout ── */
 .hd-page-header {
@@ -534,14 +531,15 @@
 
                 <hr class="hd-divider">
 
-                <!-- ── Reporting Manager Searchable Dropdown ── -->
+                <!-- ── Reporting Manager ── -->
                 <p class="hd-section-label">Reporting Manager</p>
                 <div class="mb-3">
+                    <label class="small fw-semibold" style="color:#334155;display:block;margin-bottom:8px">
+                        Reporting Manager <span style="color:#ef4444">*</span>
+                    </label>
                     {{ form.reporting_manager(class="form-select" + (" is-invalid" if form.reporting_manager.errors else ""), id="reporting-manager-select-hd") }}
-                    {% for e in form.reporting_manager.errors %}
-                    <div class="invalid-feedback">{{ e }}</div>
-                    {% endfor %}
-                    <div class="form-text small" style="color:#64748b">Select your reporting manager from the list</div>
+                    {% for e in form.reporting_manager.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                    <div class="form-text">Select your reporting manager from the list</div>
                 </div>
 
                 <!-- ── Actions ── -->
@@ -567,12 +565,14 @@
 
 {% block extra_js %}
 <!-- Select2 JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 (function () {
     'use strict';
 
-    // ── Initialize Select2 for Reporting Manager ────────────────────
+    // ── Initialize Select2 for Reporting Manager ──────────────────────
     $('#reporting-manager-select-hd').select2({
         theme: 'bootstrap-5',
         placeholder: '-- Select Reporting Manager --',
@@ -580,7 +580,7 @@
         width: '100%'
     });
 
-    // ── Float label for date ──────────────────────────────────────────
+    // ──Float label for date ──────────────────────────────────────────
     const dateInput = document.getElementById('hd-date');
     if (dateInput) {
         const applyFloat = () => {

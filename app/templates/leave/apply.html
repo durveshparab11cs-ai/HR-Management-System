@@ -86,17 +86,8 @@
         theme: 'bootstrap-5',
         placeholder: '-- Select Reporting Manager --',
         allowClear: false,
-        width: '100%',
-        templateResult: formatManager,
-        templateSelection: formatManager
+        width: '100%'
     });
-
-    function formatManager(manager) {
-        if (!manager.id) {
-            return manager.text;
-        }
-        return $('<span>' + manager.text + '</span>');
-    }
 
     // ── Working day count ────────────────────────────────────────────
     const s = document.querySelector('[name="start_date"]');

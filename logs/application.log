@@ -1,0 +1,6 @@
+2026-07-13 10:21:48 | INFO     | application | RESPONSE | id=666ef05f249b | GET /auth/login | status=200 | user=anonymous | ip=127.0.0.1 | duration=16.0ms
+2026-07-13 10:21:48 | INFO     | application | RESPONSE | id=5a0e724a3e9b | GET /auth/forgot-password | status=200 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-07-13 10:21:48 | INFO     | application | RESPONSE | id=1bd225473826 | GET / | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-07-13 10:26:09 | INFO     | application | RESPONSE | id=eeedcfe7857f | GET /auth/login | status=200 | user=anonymous | ip=127.0.0.1 | duration=31.0ms
+2026-07-13 10:26:09 | INFO     | application | RESPONSE | id=7db98519ff27 | GET /auth/forgot-password | status=200 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-07-13 10:26:09 | INFO     | application | RESPONSE | id=e9a1ff1efe88 | GET / | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms

@@ -95,7 +95,7 @@
     </form>
     <form method="POST" action="{{ url_for('leave.reject', lr_id=lr.id) }}" class="d-flex gap-2 align-items-end">
       {{ csrf_token_field() }}
-      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason…">
+      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason (required)…" required>
       <button type="submit" class="btn-reject"><i class="bi bi-x me-1"></i>Reject</button>
     </form>
   </div>
@@ -144,7 +144,7 @@
     </form>
     <form method="POST" action="{{ url_for('leave.reject_halfday', hd_id=hd.id) }}" class="d-flex gap-2 align-items-end">
       {{ csrf_token_field() }}
-      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason…">
+      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason (required)…" required>
       <button type="submit" class="btn-reject"><i class="bi bi-x me-1"></i>Reject</button>
     </form>
   </div>
@@ -193,7 +193,7 @@
     </form>
     <form method="POST" action="{{ url_for('leave.reject_earlyleave', el_id=el.id) }}" class="d-flex gap-2 align-items-end">
       {{ csrf_token_field() }}
-      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason…">
+      <input type="text" name="comment" class="comment-input" placeholder="Rejection reason (required)…" required>
       <button type="submit" class="btn-reject"><i class="bi bi-x me-1"></i>Reject</button>
     </form>
   </div>
@@ -203,4 +203,26 @@
 {% endif %}
 
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validate rejection reason is provided
+document.querySelectorAll('form[action*="/reject"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const commentInput = this.querySelector('input[name="comment"]');
+        const comment = commentInput ? commentInput.value.trim() : '';
+        
+        if (!comment) {
+            e.preventDefault();
+            alert('Rejection reason is mandatory. Please provide a reason before rejecting the request.');
+            if (commentInput) {
+                commentInput.focus();
+                commentInput.style.borderColor = '#ef4444';
+            }
+            return false;
+        }
+    });
+});
+</script>
 {% endblock %}
