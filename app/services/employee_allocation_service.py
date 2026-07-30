@@ -8,7 +8,7 @@ import datetime
 import os
 import re
 from typing import Tuple, Dict, Optional
-import pandas as pd
+from openpyxl import load_workbook
 from flask import current_app
 from werkzeug.utils import secure_filename
 
@@ -33,7 +33,7 @@ class EmployeeAllocationService:
         Returns:
             (start_time, end_time) or (None, None) if flexible
         """
-        if not shift_str or pd.isna(shift_str):
+        if not shift_str:
             return None, None
         
         shift_str = str(shift_str).strip()
@@ -134,9 +134,17 @@ class EmployeeAllocationService:
             os.makedirs(os.path.dirname(temp_path), exist_ok=True)
             file.save(temp_path)
             
-            # Read Excel
-            df = pd.read_excel(temp_path)
-            stats['total_rows'] = len(df)
+            # Read Excel using openpyxl
+            wb = load_workbook(temp_path, data_only=True)
+            ws = wb.active
+            
+            # Get headers from first row
+            headers = {}
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    headers[cell.value.strip().lower()] = col_idx
+            
+            stats['total_rows'] = ws.max_row - 1  # Exclude header
             
             current_app.logger.info(f"Processing {stats['total_rows']} employee allocations from Excel")
             
@@ -144,14 +152,18 @@ class EmployeeAllocationService:
             hospitals = {h.hospital_name: h for h in Hospital.query.filter_by(is_deleted=False).all()}
             
             # Process each row
-            for index, row in df.iterrows():
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 try:
-                    row_num = index + 2  # Excel row number
+                    # Extract data using headers
+                    row_dict = {}
+                    for header_name, col_idx in headers.items():
+                        if col_idx <= len(row):
+                            row_dict[header_name] = row[col_idx - 1]
                     
                     # Get employee code
-                    emp_code = str(row.get('EMP-CODE', '')).strip()
+                    emp_code = str(row_dict.get('emp-code', '') or '').strip()
                     if not emp_code or emp_code == 'nan':
-                        stats['errors'].append(f"Row {row_num}: Employee code missing")
+                        stats['errors'].append(f"Row {row_idx}: Employee code missing")
                         stats['failed'] += 1
                         continue
                     
@@ -161,15 +173,15 @@ class EmployeeAllocationService:
                     ).first()
                     
                     if not employee:
-                        stats['errors'].append(f"Row {row_num}: Employee {emp_code} not found")
+                        stats['errors'].append(f"Row {row_idx}: Employee {emp_code} not found")
                         stats['employees_not_found'] += 1
                         stats['failed'] += 1
                         continue
                     
                     # Get hospital/location
-                    location = str(row.get('WORKING LOCATION', '')).strip()
+                    location = str(row_dict.get('working location', '') or '').strip()
                     if location == 'nan' or not location:
-                        stats['errors'].append(f"Row {row_num}: {emp_code} - Working location missing")
+                        stats['errors'].append(f"Row {row_idx}: {emp_code} - Working location missing")
                         stats['failed'] += 1
                         continue
                     
@@ -187,32 +199,32 @@ class EmployeeAllocationService:
                                 break
                     
                     if not hospital:
-                        stats['errors'].append(f"Row {row_num}: {emp_code} - Hospital '{location}' not found")
+                        stats['errors'].append(f"Row {row_idx}: {emp_code} - Hospital '{location}' not found")
                         stats['hospitals_not_found'] += 1
                         stats['failed'] += 1
                         continue
                     
                     # Get shift timing
-                    shift_timing = str(row.get('full Shift timing', '')).strip()
-                    start_time, end_time = self.parse_shift_timing(shift_timing)
+                    shift_timing = str(row_dict.get('full shift timing', '') or '').strip()
+                    start_t, end_t = self.parse_shift_timing(shift_timing)
                     
                     # Determine if flexible shift
-                    working_status = str(row.get('WORKING STATUS', '')).strip().lower()
+                    working_status = str(row_dict.get('working status', '') or '').strip().lower()
                     is_flexible = 'flexible' in shift_timing.lower() or 'flexible' in working_status
                     
                     # Get shift name
                     if is_flexible:
                         shift_name = "Flexible Shift"
-                    elif start_time and end_time:
-                        shift_name = self.determine_shift_name(start_time, end_time)
+                    elif start_t and end_t:
+                        shift_name = self.determine_shift_name(start_t, end_t)
                     else:
                         shift_name = "General Shift"
                     
                     # Update employee
                     employee.hospital_id = hospital.id
                     employee.current_shift = shift_name
-                    employee.shift_start_time = start_time
-                    employee.shift_end_time = end_time
+                    employee.shift_start_time = start_t
+                    employee.shift_end_time = end_t
                     employee.is_flexible_shift = 1 if is_flexible else 0
                     employee.required_working_hours = 9  # Default 9 hours
                     
@@ -226,7 +238,7 @@ class EmployeeAllocationService:
                         current_app.logger.info(f"Processed {stats['employees_updated']} employees...")
                     
                 except Exception as e:
-                    stats['errors'].append(f"Row {row_num}: {str(e)}")
+                    stats['errors'].append(f"Row {row_idx}: {str(e)}")
                     stats['failed'] += 1
                     continue
             

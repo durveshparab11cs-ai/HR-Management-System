@@ -7,7 +7,7 @@ Business logic for Hospital management and Excel imports
 import datetime
 import os
 from typing import Tuple, List, Dict, Optional
-import pandas as pd
+from openpyxl import load_workbook
 from flask import current_app
 from werkzeug.utils import secure_filename
 
@@ -195,50 +195,62 @@ class HospitalService:
             os.makedirs(os.path.dirname(temp_path), exist_ok=True)
             file.save(temp_path)
             
-            # Read Excel
-            df = pd.read_excel(temp_path)
-            stats['total_rows'] = len(df)
+            # Read Excel using openpyxl
+            wb = load_workbook(temp_path, data_only=True)
+            ws = wb.active
+            
+            # Get headers from first row
+            headers = {}
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    headers[cell.value.strip().lower()] = col_idx
+            
+            stats['total_rows'] = ws.max_row - 1  # Exclude header
             
             current_app.logger.info(f"Processing {stats['total_rows']} hospitals from Excel")
             
             # Process each row
-            for index, row in df.iterrows():
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 try:
-                    row_num = index + 2  # Excel row number (1-indexed + header)
+                    # Extract data using headers
+                    row_dict = {}
+                    for header_name, col_idx in headers.items():
+                        if col_idx <= len(row):
+                            row_dict[header_name] = row[col_idx - 1]
                     
-                    # Extract data
-                    hospital_name = str(row.get('Hospital  Name', '')).strip()
+                    # Get hospital name
+                    hospital_name = str(row_dict.get('hospital  name', '') or '').strip()
                     if not hospital_name or hospital_name == 'nan':
-                        stats['errors'].append(f"Row {row_num}: Hospital name is missing")
+                        stats['errors'].append(f"Row {row_idx}: Hospital name is missing")
                         stats['failed'] += 1
                         continue
                     
                     # Get coordinates
                     try:
-                        latitude = float(row.get('Latitude', 0))
-                        longitude = float(row.get('Longitude', 0))
+                        latitude = float(row_dict.get('latitude', 0) or 0)
+                        longitude = float(row_dict.get('longitude', 0) or 0)
                     except (ValueError, TypeError):
-                        stats['errors'].append(f"Row {row_num}: Invalid GPS coordinates")
+                        stats['errors'].append(f"Row {row_idx}: Invalid GPS coordinates")
                         stats['failed'] += 1
                         continue
                     
                     # Validate coordinates
                     if latitude == 0 or longitude == 0:
-                        stats['errors'].append(f"Row {row_num}: {hospital_name} - GPS coordinates missing")
+                        stats['errors'].append(f"Row {row_idx}: {hospital_name} - GPS coordinates missing")
                         stats['failed'] += 1
                         continue
                     
                     if latitude < -90 or latitude > 90 or longitude < -180 or longitude > 180:
-                        stats['errors'].append(f"Row {row_num}: {hospital_name} - Invalid GPS coordinates")
+                        stats['errors'].append(f"Row {row_idx}: {hospital_name} - Invalid GPS coordinates")
                         stats['failed'] += 1
                         continue
                     
                     # Get other fields
-                    location = str(row.get('Location', '')).strip()
-                    if location == 'nan':
+                    location = str(row_dict.get('location', '') or '').strip()
+                    if location == 'nan' or not location:
                         location = None
                     
-                    status = str(row.get('Status', 'Active')).strip()
+                    status = str(row_dict.get('status', 'Active') or 'Active').strip()
                     is_active = status.lower() == 'active'
                     
                     # Check if hospital exists (by name)
@@ -271,7 +283,7 @@ class HospitalService:
                         current_app.logger.info(f"Imported hospital: {hospital_name}")
                     
                 except Exception as e:
-                    stats['errors'].append(f"Row {row_num}: {str(e)}")
+                    stats['errors'].append(f"Row {row_idx}: {str(e)}")
                     stats['failed'] += 1
                     continue
             
