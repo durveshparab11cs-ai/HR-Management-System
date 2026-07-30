@@ -55,7 +55,7 @@ class Employee(BaseModel):
     
     # ── Hospital & Shift Allocation ──────────────────────────────────
     hospital_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("hospitals.id"), nullable=True, index=True
+        Integer, nullable=True, index=True  # ForeignKey removed temporarily until hospitals table migrated
     )
     current_shift: Mapped[str | None] = mapped_column(String(50), nullable=True)
     shift_start_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -78,7 +78,7 @@ class Employee(BaseModel):
     user = relationship("User", backref=sa_backref("employee", uselist=False), lazy="joined", foreign_keys=[user_id])
     manager = relationship("Employee", remote_side="Employee.id", foreign_keys=[manager_id], lazy="select")
     office = relationship("OfficeSettings", foreign_keys=[office_settings_id], lazy="select")
-    hospital = relationship("Hospital", back_populates="employees", foreign_keys=[hospital_id], lazy="select")
+    # hospital relationship disabled until migration: hospital = relationship("Hospital", back_populates="employees", foreign_keys=[hospital_id], lazy="select", uselist=False)
 
     @property
     def full_name(self) -> str:

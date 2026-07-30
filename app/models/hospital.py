@@ -47,7 +47,8 @@ class Hospital(BaseModel):
     )
     
     # Relationships
-    employees = relationship("Employee", back_populates="hospital", lazy="select")
+    # employees relationship disabled until Employee foreign key is restored
+    # employees = relationship("Employee", back_populates="hospital", lazy="select")
     
     @property
     def employee_count(self) -> int:
