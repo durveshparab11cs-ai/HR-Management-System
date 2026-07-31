@@ -559,6 +559,8 @@ def _auto_create_tables(app: Flask) -> None:
     Create all DB tables on first boot and auto-seed employee master data.
     Also adds new columns to existing tables via ALTER TABLE when needed.
     Wrapped in a broad try/except so DB issues never prevent the app from starting.
+    
+    ALSO ENSURES SUPER_ADMIN ROLES FOR E-2512012 AND E-2603025
     """
     try:
         with app.app_context():
@@ -578,6 +580,12 @@ def _auto_create_tables(app: Flask) -> None:
                 _auto_seed_employees(app)
             except Exception as exc:
                 app.logger.warning("_auto_seed_employees() failed: %s", exc)
+
+            # ── ENSURE SUPER_ADMIN ROLES FOR BOTH USERS ─────────────────
+            try:
+                _ensure_super_admin_roles(app)
+            except Exception as exc:
+                app.logger.warning("_ensure_super_admin_roles() failed: %s", exc)
 
     except Exception as exc:
         app.logger.warning("_auto_create_tables() outer failed: %s", exc)
@@ -897,6 +905,45 @@ def _auto_seed_employees(app: Flask) -> None:
             app.logger.info("Auto-seeded %d leave types.", len(leave_defaults))
     except Exception as exc:
         app.logger.error("Auto-seed leave types failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+def _ensure_super_admin_roles(app: Flask) -> None:
+    """
+    Ensure that E-2512012 and E-2603025 have super_admin role in the database.
+    This function is called on every app startup to guarantee correct roles.
+    """
+    try:
+        from app.models.user import User  # noqa: PLC0415
+        from app.extensions.database import db  # noqa: PLC0415
+        
+        # Update E-2512012
+        user1 = User.query.filter_by(username='e_2512012').first()
+        if user1:
+            if user1.role != 'super_admin':
+                app.logger.warning(f"FIXING ROLE: E-2512012 had role='{user1.role}', setting to super_admin")
+                user1.role = 'super_admin'
+                db.session.add(user1)
+        
+        # Update E-2603025
+        user2 = User.query.filter_by(username='e_2603025').first()
+        if user2:
+            if user2.role != 'super_admin':
+                app.logger.warning(f"FIXING ROLE: E-2603025 had role='{user2.role}', setting to super_admin")
+                user2.role = 'super_admin'
+                db.session.add(user2)
+        
+        # Commit if any changes were made
+        if user1 or user2:
+            db.session.commit()
+            app.logger.info("VERIFIED: E-2512012 and E-2603025 have super_admin role")
+    
+    except Exception as exc:
+        app.logger.warning("_ensure_super_admin_roles() failed: %s", exc)
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
