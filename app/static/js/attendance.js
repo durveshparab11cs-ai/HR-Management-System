@@ -217,31 +217,18 @@
   }
 
   function initMap() {
-    console.log('🗺️ [initMap] Starting map initialization');
     const container = el('att-map');
-    console.log('Map container found:', !!container);
-    console.log('Leaflet library L available:', typeof L !== 'undefined');
-    console.log('Map already initialized:', !!map);
-    
-    if (!container || typeof L === 'undefined' || map) {
-      console.warn('⚠️ [initMap] Skipping - missing dependency or already initialized');
-      return;
-    }
+    if (!container || typeof L === 'undefined' || map) return;
 
     container.style.cssText = 'height:350px;width:100%;display:block;position:relative;z-index:0;';
 
-    console.log('Creating Leaflet map instance...');
     map = L.map('att-map', { zoomControl: true, attributionControl: true });
-    console.log('✅ Map instance created');
-    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
-    console.log('✅ Tile layer added');
 
     if (OFFICE.lat && OFFICE.lon) {
-      console.log('Office coordinates:', { lat: OFFICE.lat, lon: OFFICE.lon, radius: OFFICE.radius });
       L.marker([OFFICE.lat, OFFICE.lon], { icon: mkIcon('#1a3c6e', 18) })
         .addTo(map)
         .bindPopup(`<strong>${OFFICE.name}</strong><br>Geofence: ${OFFICE.radius}m radius<br>Min GPS accuracy: ±${OFFICE.minAccuracy}m`);
@@ -250,21 +237,11 @@
         radius: OFFICE.radius, color: '#1a3c6e', fillColor: '#1a3c6e',
         fillOpacity: 0.07, weight: 2, dashArray: '6 4'
       }).addTo(map);
-      console.log('✅ Office marker and geofence circle added');
 
       map.setView([OFFICE.lat, OFFICE.lon], 17);
-      console.log('✅ Map view set');
-    } else {
-      console.warn('⚠️ No office coordinates available');
     }
 
-    [100, 400, 1000].forEach(d => setTimeout(() => {
-      if (map) {
-        map.invalidateSize();
-        console.log('Map size invalidated after', d, 'ms');
-      }
-    }, d));
-    console.groupEnd();
+    [100, 400, 1000].forEach(d => setTimeout(() => map && map.invalidateSize(), d));
   }
 
   function updateMapEmployee(empLat, empLon, empAcc, within) {
@@ -575,9 +552,7 @@
   let _gpsSuccessReceived = false; // track if success ever fired this session
 
   function fetchGPS(isManual) {
-    console.log('🔍 [fetchGPS] Called - isManual:', isManual);
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
       setGpsStatus('error', 'Geolocation not supported by this browser.');
       return;
     }
@@ -588,21 +563,13 @@
 
     // Cancel existing watch
     if (_watchId !== null) {
-      console.log('Clearing previous GPS watch');
       navigator.geolocation.clearWatch(_watchId);
       _watchId = null;
     }
 
-    console.log('Starting new GPS watch with 15s timeout');
-
     // Use watchPosition — fires success even when getCurrentPosition fails on Chromium HTTPS
     _watchId = navigator.geolocation.watchPosition(
       function (pos) {
-        console.log('✅ [GPS SUCCESS] Got position:', {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          acc: pos.coords.accuracy
-        });
         _gpsSuccessReceived = true;
         // Stop watching after first good position
         if (_watchId !== null) {
@@ -612,12 +579,8 @@
         onGPSSuccess(pos);
       },
       function (err) {
-        console.log('❌ [GPS ERROR] Code:', err.code, 'Message:', err.message);
         // Ignore error if success already fired (async race)
-        if (_gpsSuccessReceived || gpsReady) {
-          console.log('GPS already ready, ignoring error');
-          return;
-        }
+        if (_gpsSuccessReceived || gpsReady) return;
         onGPSError(err);
       },
       {
@@ -626,73 +589,32 @@
         maximumAge: 0
       }
     );
-    
-    // Add backup timeout - if no position after 20 seconds, treat as timeout
-    setTimeout(() => {
-      if (!gpsReady && !_gpsSuccessReceived) {
-        console.warn('⚠️ GPS stuck for 20s - triggering timeout error');
-        if (_watchId !== null) {
-          navigator.geolocation.clearWatch(_watchId);
-          _watchId = null;
-        }
-        // Trigger timeout error (code 3)
-        onGPSError({ code: 3, message: 'Geolocation timeout' });
-      }
-    }, 20000);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
      START GPS (called on page load)
   ════════════════════════════════════════════════════════════════════ */
   function startGPS() {
-    console.group('📍 [startGPS] Initializing GPS');
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
       setGpsStatus('error', 'Geolocation not supported by this browser.');
-      console.groupEnd();
       return;
     }
 
-    console.log('✅ Geolocation API available');
     setGpsStatus('acquiring', 'Loading GPS…');
 
-    // Add 3-second timeout to permissions API check
-    // If it hangs, we'll still proceed with direct GPS fetch
-    let permissionCheckTimeout;
-    let permissionCheckDone = false;
-
-    // Check permission state with timeout fallback
+    // Check permission state first to give informed status message
     if (navigator.permissions) {
-      console.log('Checking geolocation permission state (with 3s timeout)...');
-      
-      permissionCheckTimeout = setTimeout(() => {
-        if (!permissionCheckDone) {
-          console.warn('⚠️ Permission check timed out - proceeding with direct GPS');
-          permissionCheckDone = true;
-          fetchGPS(false);
-        }
-      }, 3000);
-      
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
-        if (permissionCheckDone) return; // Already timed out
-        clearTimeout(permissionCheckTimeout);
-        permissionCheckDone = true;
-        
-        console.log('Permission state:', perm.state);
         if (perm.state === 'denied') {
           // Truly denied — show message immediately
-          console.error('❌ Geolocation permission denied by user');
           setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
-          console.groupEnd();
           return;
         }
         // 'granted' or 'prompt' — request GPS directly
-        console.log('Requesting GPS fix...');
         fetchGPS(false);
 
         // Watch for permission state changes
         perm.onchange = function () {
-          console.log('Permission state changed to:', perm.state);
           if (perm.state === 'granted' && !gpsReady) {
             _permRetries = 0;
             _gpsSuccessReceived = false;
@@ -702,20 +624,14 @@
             setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
           }
         };
-      }).catch(function (err) {
+      }).catch(function () {
         // Permissions API not available — try GPS directly
-        if (permissionCheckDone) return;
-        clearTimeout(permissionCheckTimeout);
-        permissionCheckDone = true;
-        console.log('Permissions API error, trying direct GPS:', err);
         fetchGPS(false);
       });
     } else {
       // No Permissions API — try GPS directly
-      console.log('Permissions API not available, trying direct GPS');
       fetchGPS(false);
     }
-    console.groupEnd();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -757,112 +673,36 @@
   }
 
   async function startCheckInCamera() {
-    console.log('🎥 [startCheckInCamera] Called');
-    if (!ciCamera) {
-      console.error('❌ [startCheckInCamera] ciCamera is null/undefined');
-      showToast('Camera not initialized. Please refresh the page.', 'error');
-      return;
-    }
+    if (!ciCamera) return;
     try {
-      console.log('📷 [startCheckInCamera] Requesting camera permission...');
-      const success = await ciCamera.start();
-      console.log('📷 [startCheckInCamera] Camera start returned:', success);
-      
-      if (success) {
-        console.log('✅ [startCheckInCamera] Camera started successfully');
-        const videoContainer = el('ci-video-container');
-        const captureBtn = el('ci-btn-capture');
-        const statusMsg = el('ci-camera-status');
-        
-        if (videoContainer) {
-          videoContainer.style.display = 'block';
-          console.log('✅ Video container shown');
-        } else {
-          console.warn('⚠️ Video container not found');
-        }
-        
-        if (captureBtn) {
-          captureBtn.style.display = 'inline-flex';
-          console.log('✅ Capture button shown');
-        } else {
-          console.warn('⚠️ Capture button not found');
-        }
-        
-        if (statusMsg) {
-          statusMsg.style.display = 'block';
-          const statusText = el('ci-status-text');
-          if (statusText) statusText.textContent = 'Camera ready — capture your selfie';
-        }
-      } else {
-        console.error('❌ Camera start failed - permission denied');
-        showToast('Camera permission denied. Please enable it in browser settings.', 'error');
-        const errorDiv = el('ci-camera-error');
-        if (errorDiv) errorDiv.style.display = 'block';
-      }
+      logger.info('[CI Camera] Starting check-in camera');
+      await ciCamera.start();
+      el('ci-video-container').style.display = 'block';
+      el('ci-btn-capture').style.display = 'inline-flex';
+      el('ci-camera-status').style.display = 'block';
+      el('ci-status-text').textContent = 'Camera ready — capture your selfie';
+      logger.info('[CI Camera] Started successfully');
     } catch (err) {
-      console.error('❌ [startCheckInCamera] Error:', err.name, err.message);
-      showToast('Camera error: ' + err.message, 'error');
-      const errorDiv = el('ci-camera-error');
-      if (errorDiv) {
-        errorDiv.style.display = 'block';
-        const errorText = el('ci-error-text');
-        if (errorText) errorText.textContent = 'Camera error: ' + err.message;
-      }
+      logger.error('[CI Camera] Error starting camera:', err);
+      el('ci-camera-error').style.display = 'block';
+      el('ci-error-text').textContent = 'Camera permission denied. Check browser settings.';
     }
   }
 
   async function startCheckOutCamera() {
-    console.log('🎥 [startCheckOutCamera] Called');
-    if (!coCamera) {
-      console.error('❌ [startCheckOutCamera] coCamera is null/undefined');
-      showToast('Camera not initialized. Please refresh the page.', 'error');
-      return;
-    }
+    if (!coCamera) return;
     try {
-      console.log('📷 [startCheckOutCamera] Requesting camera permission...');
-      const success = await coCamera.start();
-      console.log('📷 [startCheckOutCamera] Camera start returned:', success);
-      
-      if (success) {
-        console.log('✅ [startCheckOutCamera] Camera started successfully');
-        const videoContainer = el('co-video-container');
-        const captureBtn = el('co-btn-capture');
-        const statusMsg = el('co-camera-status');
-        
-        if (videoContainer) {
-          videoContainer.style.display = 'block';
-          console.log('✅ Video container shown');
-        } else {
-          console.warn('⚠️ Video container not found');
-        }
-        
-        if (captureBtn) {
-          captureBtn.style.display = 'inline-flex';
-          console.log('✅ Capture button shown');
-        } else {
-          console.warn('⚠️ Capture button not found');
-        }
-        
-        if (statusMsg) {
-          statusMsg.style.display = 'block';
-          const statusText = el('co-status-text');
-          if (statusText) statusText.textContent = 'Camera ready — capture your selfie';
-        }
-      } else {
-        console.error('❌ Camera start failed - permission denied');
-        showToast('Camera permission denied. Please enable it in browser settings.', 'error');
-        const errorDiv = el('co-camera-error');
-        if (errorDiv) errorDiv.style.display = 'block';
-      }
+      logger.info('[CO Camera] Starting check-out camera');
+      await coCamera.start();
+      el('co-video-container').style.display = 'block';
+      el('co-btn-capture').style.display = 'inline-flex';
+      el('co-camera-status').style.display = 'block';
+      el('co-status-text').textContent = 'Camera ready — capture your selfie';
+      logger.info('[CO Camera] Started successfully');
     } catch (err) {
-      console.error('❌ [startCheckOutCamera] Error:', err.name, err.message);
-      showToast('Camera error: ' + err.message, 'error');
-      const errorDiv = el('co-camera-error');
-      if (errorDiv) {
-        errorDiv.style.display = 'block';
-        const errorText = el('co-error-text');
-        if (errorText) errorText.textContent = 'Camera error: ' + err.message;
-      }
+      logger.error('[CO Camera] Error starting camera:', err);
+      el('co-camera-error').style.display = 'block';
+      el('co-error-text').textContent = 'Camera permission denied. Check browser settings.';
     }
   }
 
@@ -1409,48 +1249,31 @@
     const ciZone = el('photo-zone');
     if (ciZone) {
       ciZone.style.cursor = 'pointer';
-      ciZone.addEventListener('click', (e) => {
-        e.preventDefault();
+      ciZone.onclick = (e) => {
         e.stopPropagation();
-        console.log('📷 Check-in photo zone clicked - starting camera');
         if (!ciPhotoReady) {
           startCheckInCamera();
-        } else {
-          console.log('⚠️ Check-in photo already ready');
         }
-      });
-    } else {
-      console.warn('⚠️ Check-in photo zone (#photo-zone) not found');
+      };
     }
     
     // Check-out photo zone - click to start camera
     const coZone = el('co-photo-zone');
     if (coZone) {
       coZone.style.cursor = 'pointer';
-      coZone.addEventListener('click', (e) => {
-        e.preventDefault();
+      coZone.onclick = (e) => {
         e.stopPropagation();
-        console.log('📷 Check-out photo zone clicked - starting camera');
         if (!coPhotoReady) {
           startCheckOutCamera();
-        } else {
-          console.log('⚠️ Check-out photo already ready');
         }
-      });
-    } else {
-      console.warn('⚠️ Check-out photo zone (#co-photo-zone) not found');
+      };
     }
     
     // Hide the file input elements - not needed anymore
-    const photoInput = el('photo-input');
-    const coPhotoInput = el('co-photo-input');
-    const uploadBtn = el('btn-upload-photo');
-    const coUploadBtn = el('btn-upload-co-photo');
-    
-    if (photoInput) photoInput.style.display = 'none';
-    if (coPhotoInput) coPhotoInput.style.display = 'none';
-    if (uploadBtn) uploadBtn.style.display = 'none';
-    if (coUploadBtn) coUploadBtn.style.display = 'none';
+    el('photo-input').style.display = 'none';
+    el('co-photo-input').style.display = 'none';
+    el('btn-upload-photo').style.display = 'none';
+    el('btn-upload-co-photo').style.display = 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1484,8 +1307,7 @@
   document.head.appendChild(styleEl);
 
   function boot() {
-    console.group('🚀 [BOOT] Attendance page initializing');
-    console.log('Page load time:', new Date().toLocaleTimeString());
+    console.log('🚀 Attendance page initializing...');
     console.log('📊 Backend state:', {
         CAN_CHECKIN: typeof CAN_CHECKIN !== 'undefined' ? CAN_CHECKIN : 'undefined',
         CAN_CHECKOUT: typeof CAN_CHECKOUT !== 'undefined' ? CAN_CHECKOUT : 'undefined',
@@ -1545,19 +1367,13 @@
         coPhotoReady: coPhotoReady
     });
     
-    console.log('🗺️ Calling initMap()...');
     initMap();
-    console.log('📍 Calling startGPS()...');
     startGPS();
-    console.log('🔄 Calling startAutoRefresh()...');
     startAutoRefresh();
     
     // Initial button state evaluation
     console.log('🔄 Calling initial updateAttendanceButtons()');
     updateAttendanceButtons();
-    
-    console.log('✅ [BOOT] Initialization complete');
-    console.groupEnd();
   }
   
   // ✅ NEW: Function to lock upload component (prevents re-upload)
@@ -1611,19 +1427,14 @@
   }
 
   if (typeof L !== 'undefined') {
-    console.log('✅ Leaflet library loaded - boot() ready to execute');
     document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();
   } else {
-    console.log('⚠️ Leaflet not loaded yet - loading dynamically');
     const lnk = document.createElement('link');
     lnk.rel = 'stylesheet'; lnk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(lnk);
     const scr = document.createElement('script');
     scr.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    scr.onload = () => {
-      console.log('✅ Leaflet dynamically loaded - executing boot()');
-      boot();
-    };
+    scr.onload = boot;
     document.head.appendChild(scr);
   }
 
