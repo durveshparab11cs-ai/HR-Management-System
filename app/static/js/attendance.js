@@ -308,34 +308,70 @@
           photoError.style.display = 'none';
         }
         
-        // DIRECTLY enable the button
-        const btn = el(type === 'ci' ? 'btn-checkin' : 'btn-checkout');
-        const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
+        // DIRECTLY call check-in without relying on button UI
+        console.log('Auto-triggering check-in immediately after photo upload');
         
-        if (btn) {
-          console.log('✓ Enabling button directly:', btn.id);
-          btn.disabled = false;
-          btn.style.opacity = '1';
-          btn.style.cursor = 'pointer';
-          btn.style.pointerEvents = 'auto';
+        // Auto-submit check-in after a brief delay
+        setTimeout(async () => {
+          console.log('Submitting check-in automatically...');
           
-          if (btnText) {
-            btnText.textContent = type === 'ci' ? 'Check In Now' : 'Check Out Now';
-          }
-          
-          // Auto-trigger after 1.5 seconds
-          setTimeout(() => {
-            console.log('Auto-triggering button click');
-            if (btn && !btn.dataset.autoClicked) {
-              btn.dataset.autoClicked = 'true';
-              btn.click();
+          try {
+            const csrfToken = getCsrfToken();
+            
+            console.log('Sending check-in with GPS:', window.lat || 0, window.lon || 0, window.acc || 0);
+            
+            const res = await fetch('/attendance/checkin', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken || ''
+              },
+              body: new URLSearchParams({
+                latitude: window.lat || 0,
+                longitude: window.lon || 0,
+                accuracy: window.acc || 0
+              })
+            });
+            
+            console.log('Check-in response status:', res.status);
+            
+            if (!res.ok) {
+              const text = await res.text();
+              console.error('Check-in HTTP error:', res.status, text);
+              throw new Error(`HTTP ${res.status}`);
             }
-          }, 1500);
-        }
-        
-        // Generate proof image (non-blocking)
-        console.log('Generating proof image');
-        generateProof(type);
+            
+            const data = await res.json();
+            console.log('Check-in response:', data);
+            
+            if (data.success) {
+              console.log('✓ Auto check-in successful!');
+              alert('✓ Attendance marked! Time: ' + data.time);
+              setTimeout(() => location.reload(), 1000);
+            } else {
+              console.error('Check-in failed:', data.message);
+              alert('❌ Auto check-in failed: ' + (data.message || 'Unknown error'));
+              
+              // Still try to enable the button for manual check-in
+              const btn = el('btn-checkin');
+              const btnText = el('ci-text');
+              if (btn) {
+                btn.disabled = false;
+                if (btnText) btnText.textContent = 'Check In Now (Manual)';
+              }
+            }
+          } catch (err) {
+            console.error('Auto check-in error:', err);
+            
+            // Fallback: enable button for manual click
+            const btn = el('btn-checkin');
+            const btnText = el('ci-text');
+            if (btn) {
+              btn.disabled = false;
+              if (btnText) btnText.textContent = 'Check In Now (Manual)';
+            }
+          }
+        }, 1000);  // Wait 1 second for GPS to be ready
         
         alert('✓ Photo captured successfully!');
       } else {
