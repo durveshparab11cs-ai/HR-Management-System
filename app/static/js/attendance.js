@@ -1,13 +1,12 @@
 'use strict';
 
 (function () {
-  // Attendance system - Camera capture (getUserMedia with proper fallback)
+  // Attendance system - Ultra-simple file input capture (mobile camera / desktop)
   
   const el = (id) => document.getElementById(id);
   let ciPhotoReady = false;
   let coPhotoReady = false;
   let gpsWatchId = null;
-  let currentStream = null;
   
   // Setup photo click handlers
   function setupPhotoClick() {
@@ -15,95 +14,64 @@
     const coZone = el('co-photo-zone');
     
     if (ciZone) {
-      ciZone.addEventListener('click', () => captureCamera('ci'));
+      ciZone.addEventListener('click', () => triggerCamera('ci'));
     }
     
     if (coZone) {
-      coZone.addEventListener('click', () => captureCamera('co'));
+      coZone.addEventListener('click', () => triggerCamera('co'));
     }
   }
   
-  // Capture photo from camera
-  async function captureCamera(type) {
-    console.log('Attempting to capture from camera for type:', type);
+  // Trigger camera using HTML5 file input
+  function triggerCamera(type) {
+    console.log('Triggering camera for:', type);
     
-    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     
-    try {
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
-      
-      console.log('Camera access granted!');
-      
-      // Create video element temporarily
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-      
-      // Wait for video to load
-      await new Promise(resolve => {
-        video.onloadedmetadata = resolve;
-      });
-      
-      // Capture frame after slight delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Draw to canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      const ctx = canvas.getContext('2d');
-      // Mirror for selfie
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0);
-      
-      // Get image data
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      
-      // Stop camera
-      stream.getTracks().forEach(track => track.stop());
-      
-      console.log('Photo captured, uploading...');
-      
-      // Show preview and upload
-      showPhotoPreview(type, dataUrl);
-      
-    } catch (err) {
-      console.error('Camera error:', err.name, err.message);
-      
-      // If camera fails, show helpful message
-      if (photoZone) {
-        photoZone.innerHTML = `
-          <div style="text-align:center;padding:20px;color:#991b1b">
-            <i class="bi bi-camera-fill fs-3 d-block mb-2"></i>
-            <div style="font-size:14px;font-weight:bold;margin-bottom:8px">Camera Opening...</div>
-            <div style="font-size:12px;color:#666;margin-bottom:12px">
-              Please wait while we access your device camera
-            </div>
-            <div style="font-size:11px;background:#e0f2fe;padding:8px;border-radius:6px;color:#0369a1">
-              <strong>Tip:</strong> If camera doesn't open, ensure location services are enabled
-            </div>
-          </div>
-        `;
+    // Set capture attribute to request camera
+    input.capture = 'user';
+    
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        console.log('File received:', file.name, file.type, file.size);
+        processFile(type, file);
       }
-      
-      // Retry after 1 second
-      setTimeout(() => {
-        captureCamera(type);
-      }, 1000);
-    }
+    };
+    
+    // Trigger input
+    input.click();
   }
   
-  // Show photo preview
-  function showPhotoPreview(type, dataUrl) {
+  // Process captured/selected file
+  function processFile(type, file) {
+    console.log('Processing file for type:', type);
+    
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      console.log('File converted to dataURL, size:', dataUrl.length);
+      
+      // Show preview
+      showPreview(type, dataUrl);
+      
+      // Upload
+      uploadSelfie(type, dataUrl);
+    };
+    
+    reader.onerror = () => {
+      console.error('File read error');
+      alert('Error reading file. Please try again.');
+    };
+    
+    reader.readAsDataURL(file);
+  }
+  
+  // Show preview
+  function showPreview(type, dataUrl) {
     const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
     const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
     const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
@@ -113,9 +81,6 @@
     if (previewContainer) previewContainer.style.display = 'block';
     if (photoZone) photoZone.style.display = 'none';
     if (retakeBtn) retakeBtn.style.display = 'block';
-    
-    // Upload immediately
-    uploadSelfie(type, dataUrl);
   }
   
   // Upload selfie
@@ -407,13 +372,13 @@
     // Setup events
     setupPhotoClick();
     
-    // Setup retake buttons - restart camera
+    // Setup retake buttons
     el('ci-btn-retake')?.addEventListener('click', () => {
       el('ci-selfie-preview').style.display = 'none';
       el('photo-zone').style.display = 'block';
       el('ci-btn-retake').style.display = 'none';
       ciPhotoReady = false;
-      captureCamera('ci');
+      triggerCamera('ci');
     });
     
     el('co-btn-retake')?.addEventListener('click', () => {
@@ -421,7 +386,7 @@
       el('co-photo-zone').style.display = 'block';
       el('co-btn-retake').style.display = 'none';
       coPhotoReady = false;
-      captureCamera('co');
+      triggerCamera('co');
     });
     
     // Setup check-in/out
