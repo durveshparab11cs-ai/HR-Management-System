@@ -167,6 +167,28 @@
     }
   }
   
+  // Update clock display
+  function updateClock() {
+    const now = new Date();
+    
+    // Format time
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const clockDisplay = `${hours}:${minutes}:${seconds}`;
+    
+    // Format date
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    const dateDisplay = now.toLocaleDateString('en-IN', options);
+    
+    // Update DOM
+    const clockEl = el('att-clock');
+    const dateEl = el('att-date');
+    
+    if (clockEl) clockEl.textContent = clockDisplay;
+    if (dateEl) dateEl.textContent = dateDisplay;
+  }
+  
   // Generate proof image
   async function generateProof(type) {
     try {
@@ -349,6 +371,10 @@
   // Boot
   function boot() {
     console.log('Attendance system starting...');
+    
+    // Update clock immediately and every second
+    updateClock();
+    setInterval(updateClock, 1000);
     
     // Setup events
     setupPhotoClick();
