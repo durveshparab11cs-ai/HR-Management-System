@@ -673,36 +673,112 @@
   }
 
   async function startCheckInCamera() {
-    if (!ciCamera) return;
+    console.log('🎥 [startCheckInCamera] Called');
+    if (!ciCamera) {
+      console.error('❌ [startCheckInCamera] ciCamera is null/undefined');
+      showToast('Camera not initialized. Please refresh the page.', 'error');
+      return;
+    }
     try {
-      logger.info('[CI Camera] Starting check-in camera');
-      await ciCamera.start();
-      el('ci-video-container').style.display = 'block';
-      el('ci-btn-capture').style.display = 'inline-flex';
-      el('ci-camera-status').style.display = 'block';
-      el('ci-status-text').textContent = 'Camera ready — capture your selfie';
-      logger.info('[CI Camera] Started successfully');
+      console.log('📷 [startCheckInCamera] Requesting camera permission...');
+      const success = await ciCamera.start();
+      console.log('📷 [startCheckInCamera] Camera start returned:', success);
+      
+      if (success) {
+        console.log('✅ [startCheckInCamera] Camera started successfully');
+        const videoContainer = el('ci-video-container');
+        const captureBtn = el('ci-btn-capture');
+        const statusMsg = el('ci-camera-status');
+        
+        if (videoContainer) {
+          videoContainer.style.display = 'block';
+          console.log('✅ Video container shown');
+        } else {
+          console.warn('⚠️ Video container not found');
+        }
+        
+        if (captureBtn) {
+          captureBtn.style.display = 'inline-flex';
+          console.log('✅ Capture button shown');
+        } else {
+          console.warn('⚠️ Capture button not found');
+        }
+        
+        if (statusMsg) {
+          statusMsg.style.display = 'block';
+          const statusText = el('ci-status-text');
+          if (statusText) statusText.textContent = 'Camera ready — capture your selfie';
+        }
+      } else {
+        console.error('❌ Camera start failed - permission denied');
+        showToast('Camera permission denied. Please enable it in browser settings.', 'error');
+        const errorDiv = el('ci-camera-error');
+        if (errorDiv) errorDiv.style.display = 'block';
+      }
     } catch (err) {
-      logger.error('[CI Camera] Error starting camera:', err);
-      el('ci-camera-error').style.display = 'block';
-      el('ci-error-text').textContent = 'Camera permission denied. Check browser settings.';
+      console.error('❌ [startCheckInCamera] Error:', err.name, err.message);
+      showToast('Camera error: ' + err.message, 'error');
+      const errorDiv = el('ci-camera-error');
+      if (errorDiv) {
+        errorDiv.style.display = 'block';
+        const errorText = el('ci-error-text');
+        if (errorText) errorText.textContent = 'Camera error: ' + err.message;
+      }
     }
   }
 
   async function startCheckOutCamera() {
-    if (!coCamera) return;
+    console.log('🎥 [startCheckOutCamera] Called');
+    if (!coCamera) {
+      console.error('❌ [startCheckOutCamera] coCamera is null/undefined');
+      showToast('Camera not initialized. Please refresh the page.', 'error');
+      return;
+    }
     try {
-      logger.info('[CO Camera] Starting check-out camera');
-      await coCamera.start();
-      el('co-video-container').style.display = 'block';
-      el('co-btn-capture').style.display = 'inline-flex';
-      el('co-camera-status').style.display = 'block';
-      el('co-status-text').textContent = 'Camera ready — capture your selfie';
-      logger.info('[CO Camera] Started successfully');
+      console.log('📷 [startCheckOutCamera] Requesting camera permission...');
+      const success = await coCamera.start();
+      console.log('📷 [startCheckOutCamera] Camera start returned:', success);
+      
+      if (success) {
+        console.log('✅ [startCheckOutCamera] Camera started successfully');
+        const videoContainer = el('co-video-container');
+        const captureBtn = el('co-btn-capture');
+        const statusMsg = el('co-camera-status');
+        
+        if (videoContainer) {
+          videoContainer.style.display = 'block';
+          console.log('✅ Video container shown');
+        } else {
+          console.warn('⚠️ Video container not found');
+        }
+        
+        if (captureBtn) {
+          captureBtn.style.display = 'inline-flex';
+          console.log('✅ Capture button shown');
+        } else {
+          console.warn('⚠️ Capture button not found');
+        }
+        
+        if (statusMsg) {
+          statusMsg.style.display = 'block';
+          const statusText = el('co-status-text');
+          if (statusText) statusText.textContent = 'Camera ready — capture your selfie';
+        }
+      } else {
+        console.error('❌ Camera start failed - permission denied');
+        showToast('Camera permission denied. Please enable it in browser settings.', 'error');
+        const errorDiv = el('co-camera-error');
+        if (errorDiv) errorDiv.style.display = 'block';
+      }
     } catch (err) {
-      logger.error('[CO Camera] Error starting camera:', err);
-      el('co-camera-error').style.display = 'block';
-      el('co-error-text').textContent = 'Camera permission denied. Check browser settings.';
+      console.error('❌ [startCheckOutCamera] Error:', err.name, err.message);
+      showToast('Camera error: ' + err.message, 'error');
+      const errorDiv = el('co-camera-error');
+      if (errorDiv) {
+        errorDiv.style.display = 'block';
+        const errorText = el('co-error-text');
+        if (errorText) errorText.textContent = 'Camera error: ' + err.message;
+      }
     }
   }
 
@@ -1249,31 +1325,48 @@
     const ciZone = el('photo-zone');
     if (ciZone) {
       ciZone.style.cursor = 'pointer';
-      ciZone.onclick = (e) => {
+      ciZone.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        console.log('📷 Check-in photo zone clicked - starting camera');
         if (!ciPhotoReady) {
           startCheckInCamera();
+        } else {
+          console.log('⚠️ Check-in photo already ready');
         }
-      };
+      });
+    } else {
+      console.warn('⚠️ Check-in photo zone (#photo-zone) not found');
     }
     
     // Check-out photo zone - click to start camera
     const coZone = el('co-photo-zone');
     if (coZone) {
       coZone.style.cursor = 'pointer';
-      coZone.onclick = (e) => {
+      coZone.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
+        console.log('📷 Check-out photo zone clicked - starting camera');
         if (!coPhotoReady) {
           startCheckOutCamera();
+        } else {
+          console.log('⚠️ Check-out photo already ready');
         }
-      };
+      });
+    } else {
+      console.warn('⚠️ Check-out photo zone (#co-photo-zone) not found');
     }
     
     // Hide the file input elements - not needed anymore
-    el('photo-input').style.display = 'none';
-    el('co-photo-input').style.display = 'none';
-    el('btn-upload-photo').style.display = 'none';
-    el('btn-upload-co-photo').style.display = 'none';
+    const photoInput = el('photo-input');
+    const coPhotoInput = el('co-photo-input');
+    const uploadBtn = el('btn-upload-photo');
+    const coUploadBtn = el('btn-upload-co-photo');
+    
+    if (photoInput) photoInput.style.display = 'none';
+    if (coPhotoInput) coPhotoInput.style.display = 'none';
+    if (uploadBtn) uploadBtn.style.display = 'none';
+    if (coUploadBtn) coUploadBtn.style.display = 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════════════
