@@ -216,16 +216,16 @@
       if (videoContainer) videoContainer.style.display = 'none';
       if (captureBtn) captureBtn.style.display = 'none';
       
-      // Display photo
-      displayPhoto(type, base64);
+      // Display photo with confirmation button
+      displayPhotoWithConfirm(type, base64);
     } catch (err) {
       console.error('Capture error:', err);
       alert('Error capturing photo: ' + err.message);
     }
   }
   
-  // Display captured photo
-  function displayPhoto(type, dataUrl) {
+  // Display photo with confirmation button
+  function displayPhotoWithConfirm(type, dataUrl) {
     const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
     const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
@@ -234,18 +234,48 @@
     if (photoZone) photoZone.style.display = 'none';
     if (previewImg) previewImg.src = dataUrl;
     if (previewContainer) previewContainer.style.display = 'block';
-    if (retakeBtn) retakeBtn.style.display = 'block';
     
-    // Upload immediately
-    uploadSelfie(type, dataUrl);
+    // Create confirm button (checkmark)
+    let confirmBtn = el(type === 'ci' ? 'ci-btn-confirm' : 'co-btn-confirm');
+    if (!confirmBtn) {
+      confirmBtn = document.createElement('button');
+      confirmBtn.id = type === 'ci' ? 'ci-btn-confirm' : 'co-btn-confirm';
+      confirmBtn.className = 'btn btn-sm btn-success flex-grow-1';
+      confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Upload & Check In';
+      previewContainer.appendChild(confirmBtn);
+    } else {
+      confirmBtn.style.display = 'block';
+    }
+    
+    // Show retake button
+    if (retakeBtn) {
+      retakeBtn.style.display = 'block';
+    }
+    
+    // Handle confirm button click
+    confirmBtn.onclick = async () => {
+      console.log('User confirmed photo, uploading...');
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Uploading...';
+      
+      try {
+        await uploadSelfie(type, dataUrl);
+        confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Uploaded';
+      } catch (err) {
+        console.error('Upload failed:', err);
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Upload Failed';
+      }
+    };
   }
   
   // Upload selfie
   async function uploadSelfie(type, dataUrl) {
-    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const photoBadge = el(type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
     const photoError = el(type === 'ci' ? 'ci-photo-error' : 'co-photo-error');
     const photoMsg = el(type === 'ci' ? 'ci-error-msg' : 'co-error-msg');
+    const btn = el(type === 'ci' ? 'btn-checkin' : 'btn-checkout');
+    const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
     
     try {
       // Get CSRF token
@@ -264,7 +294,6 @@
       
       console.log('Uploading selfie for type:', type);
       console.log('Data URL length:', dataUrl.length, 'bytes');
-      console.log('CSRF token present:', !!csrfToken);
       
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -295,11 +324,13 @@
         // Update state
         if (type === 'ci') {
           ciPhotoReady = true;
+          console.log('✓ ciPhotoReady = true');
         } else {
           coPhotoReady = true;
+          console.log('✓ coPhotoReady = true');
         }
         
-        // Update UI: Show badge as "✓ Captured"
+        // Update badge
         if (photoBadge) {
           photoBadge.className = 'badge bg-success-subtle text-success small';
           photoBadge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
@@ -308,72 +339,22 @@
           photoError.style.display = 'none';
         }
         
-        // DIRECTLY call check-in without relying on button UI
-        console.log('Auto-triggering check-in immediately after photo upload');
-        
-        // Auto-submit check-in after a brief delay
-        setTimeout(async () => {
-          console.log('Submitting check-in automatically...');
+        // Enable check-in button
+        if (btn) {
+          console.log('Enabling button:', btn.id);
+          btn.disabled = false;
           
-          try {
-            const csrfToken = getCsrfToken();
-            
-            console.log('Sending check-in with GPS:', window.lat || 0, window.lon || 0, window.acc || 0);
-            
-            const res = await fetch('/attendance/checkin', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken || ''
-              },
-              body: new URLSearchParams({
-                latitude: window.lat || 0,
-                longitude: window.lon || 0,
-                accuracy: window.acc || 0
-              })
-            });
-            
-            console.log('Check-in response status:', res.status);
-            
-            if (!res.ok) {
-              const text = await res.text();
-              console.error('Check-in HTTP error:', res.status, text);
-              throw new Error(`HTTP ${res.status}`);
-            }
-            
-            const data = await res.json();
-            console.log('Check-in response:', data);
-            
-            if (data.success) {
-              console.log('✓ Auto check-in successful!');
-              alert('✓ Attendance marked! Time: ' + data.time);
-              setTimeout(() => location.reload(), 1000);
-            } else {
-              console.error('Check-in failed:', data.message);
-              alert('❌ Auto check-in failed: ' + (data.message || 'Unknown error'));
-              
-              // Still try to enable the button for manual check-in
-              const btn = el('btn-checkin');
-              const btnText = el('ci-text');
-              if (btn) {
-                btn.disabled = false;
-                if (btnText) btnText.textContent = 'Check In Now (Manual)';
-              }
-            }
-          } catch (err) {
-            console.error('Auto check-in error:', err);
-            
-            // Fallback: enable button for manual click
-            const btn = el('btn-checkin');
-            const btnText = el('ci-text');
-            if (btn) {
-              btn.disabled = false;
-              if (btnText) btnText.textContent = 'Check In Now (Manual)';
-            }
+          if (btnText) {
+            btnText.textContent = type === 'ci' ? 'Check In Now' : 'Check Out Now';
           }
-        }, 1000);  // Wait 1 second for GPS to be ready
+          
+          console.log('✓ Button enabled');
+        }
         
-        alert('✓ Photo captured successfully!');
+        // Generate proof image (non-blocking)
+        generateProof(type);
+        
+        alert('✓ Photo uploaded! Now click "Check In Now" button to submit attendance.');
       } else {
         const errorMsg = data.message || data.error || 'Unknown error';
         console.error('Upload failed:', errorMsg);
@@ -384,10 +365,10 @@
         }
         
         alert('❌ Upload failed: ' + errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
       console.error('Upload error:', err);
-      console.error('Stack:', err.stack);
       
       if (photoError) {
         photoMsg.textContent = err.message;
@@ -395,6 +376,7 @@
       }
       
       alert('❌ Upload failed: ' + err.message);
+      throw err;
     }
   }
   
