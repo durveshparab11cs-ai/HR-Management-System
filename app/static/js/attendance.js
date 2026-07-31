@@ -575,7 +575,9 @@
   let _gpsSuccessReceived = false; // track if success ever fired this session
 
   function fetchGPS(isManual) {
+    console.log('🔍 [fetchGPS] Called - isManual:', isManual);
     if (!navigator.geolocation) {
+      console.error('❌ Geolocation not supported');
       setGpsStatus('error', 'Geolocation not supported by this browser.');
       return;
     }
@@ -586,13 +588,21 @@
 
     // Cancel existing watch
     if (_watchId !== null) {
+      console.log('Clearing previous GPS watch');
       navigator.geolocation.clearWatch(_watchId);
       _watchId = null;
     }
 
+    console.log('Starting new GPS watch with 15s timeout');
+
     // Use watchPosition — fires success even when getCurrentPosition fails on Chromium HTTPS
     _watchId = navigator.geolocation.watchPosition(
       function (pos) {
+        console.log('✅ [GPS SUCCESS] Got position:', {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          acc: pos.coords.accuracy
+        });
         _gpsSuccessReceived = true;
         // Stop watching after first good position
         if (_watchId !== null) {
@@ -602,8 +612,12 @@
         onGPSSuccess(pos);
       },
       function (err) {
+        console.log('❌ [GPS ERROR] Code:', err.code, 'Message:', err.message);
         // Ignore error if success already fired (async race)
-        if (_gpsSuccessReceived || gpsReady) return;
+        if (_gpsSuccessReceived || gpsReady) {
+          console.log('GPS already ready, ignoring error');
+          return;
+        }
         onGPSError(err);
       },
       {
@@ -612,6 +626,19 @@
         maximumAge: 0
       }
     );
+    
+    // Add backup timeout - if no position after 20 seconds, treat as timeout
+    setTimeout(() => {
+      if (!gpsReady && !_gpsSuccessReceived) {
+        console.warn('⚠️ GPS stuck for 20s - triggering timeout error');
+        if (_watchId !== null) {
+          navigator.geolocation.clearWatch(_watchId);
+          _watchId = null;
+        }
+        // Trigger timeout error (code 3)
+        onGPSError({ code: 3, message: 'Geolocation timeout' });
+      }
+    }, 20000);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -629,10 +656,28 @@
     console.log('✅ Geolocation API available');
     setGpsStatus('acquiring', 'Loading GPS…');
 
-    // Check permission state first to give informed status message
+    // Add 3-second timeout to permissions API check
+    // If it hangs, we'll still proceed with direct GPS fetch
+    let permissionCheckTimeout;
+    let permissionCheckDone = false;
+
+    // Check permission state with timeout fallback
     if (navigator.permissions) {
-      console.log('Checking geolocation permission state...');
+      console.log('Checking geolocation permission state (with 3s timeout)...');
+      
+      permissionCheckTimeout = setTimeout(() => {
+        if (!permissionCheckDone) {
+          console.warn('⚠️ Permission check timed out - proceeding with direct GPS');
+          permissionCheckDone = true;
+          fetchGPS(false);
+        }
+      }, 3000);
+      
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
+        if (permissionCheckDone) return; // Already timed out
+        clearTimeout(permissionCheckTimeout);
+        permissionCheckDone = true;
+        
         console.log('Permission state:', perm.state);
         if (perm.state === 'denied') {
           // Truly denied — show message immediately
@@ -659,6 +704,9 @@
         };
       }).catch(function (err) {
         // Permissions API not available — try GPS directly
+        if (permissionCheckDone) return;
+        clearTimeout(permissionCheckTimeout);
+        permissionCheckDone = true;
         console.log('Permissions API error, trying direct GPS:', err);
         fetchGPS(false);
       });
