@@ -1,12 +1,14 @@
 'use strict';
 
 (function () {
-  // Attendance system - Simple camera capture (works on Render)
+  // Attendance system - LIVE CAMERA ONLY (getUserMedia API)
   
   const el = (id) => document.getElementById(id);
   let ciPhotoReady = false;
   let coPhotoReady = false;
   let gpsWatchId = null;
+  let ciCamera = null;  // CameraCapture instance for check-in
+  let coCamera = null;  // CameraCapture instance for check-out
   
   // Setup photo click handlers
   function setupPhotoClick() {
@@ -15,65 +17,127 @@
     
     if (ciZone) {
       ciZone.addEventListener('click', () => {
-        openCameraCapture('ci');
+        takeCamera('ci');
       });
     }
     
     if (coZone) {
       coZone.addEventListener('click', () => {
-        openCameraCapture('co');
+        takeCamera('co');
       });
     }
   }
   
-  // Open native camera via HTML5 input
-  function openCameraCapture(type) {
-    console.log('Opening camera for:', type);
+  // Open live camera using getUserMedia
+  async function takeCamera(type) {
+    console.log('Opening live camera for:', type);
     
-    // Create file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'user'; // Forces camera on mobile
+    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
+    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
+    const videoEl = el(type === 'ci' ? 'ci-video' : 'co-video');
+    const canvasEl = el(type === 'ci' ? 'ci-canvas' : 'co-canvas');
+    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
+    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
+    const cameraError = el(type === 'ci' ? 'ci-camera-error' : 'co-camera-error');
+    const cameraDisabled = el(type === 'ci' ? 'ci-camera-disabled' : 'co-camera-disabled');
     
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        handleCapture(type, file);
+    try {
+      // Hide photo zone
+      if (photoZone) photoZone.style.display = 'none';
+      
+      // Initialize camera if not already done
+      if (type === 'ci' && !ciCamera) {
+        ciCamera = new CameraCapture('ci-video', 'ci-canvas');
+      } else if (type === 'co' && !coCamera) {
+        coCamera = new CameraCapture('co-video', 'co-canvas');
       }
-    };
-    
-    // Trigger camera
-    input.click();
+      
+      const camera = type === 'ci' ? ciCamera : coCamera;
+      
+      // Start camera
+      await camera.start();
+      
+      // Show video container and capture button
+      if (videoContainer) videoContainer.style.display = 'block';
+      if (captureBtn) captureBtn.style.display = 'block';
+      if (cameraStatus) cameraStatus.style.display = 'block';
+      if (cameraError) cameraError.style.display = 'none';
+      if (cameraDisabled) cameraDisabled.style.display = 'none';
+      
+      // Attach capture button event
+      if (captureBtn) {
+        captureBtn.onclick = async () => {
+          await captureFrame(type);
+        };
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      
+      // Show appropriate error message
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        console.log('Camera permission denied');
+        if (cameraDisabled) cameraDisabled.style.display = 'block';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        console.log('No camera device found');
+        if (cameraError) {
+          el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 'No camera device found';
+          cameraError.style.display = 'block';
+        }
+      } else {
+        console.log('General camera error:', err.message);
+        if (cameraError) {
+          el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = err.message || 'Camera error';
+          cameraError.style.display = 'block';
+        }
+      }
+      
+      // Show photo zone again for retry
+      if (photoZone) photoZone.style.display = 'block';
+    }
   }
   
-  // Handle captured photo
-  function handleCapture(type, file) {
-    console.log('Photo captured:', file.name);
+  // Capture frame from live camera
+  async function captureFrame(type) {
+    console.log('Capturing frame for:', type);
     
-    const reader = new FileReader();
+    const camera = type === 'ci' ? ciCamera : coCamera;
+    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
+    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
     
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      showPhoto(type, dataUrl);
-    };
-    
-    reader.readAsDataURL(file);
+    try {
+      // Capture and compress
+      const base64 = await camera.capture();
+      
+      // Stop camera
+      await camera.stop();
+      if (type === 'ci') ciCamera = null;
+      else coCamera = null;
+      
+      // Hide video container
+      if (videoContainer) videoContainer.style.display = 'none';
+      if (captureBtn) captureBtn.style.display = 'none';
+      
+      // Display photo
+      displayPhoto(type, base64);
+    } catch (err) {
+      console.error('Capture error:', err);
+      alert('Error capturing photo: ' + err.message);
+    }
   }
   
-  // Show captured photo
-  function showPhoto(type, dataUrl) {
+  // Display captured photo
+  function displayPhoto(type, dataUrl) {
+    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
     const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
-    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const retakeBtn = el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake');
     
+    if (photoZone) photoZone.style.display = 'none';
     if (previewImg) previewImg.src = dataUrl;
     if (previewContainer) previewContainer.style.display = 'block';
-    if (photoZone) photoZone.style.display = 'none';
     if (retakeBtn) retakeBtn.style.display = 'block';
     
-    // Upload photo
+    // Upload immediately
     uploadSelfie(type, dataUrl);
   }
   
@@ -372,7 +436,7 @@
       el('photo-zone').style.display = 'block';
       el('ci-btn-retake').style.display = 'none';
       ciPhotoReady = false;
-      openCameraCapture('ci');
+      takeCamera('ci');
     });
     
     el('co-btn-retake')?.addEventListener('click', () => {
@@ -380,7 +444,7 @@
       el('co-photo-zone').style.display = 'block';
       el('co-btn-retake').style.display = 'none';
       coPhotoReady = false;
-      openCameraCapture('co');
+      takeCamera('co');
     });
     
     // Setup check-in/out
