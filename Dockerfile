@@ -65,8 +65,8 @@ WORKDIR $APP_DIR
 # Copy application source code
 COPY --chown=hrms:hrms . .
 
-# Copy the update script to the root for easy access
-COPY --chown=hrms:hrms smart_hrms/update_admin_roles.py /app/update_admin_roles.py
+# Copy the update script (it's at repo root, not in submodule)
+COPY --chown=hrms:hrms update_admin_roles.py /app/update_admin_roles.py
 
 # Create runtime directories with correct permissions
 RUN mkdir -p /app/logs /app/instance/uploads /app/instance/sessions && \
