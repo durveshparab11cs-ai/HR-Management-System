@@ -169,8 +169,18 @@
         csrfToken = window.csrf_token;
       }
       
-      console.log('Uploading selfie for type:', type);
-      console.log('CSRF Token:', csrfToken ? 'Present' : 'MISSING');
+      console.log('========== UPLOAD SELFIE START ==========');
+      console.log('Type:', type);
+      console.log('CSRF Token:', csrfToken ? 'Present (' + csrfToken.length + ' chars)' : 'MISSING');
+      console.log('Data URL length:', dataUrl.length);
+      console.log('Data URL format:', dataUrl.substring(0, 30) + '...');
+      
+      const payload = {
+        selfie: dataUrl,
+        type: type === 'ci' ? 'checkin' : 'checkout'
+      };
+      
+      console.log('Payload keys:', Object.keys(payload));
       
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -178,14 +188,23 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': csrfToken || ''
         },
-        body: JSON.stringify({
-          selfie: dataUrl,
-          type: type === 'ci' ? 'checkin' : 'checkout'
-        })
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('Response status:', res.status);
+      console.log('Response headers:', {
+        'content-type': res.headers.get('content-type'),
+        'content-length': res.headers.get('content-length')
       });
       
       const data = await res.json();
       console.log('Upload response:', data);
+      
+      if (!res.ok) {
+        console.error('Response NOT OK. Status:', res.status);
+        alert('❌ Upload failed (HTTP ' + res.status + '): ' + (data.message || 'Unknown error'));
+        return;
+      }
       
       if (data.success) {
         if (type === 'ci') {
@@ -196,13 +215,14 @@
           console.log('✅ coPhotoReady set to TRUE');
         }
         
-        console.log('Photo ready, generating proof image');
+        console.log('Photo ready. Photo ID:', data.photo_id);
+        console.log('Generating proof image...');
         
         // Generate proof image (fire and forget)
         generateProof(type);
         
         // Update button immediately
-        console.log('Calling enableCheckin() with ciPhotoReady:', ciPhotoReady);
+        console.log('Calling enableCheckin()');
         enableCheckin();
         
         // Update badge
@@ -210,22 +230,34 @@
         if (badge) {
           badge.className = 'badge bg-success-subtle text-success small';
           badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+          console.log('✅ Badge updated');
+        } else {
+          console.error('❌ Badge element not found:', type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
         }
         
         // Update button text
         const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
         if (btnText && type === 'ci') {
           btnText.textContent = 'Check In Now';
+          console.log('✅ Button text updated to "Check In Now"');
         } else if (btnText && type === 'co') {
           btnText.textContent = 'Check Out Now';
+          console.log('✅ Button text updated to "Check Out Now"');
+        } else {
+          console.error('❌ Button text element not found');
         }
         
+        console.log('========== UPLOAD SELFIE SUCCESS ==========');
         alert('✓ Photo captured successfully! Ready for ' + (type === 'ci' ? 'check-in' : 'check-out') + '.');
       } else {
+        console.error('Server returned success=false');
         alert('❌ Upload failed: ' + (data.message || data.error || 'Unknown error'));
       }
     } catch (err) {
-      console.error('Upload error:', err);
+      console.error('========== UPLOAD SELFIE ERROR ==========');
+      console.error('Error type:', err.name);
+      console.error('Error message:', err.message);
+      console.error('Stack:', err.stack);
       alert('❌ Upload failed: ' + err.message);
     }
   }
