@@ -17,6 +17,32 @@ from .forms import OfficeSettingsForm
 from .service import AdminService
 from . import admin_bp
 
+# TEMPORARY DEBUGGING ENDPOINT - Remove after role update confirmed
+@admin_bp.route("/debug-users", methods=["GET"])
+def debug_users():
+    """Temporary endpoint to check user roles in production database."""
+    from app.models.user import User
+    from app.extensions.database import db
+    
+    try:
+        user1 = User.query.filter_by(username='e_2512012').first()
+        user2 = User.query.filter_by(username='e_2603025').first()
+        
+        return {
+            "e_2512012": {
+                "exists": user1 is not None,
+                "role": user1.role if user1 else None,
+                "email": user1.email if user1 else None
+            },
+            "e_2603025": {
+                "exists": user2 is not None,
+                "role": user2.role if user2 else None,
+                "email": user2.email if user2 else None
+            }
+        }, 200
+    except Exception as e:
+        return {"error": str(e)}, 500
+
 _att   = AttendanceRepository()
 _emp   = EmployeeRepository()
 _leave = LeaveRepository()
