@@ -480,8 +480,27 @@
   // Enable check-in
   function enableCheckin() {
     const btn = el('btn-checkin');
+    const btnText = el('ci-text');
+    
     if (btn && ciPhotoReady) {
+      console.log('Enabling check-in button');
       btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      
+      if (btnText) {
+        btnText.textContent = 'Check In Now';
+      }
+      
+      // Auto-trigger check-in after a short delay for UX
+      console.log('Auto-submitting check-in in 1 second');
+      setTimeout(() => {
+        console.log('Auto-triggering check-in...');
+        if (btn && !btn.dataset.clicked) {
+          btn.dataset.clicked = 'true';
+          btn.click();
+        }
+      }, 1000);
     }
   }
   
@@ -655,29 +674,123 @@
     });
     
     // Setup check-in/out
-    el('btn-checkin')?.addEventListener('click', () => {
+    el('btn-checkin')?.addEventListener('click', async () => {
       if (ciPhotoReady) {
-        const csrfToken = getCsrfToken();
+        console.log('Check-in button clicked');
+        const btn = el('btn-checkin');
+        const btnText = el('ci-text');
+        const btnIcon = el('ci-icon');
+        const btnSpin = el('ci-spin');
         
-        fetch('/attendance/checkin', {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken || ''
+        try {
+          // Show loading state
+          btn.disabled = true;
+          if (btnSpin) btnSpin.style.display = 'block';
+          if (btnIcon) btnIcon.style.display = 'none';
+          if (btnText) btnText.textContent = 'Submitting...';
+          
+          const csrfToken = getCsrfToken();
+          
+          console.log('Sending check-in with GPS:', window.lat, window.lon, window.acc);
+          
+          const res = await fetch('/attendance/checkin', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRFToken': csrfToken || ''
+            },
+            body: new URLSearchParams({
+              latitude: window.lat || 0,
+              longitude: window.lon || 0,
+              accuracy: window.acc || 0
+            })
+          });
+          
+          console.log('Check-in response status:', res.status);
+          
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
           }
-        }).then(() => location.reload());
+          
+          const data = await res.json();
+          console.log('Check-in response:', data);
+          
+          if (data.success) {
+            if (btnText) btnText.textContent = '✓ Checked In';
+            alert('✓ Check-in successful! Time: ' + data.time);
+            setTimeout(() => location.reload(), 1500);
+          } else {
+            throw new Error(data.message || 'Check-in failed');
+          }
+        } catch (err) {
+          console.error('Check-in error:', err);
+          btn.disabled = false;
+          if (btnSpin) btnSpin.style.display = 'none';
+          if (btnIcon) btnIcon.style.display = 'block';
+          if (btnText) btnText.textContent = 'Check In Now';
+          alert('❌ Check-in failed: ' + err.message);
+        }
       }
     });
     
-    el('btn-checkout')?.addEventListener('click', () => {
+    el('btn-checkout')?.addEventListener('click', async () => {
       if (coPhotoReady) {
-        const csrfToken = getCsrfToken();
+        console.log('Check-out button clicked');
+        const btn = el('btn-checkout');
+        const btnText = el('co-text');
+        const btnIcon = el('co-icon');
+        const btnSpin = el('co-spin');
         
-        fetch('/attendance/checkout', {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken || ''
+        try {
+          // Show loading state
+          btn.disabled = true;
+          if (btnSpin) btnSpin.style.display = 'block';
+          if (btnIcon) btnIcon.style.display = 'none';
+          if (btnText) btnText.textContent = 'Submitting...';
+          
+          const csrfToken = getCsrfToken();
+          
+          console.log('Sending check-out with GPS:', window.lat, window.lon, window.acc);
+          
+          const res = await fetch('/attendance/checkout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRFToken': csrfToken || ''
+            },
+            body: new URLSearchParams({
+              latitude: window.lat || 0,
+              longitude: window.lon || 0,
+              accuracy: window.acc || 0
+            })
+          });
+          
+          console.log('Check-out response status:', res.status);
+          
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
           }
-        }).then(() => location.reload());
+          
+          const data = await res.json();
+          console.log('Check-out response:', data);
+          
+          if (data.success) {
+            if (btnText) btnText.textContent = '✓ Checked Out';
+            alert('✓ Check-out successful! Worked: ' + data.working);
+            setTimeout(() => location.reload(), 1500);
+          } else {
+            throw new Error(data.message || 'Check-out failed');
+          }
+        } catch (err) {
+          console.error('Check-out error:', err);
+          btn.disabled = false;
+          if (btnSpin) btnSpin.style.display = 'none';
+          if (btnIcon) btnIcon.style.display = 'block';
+          if (btnText) btnText.textContent = 'Check Out Now';
+          alert('❌ Check-out failed: ' + err.message);
+        }
       }
     });
     
