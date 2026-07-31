@@ -1,147 +1,175 @@
 'use strict';
 
 (function () {
-  // Minimal attendance system - camera + GPS proof
+  // Attendance system - Direct camera capture via getUserMedia
   
   const el = (id) => document.getElementById(id);
   let ciPhotoReady = false;
   let coPhotoReady = false;
+  let gpsWatchId = null;
+  let currentStream = null;
   
-  // Photo upload handler
+  // Setup photo click handlers
   function setupPhotoClick() {
     const ciZone = el('photo-zone');
     const coZone = el('co-photo-zone');
     
     if (ciZone) {
-      ciZone.addEventListener('click', () => openCamera('ci'));
+      ciZone.addEventListener('click', () => startLiveCamera('ci'));
     }
     
     if (coZone) {
-      coZone.addEventListener('click', () => openCamera('co'));
+      coZone.addEventListener('click', () => startLiveCamera('co'));
     }
   }
   
-  // Open camera
-  async function openCamera(type) {
-    console.log('Opening', type, 'camera');
+  // Start live camera using getUserMedia
+  async function startLiveCamera(type) {
+    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
     const video = el(type === 'ci' ? 'ci-video' : 'co-video');
     const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
-    
-    if (!videoContainer || !video) return;
+    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
     
     try {
-      // Try with different constraint options for better compatibility
-      let stream = null;
+      console.log('Requesting camera access for type:', type);
       
-      try {
-        // First try: high quality
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'user',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
-        });
-      } catch (e) {
-        // Fallback: basic request
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
+      // Stop any existing stream
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
       }
       
+      // Request camera - try user-facing camera first
+      const constraints = {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream = stream;
+      
+      console.log('Camera access granted! Stream active.');
+      
+      // Hide photo zone, show video
+      if (photoZone) photoZone.style.display = 'none';
+      if (videoContainer) videoContainer.style.display = 'block';
+      
+      // Attach stream to video element
       video.srcObject = stream;
-      video.setAttribute('playsinline', '');
-      video.play().catch(err => console.log('Play error:', err));
+      video.play();
       
-      videoContainer.style.display = 'block';
-      if (captureBtn) captureBtn.style.display = 'inline-flex';
+      console.log('Video element setup complete');
       
-      // Store stream for later
-      window.currentStream = stream;
-      window.currentType = type;
-      
-      console.log('Camera opened successfully');
+      // Show status and capture button
+      if (cameraStatus) cameraStatus.style.display = 'block';
+      if (captureBtn) {
+        captureBtn.style.display = 'block';
+        captureBtn.onclick = () => captureFrame(type, video, stream);
+      }
       
     } catch (err) {
-      console.error('Camera error:', err.name, err.message);
+      console.error('Camera error occurred:', err);
+      console.error('Error type:', err.name);
+      console.error('Error message:', err.message);
       
-      let msg = 'Camera access denied.';
-      if (err.name === 'NotAllowedError') {
-        msg = 'Camera permission denied. Click the lock icon in address bar → Camera → Allow, then try again.';
-      } else if (err.name === 'NotFoundError') {
-        msg = 'No camera found on this device.';
-      } else if (err.name === 'NotReadableError') {
-        msg = 'Camera is being used by another app.';
-      } else if (err.name === 'SecurityError') {
-        msg = 'Camera requires HTTPS connection.';
+      // Show error message
+      if (photoZone) {
+        photoZone.innerHTML = `
+          <div style="text-align:center;padding:20px;color:#991b1b">
+            <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
+            <div class="fw-bold" style="font-size:14px;margin-bottom:8px">Camera Access Required</div>
+            <div style="font-size:12px;color:#666;margin-bottom:12px">
+              ${err.name === 'NotAllowedError' ? 
+                'Permission denied. Please enable camera in your browser settings.' :
+                'Camera unavailable: ' + err.message}
+            </div>
+            <div style="font-size:11px;background:#fef3c7;padding:8px;border-radius:6px;color:#92400e">
+              <strong>Fix:</strong> Check address bar for camera icon and enable access
+            </div>
+          </div>
+        `;
+        photoZone.style.display = 'block';
       }
-      
-      alert(msg + '\n\nError: ' + err.message);
     }
   }
   
-  // Capture selfie
-  function captureSelfie(type) {
-    const video = el(type === 'ci' ? 'ci-video' : 'co-video');
+  // Capture frame from video stream
+  function captureFrame(type, video, stream) {
     const canvas = el(type === 'ci' ? 'ci-canvas' : 'co-canvas');
-    
-    if (!video || !canvas) return;
-    
     const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
     
-    // Draw mirrored
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-    ctx.restore();
-    
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-    
-    // Stop camera
-    if (window.currentStream) {
-      window.currentStream.getTracks().forEach(t => t.stop());
+    try {
+      // Set canvas dimensions
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      console.log(`Capturing frame: ${canvas.width}x${canvas.height}`);
+      
+      // Flip for selfie (mirror)
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0);
+      
+      // Get JPEG data
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      
+      console.log('Frame captured, size:', dataUrl.length);
+      
+      // Stop camera stream
+      stream.getTracks().forEach(track => track.stop());
+      currentStream = null;
+      
+      // Show preview and upload
+      showPhotoPreview(type, dataUrl);
+      
+    } catch (err) {
+      console.error('Capture error:', err);
+      alert('Failed to capture photo: ' + err.message);
     }
-    
-    // Show preview
-    const preview = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
-    const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
+  }
+  
+  // Show photo preview
+  function showPhotoPreview(type, dataUrl) {
     const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
+    const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
+    const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
+    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
+    const retakeBtn = el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake');
+    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
     
-    if (preview) preview.src = dataUrl;
-    if (previewContainer) previewContainer.style.display = 'block';
+    // Hide video, show preview
     if (videoContainer) videoContainer.style.display = 'none';
+    if (previewContainer) previewContainer.style.display = 'block';
+    if (previewImg) previewImg.src = dataUrl;
     
-    // Upload
+    // Update buttons
+    if (captureBtn) captureBtn.style.display = 'none';
+    if (retakeBtn) retakeBtn.style.display = 'block';
+    if (cameraStatus) cameraStatus.style.display = 'none';
+    
+    // Upload photo
     uploadSelfie(type, dataUrl);
   }
   
   // Upload selfie
   async function uploadSelfie(type, dataUrl) {
     try {
-      // Get CSRF token - try multiple methods
+      // Get CSRF token
       let csrfToken = '';
-      
-      // Method 1: From meta tag
       const metaTag = document.querySelector('meta[name="csrf-token"]');
       if (metaTag) csrfToken = metaTag.getAttribute('content');
-      
-      // Method 2: From inline script
       if (!csrfToken) {
         const scriptTag = document.querySelector('script#csrf');
         if (scriptTag) csrfToken = scriptTag.textContent;
       }
-      
-      // Method 3: Look in window object
       if (!csrfToken && window.csrf_token) {
         csrfToken = window.csrf_token;
       }
       
-      console.log('CSRF token:', csrfToken ? 'found' : 'not found');
+      console.log('Uploading selfie for type:', type);
       
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -156,21 +184,47 @@
       });
       
       const data = await res.json();
+      console.log('Upload response:', data);
       
       if (data.success) {
         if (type === 'ci') ciPhotoReady = true;
         else coPhotoReady = true;
         
+        console.log('Photo ready, generating proof image');
+        
         // Generate proof image
         generateProof(type);
         enableCheckin();
+        alert('✓ Photo captured successfully! Ready for check-in.');
       } else {
-        alert('Upload failed: ' + (data.error || 'Unknown error'));
+        alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Upload error:', err);
-      alert('Upload failed: ' + err.message);
+      alert('❌ Upload failed: ' + err.message);
     }
+  }
+  
+  // Update clock display
+  function updateClock() {
+    const now = new Date();
+    
+    // Format time
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const clockDisplay = `${hours}:${minutes}:${seconds}`;
+    
+    // Format date
+    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    const dateDisplay = now.toLocaleDateString('en-IN', options);
+    
+    // Update DOM
+    const clockEl = el('att-clock');
+    const dateEl = el('att-date');
+    
+    if (clockEl) clockEl.textContent = clockDisplay;
+    if (dateEl) dateEl.textContent = dateDisplay;
   }
   
   // Generate proof image
@@ -213,34 +267,92 @@
   
   // Get GPS (background, doesn't block)
   function getGPS() {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      const gpsText = el('gps-text');
+      if (gpsText) gpsText.textContent = 'Geolocation not available';
+      return;
+    }
     
-    navigator.geolocation.watchPosition(
+    const gpsStatus = el('gps-dot');
+    const gpsText = el('gps-text');
+    
+    // First, try to get one immediate position
+    navigator.geolocation.getCurrentPosition(
       (pos) => {
         window.lat = pos.coords.latitude;
         window.lon = pos.coords.longitude;
         window.acc = pos.coords.accuracy;
+        
+        if (gpsStatus) {
+          gpsStatus.classList.remove('acquiring');
+          gpsStatus.classList.add('ok');
+        }
+        if (gpsText) gpsText.textContent = 'GPS Ready ✓';
         
         // Update map if available
         if (window.map && window.OFFICE) {
           window.map.setView([window.lat, window.lon], 17);
         }
         
-        const gpsStatus = el('gps-dot');
+        // Now watch for updates
+        gpsWatchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            window.lat = pos.coords.latitude;
+            window.lon = pos.coords.longitude;
+            window.acc = pos.coords.accuracy;
+            
+            if (window.map && window.OFFICE) {
+              window.map.setView([window.lat, window.lon], 17);
+            }
+          },
+          () => {
+            // Errors on watch are ignored
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      },
+      (err) => {
+        console.warn('GPS error:', err);
         if (gpsStatus) {
           gpsStatus.classList.remove('acquiring');
-          gpsStatus.classList.add('ok');
+          gpsStatus.classList.add('error');
         }
+        if (gpsText) gpsText.textContent = 'GPS unavailable - Enable location services';
         
-        const gpsText = el('gps-text');
-        if (gpsText) gpsText.textContent = 'GPS Ready ✓';
-      },
-      () => {
-        // Ignore errors
+        // Still watch in background
+        gpsWatchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            window.lat = pos.coords.latitude;
+            window.lon = pos.coords.longitude;
+            window.acc = pos.coords.accuracy;
+            
+            if (gpsStatus) {
+              gpsStatus.classList.remove('error');
+              gpsStatus.classList.add('ok');
+            }
+            if (gpsText) gpsText.textContent = 'GPS Ready ✓';
+            
+            if (window.map && window.OFFICE) {
+              window.map.setView([window.lat, window.lon], 17);
+            }
+          },
+          () => {
+            // Ignore watch errors
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
       },
       {
         enableHighAccuracy: true,
-        timeout: 30000,
+        timeout: 10000,
         maximumAge: 0
       }
     );
@@ -249,7 +361,14 @@
   // Init map
   function initMap() {
     const container = el('att-map');
-    if (!container || typeof L === 'undefined') return;
+    if (!container || typeof L === 'undefined') {
+      console.warn('Map container not ready or Leaflet not loaded');
+      return;
+    }
+    
+    // Ensure the map container is properly visible
+    container.style.display = 'block';
+    container.style.zIndex = '1';
     
     window.map = L.map('att-map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -263,19 +382,26 @@
       window.OFFICE = data;
       
       if (data.lat && data.lon) {
+        // Draw office marker
         L.marker([data.lat, data.lon], {
           icon: L.divIcon({
-            html: '<div style="background:blue;width:14px;height:14px;border-radius:50%;border:2px solid white"></div>'
+            html: '<div style="background:blue;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px blue;"></div>'
           })
         }).addTo(window.map);
         
+        // Draw 25m radius circle
         L.circle([data.lat, data.lon], {
-          radius: data.radius || 100,
+          radius: Math.max(data.radius || 100, 25),
           color: 'blue',
+          weight: 2,
+          fillColor: 'blue',
           fillOpacity: 0.1
         }).addTo(window.map);
         
+        // Center map on office
         window.map.setView([data.lat, data.lon], 17);
+        
+        console.log('Map initialized with office at:', data.lat, data.lon, 'radius:', data.radius);
       }
     }
   }
@@ -284,23 +410,28 @@
   function boot() {
     console.log('Attendance system starting...');
     
+    // Update clock immediately and every second
+    updateClock();
+    setInterval(updateClock, 1000);
+    
     // Setup events
     setupPhotoClick();
     
-    // Setup capture buttons
-    el('ci-btn-capture')?.addEventListener('click', () => captureSelfie('ci'));
-    el('co-btn-capture')?.addEventListener('click', () => captureSelfie('co'));
-    
+    // Setup retake buttons - restart camera
     el('ci-btn-retake')?.addEventListener('click', () => {
       el('ci-selfie-preview').style.display = 'none';
-      el('ci-video-container').style.display = 'block';
-      openCamera('ci');
+      el('photo-zone').style.display = 'block';
+      el('ci-btn-retake').style.display = 'none';
+      ciPhotoReady = false;
+      startLiveCamera('ci');
     });
     
     el('co-btn-retake')?.addEventListener('click', () => {
       el('co-selfie-preview').style.display = 'none';
-      el('co-video-container').style.display = 'block';
-      openCamera('co');
+      el('co-photo-zone').style.display = 'block';
+      el('co-btn-retake').style.display = 'none';
+      coPhotoReady = false;
+      startLiveCamera('co');
     });
     
     // Setup check-in/out
@@ -344,7 +475,7 @@
       }
     });
     
-    // Init map
+    // Init map FIRST before GPS
     initMap();
     
     // Get GPS (non-blocking)
@@ -361,3 +492,4 @@
   }
   
 })();
+
