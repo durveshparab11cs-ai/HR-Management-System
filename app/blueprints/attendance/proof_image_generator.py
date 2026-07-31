@@ -73,30 +73,47 @@ class ProofImageGenerator:
 
     def __init__(self):
         """Initialize the generator with font paths."""
+        # Font paths for different OS (Windows, Linux, macOS)
+        font_paths = [
+            "C:\\Windows\\Fonts\\arial.ttf",  # Windows
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux (Debian/Ubuntu)
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux (alternative)
+            "/System/Library/Fonts/Arial.ttf",  # macOS
+        ]
+
         # Try to load system fonts; fall back to default if not available
-        try:
-            self.font_title = ImageFont.truetype(
-                "C:\\Windows\\Fonts\\arial.ttf", 32
-            )  # Name
-            self.font_subtitle = ImageFont.truetype(
-                "C:\\Windows\\Fonts\\arial.ttf", 18
-            )  # Section headers
-            self.font_text = ImageFont.truetype(
-                "C:\\Windows\\Fonts\\arial.ttf", 14
-            )  # Body text
-            self.font_small = ImageFont.truetype(
-                "C:\\Windows\\Fonts\\arial.ttf", 11
-            )  # Small labels
-            self.font_tiny = ImageFont.truetype(
-                "C:\\Windows\\Fonts\\arial.ttf", 9
-            )  # Tiny text (QR label)
-        except (IOError, OSError):
+        font = None
+        for font_path in font_paths:
+            try:
+                font = ImageFont.truetype(font_path, 14)
+                logger.info("Loaded font from: %s", font_path)
+                break
+            except (IOError, OSError):
+                continue
+
+        if font is None:
             logger.warning("System fonts not found, using default PIL font")
             self.font_title = ImageFont.load_default()
             self.font_subtitle = ImageFont.load_default()
             self.font_text = ImageFont.load_default()
             self.font_small = ImageFont.load_default()
             self.font_tiny = ImageFont.load_default()
+        else:
+            # Use the found font with different sizes
+            base_path = font_path
+            try:
+                self.font_title = ImageFont.truetype(base_path, 32)
+                self.font_subtitle = ImageFont.truetype(base_path, 18)
+                self.font_text = ImageFont.truetype(base_path, 14)
+                self.font_small = ImageFont.truetype(base_path, 11)
+                self.font_tiny = ImageFont.truetype(base_path, 9)
+            except (IOError, OSError):
+                logger.warning("Failed to load font sizes, using default PIL font")
+                self.font_title = ImageFont.load_default()
+                self.font_subtitle = ImageFont.load_default()
+                self.font_text = ImageFont.load_default()
+                self.font_small = ImageFont.load_default()
+                self.font_tiny = ImageFont.load_default()
 
     def generate(
         self,
