@@ -242,30 +242,29 @@
   
   // Upload selfie
   async function uploadSelfie(type, dataUrl) {
+    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
+    const photoBadge = el(type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
+    const photoError = el(type === 'ci' ? 'ci-photo-error' : 'co-photo-error');
+    const photoMsg = el(type === 'ci' ? 'ci-error-msg' : 'co-error-msg');
+    
     try {
-      // Get CSRF token - try multiple sources
+      // Get CSRF token
       let csrfToken = '';
-      
-      // First try: meta tag (most reliable)
       const metaTag = document.querySelector('meta[name="csrf-token"]');
       if (metaTag && metaTag.hasAttribute('content')) {
         csrfToken = metaTag.getAttribute('content').trim();
       }
-      
-      // Second try: window variable
       if (!csrfToken && window.csrf_token) {
         csrfToken = String(window.csrf_token).trim();
       }
-      
-      // Validate CSRF token (should not contain < or >)
       if (csrfToken && (csrfToken.includes('<') || csrfToken.includes('>'))) {
-        console.warn('Invalid CSRF token detected, clearing');
+        console.warn('Invalid CSRF token detected');
         csrfToken = '';
       }
       
-      console.log('Using CSRF token:', csrfToken ? '(present)' : '(missing)');
       console.log('Uploading selfie for type:', type);
       console.log('Data URL length:', dataUrl.length, 'bytes');
+      console.log('CSRF token present:', !!csrfToken);
       
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -280,27 +279,63 @@
       });
       
       console.log('Response status:', res.status);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('HTTP error:', res.status, text);
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      
       const data = await res.json();
       console.log('Upload response:', data);
       
       if (data.success) {
-        if (type === 'ci') ciPhotoReady = true;
-        else coPhotoReady = true;
+        console.log('Photo uploaded successfully, photo_id:', data.photo_id);
         
-        console.log('Photo ready, generating proof image');
+        // Update state
+        if (type === 'ci') {
+          ciPhotoReady = true;
+        } else {
+          coPhotoReady = true;
+        }
+        
+        // Update UI: Show badge as "✓ Captured"
+        if (photoBadge) {
+          photoBadge.className = 'badge bg-success-subtle text-success small';
+          photoBadge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+        }
+        if (photoError) {
+          photoError.style.display = 'none';
+        }
+        
+        console.log('Enabling check-in button');
+        enableCheckin();
         
         // Generate proof image
-        generateProof(type);
-        enableCheckin();
-        alert('✓ Photo captured successfully! Ready for check-in.');
+        console.log('Generating proof image');
+        await generateProof(type);
+        
+        alert('✓ Photo captured successfully!');
       } else {
         const errorMsg = data.message || data.error || 'Unknown error';
         console.error('Upload failed:', errorMsg);
+        
+        if (photoError) {
+          photoMsg.textContent = errorMsg;
+          photoError.style.display = 'block';
+        }
+        
         alert('❌ Upload failed: ' + errorMsg);
       }
     } catch (err) {
       console.error('Upload error:', err);
-      console.error('Upload error stack:', err.stack);
+      console.error('Stack:', err.stack);
+      
+      if (photoError) {
+        photoMsg.textContent = err.message;
+        photoError.style.display = 'block';
+      }
+      
       alert('❌ Upload failed: ' + err.message);
     }
   }
@@ -354,7 +389,22 @@
   // Generate proof image
   async function generateProof(type) {
     try {
-      const csrfToken = getCsrfToken();
+      console.log('Generating proof image for:', type);
+      
+      // Wait a moment for GPS to be available
+      if (!window.lat || !window.lon) {
+        console.warn('Waiting for GPS coordinates...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Ensure we have GPS data
+      const lat = window.lat || 0;
+      const lon = window.lon || 0;
+      const acc = window.acc || 100;
+      
+      if (!lat || !lon) {
+        console.warn('GPS coordinates still not available, using defaults');
+      }
       
       // Calculate distance from office if available
       let distanceMetres = 0;
@@ -365,9 +415,22 @@
           window.lat,
           window.lon
         );
+        console.log('Distance from office:', distanceMetres, 'meters');
+      } else {
+        console.warn('Office data not available for distance calculation');
       }
       
-      console.log('Generating proof image with distance:', distanceMetres, 'meters');
+      const csrfToken = getCsrfToken();
+      
+      const payload = {
+        type: type === 'ci' ? 'checkin' : 'checkout',
+        latitude: lat,
+        longitude: lon,
+        accuracy: acc,
+        distance_metres: distanceMetres
+      };
+      
+      console.log('Proof image payload:', payload);
       
       const res = await fetch('/attendance/generate-proof-image', {
         method: 'POST',
@@ -375,14 +438,16 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': csrfToken || ''
         },
-        body: JSON.stringify({
-          type: type === 'ci' ? 'checkin' : 'checkout',
-          latitude: window.lat || 0,
-          longitude: window.lon || 0,
-          accuracy: window.acc || 0,
-          distance_metres: distanceMetres
-        })
+        body: JSON.stringify(payload)
       });
+      
+      console.log('Proof generation response status:', res.status);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Proof generation HTTP error:', res.status, text);
+        throw new Error(`HTTP ${res.status}: Proof generation failed`);
+      }
       
       const data = await res.json();
       console.log('Proof generation response:', data);
@@ -392,6 +457,7 @@
       }
     } catch (err) {
       console.error('Proof generation error:', err);
+      // Don't alert — this is non-critical, photo still exists
     }
   }
   
