@@ -22,12 +22,12 @@
     }
   }
   
-  // Open file input - uses camera on mobile, file picker on desktop
+  // Open file input - camera capture ONLY (mobile + desktop with camera)
   function openPhotoInput(type) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // Prefer camera on mobile
+    input.capture = 'user'; // Force user-facing camera
     
     input.addEventListener('change', (e) => {
       const file = e.target.files[0];
