@@ -68,23 +68,48 @@ class CameraCapture {
       };
 
       this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('[CameraCapture] Stream obtained, tracks:', this.stream.getTracks().length);
 
       // Attach stream to video element
       this.videoElement.srcObject = this.stream;
+      console.log('[CameraCapture] Stream attached to video element');
 
-      // Wait for video to load
-      await new Promise((resolve) => {
+      // Wait for video to load with timeout
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Video metadata load timeout'));
+        }, 5000);
+        
         this.videoElement.onloadedmetadata = () => {
-          this.videoElement.play();
-          resolve();
+          clearTimeout(timeout);
+          console.log('[CameraCapture] Video metadata loaded, dimensions:', 
+            this.videoElement.videoWidth, 'x', this.videoElement.videoHeight);
+          
+          this.videoElement.play().then(() => {
+            console.log('[CameraCapture] Video playback started');
+            resolve();
+          }).catch((playErr) => {
+            console.error('[CameraCapture] Video play error:', playErr);
+            reject(playErr);
+          });
+        };
+        
+        this.videoElement.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(err);
         };
       });
 
       this.isRunning = true;
       console.log('[CameraCapture] Camera started successfully');
-      console.log('[CameraCapture] Stream tracks:', this.stream.getTracks().length);
     } catch (err) {
-      console.error('[CameraCapture] Error starting camera:', err);
+      console.error('[CameraCapture] Error starting camera:', err.name, err.message);
+      
+      // Cleanup on error
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+      }
+      
       throw err;
     }
   }

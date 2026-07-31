@@ -40,10 +40,24 @@
     const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
     const cameraError = el(type === 'ci' ? 'ci-camera-error' : 'co-camera-error');
     const cameraDisabled = el(type === 'ci' ? 'ci-camera-disabled' : 'co-camera-disabled');
+    const statusText = el(type === 'ci' ? 'ci-status-text' : 'co-status-text');
     
     try {
+      // Validate video element exists
+      if (!videoEl) {
+        throw new Error(`Video element not found: ${type === 'ci' ? 'ci-video' : 'co-video'}`);
+      }
+      
+      console.log('Video element found:', videoEl.id);
+      
       // Hide photo zone
       if (photoZone) photoZone.style.display = 'none';
+      
+      // Show status: requesting camera
+      if (cameraStatus) cameraStatus.style.display = 'block';
+      if (statusText) statusText.textContent = 'Requesting camera access...';
+      if (cameraError) cameraError.style.display = 'none';
+      if (cameraDisabled) cameraDisabled.style.display = 'none';
       
       // Initialize camera if not already done
       if (type === 'ci' && !ciCamera) {
@@ -53,16 +67,30 @@
       }
       
       const camera = type === 'ci' ? ciCamera : coCamera;
+      console.log('Camera instance created');
       
-      // Start camera
-      await camera.start();
+      // Start camera with timeout
+      console.log('Starting camera stream...');
+      await Promise.race([
+        camera.start(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Camera startup timeout')), 5000)
+        )
+      ]);
+      
+      console.log('Camera stream started, showing video container');
       
       // Show video container and capture button
-      if (videoContainer) videoContainer.style.display = 'block';
-      if (captureBtn) captureBtn.style.display = 'block';
-      if (cameraStatus) cameraStatus.style.display = 'block';
-      if (cameraError) cameraError.style.display = 'none';
-      if (cameraDisabled) cameraDisabled.style.display = 'none';
+      if (videoContainer) {
+        videoContainer.style.display = 'block';
+        console.log('Video container shown');
+      }
+      if (captureBtn) {
+        captureBtn.style.display = 'block';
+        console.log('Capture button shown');
+      }
+      
+      if (statusText) statusText.textContent = 'Camera ready - tap Capture Selfie below';
       
       // Attach capture button event
       if (captureBtn) {
@@ -71,7 +99,7 @@
         };
       }
     } catch (err) {
-      console.error('Camera error:', err);
+      console.error('Camera error:', err.name, err.message);
       
       // Show appropriate error message
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -83,6 +111,12 @@
           el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 'No camera device found';
           cameraError.style.display = 'block';
         }
+      } else if (err.message && err.message.includes('timeout')) {
+        console.log('Camera timeout - device may be busy');
+        if (cameraError) {
+          el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 'Camera startup timeout - try again';
+          cameraError.style.display = 'block';
+        }
       } else {
         console.log('General camera error:', err.message);
         if (cameraError) {
@@ -91,8 +125,15 @@
         }
       }
       
+      // Hide video container and button if error
+      if (videoContainer) videoContainer.style.display = 'none';
+      if (captureBtn) captureBtn.style.display = 'none';
+      
       // Show photo zone again for retry
       if (photoZone) photoZone.style.display = 'block';
+      
+      // Also alert user
+      alert('Camera error: ' + err.message);
     }
   }
   
