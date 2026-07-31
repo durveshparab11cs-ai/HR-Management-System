@@ -157,18 +157,27 @@
   // Upload selfie
   async function uploadSelfie(type, dataUrl) {
     try {
-      // Get CSRF token
+      // Get CSRF token - try multiple sources
       let csrfToken = '';
+      
+      // First try: meta tag (most reliable)
       const metaTag = document.querySelector('meta[name="csrf-token"]');
-      if (metaTag) csrfToken = metaTag.getAttribute('content');
-      if (!csrfToken) {
-        const scriptTag = document.querySelector('script#csrf');
-        if (scriptTag) csrfToken = scriptTag.textContent;
-      }
-      if (!csrfToken && window.csrf_token) {
-        csrfToken = window.csrf_token;
+      if (metaTag && metaTag.hasAttribute('content')) {
+        csrfToken = metaTag.getAttribute('content').trim();
       }
       
+      // Second try: window variable
+      if (!csrfToken && window.csrf_token) {
+        csrfToken = String(window.csrf_token).trim();
+      }
+      
+      // Validate CSRF token (should not contain < or >)
+      if (csrfToken && (csrfToken.includes('<') || csrfToken.includes('>'))) {
+        console.warn('Invalid CSRF token detected, clearing');
+        csrfToken = '';
+      }
+      
+      console.log('Using CSRF token:', csrfToken ? '(present)' : '(missing)');
       console.log('Uploading selfie for type:', type);
       
       const res = await fetch('/attendance/capture-selfie', {
@@ -227,17 +236,34 @@
     if (dateEl) dateEl.textContent = dateDisplay;
   }
   
+  // Helper: Get CSRF token safely
+  function getCsrfToken() {
+    let csrfToken = '';
+    
+    // Try meta tag first (most reliable)
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    if (metaTag && metaTag.hasAttribute('content')) {
+      csrfToken = metaTag.getAttribute('content').trim();
+    }
+    
+    // Try window variable
+    if (!csrfToken && window.csrf_token) {
+      csrfToken = String(window.csrf_token).trim();
+    }
+    
+    // Validate (no HTML tags)
+    if (csrfToken && (csrfToken.includes('<') || csrfToken.includes('>'))) {
+      console.warn('Invalid CSRF token detected');
+      return '';
+    }
+    
+    return csrfToken;
+  }
+  
   // Generate proof image
   async function generateProof(type) {
     try {
-      let csrfToken = '';
-      const metaTag = document.querySelector('meta[name="csrf-token"]');
-      if (metaTag) csrfToken = metaTag.getAttribute('content');
-      if (!csrfToken) {
-        const scriptTag = document.querySelector('script#csrf');
-        if (scriptTag) csrfToken = scriptTag.textContent;
-      }
-      if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+      const csrfToken = getCsrfToken();
       
       await fetch('/attendance/generate-proof-image', {
         method: 'POST',
@@ -437,14 +463,7 @@
     // Setup check-in/out
     el('btn-checkin')?.addEventListener('click', () => {
       if (ciPhotoReady) {
-        let csrfToken = '';
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) csrfToken = metaTag.getAttribute('content');
-        if (!csrfToken) {
-          const scriptTag = document.querySelector('script#csrf');
-          if (scriptTag) csrfToken = scriptTag.textContent;
-        }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        const csrfToken = getCsrfToken();
         
         fetch('/attendance/checkin', {
           method: 'POST',
@@ -457,14 +476,7 @@
     
     el('btn-checkout')?.addEventListener('click', () => {
       if (coPhotoReady) {
-        let csrfToken = '';
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) csrfToken = metaTag.getAttribute('content');
-        if (!csrfToken) {
-          const scriptTag = document.querySelector('script#csrf');
-          if (scriptTag) csrfToken = scriptTag.textContent;
-        }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        const csrfToken = getCsrfToken();
         
         fetch('/attendance/checkout', {
           method: 'POST',
