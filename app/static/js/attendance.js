@@ -1,107 +1,129 @@
 'use strict';
 
 (function() {
+  console.log('[ATTENDANCE] Starting...');
+  
   const el = id => document.getElementById(id);
   
-  // State
   let ciReady = false;
   let coReady = false;
-  let stream = null;
+  let ciCamera = null;
+  let coCamera = null;
   
-  // ================== SETUP ==================
+  // ================== INIT ==================
   
-  // Photo zone click -> start camera
-  el('photo-zone')?.addEventListener('click', () => openCamera('ci'));
-  el('co-photo-zone')?.addEventListener('click', () => openCamera('co'));
+  function init() {
+    console.log('[ATTENDANCE] Initializing event listeners');
+    
+    // Photo zones
+    el('photo-zone')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] photo-zone clicked');
+      startCheckInCamera();
+    });
+    
+    el('co-photo-zone')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] co-photo-zone clicked');
+      startCheckOutCamera();
+    });
+    
+    // Retake buttons
+    el('ci-btn-retake')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] ci retake clicked');
+      ciReady = false;
+      el('ci-selfie-preview').style.display = 'none';
+      el('photo-zone').style.display = 'block';
+      startCheckInCamera();
+    });
+    
+    el('co-btn-retake')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] co retake clicked');
+      coReady = false;
+      el('co-selfie-preview').style.display = 'none';
+      el('co-photo-zone').style.display = 'block';
+      startCheckOutCamera();
+    });
+    
+    // Check-in button
+    el('btn-checkin')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] btn-checkin clicked, ciReady:', ciReady);
+      if (!ciReady) {
+        alert('Please capture and upload a photo first');
+        return;
+      }
+      doCheckIn();
+    });
+    
+    // Check-out button
+    el('btn-checkout')?.addEventListener('click', () => {
+      console.log('[ATTENDANCE] btn-checkout clicked, coReady:', coReady);
+      if (!coReady) {
+        alert('Please capture and upload a photo first');
+        return;
+      }
+      doCheckOut();
+    });
+    
+    console.log('[ATTENDANCE] Event listeners attached');
+  }
   
-  // Retake buttons
-  el('ci-btn-retake')?.addEventListener('click', () => {
-    ciReady = false;
-    el('ci-selfie-preview').style.display = 'none';
-    el('photo-zone').style.display = 'block';
-    openCamera('ci');
-  });
+  // ================== CHECK-IN CAMERA ==================
   
-  el('co-btn-retake')?.addEventListener('click', () => {
-    coReady = false;
-    el('co-selfie-preview').style.display = 'none';
-    el('co-photo-zone').style.display = 'block';
-    openCamera('co');
-  });
-  
-  // Check-in button
-  el('btn-checkin')?.addEventListener('click', () => {
-    if (!ciReady) {
-      alert('Please upload a photo first');
-      return;
-    }
-    doCheckIn();
-  });
-  
-  // Check-out button
-  el('btn-checkout')?.addEventListener('click', () => {
-    if (!coReady) {
-      alert('Please upload a photo first');
-      return;
-    }
-    doCheckOut();
-  });
-  
-  // ================== CAMERA ==================
-  
-  async function openCamera(type) {
+  async function startCheckInCamera() {
     try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false
-      });
+      console.log('[ATTENDANCE] Starting check-in camera');
       
-      const vid = el(type === 'ci' ? 'ci-video' : 'co-video');
-      vid.srcObject = stream;
-      await vid.play();
+      if (!ciCamera) {
+        ciCamera = new CameraCapture('ci-video', 'ci-canvas');
+      }
       
-      el(type === 'ci' ? 'photo-zone' : 'co-photo-zone').style.display = 'none';
-      el(type === 'ci' ? 'ci-video-container' : 'co-video-container').style.display = 'block';
-      el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture').style.display = 'block';
-      el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture').onclick = () => snap(type, vid);
+      el('photo-zone').style.display = 'none';
+      el('ci-video-container').style.display = 'block';
+      el('ci-btn-capture').style.display = 'block';
       
-    } catch (e) {
-      alert('Camera error: ' + e.message);
+      await ciCamera.start();
+      console.log('[ATTENDANCE] Check-in camera started');
+      
+      el('ci-btn-capture').onclick = () => captureCheckIn();
+      
+    } catch (err) {
+      console.error('[ATTENDANCE] Camera error:', err.message);
+      alert('Camera error: ' + err.message);
     }
   }
   
-  function snap(type, vid) {
-    const canvas = el(type === 'ci' ? 'ci-canvas' : 'co-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = vid.videoWidth;
-    canvas.height = vid.videoHeight;
-    ctx.scale(-1, 1);
-    ctx.drawImage(vid, -canvas.width, 0);
-    
-    const jpeg = canvas.toDataURL('image/jpeg', 0.9);
-    
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-    
-    showPreview(type, jpeg);
-  }
-  
-  function showPreview(type, jpeg) {
-    el(type === 'ci' ? 'ci-video-container' : 'co-video-container').style.display = 'none';
-    el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview').style.display = 'block';
-    el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img').src = jpeg;
-    el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture').style.display = 'none';
-    el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake').style.display = 'block';
-    
-    upload(type, jpeg);
-  }
-  
-  // ================== UPLOAD ==================
-  
-  async function upload(type, jpeg) {
+  async function captureCheckIn() {
     try {
+      console.log('[ATTENDANCE] Capturing check-in photo');
+      const jpeg = await ciCamera.capture();
+      console.log('[ATTENDANCE] Captured, size:', jpeg.length);
+      
+      await ciCamera.stop();
+      
+      showCheckInPreview(jpeg);
+    } catch (err) {
+      console.error('[ATTENDANCE] Capture error:', err.message);
+      alert('Capture error: ' + err.message);
+    }
+  }
+  
+  function showCheckInPreview(jpeg) {
+    console.log('[ATTENDANCE] Showing check-in preview');
+    
+    el('ci-video-container').style.display = 'none';
+    el('ci-selfie-preview').style.display = 'block';
+    el('ci-selfie-img').src = jpeg;
+    el('ci-btn-capture').style.display = 'none';
+    el('ci-btn-retake').style.display = 'block';
+    
+    uploadCheckInPhoto(jpeg);
+  }
+  
+  async function uploadCheckInPhoto(jpeg) {
+    try {
+      console.log('[ATTENDANCE] Uploading check-in photo');
+      
       const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
         headers: {
@@ -110,42 +132,145 @@
         },
         body: JSON.stringify({
           selfie: jpeg,
-          type: type === 'ci' ? 'checkin' : 'checkout'
+          type: 'checkin'
         })
       });
       
+      console.log('[ATTENDANCE] Upload response status:', res.status);
+      
       const data = await res.json();
+      console.log('[ATTENDANCE] Upload response:', data);
       
       if (!res.ok || !data.success) {
+        console.error('[ATTENDANCE] Upload failed:', data.message);
         alert('Upload failed: ' + (data.message || 'Unknown error'));
         return;
       }
       
-      // SUCCESS - enable button
-      if (type === 'ci') {
-        ciReady = true;
-        el('ci-photo-badge').className = 'badge bg-success-subtle text-success small';
-        el('ci-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
-        el('ci-text').textContent = 'Check In Now';
-        el('btn-checkin').disabled = false;
-      } else {
-        coReady = true;
-        el('co-photo-badge').className = 'badge bg-success-subtle text-success small';
-        el('co-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
-        el('co-text').textContent = 'Check Out Now';
-        el('btn-checkout').disabled = false;
+      // SUCCESS
+      console.log('[ATTENDANCE] Upload successful, enabling check-in button');
+      ciReady = true;
+      
+      el('ci-photo-badge').className = 'badge bg-success-subtle text-success small';
+      el('ci-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+      
+      el('ci-text').textContent = 'Check In Now';
+      
+      el('btn-checkin').disabled = false;
+      
+      alert('✓ Photo uploaded! Check In button is now enabled.');
+      
+    } catch (err) {
+      console.error('[ATTENDANCE] Upload error:', err.message);
+      alert('Upload error: ' + err.message);
+    }
+  }
+  
+  // ================== CHECK-OUT CAMERA ==================
+  
+  async function startCheckOutCamera() {
+    try {
+      console.log('[ATTENDANCE] Starting check-out camera');
+      
+      if (!coCamera) {
+        coCamera = new CameraCapture('co-video', 'co-canvas');
       }
       
-      alert('✓ Photo uploaded! Button is enabled.');
+      el('co-photo-zone').style.display = 'none';
+      el('co-video-container').style.display = 'block';
+      el('co-btn-capture').style.display = 'block';
       
-    } catch (e) {
-      alert('Upload error: ' + e.message);
+      await coCamera.start();
+      console.log('[ATTENDANCE] Check-out camera started');
+      
+      el('co-btn-capture').onclick = () => captureCheckOut();
+      
+    } catch (err) {
+      console.error('[ATTENDANCE] Camera error:', err.message);
+      alert('Camera error: ' + err.message);
+    }
+  }
+  
+  async function captureCheckOut() {
+    try {
+      console.log('[ATTENDANCE] Capturing check-out photo');
+      const jpeg = await coCamera.capture();
+      console.log('[ATTENDANCE] Captured, size:', jpeg.length);
+      
+      await coCamera.stop();
+      
+      showCheckOutPreview(jpeg);
+    } catch (err) {
+      console.error('[ATTENDANCE] Capture error:', err.message);
+      alert('Capture error: ' + err.message);
+    }
+  }
+  
+  function showCheckOutPreview(jpeg) {
+    console.log('[ATTENDANCE] Showing check-out preview');
+    
+    el('co-video-container').style.display = 'none';
+    el('co-selfie-preview').style.display = 'block';
+    el('co-selfie-img').src = jpeg;
+    el('co-btn-capture').style.display = 'none';
+    el('co-btn-retake').style.display = 'block';
+    
+    uploadCheckOutPhoto(jpeg);
+  }
+  
+  async function uploadCheckOutPhoto(jpeg) {
+    try {
+      console.log('[ATTENDANCE] Uploading check-out photo');
+      
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      
+      const res = await fetch('/attendance/capture-selfie', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf
+        },
+        body: JSON.stringify({
+          selfie: jpeg,
+          type: 'checkout'
+        })
+      });
+      
+      console.log('[ATTENDANCE] Upload response status:', res.status);
+      
+      const data = await res.json();
+      console.log('[ATTENDANCE] Upload response:', data);
+      
+      if (!res.ok || !data.success) {
+        console.error('[ATTENDANCE] Upload failed:', data.message);
+        alert('Upload failed: ' + (data.message || 'Unknown error'));
+        return;
+      }
+      
+      // SUCCESS
+      console.log('[ATTENDANCE] Upload successful, enabling check-out button');
+      coReady = true;
+      
+      el('co-photo-badge').className = 'badge bg-success-subtle text-success small';
+      el('co-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+      
+      el('co-text').textContent = 'Check Out Now';
+      
+      el('btn-checkout').disabled = false;
+      
+      alert('✓ Photo uploaded! Check Out button is now enabled.');
+      
+    } catch (err) {
+      console.error('[ATTENDANCE] Upload error:', err.message);
+      alert('Upload error: ' + err.message);
     }
   }
   
   // ================== CHECK-IN / OUT ==================
   
   function doCheckIn() {
+    console.log('[ATTENDANCE] Performing check-in');
+    
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const form = new FormData();
     form.append('latitude', window.lat || 0);
@@ -162,23 +287,27 @@
     })
     .then(r => r.json())
     .then(d => {
+      console.log('[ATTENDANCE] Check-in response:', d);
       if (d.success) {
         alert('✅ Check-in successful!');
         location.reload();
       } else {
-        alert('❌ ' + d.message);
+        alert('❌ Check-in failed: ' + d.message);
         el('btn-checkin').disabled = false;
         el('ci-text').textContent = 'Check In Now';
       }
     })
     .catch(e => {
-      alert('❌ ' + e.message);
+      console.error('[ATTENDANCE] Check-in error:', e);
+      alert('❌ Check-in error: ' + e.message);
       el('btn-checkin').disabled = false;
       el('ci-text').textContent = 'Check In Now';
     });
   }
   
   function doCheckOut() {
+    console.log('[ATTENDANCE] Performing check-out');
+    
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const form = new FormData();
     form.append('latitude', window.lat || 0);
@@ -195,20 +324,32 @@
     })
     .then(r => r.json())
     .then(d => {
+      console.log('[ATTENDANCE] Check-out response:', d);
       if (d.success) {
         alert('✅ Check-out successful!');
         location.reload();
       } else {
-        alert('❌ ' + d.message);
+        alert('❌ Check-out failed: ' + d.message);
         el('btn-checkout').disabled = false;
         el('co-text').textContent = 'Check Out Now';
       }
     })
     .catch(e => {
-      alert('❌ ' + e.message);
+      console.error('[ATTENDANCE] Check-out error:', e);
+      alert('❌ Check-out error: ' + e.message);
       el('btn-checkout').disabled = false;
       el('co-text').textContent = 'Check Out Now';
     });
+  }
+  
+  // ================== BOOT ==================
+  
+  if (document.readyState === 'loading') {
+    console.log('[ATTENDANCE] DOM loading, waiting...');
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    console.log('[ATTENDANCE] DOM already ready, initializing now');
+    init();
   }
   
 })();
