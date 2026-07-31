@@ -217,18 +217,31 @@
   }
 
   function initMap() {
+    console.log('🗺️ [initMap] Starting map initialization');
     const container = el('att-map');
-    if (!container || typeof L === 'undefined' || map) return;
+    console.log('Map container found:', !!container);
+    console.log('Leaflet library L available:', typeof L !== 'undefined');
+    console.log('Map already initialized:', !!map);
+    
+    if (!container || typeof L === 'undefined' || map) {
+      console.warn('⚠️ [initMap] Skipping - missing dependency or already initialized');
+      return;
+    }
 
     container.style.cssText = 'height:350px;width:100%;display:block;position:relative;z-index:0;';
 
+    console.log('Creating Leaflet map instance...');
     map = L.map('att-map', { zoomControl: true, attributionControl: true });
+    console.log('✅ Map instance created');
+    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
+    console.log('✅ Tile layer added');
 
     if (OFFICE.lat && OFFICE.lon) {
+      console.log('Office coordinates:', { lat: OFFICE.lat, lon: OFFICE.lon, radius: OFFICE.radius });
       L.marker([OFFICE.lat, OFFICE.lon], { icon: mkIcon('#1a3c6e', 18) })
         .addTo(map)
         .bindPopup(`<strong>${OFFICE.name}</strong><br>Geofence: ${OFFICE.radius}m radius<br>Min GPS accuracy: ±${OFFICE.minAccuracy}m`);
@@ -237,11 +250,21 @@
         radius: OFFICE.radius, color: '#1a3c6e', fillColor: '#1a3c6e',
         fillOpacity: 0.07, weight: 2, dashArray: '6 4'
       }).addTo(map);
+      console.log('✅ Office marker and geofence circle added');
 
       map.setView([OFFICE.lat, OFFICE.lon], 17);
+      console.log('✅ Map view set');
+    } else {
+      console.warn('⚠️ No office coordinates available');
     }
 
-    [100, 400, 1000].forEach(d => setTimeout(() => map && map.invalidateSize(), d));
+    [100, 400, 1000].forEach(d => setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+        console.log('Map size invalidated after', d, 'ms');
+      }
+    }, d));
+    console.groupEnd();
   }
 
   function updateMapEmployee(empLat, empLon, empAcc, within) {
@@ -595,26 +618,36 @@
      START GPS (called on page load)
   ════════════════════════════════════════════════════════════════════ */
   function startGPS() {
+    console.group('📍 [startGPS] Initializing GPS');
     if (!navigator.geolocation) {
+      console.error('❌ Geolocation not supported');
       setGpsStatus('error', 'Geolocation not supported by this browser.');
+      console.groupEnd();
       return;
     }
 
+    console.log('✅ Geolocation API available');
     setGpsStatus('acquiring', 'Loading GPS…');
 
     // Check permission state first to give informed status message
     if (navigator.permissions) {
+      console.log('Checking geolocation permission state...');
       navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
+        console.log('Permission state:', perm.state);
         if (perm.state === 'denied') {
           // Truly denied — show message immediately
+          console.error('❌ Geolocation permission denied by user');
           setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
+          console.groupEnd();
           return;
         }
         // 'granted' or 'prompt' — request GPS directly
+        console.log('Requesting GPS fix...');
         fetchGPS(false);
 
         // Watch for permission state changes
         perm.onchange = function () {
+          console.log('Permission state changed to:', perm.state);
           if (perm.state === 'granted' && !gpsReady) {
             _permRetries = 0;
             _gpsSuccessReceived = false;
@@ -624,14 +657,17 @@
             setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
           }
         };
-      }).catch(function () {
+      }).catch(function (err) {
         // Permissions API not available — try GPS directly
+        console.log('Permissions API error, trying direct GPS:', err);
         fetchGPS(false);
       });
     } else {
       // No Permissions API — try GPS directly
+      console.log('Permissions API not available, trying direct GPS');
       fetchGPS(false);
     }
+    console.groupEnd();
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1400,7 +1436,8 @@
   document.head.appendChild(styleEl);
 
   function boot() {
-    console.log('🚀 Attendance page initializing...');
+    console.group('🚀 [BOOT] Attendance page initializing');
+    console.log('Page load time:', new Date().toLocaleTimeString());
     console.log('📊 Backend state:', {
         CAN_CHECKIN: typeof CAN_CHECKIN !== 'undefined' ? CAN_CHECKIN : 'undefined',
         CAN_CHECKOUT: typeof CAN_CHECKOUT !== 'undefined' ? CAN_CHECKOUT : 'undefined',
@@ -1460,13 +1497,19 @@
         coPhotoReady: coPhotoReady
     });
     
+    console.log('🗺️ Calling initMap()...');
     initMap();
+    console.log('📍 Calling startGPS()...');
     startGPS();
+    console.log('🔄 Calling startAutoRefresh()...');
     startAutoRefresh();
     
     // Initial button state evaluation
     console.log('🔄 Calling initial updateAttendanceButtons()');
     updateAttendanceButtons();
+    
+    console.log('✅ [BOOT] Initialization complete');
+    console.groupEnd();
   }
   
   // ✅ NEW: Function to lock upload component (prevents re-upload)
@@ -1520,14 +1563,19 @@
   }
 
   if (typeof L !== 'undefined') {
+    console.log('✅ Leaflet library loaded - boot() ready to execute');
     document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();
   } else {
+    console.log('⚠️ Leaflet not loaded yet - loading dynamically');
     const lnk = document.createElement('link');
     lnk.rel = 'stylesheet'; lnk.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(lnk);
     const scr = document.createElement('script');
     scr.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    scr.onload = boot;
+    scr.onload = () => {
+      console.log('✅ Leaflet dynamically loaded - executing boot()');
+      boot();
+    };
     document.head.appendChild(scr);
   }
 
