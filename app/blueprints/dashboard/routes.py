@@ -30,11 +30,12 @@ _lsvc  = LeaveService()
 def index():
     from app.models.employee_master import EmployeeMaster
     
-    # HARDCODED check for admin roles - direct string comparison
-    # This ensures admin users go to admin dashboard immediately
-    admin_roles = ('super_admin', 'admin', 'hr_manager', 'hr_staff')
-    if current_user.role in admin_roles:
-        return redirect(url_for("admin.index"))
+    # DIRECT CHECK - if role is admin-level, MUST go to /admin/
+    # This is a failsafe redirect
+    if current_user.role in ('super_admin', 'admin', 'hr_manager', 'hr_staff'):
+        # Force redirect to admin dashboard
+        from flask import redirect, url_for
+        return redirect(url_for("admin.index"), code=302)
 
     employee = _emp.get_by_user_id(current_user.id)
     today    = date.today()
