@@ -273,7 +273,8 @@
           type: type === 'ci' ? 'checkin' : 'checkout',
           latitude: window.lat || 0,
           longitude: window.lon || 0,
-          accuracy: window.acc || 0
+          accuracy: window.acc || 0,
+          distance_metres: window.distanceMetres || 0
         })
       });
     } catch (err) {
@@ -619,4 +620,3 @@
   }
   
 })();
-
