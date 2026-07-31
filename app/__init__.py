@@ -305,7 +305,67 @@ def _register_cli(app: Flask) -> None:
         _db.session.commit()
         click.secho("\nSeed complete.", fg="green")
 
-    @app.cli.command("migrate-shift-change")
+    @app.cli.command("fix-admin-roles")
+    def fix_admin_roles():
+        """One-time fix: Update E-2512012 and E-2603025 to super_admin role."""
+        from app.models.user import User  # noqa: PLC0415
+        from app.extensions.database import db  # noqa: PLC0415
+        
+        click.secho("=" * 60, fg="cyan")
+        click.secho("FIXING ADMIN ROLES", fg="cyan", bold=True)
+        click.secho("=" * 60, fg="cyan")
+        click.echo()
+        
+        try:
+            # Check current state
+            user1 = User.query.filter_by(username='e_2512012').first()
+            user2 = User.query.filter_by(username='e_2603025').first()
+            
+            click.echo("Current state:")
+            if user1:
+                click.echo(f"  e_2512012: role = '{user1.role}'")
+            else:
+                click.secho("  e_2512012: NOT FOUND", fg="red")
+            
+            if user2:
+                click.echo(f"  e_2603025: role = '{user2.role}'")
+            else:
+                click.secho("  e_2603025: NOT FOUND", fg="red")
+            
+            click.echo()
+            
+            # Update roles
+            if user1 and user1.role != 'super_admin':
+                user1.role = 'super_admin'
+                db.session.add(user1)
+                click.secho("✅ Updated e_2512012 to super_admin", fg="green")
+            
+            if user2 and user2.role != 'super_admin':
+                user2.role = 'super_admin'
+                db.session.add(user2)
+                click.secho("✅ Updated e_2603025 to super_admin", fg="green")
+            
+            db.session.commit()
+            
+            click.echo()
+            click.echo("Verification:")
+            user1_check = User.query.filter_by(username='e_2512012').first()
+            user2_check = User.query.filter_by(username='e_2603025').first()
+            
+            if user1_check and user1_check.role == 'super_admin':
+                click.secho("  ✅ e_2512012: super_admin", fg="green")
+            if user2_check and user2_check.role == 'super_admin':
+                click.secho("  ✅ e_2603025: super_admin", fg="green")
+            
+            click.echo()
+            click.secho("=" * 60, fg="green")
+            click.secho("✅ ROLES FIXED SUCCESSFULLY", fg="green", bold=True)
+            click.secho("=" * 60, fg="green")
+            
+        except Exception as e:
+            click.secho(f"❌ ERROR: {e}", fg="red", bold=True)
+            db.session.rollback()
+            raise
     def migrate_shift_change():
         """Add reporting_manager fields to shift_change_requests table."""
         from app.extensions.database import db as _db  # noqa: PLC0415
