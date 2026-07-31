@@ -950,34 +950,56 @@ def _ensure_super_admin_roles(app: Flask) -> None:
     """
     Ensure that E-2512012 and E-2603025 have super_admin role in the database.
     This function is called on every app startup to guarantee correct roles.
+    Runs AFTER database tables are created.
     """
     try:
         from app.models.user import User  # noqa: PLC0415
         from app.extensions.database import db  # noqa: PLC0415
         
+        made_changes = False
+        
         # Update E-2512012
         user1 = User.query.filter_by(username='e_2512012').first()
         if user1:
-            if user1.role != 'super_admin':
-                app.logger.warning(f"FIXING ROLE: E-2512012 had role='{user1.role}', setting to super_admin")
+            current_role = getattr(user1, 'role', None)
+            if current_role != 'super_admin':
+                app.logger.warning(f"ENSURE_ADMIN: E-2512012 current role='{current_role}', updating to super_admin")
                 user1.role = 'super_admin'
-                db.session.add(user1)
+                db.session.merge(user1)
+                made_changes = True
+            else:
+                app.logger.info(f"ENSURE_ADMIN: E-2512012 already has super_admin role ✓")
+        else:
+            app.logger.warning("ENSURE_ADMIN: E-2512012 not found in database")
         
         # Update E-2603025
         user2 = User.query.filter_by(username='e_2603025').first()
         if user2:
-            if user2.role != 'super_admin':
-                app.logger.warning(f"FIXING ROLE: E-2603025 had role='{user2.role}', setting to super_admin")
+            current_role = getattr(user2, 'role', None)
+            if current_role != 'super_admin':
+                app.logger.warning(f"ENSURE_ADMIN: E-2603025 current role='{current_role}', updating to super_admin")
                 user2.role = 'super_admin'
-                db.session.add(user2)
+                db.session.merge(user2)
+                made_changes = True
+            else:
+                app.logger.info(f"ENSURE_ADMIN: E-2603025 already has super_admin role ✓")
+        else:
+            app.logger.warning("ENSURE_ADMIN: E-2603025 not found in database")
         
-        # Commit if any changes were made
-        if user1 or user2:
-            db.session.commit()
-            app.logger.info("VERIFIED: E-2512012 and E-2603025 have super_admin role")
+        # Commit changes if any were made
+        if made_changes:
+            try:
+                db.session.commit()
+                app.logger.info("ENSURE_ADMIN: ✅ Roles committed to database")
+            except Exception as commit_exc:
+                app.logger.error(f"ENSURE_ADMIN: ❌ Failed to commit: {commit_exc}")
+                db.session.rollback()
+                raise
+        else:
+            app.logger.info("ENSURE_ADMIN: No changes needed")
     
     except Exception as exc:
-        app.logger.warning("_ensure_super_admin_roles() failed: %s", exc)
+        app.logger.error(f"ENSURE_ADMIN: Function failed: {exc}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
