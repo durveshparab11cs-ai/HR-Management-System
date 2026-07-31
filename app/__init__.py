@@ -1008,45 +1008,73 @@ def _auto_seed_employees(app: Flask) -> None:
 
 def _ensure_super_admin_roles(app: Flask) -> None:
     """
-    Ensure that E-2512012 and E-2603025 have super_admin role in the database.
-    This function is called on every app startup to guarantee correct roles.
-    Runs AFTER database tables are created.
+    Production-grade startup routine to ensure E-2512012 and E-2603025 always have super_admin role.
     
-    If the user accounts don't exist, they will be created with super_admin role.
+    This function:
+    - Runs automatically during app startup (in _auto_create_tables)
+    - Is idempotent (safe to run multiple times)
+    - Uses SQLAlchemy ORM only (no raw SQL)
+    - Creates users if they don't exist
+    - Updates roles if users exist with wrong role
+    - Uses EmployeeMaster data when creating users
+    - Logs all actions for debugging
+    - Never prevents app from starting
+    
+    Why this works on Render Free (no shell access):
+    - Runs during normal app initialization (gunicorn startup)
+    - No manual intervention needed
+    - Automatic on every deployment
+    - Works even if Render Free doesn't support shell access
     """
+    app.logger.info("ENSURE_ADMIN: ▶ Starting admin role verification routine...")
+    
     try:
         from app.models.user import User  # noqa: PLC0415
+        from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
         from app.extensions.database import db  # noqa: PLC0415
+        
+        # Employee codes and their fallback information
+        target_codes = [
+            {'code': 'E-2512012', 'username': 'e_2512012', 'email': 'e_2512012@smarthrms.com', 'fallback_name': 'Pratik Prakash Sagvekar'},
+            {'code': 'E-2603025', 'username': 'e_2603025', 'email': 'e_2603025@smarthrms.com', 'fallback_name': 'Raj Sanjay Shukla'},
+        ]
         
         made_changes = False
         
-        # Define the two users we need
-        target_users = [
-            {'username': 'e_2512012', 'email': 'e_2512012@company.local', 'name': 'Pratik Prakash Sagvekar'},
-            {'username': 'e_2603025', 'email': 'e_2603025@company.local', 'name': 'Raj Sanjay Shukla'},
-        ]
-        
-        for target in target_users:
+        for target in target_codes:
+            emp_code = target['code']
             username = target['username']
             email = target['email']
-            name = target['name']
+            fallback_name = target['fallback_name']
             
-            app.logger.debug(f"ENSURE_ADMIN: Checking {username}...")
+            app.logger.info(f"ENSURE_ADMIN: Checking {emp_code} ({username})...")
             
-            # Try to find existing user
+            # Step 1: Try to find existing user by username
             user = User.query.filter_by(username=username).first()
-            app.logger.debug(f"ENSURE_ADMIN: Query result for {username}: {user}")
             
-            if not user:
-                # User doesn't exist - CREATE with super_admin role
-                app.logger.warning(f"ENSURE_ADMIN: {username} NOT FOUND - creating user with super_admin role")
+            if user is None:
+                # User doesn't exist - need to create
+                app.logger.warning(f"ENSURE_ADMIN: User {username} not found, attempting creation...")
                 
-                # Split name into first/last
-                name_parts = name.split(' ', 1)
-                first_name = name_parts[0] if len(name_parts) > 0 else 'Employee'
-                last_name = name_parts[1] if len(name_parts) > 1 else ''
+                # Try to get employee info from EmployeeMaster
+                emp_master = EmployeeMaster.query.filter_by(employee_code=emp_code).first()
                 
-                user = User(
+                if emp_master and emp_master.employee_name:
+                    app.logger.info(f"ENSURE_ADMIN: Found {emp_code} in EmployeeMaster: {emp_master.employee_name}")
+                    full_name = emp_master.employee_name
+                else:
+                    app.logger.info(f"ENSURE_ADMIN: No EmployeeMaster entry for {emp_code}, using fallback name")
+                    full_name = fallback_name
+                
+                # Split name into first and last
+                name_parts = full_name.split(' ', 1)
+                first_name = name_parts[0].strip() if len(name_parts) > 0 else 'Employee'
+                last_name = name_parts[1].strip() if len(name_parts) > 1 else 'Account'
+                
+                # Create new user with super_admin role
+                app.logger.info(f"ENSURE_ADMIN: Creating user {username} ({first_name} {last_name})...")
+                
+                new_user = User(
                     username=username,
                     email=email,
                     first_name=first_name,
@@ -1055,41 +1083,67 @@ def _ensure_super_admin_roles(app: Flask) -> None:
                     status='active',
                     email_verified=True,
                 )
-                # Set a temporary password
-                user.set_password('TempPassword123!')
-                db.session.add(user)
-                app.logger.info(f"ENSURE_ADMIN: ✅ Created {username} with super_admin role")
+                
+                # Set temporary password (user will change on first login)
+                new_user.set_password('TempPassword@123')
+                
+                db.session.add(new_user)
+                app.logger.info(f"ENSURE_ADMIN: ✅ User {username} staged for creation with role=super_admin")
                 made_changes = True
             
             else:
-                # User exists - check/update role
-                current_role = getattr(user, 'role', None)
+                # User exists - check role
+                current_role = user.role
+                app.logger.info(f"ENSURE_ADMIN: Found {username}, current role='{current_role}'")
+                
                 if current_role != 'super_admin':
-                    app.logger.warning(f"ENSURE_ADMIN: {username} has role='{current_role}', updating to super_admin")
+                    app.logger.warning(f"ENSURE_ADMIN: Updating {username} role from '{current_role}' to 'super_admin'...")
                     user.role = 'super_admin'
-                    db.session.merge(user)
+                    db.session.add(user)
+                    app.logger.info(f"ENSURE_ADMIN: ✅ User {username} role updated to super_admin")
                     made_changes = True
                 else:
-                    app.logger.info(f"ENSURE_ADMIN: {username} already has super_admin role ✓")
+                    app.logger.info(f"ENSURE_ADMIN: ✓ {username} already has role=super_admin (no change needed)")
         
-        # Commit changes if any were made
+        # Step 2: Commit all changes atomically
         if made_changes:
             try:
                 db.session.commit()
-                app.logger.info("ENSURE_ADMIN: ✅ All changes committed to database")
-            except Exception as commit_exc:
-                app.logger.error(f"ENSURE_ADMIN: ❌ Failed to commit: {commit_exc}")
+                app.logger.info("ENSURE_ADMIN: ✅ All database changes committed successfully")
+            except Exception as commit_err:
+                app.logger.error(f"ENSURE_ADMIN: ❌ Database commit failed: {commit_err}")
                 db.session.rollback()
-                raise
+                app.logger.warning("ENSURE_ADMIN: Changes rolled back due to commit failure")
+                # Don't re-raise - app must start even if admin role setup fails
+                return
         else:
-            app.logger.info("ENSURE_ADMIN: No changes needed - both users have super_admin role")
+            app.logger.info("ENSURE_ADMIN: ✓ No changes needed - both users have correct roles")
+        
+        # Step 3: Final verification
+        app.logger.info("ENSURE_ADMIN: ▼ Final verification...")
+        for target in target_codes:
+            username = target['username']
+            final_user = User.query.filter_by(username=username).first()
+            if final_user:
+                status = "✅" if final_user.role == 'super_admin' else "❌"
+                app.logger.info(f"ENSURE_ADMIN: {status} {username}: role={final_user.role}")
+            else:
+                app.logger.warning(f"ENSURE_ADMIN: ⚠️  {username}: not found after commit")
+        
+        app.logger.info("ENSURE_ADMIN: ✅ Routine completed successfully")
     
-    except Exception as exc:
-        app.logger.error(f"ENSURE_ADMIN: Function failed: {exc}")
+    except Exception as outer_exc:
+        # Log error but don't prevent app startup
+        app.logger.error(f"ENSURE_ADMIN: ❌ Routine failed with exception: {outer_exc}")
         import traceback  # noqa: PLC0415
-        app.logger.error(f"ENSURE_ADMIN: Traceback: {traceback.format_exc()}")
+        app.logger.error(f"ENSURE_ADMIN: Traceback:\n{traceback.format_exc()}")
+        
+        # Attempt rollback
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
-        except Exception:
-            pass
+            app.logger.info("ENSURE_ADMIN: Rolled back any pending changes")
+        except Exception as rollback_err:
+            app.logger.warning(f"ENSURE_ADMIN: Rollback also failed: {rollback_err}")
+        
+        app.logger.warning("ENSURE_ADMIN: ⚠️  Continuing app startup despite routine failure")
