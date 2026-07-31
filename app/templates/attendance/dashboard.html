@@ -289,7 +289,7 @@
     <div class="att-action-card">
       <h6 class="fw-semibold mb-3 small text-uppercase text-muted">Mark Attendance</h6>
 
-      <!-- ── Check-In Proof Photo (MANDATORY — must upload before Check In) ── -->
+      <!-- ── Check-In Proof Photo (Live Camera) ── -->
       {% if not (status.attendance and status.attendance.check_in_time) %}
       <div id="checkin-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -299,25 +299,62 @@
           <span id="ci-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
         </div>
         <div class="small text-danger mb-2" style="font-size:.72rem">
-          <i class="bi bi-info-circle me-1"></i>Upload your GPS Map Camera selfie before checking in.
+          <i class="bi bi-info-circle me-1"></i>Click below to open your device camera and capture a selfie.
         </div>
-        <div class="photo-zone" id="photo-zone" style="border:2px solid #fca5a5">
-          <img id="photo-preview-img" class="photo-preview" alt="Proof photo" style="display:none">
-          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-1" id="ci-photo-icon"></i>
-          <div class="small fw-semibold" style="color:#dc2626" id="ci-photo-label">Upload Proof Photo</div>
-          <div style="font-size:.7rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
-          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        
+        <!-- Photo zone - Click to open camera -->
+        <div id="photo-zone" style="border:2px solid #dc2626;border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fef2f2;transition:all .2s" 
+             onmouseover="this.style.borderColor='#991b1b';this.style.background='#fee2e2'" 
+             onmouseout="this.style.borderColor='#dc2626';this.style.background='#fef2f2'">
+          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-2" id="ci-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#dc2626">Click to Open Camera</div>
+          <div style="font-size:.7rem;color:#94a3b8">Capture your selfie for check-in</div>
         </div>
-        <div id="ci-photo-error" style="display:none;color:#dc2626;font-size:.75rem;margin-top:6px;font-weight:600">
-          <i class="bi bi-exclamation-circle me-1"></i>Proof Photo is required to mark attendance.
+        
+        <!-- Live camera preview -->
+        <div id="ci-video-container" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#000;border:2px solid #1a3c6e">
+          <video id="ci-video" style="width:100%;height:auto;display:block;transform:scaleX(-1)"></video>
         </div>
-        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo" style="display:none">
-          <span class="att-spinner" id="photo-spin" style="border-top-color:var(--att-navy)"></span>
-          <i class="bi bi-upload me-1"></i> <span id="photo-txt">Upload Proof Photo</span>
-        </button>
+        
+        <!-- Canvas for frame capture (hidden) -->
+        <canvas id="ci-canvas" style="display:none"></canvas>
+        
+        <!-- Selfie preview after capture -->
+        <div id="ci-selfie-preview" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:2px solid #e2e8f0">
+          <img id="ci-selfie-img" style="width:100%;height:auto;display:block" alt="Your selfie">
+        </div>
+        
+        <!-- Camera status -->
+        <div id="ci-camera-status" style="display:none;font-size:.75rem;color:#0284c7;margin-top:12px;padding:8px 12px;background:#f0f9ff;border-radius:8px;border-left:3px solid #0284c7">
+          <i class="bi bi-check-circle me-1"></i><span id="ci-status-text">Camera ready - tap Capture Selfie below</span>
+        </div>
+        
+        <!-- Camera disabled message -->
+        <div id="ci-camera-disabled" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
+          <i class="bi bi-exclamation-circle me-1"></i><span>Enable camera in browser settings to capture selfie</span>
+        </div>
+        
+        <!-- Camera error message -->
+        <div id="ci-camera-error" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
+          <i class="bi bi-exclamation-triangle me-1"></i><span id="ci-error-text">Camera error</span>
+        </div>
+        
+        <!-- Buttons -->
+        <div class="d-flex gap-2" style="margin-top:12px">
+          <button id="ci-btn-capture" class="btn btn-sm btn-primary flex-grow-1" style="display:none">
+            <i class="bi bi-camera-fill me-1"></i>Capture Selfie
+          </button>
+          <button id="ci-btn-retake" class="btn btn-sm btn-outline-secondary flex-grow-1" style="display:none">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Retake
+          </button>
+        </div>
+        
+        <div id="ci-photo-error" style="display:none;color:#dc2626;font-size:.75rem;font-weight:600;margin-top:10px">
+          <i class="bi bi-exclamation-circle me-1"></i><span id="ci-error-msg">Proof photo is required</span>
+        </div>
       </div>
       {% else %}
-      <!-- Already checked in — show uploaded status -->
+      <!-- Already checked in — show upload status -->
       <div style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
         <div class="d-flex align-items-center justify-content-between mb-2">
           <div class="small fw-bold" style="color:#0f172a">
@@ -325,29 +362,16 @@
           </div>
           {% if status.has_photo %}
           <span class="badge bg-success-subtle text-success small">
-            <i class="bi bi-check-circle me-1"></i>✓ Uploaded
+            <i class="bi bi-check-circle me-1"></i>✓ Captured
           </span>
           {% else %}
-          <span class="badge bg-warning-subtle text-warning small">Not uploaded</span>
+          <span class="badge bg-warning-subtle text-warning small">Not captured</span>
           {% endif %}
         </div>
-        {% if not status.has_photo %}
-        <div class="photo-zone" id="photo-zone">
-          <img id="photo-preview-img" class="photo-preview" alt="Proof photo" style="display:none">
-          <i class="bi bi-camera fs-3 text-muted d-block mb-1"></i>
-          <div class="small fw-medium text-muted">Upload check-in proof photo</div>
-          <div style="font-size:.72rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
-          <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
-        </div>
-        <button class="btn btn-sm btn-outline-primary w-100 mt-2" id="btn-upload-photo" style="display:none">
-          <span class="att-spinner" id="photo-spin"></span>
-          <i class="bi bi-upload me-1"></i> <span id="photo-txt">Upload Photo</span>
-        </button>
-        {% endif %}
       </div>
       {% endif %}
 
-      <!-- ── Check-Out Proof Photo (MANDATORY — shown when checked in, before checkout) ── -->
+      <!-- ── Check-Out Proof Photo (Live Camera) ── -->
       {% if status.attendance and status.attendance.check_in_time and not status.attendance.check_out_time %}
       <div id="checkout-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
         <div class="d-flex align-items-center justify-content-between mb-1">
@@ -357,22 +381,59 @@
           <span id="co-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
         </div>
         <div class="small text-danger mb-2" style="font-size:.72rem">
-          <i class="bi bi-info-circle me-1"></i>Upload your GPS Map Camera selfie before checking out.
+          <i class="bi bi-info-circle me-1"></i>Click below to open your device camera and capture a new selfie for check-out.
         </div>
-        <div class="photo-zone" id="co-photo-zone" style="border:2px solid #fca5a5">
-          <img id="co-photo-preview-img" class="photo-preview" alt="Check-out proof" style="display:none">
-          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-1" id="co-photo-icon"></i>
-          <div class="small fw-semibold" style="color:#dc2626" id="co-photo-label">Upload Proof Photo</div>
-          <div style="font-size:.7rem;color:#94a3b8">JPG / PNG / WEBP · Max 5 MB</div>
-          <input type="file" id="co-photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        
+        <!-- Photo zone - Click to open camera -->
+        <div id="co-photo-zone" style="border:2px solid #dc2626;border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fef2f2;transition:all .2s"
+             onmouseover="this.style.borderColor='#991b1b';this.style.background='#fee2e2'" 
+             onmouseout="this.style.borderColor='#dc2626';this.style.background='#fef2f2'">
+          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-2" id="co-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#dc2626">Click to Open Camera</div>
+          <div style="font-size:.7rem;color:#94a3b8">Capture your selfie for check-out</div>
         </div>
-        <div id="co-photo-error" style="display:none;color:#dc2626;font-size:.75rem;margin-top:6px;font-weight:600">
-          <i class="bi bi-exclamation-circle me-1"></i>Proof Photo is required to mark attendance.
+        
+        <!-- Live camera preview -->
+        <div id="co-video-container" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#000;border:2px solid #dc2626">
+          <video id="co-video" style="width:100%;height:auto;display:block;transform:scaleX(-1)"></video>
         </div>
-        <button class="btn btn-sm btn-outline-danger w-100 mt-2" id="btn-upload-co-photo" style="display:none">
-          <span class="att-spinner" id="co-photo-spin" style="border-top-color:#dc2626"></span>
-          <i class="bi bi-upload me-1"></i> <span id="co-photo-txt">Upload Check-out Photo</span>
-        </button>
+        
+        <!-- Canvas for frame capture (hidden) -->
+        <canvas id="co-canvas" style="display:none"></canvas>
+        
+        <!-- Selfie preview after capture -->
+        <div id="co-selfie-preview" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:2px solid #e2e8f0">
+          <img id="co-selfie-img" style="width:100%;height:auto;display:block" alt="Your selfie">
+        </div>
+        
+        <!-- Camera status -->
+        <div id="co-camera-status" style="display:none;font-size:.75rem;color:#dc2626;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
+          <i class="bi bi-check-circle me-1"></i><span id="co-status-text">Camera ready - tap Capture Selfie below</span>
+        </div>
+        
+        <!-- Camera disabled message -->
+        <div id="co-camera-disabled" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
+          <i class="bi bi-exclamation-circle me-1"></i><span>Enable camera in browser settings to capture selfie</span>
+        </div>
+        
+        <!-- Camera error message -->
+        <div id="co-camera-error" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
+          <i class="bi bi-exclamation-triangle me-1"></i><span id="co-error-text">Camera error</span>
+        </div>
+        
+        <!-- Buttons -->
+        <div class="d-flex gap-2" style="margin-top:12px">
+          <button id="co-btn-capture" class="btn btn-sm btn-danger flex-grow-1" style="display:none">
+            <i class="bi bi-camera-fill me-1"></i>Capture Selfie
+          </button>
+          <button id="co-btn-retake" class="btn btn-sm btn-outline-secondary flex-grow-1" style="display:none">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Retake
+          </button>
+        </div>
+        
+        <div id="co-photo-error" style="display:none;color:#dc2626;font-size:.75rem;font-weight:600;margin-top:10px">
+          <i class="bi bi-exclamation-circle me-1"></i><span id="co-error-msg">Proof photo is required</span>
+        </div>
       </div>
       {% elif status.attendance and status.attendance.check_out_time %}
       <!-- Already checked out — show status -->
@@ -383,10 +444,10 @@
           </div>
           {% if status.has_checkout_photo %}
           <span class="badge bg-success-subtle text-success small">
-            <i class="bi bi-check-circle me-1"></i>✓ Uploaded
+            <i class="bi bi-check-circle me-1"></i>✓ Captured
           </span>
           {% else %}
-          <span class="badge bg-secondary-subtle text-secondary small">Not uploaded</span>
+          <span class="badge bg-secondary-subtle text-secondary small">Not captured</span>
           {% endif %}
         </div>
       </div>
@@ -619,6 +680,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/camera_capture.js') }}"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
 // Proof photo modal — runs immediately; DOM is already ready at this point

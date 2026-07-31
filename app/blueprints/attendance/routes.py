@@ -398,6 +398,283 @@ def upload_checkout_photo():
         ), 500
 
 
+# ── Capture Selfie (Live Camera) ────────────────────────────────────
+
+@attendance_bp.route("/capture-selfie", methods=["POST"])
+@login_required
+def capture_selfie():
+    """
+    Receive base64 selfie from live camera capture.
+    Store in AttendancePhoto.image_data (check-in) or checkout_image_data (check-out).
+    
+    Expected JSON:
+    {
+        "selfie": "data:image/jpeg;base64,...",
+        "type": "checkin" | "checkout"
+    }
+    
+    Returns: {success, photo_id, has_photo, has_checkout_photo}
+    """
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    
+    logger.info("===== CAPTURE SELFIE START =====")
+    logger.info("User ID: %s", current_user.id)
+    
+    try:
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("CAPTURE SELFIE FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+        
+        # Get JSON payload
+        data = request.get_json() or {}
+        selfie_base64 = data.get("selfie", "").strip()
+        capture_type = data.get("type", "checkin").lower()
+        
+        if not selfie_base64:
+            logger.error("CAPTURE SELFIE FAILED: No selfie data")
+            return jsonify(success=False, message="No selfie data received."), 400
+        
+        if capture_type not in ("checkin", "checkout"):
+            logger.error("CAPTURE SELFIE FAILED: Invalid type: %s", capture_type)
+            return jsonify(success=False, message="Invalid capture type."), 400
+        
+        logger.info("Capture type: %s", capture_type)
+        logger.info("Selfie data length: %d bytes", len(selfie_base64))
+        
+        # Get or create today's attendance
+        today = date.today()
+        attendance_today = _repo.get_today(employee.id, today)
+        
+        if not attendance_today:
+            logger.info("Creating new attendance record for today")
+            from app.models.attendance import Attendance  # noqa: PLC0415
+            from app.db import db  # noqa: PLC0415
+            
+            attendance_today = Attendance(
+                employee_id=employee.id,
+                date=today,
+                status="pending",
+            )
+            db.session.add(attendance_today)
+            db.session.commit()
+            logger.info("Attendance created: %s", attendance_today.id)
+        
+        # Get or create photo record
+        photo = AttendancePhoto.query.filter_by(
+            attendance_id=attendance_today.id
+        ).first()
+        
+        if not photo:
+            logger.info("Creating new photo record")
+            from app.db import db  # noqa: PLC0415
+            
+            photo = AttendancePhoto(
+                attendance_id=attendance_today.id,
+                employee_id=employee.id,
+            )
+            db.session.add(photo)
+            db.session.commit()
+            logger.info("Photo record created: %s", photo.id)
+        
+        # Store selfie in appropriate field
+        if capture_type == "checkin":
+            photo.image_data = selfie_base64
+            logger.info("Stored check-in selfie")
+        else:  # checkout
+            photo.checkout_image_data = selfie_base64
+            logger.info("Stored check-out selfie")
+        
+        from app.db import db  # noqa: PLC0415
+        db.session.commit()
+        logger.info("Selfie saved successfully")
+        
+        # Return state for frontend
+        has_photo = bool(photo.image_data)
+        has_checkout_photo = bool(photo.checkout_image_data)
+        
+        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s, has_photo=%s, has_checkout_photo=%s",
+                   photo.id, has_photo, has_checkout_photo)
+        logger.info("===== CAPTURE SELFIE END (SUCCESS) =====")
+        
+        return jsonify(
+            success=True,
+            photo_id=photo.id,
+            has_photo=has_photo,
+            has_checkout_photo=has_checkout_photo,
+            message="Selfie captured successfully."
+        )
+    
+    except Exception as exc:
+        logger.error("===== CAPTURE SELFIE EXCEPTION =====")
+        logger.error("Exception Type: %s", type(exc).__name__)
+        logger.error("Exception Message: %s", str(exc))
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
+        
+        return jsonify(
+            success=False,
+            message=f"Selfie capture failed: {str(exc)}"
+        ), 500
+
+
+# ── Generate Proof Image ─────────────────────────────────────────────
+
+@attendance_bp.route("/generate-proof-image", methods=["POST"])
+@login_required
+def generate_proof_image():
+    """
+    Generate professional attendance proof image using captured selfie + GPS data.
+    
+    Expected JSON:
+    {
+        "type": "checkin" | "checkout",
+        "latitude": 18.5204,
+        "longitude": 73.8567,
+        "accuracy": 25.0,
+        "distance_metres": 15.5
+    }
+    
+    Returns: {success, proof_image_url, proof_size_bytes}
+    """
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    from .proof_image_generator import ProofImageGenerator  # noqa: PLC0415
+    
+    logger.info("===== GENERATE PROOF IMAGE START =====")
+    logger.info("User ID: %s", current_user.id)
+    
+    try:
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("PROOF IMAGE FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s, Name: %s, Code: %s", 
+                   employee.id, employee.full_name, employee.employee_code)
+        
+        # Parse request
+        data = request.get_json() or {}
+        proof_type = data.get("type", "checkin").lower()
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        accuracy = data.get("accuracy")
+        distance_metres = data.get("distance_metres")
+        
+        if not all([latitude, longitude, accuracy is not None, distance_metres is not None]):
+            logger.error("PROOF IMAGE FAILED: Missing GPS data")
+            return jsonify(success=False, message="Missing GPS data."), 400
+        
+        logger.info("Proof type: %s, GPS: (%.6f, %.6f), Accuracy: %.1f, Distance: %.1f",
+                   proof_type, latitude, longitude, accuracy, distance_metres)
+        
+        # Get today's attendance and photo
+        today = date.today()
+        attendance_today = _repo.get_today(employee.id, today)
+        
+        if not attendance_today:
+            logger.error("PROOF IMAGE FAILED: No attendance record for today")
+            return jsonify(success=False, message="No attendance record found."), 400
+        
+        photo = AttendancePhoto.query.filter_by(
+            attendance_id=attendance_today.id
+        ).first()
+        
+        if not photo:
+            logger.error("PROOF IMAGE FAILED: No photo record found")
+            return jsonify(success=False, message="No photo record found."), 400
+        
+        # Get the appropriate selfie based on proof_type
+        if proof_type == "checkin":
+            selfie_base64 = photo.image_data
+            if not selfie_base64:
+                logger.error("PROOF IMAGE FAILED: No check-in selfie found")
+                return jsonify(success=False, message="No check-in selfie found."), 400
+            logger.info("Using check-in selfie")
+        else:  # checkout
+            selfie_base64 = photo.checkout_image_data
+            if not selfie_base64:
+                logger.error("PROOF IMAGE FAILED: No check-out selfie found")
+                return jsonify(success=False, message="No check-out selfie found."), 400
+            logger.info("Using check-out selfie")
+        
+        # Get office info
+        office = _repo.get_office_for_employee(employee)
+        if not office:
+            logger.warning("PROOF IMAGE: No office settings found, using defaults")
+            office_name = "Head Office"
+            office_address = "Office Address"
+            allowed_radius = 100
+        else:
+            office_name = office.name or "Head Office"
+            office_address = office.address or "Office Address"
+            allowed_radius = office.radius_metres or 100
+            logger.info("Office: %s, Radius: %d", office_name, allowed_radius)
+        
+        # Get device info from user agent
+        device_info = request.headers.get("User-Agent", "Unknown Device")
+        logger.info("Device info: %s", device_info)
+        
+        # Generate proof image
+        logger.info("Generating proof image...")
+        generator = ProofImageGenerator()
+        
+        proof_image_base64 = generator.generate(
+            selfie_base64=selfie_base64,
+            employee_name=employee.full_name or "Unknown",
+            employee_code=employee.employee_code or "N/A",
+            department=employee.department or "N/A",
+            designation=employee.designation or "N/A",
+            office_name=office_name,
+            office_address=office_address,
+            check_type=proof_type,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            accuracy=float(accuracy),
+            distance_metres=float(distance_metres),
+            allowed_radius=int(allowed_radius),
+            device_info=device_info,
+            attendance_id=str(attendance_today.id),
+        )
+        
+        logger.info("Proof image generated, size: %d bytes", len(proof_image_base64))
+        
+        # Store proof image back to photo record (overwrites selfie)
+        if proof_type == "checkin":
+            photo.image_data = proof_image_base64
+            logger.info("Stored check-in proof image")
+        else:  # checkout
+            photo.checkout_image_data = proof_image_base64
+            logger.info("Stored check-out proof image")
+        
+        from app.db import db  # noqa: PLC0415
+        db.session.commit()
+        logger.info("Proof image saved to database")
+        
+        logger.info("GENERATE PROOF IMAGE SUCCESS: proof_image_url (data URI)")
+        logger.info("===== GENERATE PROOF IMAGE END (SUCCESS) =====")
+        
+        return jsonify(
+            success=True,
+            proof_image_url=proof_image_base64,
+            proof_size_bytes=len(proof_image_base64),
+            message="Proof image generated successfully."
+        )
+    
+    except Exception as exc:
+        logger.error("===== GENERATE PROOF IMAGE EXCEPTION =====")
+        logger.error("Exception Type: %s", type(exc).__name__)
+        logger.error("Exception Message: %s", str(exc))
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== GENERATE PROOF IMAGE END (EXCEPTION) =====")
+        
+        return jsonify(
+            success=False,
+            message=f"Proof image generation failed: {str(exc)}"
+        ), 500
+
+
 # ── Attendance history ────────────────────────────────────────────────
 
 @attendance_bp.route("/history")

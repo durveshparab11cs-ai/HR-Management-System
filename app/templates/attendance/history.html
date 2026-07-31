@@ -351,20 +351,41 @@
     {% endif %}
 </div>
 
-<!-- Proof Photo Modal -->
+<!-- Proof Photo Modal with Zoom/Download/Fullscreen -->
 <div class="modal fade" id="proofPhotoModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header border-0">
+      <div class="modal-header border-0 bg-light">
         <h6 class="modal-title fw-bold" id="proofPhotoModalLabel">Proof Photo</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <!-- Zoom buttons -->
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-zoom-out" title="Zoom out">
+            <i class="bi bi-zoom-out"></i>
+          </button>
+          <span id="zoom-level" style="min-width:40px;text-align:center;font-size:.85rem;font-weight:600">100%</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-zoom-in" title="Zoom in">
+            <i class="bi bi-zoom-in"></i>
+          </button>
+          <!-- Download button -->
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btn-download-photo" title="Download proof photo">
+            <i class="bi bi-download"></i>
+          </button>
+          <!-- Fullscreen button -->
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btn-fullscreen-photo" title="Fullscreen">
+            <i class="bi bi-fullscreen"></i>
+          </button>
+          <!-- Close button -->
+          <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+        </div>
       </div>
-      <div class="modal-body text-center p-3">
+      <div class="modal-body text-center p-3" id="modal-body-scroll" style="overflow:auto;max-height:75vh">
         <img id="proofPhotoImg" src="" alt="Proof photo"
-             style="max-width:100%;max-height:75vh;object-fit:contain;border-radius:10px;
-                    box-shadow:0 4px 24px rgba(0,0,0,.15)">
+             style="border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.15);
+                    transition:transform .2s;cursor:move;user-select:none"
+             onmousedown="startPan(event)">
       </div>
-      <div class="modal-footer border-0 pt-0">
+      <div class="modal-footer border-0 bg-light pt-2 pb-2">
+        <small class="text-muted me-auto" id="photo-info">Loading...</small>
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -388,19 +409,119 @@
 
 {% block extra_js %}
 <script>
+// ── Pan and zoom state ────────────────────────────────────────────
+let zoomLevel = 100;
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+
+function startPan(e) {
+    if (zoomLevel <= 100) return; // Only pan when zoomed
+    isPanning = true;
+    panStartX = e.clientX - panX;
+    panStartY = e.clientY - panY;
+    document.getElementById('proofPhotoImg').style.cursor = 'grabbing';
+}
+
+function movePan(e) {
+    if (!isPanning) return;
+    panX = e.clientX - panStartX;
+    panY = e.clientY - panStartY;
+    updateImageTransform();
+}
+
+function endPan() {
+    isPanning = false;
+    document.getElementById('proofPhotoImg').style.cursor = 'move';
+}
+
+function updateImageTransform() {
+    const img = document.getElementById('proofPhotoImg');
+    img.style.transform = `scale(${zoomLevel / 100}) translate(${panX}px, ${panY}px)`;
+}
+
+function setZoom(level) {
+    zoomLevel = Math.max(50, Math.min(400, level));
+    panX = 0;
+    panY = 0;
+    updateImageTransform();
+    document.getElementById('zoom-level').textContent = zoomLevel + '%';
+}
+
 (function () {
     'use strict';
 
+    const img = document.getElementById('proofPhotoImg');
+    const modal = document.getElementById('proofPhotoModal');
+    const thumbnails = document.querySelectorAll('img[src*="data:image"]');
+
+    // ── Mouse events for panning ──────────────────────────────────────
+    document.addEventListener('mousemove', movePan);
+    document.addEventListener('mouseup', endPan);
+    document.addEventListener('mouseleave', endPan);
+
+    // ── Wheel zoom ────────────────────────────────────────────────────
+    document.getElementById('modal-body-scroll').addEventListener('wheel', function (e) {
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -10 : 10;
+            setZoom(zoomLevel + delta);
+        }
+    });
+
+    // ── Zoom button handlers ──────────────────────────────────────────
+    document.getElementById('btn-zoom-in').addEventListener('click', () => setZoom(zoomLevel + 25));
+    document.getElementById('btn-zoom-out').addEventListener('click', () => setZoom(zoomLevel - 25));
+
+    // ── Download handler ──────────────────────────────────────────────
+    document.getElementById('btn-download-photo').addEventListener('click', function () {
+        const src = img.src;
+        const a = document.createElement('a');
+        a.href = src;
+        a.download = 'proof-photo-' + new Date().toISOString().split('T')[0] + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    });
+
+    // ── Fullscreen handler ────────────────────────────────────────────
+    document.getElementById('btn-fullscreen-photo').addEventListener('click', function () {
+        const container = document.getElementById('modal-body-scroll');
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+            container.mozRequestFullScreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        }
+    });
+
+    // ── Modal show/hide handlers ──────────────────────────────────────
+    document.getElementById('proofPhotoModal').addEventListener('show.bs.modal', function () {
+        setZoom(100); // Reset zoom when modal opens
+    });
+
     // ── Proof photo modal ─────────────────────────────────────────────
-    // Bind directly to each thumbnail after DOM ready — avoids Bootstrap
-    // instance conflicts from creating new Modal() on every click.
-    document.querySelectorAll('.proof-photo-thumb').forEach(function (img) {
-        img.addEventListener('click', function () {
-            var modalEl = document.getElementById('proofPhotoModal');
-            document.getElementById('proofPhotoImg').src = this.src;
-            document.getElementById('proofPhotoModalLabel').textContent =
-                'Proof Photo' + (this.dataset.date ? ' \u2014 ' + this.dataset.date : '');
-            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    // Bind click handlers to all photo thumbnails
+    document.querySelectorAll('img[alt="Proof photo"], img[alt="Check-out photo"]').forEach(function (thumb) {
+        thumb.addEventListener('click', function () {
+            const img_src = this.src;
+            const title = this.title || 'Proof Photo';
+            
+            document.getElementById('proofPhotoImg').src = img_src;
+            document.getElementById('proofPhotoModalLabel').textContent = title;
+            document.getElementById('photo-info').textContent = 'Proof image • ' + new Date().toLocaleDateString();
+            
+            // Reset zoom
+            zoomLevel = 100;
+            panX = 0;
+            panY = 0;
+            updateImageTransform();
+            document.getElementById('zoom-level').textContent = '100%';
+            
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('proofPhotoModal')).show();
         });
     });
 

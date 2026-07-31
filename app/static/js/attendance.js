@@ -455,6 +455,20 @@
     // Always call updateAttendanceButtons - it handles the radius check internally
     updateAttendanceButtons();
     
+    // ✅ NEW: Start cameras if inside radius and photo not yet captured
+    if (within) {
+      // Check-in camera - start if no check-in photo yet
+      if (!ciPhotoReady && !el('ci-video-container').style.display) {
+        console.log('[GPS] Inside radius - starting check-in camera');
+        startCheckInCamera();
+      }
+      // Check-out camera - start if checked in and no check-out photo yet
+      if (el('co-btn-capture') && !coPhotoReady && !el('co-video-container').style.display) {
+        console.log('[GPS] Inside radius - starting check-out camera');
+        startCheckOutCamera();
+      }
+    }
+    
     if (within) {
       // ── Inside radius — PASS ──────────────────────────────────────
       setGpsStatus('ok',
@@ -641,6 +655,297 @@
       startAutoRefresh();
     }
   });
+
+  /* ═══════════════════════════════════════════════════════════════════
+     CAMERA CAPTURE INTEGRATION
+  ════════════════════════════════════════════════════════════════════ */
+  let ciCamera = null;  // Check-in camera instance
+  let coCamera = null;  // Check-out camera instance
+
+  function initializeCameras() {
+    try {
+      ciCamera = new CameraCapture('ci-video', 'ci-canvas');
+      coCamera = new CameraCapture('co-video', 'co-canvas');
+      logger.info('[Cameras] Both camera instances initialized');
+    } catch (err) {
+      logger.error('[Cameras] Error initializing cameras:', err);
+    }
+  }
+
+  async function startCheckInCamera() {
+    if (!ciCamera) return;
+    try {
+      logger.info('[CI Camera] Starting check-in camera');
+      await ciCamera.start();
+      el('ci-video-container').style.display = 'block';
+      el('ci-btn-capture').style.display = 'inline-flex';
+      el('ci-camera-status').style.display = 'block';
+      el('ci-status-text').textContent = 'Camera ready — capture your selfie';
+      logger.info('[CI Camera] Started successfully');
+    } catch (err) {
+      logger.error('[CI Camera] Error starting camera:', err);
+      el('ci-camera-error').style.display = 'block';
+      el('ci-error-text').textContent = 'Camera permission denied. Check browser settings.';
+    }
+  }
+
+  async function startCheckOutCamera() {
+    if (!coCamera) return;
+    try {
+      logger.info('[CO Camera] Starting check-out camera');
+      await coCamera.start();
+      el('co-video-container').style.display = 'block';
+      el('co-btn-capture').style.display = 'inline-flex';
+      el('co-camera-status').style.display = 'block';
+      el('co-status-text').textContent = 'Camera ready — capture your selfie';
+      logger.info('[CO Camera] Started successfully');
+    } catch (err) {
+      logger.error('[CO Camera] Error starting camera:', err);
+      el('co-camera-error').style.display = 'block';
+      el('co-error-text').textContent = 'Camera permission denied. Check browser settings.';
+    }
+  }
+
+  async function captureCheckInSelfie() {
+    if (!ciCamera || !ciCamera.getIsRunning()) {
+      showToast('Camera is not running. Please try again.', 'error');
+      return;
+    }
+
+    try {
+      logger.info('[CI Selfie] Capturing check-in selfie');
+      el('ci-btn-capture').disabled = true;
+      el('ci-btn-capture').textContent = 'Capturing…';
+
+      const base64 = await ciCamera.capture();
+      logger.info('[CI Selfie] Captured, size: %d bytes', base64.length);
+
+      // Stop camera
+      await ciCamera.stop();
+      el('ci-video-container').style.display = 'none';
+      el('ci-btn-capture').style.display = 'none';
+
+      // Show preview
+      el('ci-selfie-preview').style.display = 'block';
+      el('ci-selfie-img').src = base64;
+      el('ci-btn-retake').style.display = 'inline-flex';
+
+      // Upload selfie to backend
+      await uploadCheckInSelfie(base64);
+    } catch (err) {
+      logger.error('[CI Selfie] Error capturing selfie:', err);
+      showToast('Failed to capture selfie. Please try again.', 'error');
+      el('ci-btn-capture').disabled = false;
+      el('ci-btn-capture').textContent = 'Capture Selfie';
+    }
+  }
+
+  async function captureCheckOutSelfie() {
+    if (!coCamera || !coCamera.getIsRunning()) {
+      showToast('Camera is not running. Please try again.', 'error');
+      return;
+    }
+
+    try {
+      logger.info('[CO Selfie] Capturing check-out selfie');
+      el('co-btn-capture').disabled = true;
+      el('co-btn-capture').textContent = 'Capturing…';
+
+      const base64 = await coCamera.capture();
+      logger.info('[CO Selfie] Captured, size: %d bytes', base64.length);
+
+      // Stop camera
+      await coCamera.stop();
+      el('co-video-container').style.display = 'none';
+      el('co-btn-capture').style.display = 'none';
+
+      // Show preview
+      el('co-selfie-preview').style.display = 'block';
+      el('co-selfie-img').src = base64;
+      el('co-btn-retake').style.display = 'inline-flex';
+
+      // Upload selfie to backend
+      await uploadCheckOutSelfie(base64);
+    } catch (err) {
+      logger.error('[CO Selfie] Error capturing selfie:', err);
+      showToast('Failed to capture selfie. Please try again.', 'error');
+      el('co-btn-capture').disabled = false;
+      el('co-btn-capture').textContent = 'Capture Selfie';
+    }
+  }
+
+  async function uploadCheckInSelfie(base64) {
+    try {
+      logger.info('[CI Upload] Uploading check-in selfie');
+      const res = await fetch('/attendance/capture-selfie', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF_TOKEN,
+        },
+        body: JSON.stringify({
+          selfie: base64,
+          type: 'checkin',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        logger.info('[CI Upload] Success, has_photo: %s', data.has_photo);
+        ciPhotoReady = data.has_photo;
+        el('ci-photo-badge').className = 'badge bg-success-subtle text-success small';
+        el('ci-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+        showToast('✅ Check-in selfie captured successfully!', 'success');
+        updateAttendanceButtons();
+      } else {
+        logger.error('[CI Upload] Failed: %s', data.message);
+        showToast(data.message || 'Upload failed', 'error');
+      }
+    } catch (err) {
+      logger.error('[CI Upload] Error:', err);
+      showToast('Network error uploading selfie', 'error');
+    }
+  }
+
+  async function uploadCheckOutSelfie(base64) {
+    try {
+      logger.info('[CO Upload] Uploading check-out selfie');
+      const res = await fetch('/attendance/capture-selfie', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF_TOKEN,
+        },
+        body: JSON.stringify({
+          selfie: base64,
+          type: 'checkout',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        logger.info('[CO Upload] Success, has_checkout_photo: %s', data.has_checkout_photo);
+        coPhotoReady = data.has_checkout_photo;
+        el('co-photo-badge').className = 'badge bg-success-subtle text-success small';
+        el('co-photo-badge').innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+        showToast('✅ Check-out selfie captured successfully!', 'success');
+        updateAttendanceButtons();
+      } else {
+        logger.error('[CO Upload] Failed: %s', data.message);
+        showToast(data.message || 'Upload failed', 'error');
+      }
+    } catch (err) {
+      logger.error('[CO Upload] Error:', err);
+      showToast('Network error uploading selfie', 'error');
+    }
+  }
+
+  async function retakeCheckInSelfie() {
+    try {
+      logger.info('[CI Retake] Restarting check-in camera');
+      el('ci-selfie-preview').style.display = 'none';
+      el('ci-btn-retake').style.display = 'none';
+      await startCheckInCamera();
+    } catch (err) {
+      logger.error('[CI Retake] Error:', err);
+      showToast('Failed to restart camera', 'error');
+    }
+  }
+
+  async function retakeCheckOutSelfie() {
+    try {
+      logger.info('[CO Retake] Restarting check-out camera');
+      el('co-selfie-preview').style.display = 'none';
+      el('co-btn-retake').style.display = 'none';
+      await startCheckOutCamera();
+    } catch (err) {
+      logger.error('[CO Retake] Error:', err);
+      showToast('Failed to restart camera', 'error');
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     GENERATE PROOF IMAGES (called during check-in/check-out)
+  ════════════════════════════════════════════════════════════════════ */
+  async function generateCheckInProofImage() {
+    if (!gpsReady || lat === null) {
+      logger.error('[Proof Image] GPS not ready');
+      return false;
+    }
+
+    try {
+      logger.info('[Proof Image] Generating check-in proof image');
+      const res = await fetch('/attendance/generate-proof-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF_TOKEN,
+        },
+        body: JSON.stringify({
+          type: 'checkin',
+          latitude: lat,
+          longitude: lon,
+          accuracy: acc,
+          distance_metres: haversineMetres(lat, lon, OFFICE.lat, OFFICE.lon),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        logger.info('[Proof Image] Check-in proof generated, size: %d bytes', data.proof_size_bytes);
+        return true;
+      } else {
+        logger.error('[Proof Image] Generation failed: %s', data.message);
+        showToast('Failed to generate proof image: ' + data.message, 'error');
+        return false;
+      }
+    } catch (err) {
+      logger.error('[Proof Image] Error:', err);
+      showToast('Error generating proof image', 'error');
+      return false;
+    }
+  }
+
+  async function generateCheckOutProofImage() {
+    if (!gpsReady || lat === null) {
+      logger.error('[Proof Image] GPS not ready');
+      return false;
+    }
+
+    try {
+      logger.info('[Proof Image] Generating check-out proof image');
+      const res = await fetch('/attendance/generate-proof-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF_TOKEN,
+        },
+        body: JSON.stringify({
+          type: 'checkout',
+          latitude: lat,
+          longitude: lon,
+          accuracy: acc,
+          distance_metres: haversineMetres(lat, lon, OFFICE.lat, OFFICE.lon),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        logger.info('[Proof Image] Check-out proof generated, size: %d bytes', data.proof_size_bytes);
+        return true;
+      } else {
+        logger.error('[Proof Image] Generation failed: %s', data.message);
+        showToast('Failed to generate proof image: ' + data.message, 'error');
+        return false;
+      }
+    } catch (err) {
+      logger.error('[Proof Image] Error:', err);
+      showToast('Error generating proof image', 'error');
+      return false;
+    }
+  }
 
   /* ═══════════════════════════════════════════════════════════════════
      SUBMIT ATTENDANCE — sends lat/lon/accuracy/timestamp to backend
@@ -939,12 +1244,36 @@
   }
 
   function initPhotoUpload() {
-    // Check-in photo
-    _initZone('photo-zone','photo-input','btn-upload-photo','photo-preview-img','photo-spin','photo-txt', 
-              PHOTO_URL, '✅ Check-in Proof Photo uploaded successfully!', false);
-    // Check-out photo
-    _initZone('co-photo-zone','co-photo-input','btn-upload-co-photo','co-photo-preview-img','co-photo-spin','co-photo-txt', 
-              '/attendance/upload-checkout-photo', '✅ Check-out Proof Photo uploaded successfully!', true);
+    // ✅ NEW: Override photo upload to start camera instead of file picker
+    // Check-in photo zone - click to start camera
+    const ciZone = el('photo-zone');
+    if (ciZone) {
+      ciZone.style.cursor = 'pointer';
+      ciZone.onclick = (e) => {
+        e.stopPropagation();
+        if (!ciPhotoReady) {
+          startCheckInCamera();
+        }
+      };
+    }
+    
+    // Check-out photo zone - click to start camera
+    const coZone = el('co-photo-zone');
+    if (coZone) {
+      coZone.style.cursor = 'pointer';
+      coZone.onclick = (e) => {
+        e.stopPropagation();
+        if (!coPhotoReady) {
+          startCheckOutCamera();
+        }
+      };
+    }
+    
+    // Hide the file input elements - not needed anymore
+    el('photo-input').style.display = 'none';
+    el('co-photo-input').style.display = 'none';
+    el('btn-upload-photo').style.display = 'none';
+    el('btn-upload-co-photo').style.display = 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -986,19 +1315,28 @@
         HAS_CO_PHOTO: typeof HAS_CO_PHOTO !== 'undefined' ? HAS_CO_PHOTO : 'undefined'
     });
     
+    // ✅ Initialize camera instances
+    console.log('📷 Initializing camera capture instances...');
+    initializeCameras();
+    
+    // ✅ Add camera button event listeners
+    el('ci-btn-capture')?.addEventListener('click', captureCheckInSelfie);
+    el('ci-btn-retake')?.addEventListener('click', retakeCheckInSelfie);
+    el('co-btn-capture')?.addEventListener('click', captureCheckOutSelfie);
+    el('co-btn-retake')?.addEventListener('click', retakeCheckOutSelfie);
+    
+    // ✅ Start cameras when inside radius (this will be controlled by GPS callback)
+    console.log('📷 Camera event listeners registered');
+    
     // ✅ PRIMARY: Use backend-provided constants (source of truth)
     if (typeof HAS_CI_PHOTO !== 'undefined' && HAS_CI_PHOTO === true) {
         console.log('✅ Check-in photo exists (from backend constant HAS_CI_PHOTO)');
         ciPhotoReady = true;
-        // Lock component immediately
-        lockUploadComponent('photo-zone', 'photo-input', 'btn-upload-photo', 'ci-photo-icon', 'ci-photo-label', false);
     }
     
     if (typeof HAS_CO_PHOTO !== 'undefined' && HAS_CO_PHOTO === true) {
         console.log('✅ Check-out photo exists (from backend constant HAS_CO_PHOTO)');
         coPhotoReady = true;
-        // Lock component immediately
-        lockUploadComponent('co-photo-zone', 'co-photo-input', 'btn-upload-co-photo', 'co-photo-icon', 'co-photo-label', true);
     }
     
     // ✅ FALLBACK: Check badge status (in case constants not defined)
@@ -1006,10 +1344,9 @@
         const ciBadge = el('ci-photo-badge');
         if (ciBadge) {
             const badgeText = ciBadge.textContent || '';
-            if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
+            if (badgeText.indexOf('Captured') !== -1 || badgeText.indexOf('✓') !== -1) {
                 console.log('✅ Check-in photo detected from badge (fallback method)');
                 ciPhotoReady = true;
-                lockUploadComponent('photo-zone', 'photo-input', 'btn-upload-photo', 'ci-photo-icon', 'ci-photo-label', false);
             }
         }
     }
@@ -1018,30 +1355,10 @@
         const coBadge = el('co-photo-badge');
         if (coBadge) {
             const badgeText = coBadge.textContent || '';
-            if (badgeText.indexOf('Uploaded') !== -1 || badgeText.indexOf('✓') !== -1) {
+            if (badgeText.indexOf('Captured') !== -1 || badgeText.indexOf('✓') !== -1) {
                 console.log('✅ Check-out photo detected from badge (fallback method)');
                 coPhotoReady = true;
-                lockUploadComponent('co-photo-zone', 'co-photo-input', 'btn-upload-co-photo', 'co-photo-icon', 'co-photo-label', true);
             }
-        }
-    }
-    
-    // ✅ FALLBACK 2: check image preview (legacy)
-    if (!ciPhotoReady) {
-        const ciPreview = el('photo-preview-img');
-        if (ciPreview && ciPreview.src && ciPreview.src.indexOf('/static/uploads/') !== -1) {
-            console.log('✅ Check-in photo detected from preview image (legacy fallback)');
-            ciPhotoReady = true;
-            lockUploadComponent('photo-zone', 'photo-input', 'btn-upload-photo', 'ci-photo-icon', 'ci-photo-label', false);
-        }
-    }
-    
-    if (!coPhotoReady) {
-        const coPreview = el('co-photo-preview-img');
-        if (coPreview && coPreview.src && coPreview.src.indexOf('/static/uploads/') !== -1) {
-            console.log('✅ Check-out photo detected from preview image (legacy fallback)');
-            coPhotoReady = true;
-            lockUploadComponent('co-photo-zone', 'co-photo-input', 'btn-upload-co-photo', 'co-photo-icon', 'co-photo-label', true);
         }
     }
     
@@ -1053,7 +1370,6 @@
     initMap();
     startGPS();
     startAutoRefresh();
-    initPhotoUpload();
     
     // Initial button state evaluation
     console.log('🔄 Calling initial updateAttendanceButtons()');
