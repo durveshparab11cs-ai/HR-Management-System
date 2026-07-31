@@ -69,6 +69,22 @@ def create_app(env: str = "development") -> Flask:
     from app.blueprints import register_blueprints  # noqa: PLC0415
     register_blueprints(app)
 
+    # ── 5a. Admin redirect hook ──────────────────────────────────────
+    @app.before_request
+    def _redirect_admin_to_dashboard():
+        """Automatically redirect admin users to /admin/ if accessing /dashboard/"""
+        from flask import request, redirect, url_for  # noqa: PLC0415
+        from flask_login import current_user  # noqa: PLC0415
+        
+        # If user is authenticated and on dashboard or root, check if they should be on admin
+        if current_user.is_authenticated:
+            # Check for dashboard paths
+            if request.path.startswith('/dashboard'):
+                user_role = getattr(current_user, 'role', None)
+                if user_role in ('super_admin', 'admin', 'hr_manager', 'hr_staff'):
+                    app.logger.warning(f"ADMIN REDIRECT: User {current_user.id} ({user_role}) accessing dashboard, redirecting to admin")
+                    return redirect(url_for('admin.index'), code=302)
+
     # ── 6. Error Handlers ────────────────────────────────────────────
     from app.error_handlers import register_error_handlers  # noqa: PLC0415
     register_error_handlers(app)
