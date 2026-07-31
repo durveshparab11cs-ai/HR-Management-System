@@ -265,6 +265,7 @@
       
       console.log('Using CSRF token:', csrfToken ? '(present)' : '(missing)');
       console.log('Uploading selfie for type:', type);
+      console.log('Data URL length:', dataUrl.length, 'bytes');
       
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -278,6 +279,7 @@
         })
       });
       
+      console.log('Response status:', res.status);
       const data = await res.json();
       console.log('Upload response:', data);
       
@@ -292,10 +294,13 @@
         enableCheckin();
         alert('✓ Photo captured successfully! Ready for check-in.');
       } else {
-        alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+        const errorMsg = data.message || data.error || 'Unknown error';
+        console.error('Upload failed:', errorMsg);
+        alert('❌ Upload failed: ' + errorMsg);
       }
     } catch (err) {
       console.error('Upload error:', err);
+      console.error('Upload error stack:', err.stack);
       alert('❌ Upload failed: ' + err.message);
     }
   }
@@ -351,7 +356,20 @@
     try {
       const csrfToken = getCsrfToken();
       
-      await fetch('/attendance/generate-proof-image', {
+      // Calculate distance from office if available
+      let distanceMetres = 0;
+      if (window.OFFICE && window.lat && window.lon) {
+        distanceMetres = calculateDistance(
+          window.OFFICE.lat,
+          window.OFFICE.lon,
+          window.lat,
+          window.lon
+        );
+      }
+      
+      console.log('Generating proof image with distance:', distanceMetres, 'meters');
+      
+      const res = await fetch('/attendance/generate-proof-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -361,12 +379,36 @@
           type: type === 'ci' ? 'checkin' : 'checkout',
           latitude: window.lat || 0,
           longitude: window.lon || 0,
-          accuracy: window.acc || 0
+          accuracy: window.acc || 0,
+          distance_metres: distanceMetres
         })
       });
+      
+      const data = await res.json();
+      console.log('Proof generation response:', data);
+      
+      if (!data.success) {
+        console.error('Proof generation failed:', data.message);
+      }
     } catch (err) {
       console.error('Proof generation error:', err);
     }
+  }
+  
+  // Calculate distance between two GPS points (Haversine formula)
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth radius in meters
+    const toRad = Math.PI / 180;
+    
+    const dLat = (lat2 - lat1) * toRad;
+    const dLon = (lon2 - lon1) * toRad;
+    
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
   }
   
   // Enable check-in
