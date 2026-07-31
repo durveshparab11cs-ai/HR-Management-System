@@ -187,15 +187,39 @@
       console.log('Upload response:', data);
       
       if (data.success) {
-        if (type === 'ci') ciPhotoReady = true;
-        else coPhotoReady = true;
+        if (type === 'ci') {
+          ciPhotoReady = true;
+          console.log('✅ ciPhotoReady set to TRUE');
+        } else {
+          coPhotoReady = true;
+          console.log('✅ coPhotoReady set to TRUE');
+        }
         
         console.log('Photo ready, generating proof image');
         
-        // Generate proof image
+        // Generate proof image (fire and forget)
         generateProof(type);
+        
+        // Update button immediately
+        console.log('Calling enableCheckin() with ciPhotoReady:', ciPhotoReady);
         enableCheckin();
-        alert('✓ Photo captured successfully! Ready for check-in.');
+        
+        // Update badge
+        const badge = el(type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
+        if (badge) {
+          badge.className = 'badge bg-success-subtle text-success small';
+          badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+        }
+        
+        // Update button text
+        const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
+        if (btnText && type === 'ci') {
+          btnText.textContent = 'Check In Now';
+        } else if (btnText && type === 'co') {
+          btnText.textContent = 'Check Out Now';
+        }
+        
+        alert('✓ Photo captured successfully! Ready for ' + (type === 'ci' ? 'check-in' : 'check-out') + '.');
       } else {
         alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
       }
@@ -257,11 +281,30 @@
     }
   }
   
-  // Enable check-in
+  // Enable check-in/checkout buttons
   function enableCheckin() {
     const btn = el('btn-checkin');
+    const btnCheckout = el('btn-checkout');
+    
+    console.log('enableCheckin() called - ciPhotoReady:', ciPhotoReady, ', coPhotoReady:', coPhotoReady);
+    
+    // Enable check-in button if photo is ready and not already checked in
     if (btn && ciPhotoReady) {
-      btn.disabled = false;
+      const isAlreadyCheckedIn = btn.textContent.includes('Already Checked In');
+      if (!isAlreadyCheckedIn) {
+        btn.disabled = false;
+        console.log('✅ Check-in button ENABLED');
+      }
+    }
+    
+    // Enable check-out button if photo is ready and user is checked in
+    if (btnCheckout && coPhotoReady) {
+      const isAlreadyCheckedOut = btnCheckout.textContent.includes('Already Checked Out');
+      const notCheckedIn = btnCheckout.textContent.includes('Check In First');
+      if (!isAlreadyCheckedOut && !notCheckedIn) {
+        btnCheckout.disabled = false;
+        console.log('✅ Check-out button ENABLED');
+      }
     }
   }
   
@@ -446,12 +489,54 @@
         }
         if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
         
+        console.log('Check-in button clicked. GPS:', window.lat, window.lon, window.acc);
+        
+        const formData = new FormData();
+        formData.append('latitude', window.lat || 0);
+        formData.append('longitude', window.lon || 0);
+        formData.append('accuracy', window.acc || 0);
+        
+        const btn = el('btn-checkin');
+        const btnText = el('ci-text');
+        const spinner = el('ci-spin');
+        
+        if (btn && btnText && spinner) {
+          btn.disabled = true;
+          spinner.style.display = 'inline-block';
+          btnText.textContent = 'Processing...';
+        }
+        
         fetch('/attendance/checkin', {
           method: 'POST',
           headers: {
             'X-CSRFToken': csrfToken || ''
+          },
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Check-in response:', data);
+          if (data.success) {
+            alert('✅ Check-in successful!\n' + data.message);
+            location.reload();
+          } else {
+            alert('❌ Check-in failed:\n' + data.message);
+            if (btn && btnText && spinner) {
+              btn.disabled = false;
+              spinner.style.display = 'none';
+              btnText.textContent = 'Check In Now';
+            }
           }
-        }).then(() => location.reload());
+        })
+        .catch(err => {
+          console.error('Check-in error:', err);
+          alert('❌ Check-in failed: ' + err.message);
+          if (btn && btnText && spinner) {
+            btn.disabled = false;
+            spinner.style.display = 'none';
+            btnText.textContent = 'Check In Now';
+          }
+        });
       }
     });
     
@@ -466,12 +551,54 @@
         }
         if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
         
+        console.log('Check-out button clicked. GPS:', window.lat, window.lon, window.acc);
+        
+        const formData = new FormData();
+        formData.append('latitude', window.lat || 0);
+        formData.append('longitude', window.lon || 0);
+        formData.append('accuracy', window.acc || 0);
+        
+        const btn = el('btn-checkout');
+        const btnText = el('co-text');
+        const spinner = el('co-spin');
+        
+        if (btn && btnText && spinner) {
+          btn.disabled = true;
+          spinner.style.display = 'inline-block';
+          btnText.textContent = 'Processing...';
+        }
+        
         fetch('/attendance/checkout', {
           method: 'POST',
           headers: {
             'X-CSRFToken': csrfToken || ''
+          },
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Check-out response:', data);
+          if (data.success) {
+            alert('✅ Check-out successful!\n' + data.message);
+            location.reload();
+          } else {
+            alert('❌ Check-out failed:\n' + data.message);
+            if (btn && btnText && spinner) {
+              btn.disabled = false;
+              spinner.style.display = 'none';
+              btnText.textContent = 'Check Out Now';
+            }
           }
-        }).then(() => location.reload());
+        })
+        .catch(err => {
+          console.error('Check-out error:', err);
+          alert('❌ Check-out failed: ' + err.message);
+          if (btn && btnText && spinner) {
+            btn.disabled = false;
+            spinner.style.display = 'none';
+            btnText.textContent = 'Check Out Now';
+          }
+        });
       }
     });
     
