@@ -74,7 +74,7 @@
       await Promise.race([
         camera.start(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Camera startup timeout')), 5000)
+          setTimeout(() => reject(new Error('Camera startup timeout')), 8000)
         )
       ]);
       
@@ -100,19 +100,41 @@
       }
     } catch (err) {
       console.error('Camera error:', err.name, err.message);
+      console.error('Full error details:', err);
       
-      // Show appropriate error message
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      // Check if this is a permission error on Render (production environment)
+      const isPermissionError = err.name === 'NotAllowedError' || 
+                                err.name === 'PermissionDeniedError' ||
+                                err.message.includes('Permission');
+      
+      const isDeviceNotFound = err.name === 'NotFoundError' || 
+                               err.name === 'DevicesNotFoundError' ||
+                               err.message.includes('Requested device not found');
+      
+      const isTimeoutError = err.message && err.message.includes('timeout');
+      
+      // On Render (production), if getUserMedia fails, offer file upload fallback
+      const isProduction = window.location.hostname !== 'localhost' && 
+                          !window.location.hostname.startsWith('127.0.0.1');
+      
+      if ((isPermissionError || isDeviceNotFound || isTimeoutError) && isProduction) {
+        console.log('Production environment - falling back to file upload');
+        useFallbackFileUpload(type);
+        return;
+      }
+      
+      // Show appropriate error message for development
+      if (isPermissionError) {
         console.log('Camera permission denied');
         if (cameraDisabled) cameraDisabled.style.display = 'block';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      } else if (isDeviceNotFound) {
         console.log('No camera device found');
         if (cameraError) {
           el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 'No camera device found';
           cameraError.style.display = 'block';
         }
-      } else if (err.message && err.message.includes('timeout')) {
-        console.log('Camera timeout - device may be busy');
+      } else if (isTimeoutError) {
+        console.log('Camera timeout - device may be busy or unavailable');
         if (cameraError) {
           el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 'Camera startup timeout - try again';
           cameraError.style.display = 'block';
@@ -131,10 +153,46 @@
       
       // Show photo zone again for retry
       if (photoZone) photoZone.style.display = 'block';
-      
-      // Also alert user
-      alert('Camera error: ' + err.message);
     }
+  }
+  
+  // Fallback: File upload when camera is not available (for Render production)
+  function useFallbackFileUpload(type) {
+    console.log('Using file upload fallback for:', type);
+    
+    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
+    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
+    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
+    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
+    const cameraError = el(type === 'ci' ? 'ci-camera-error' : 'co-camera-error');
+    
+    if (videoContainer) videoContainer.style.display = 'none';
+    if (captureBtn) captureBtn.style.display = 'none';
+    if (cameraStatus) cameraStatus.style.display = 'none';
+    if (cameraError) cameraError.style.display = 'none';
+    if (photoZone) photoZone.style.display = 'block';
+    
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';  // Try camera capture first
+    
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        console.log('File selected:', file.name, file.type);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target.result;
+          displayPhoto(type, dataUrl);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Trigger file picker
+    input.click();
   }
   
   // Capture frame from live camera

@@ -55,6 +55,13 @@ class CameraCapture {
     }
 
     try {
+      console.log('[CameraCapture] Checking getUserMedia availability...');
+      
+      // Check if getUserMedia is available and accessible
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia not available - browser does not support camera API');
+      }
+
       console.log('[CameraCapture] Requesting camera access...');
 
       // Request camera with selfie preference
@@ -67,6 +74,9 @@ class CameraCapture {
         audio: false
       };
 
+      // Add detailed error logging
+      console.log('[CameraCapture] Calling getUserMedia with constraints:', constraints);
+      
       this.stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('[CameraCapture] Stream obtained, tracks:', this.stream.getTracks().length);
 
@@ -77,7 +87,7 @@ class CameraCapture {
       // Wait for video to load with timeout
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Video metadata load timeout'));
+          reject(new Error('Video metadata load timeout (5 seconds)'));
         }, 5000);
         
         this.videoElement.onloadedmetadata = () => {
@@ -96,7 +106,8 @@ class CameraCapture {
         
         this.videoElement.onerror = (err) => {
           clearTimeout(timeout);
-          reject(err);
+          console.error('[CameraCapture] Video element error:', err);
+          reject(new Error('Video element error: ' + (err?.message || 'Unknown')));
         };
       });
 
@@ -104,10 +115,15 @@ class CameraCapture {
       console.log('[CameraCapture] Camera started successfully');
     } catch (err) {
       console.error('[CameraCapture] Error starting camera:', err.name, err.message);
+      console.error('[CameraCapture] Full error:', err);
       
       // Cleanup on error
       if (this.stream) {
-        this.stream.getTracks().forEach(track => track.stop());
+        this.stream.getTracks().forEach(track => {
+          console.log('[CameraCapture] Stopping track on error:', track.kind);
+          track.stop();
+        });
+        this.stream = null;
       }
       
       throw err;
