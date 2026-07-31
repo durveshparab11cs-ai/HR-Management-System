@@ -29,14 +29,19 @@
     const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
     const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
     const cameraError = el(type === 'ci' ? 'ci-camera-error' : 'co-camera-error');
+    const cameraDisabled = el(type === 'ci' ? 'ci-camera-disabled' : 'co-camera-disabled');
     const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
     
     try {
+      console.log('Requesting camera access for', type);
+      
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
+      
+      console.log('Camera access granted, stream:', stream);
       
       // Hide photo zone, show video
       if (photoZone) photoZone.style.display = 'none';
@@ -47,6 +52,7 @@
       if (cameraStatus) cameraStatus.style.display = 'block';
       if (captureBtn) captureBtn.style.display = 'block';
       if (cameraError) cameraError.style.display = 'none';
+      if (cameraDisabled) cameraDisabled.style.display = 'none';
       
       // Store stream for later cleanup
       video.dataset.stream = 'active';
@@ -56,17 +62,56 @@
       
     } catch (err) {
       console.error('Camera error:', err);
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
       
-      if (cameraError) {
-        cameraError.style.display = 'block';
-        el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 
-          err.name === 'NotAllowedError' 
-            ? 'Camera permission denied - check browser settings' 
-            : 'Camera not available: ' + err.message;
+      // Hide video
+      if (videoContainer) videoContainer.style.display = 'none';
+      if (cameraStatus) cameraStatus.style.display = 'none';
+      if (captureBtn) captureBtn.style.display = 'none';
+      
+      // Show error or disabled message
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        console.log('Permission denied - showing disabled message');
+        if (cameraDisabled) cameraDisabled.style.display = 'block';
+        if (cameraError) cameraError.style.display = 'none';
+      } else {
+        console.log('Other error - showing error message');
+        if (cameraError) {
+          cameraError.style.display = 'block';
+          el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 
+            'Camera not available: ' + err.message;
+        }
+        if (cameraDisabled) cameraDisabled.style.display = 'none';
       }
       
-      if (photoZone) photoZone.style.display = 'block';
-      if (videoContainer) videoContainer.style.display = 'none';
+      // Always show photo zone as fallback
+      if (photoZone) {
+        photoZone.style.display = 'block';
+        photoZone.innerHTML = '<div style="text-align:center;padding:20px"><i class="bi bi-exclamation-triangle fs-3 text-warning d-block mb-2"></i><div class="small fw-semibold text-muted">Camera Not Available</div><div style="font-size:.7rem;color:#94a3b8;margin-top:8px">Please enable camera in browser settings</div><div style="margin-top:12px;padding:8px;background:#fff3cd;border-radius:6px;font-size:.75rem;color:#856404"><strong>Fix:</strong> Click the camera icon in your address bar and enable camera access</div></div>';
+      }
+      
+      // Fallback: offer file upload
+      console.log('Setting up file input fallback');
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handlePhotoFile(type, file);
+        }
+      });
+      
+      // Add file upload button to photo zone if camera failed
+      if (photoZone && photoZone.innerHTML.includes('Camera Not Available')) {
+        const fileBtn = document.createElement('button');
+        fileBtn.className = 'btn btn-sm btn-outline-secondary';
+        fileBtn.textContent = 'Upload Photo Instead';
+        fileBtn.style.marginTop = '12px';
+        fileBtn.onclick = () => input.click();
+        photoZone.appendChild(fileBtn);
+      }
     }
   }
   
@@ -91,6 +136,18 @@
     
     // Show preview
     handleCapturedPhoto(type, dataUrl);
+  }
+  
+  // Handle photo file upload (fallback)
+  function handlePhotoFile(type, file) {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      handleCapturedPhoto(type, dataUrl);
+    };
+    
+    reader.readAsDataURL(file);
   }
   
   // Handle captured photo
