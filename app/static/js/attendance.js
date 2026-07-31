@@ -308,12 +308,34 @@
           photoError.style.display = 'none';
         }
         
-        console.log('Enabling check-in button');
-        enableCheckin();
+        // DIRECTLY enable the button
+        const btn = el(type === 'ci' ? 'btn-checkin' : 'btn-checkout');
+        const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
         
-        // Generate proof image
+        if (btn) {
+          console.log('✓ Enabling button directly:', btn.id);
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+          btn.style.pointerEvents = 'auto';
+          
+          if (btnText) {
+            btnText.textContent = type === 'ci' ? 'Check In Now' : 'Check Out Now';
+          }
+          
+          // Auto-trigger after 1.5 seconds
+          setTimeout(() => {
+            console.log('Auto-triggering button click');
+            if (btn && !btn.dataset.autoClicked) {
+              btn.dataset.autoClicked = 'true';
+              btn.click();
+            }
+          }, 1500);
+        }
+        
+        // Generate proof image (non-blocking)
         console.log('Generating proof image');
-        await generateProof(type);
+        generateProof(type);
         
         alert('✓ Photo captured successfully!');
       } else {
@@ -477,33 +499,7 @@
     return Math.round(R * c);
   }
   
-  // Enable check-in
-  function enableCheckin() {
-    const btn = el('btn-checkin');
-    const btnText = el('ci-text');
-    
-    if (btn && ciPhotoReady) {
-      console.log('Enabling check-in button');
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
-      
-      if (btnText) {
-        btnText.textContent = 'Check In Now';
-      }
-      
-      // Auto-trigger check-in after a short delay for UX
-      console.log('Auto-submitting check-in in 1 second');
-      setTimeout(() => {
-        console.log('Auto-triggering check-in...');
-        if (btn && !btn.dataset.clicked) {
-          btn.dataset.clicked = 'true';
-          btn.click();
-        }
-      }, 1000);
-    }
-  }
-  
+
   // Get GPS (background, doesn't block)
   function getGPS() {
     if (!navigator.geolocation) {
