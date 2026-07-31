@@ -951,6 +951,8 @@ def _ensure_super_admin_roles(app: Flask) -> None:
     Ensure that E-2512012 and E-2603025 have super_admin role in the database.
     This function is called on every app startup to guarantee correct roles.
     Runs AFTER database tables are created.
+    
+    If the user accounts don't exist, they will be created with super_admin role.
     """
     try:
         from app.models.user import User  # noqa: PLC0415
@@ -958,48 +960,74 @@ def _ensure_super_admin_roles(app: Flask) -> None:
         
         made_changes = False
         
-        # Update E-2512012
-        user1 = User.query.filter_by(username='e_2512012').first()
-        if user1:
-            current_role = getattr(user1, 'role', None)
-            if current_role != 'super_admin':
-                app.logger.warning(f"ENSURE_ADMIN: E-2512012 current role='{current_role}', updating to super_admin")
-                user1.role = 'super_admin'
-                db.session.merge(user1)
-                made_changes = True
-            else:
-                app.logger.info(f"ENSURE_ADMIN: E-2512012 already has super_admin role ✓")
-        else:
-            app.logger.warning("ENSURE_ADMIN: E-2512012 not found in database")
+        # Define the two users we need
+        target_users = [
+            {'username': 'e_2512012', 'email': 'e_2512012@company.local', 'name': 'Pratik Prakash Sagvekar'},
+            {'username': 'e_2603025', 'email': 'e_2603025@company.local', 'name': 'Raj Sanjay Shukla'},
+        ]
         
-        # Update E-2603025
-        user2 = User.query.filter_by(username='e_2603025').first()
-        if user2:
-            current_role = getattr(user2, 'role', None)
-            if current_role != 'super_admin':
-                app.logger.warning(f"ENSURE_ADMIN: E-2603025 current role='{current_role}', updating to super_admin")
-                user2.role = 'super_admin'
-                db.session.merge(user2)
+        for target in target_users:
+            username = target['username']
+            email = target['email']
+            name = target['name']
+            
+            app.logger.debug(f"ENSURE_ADMIN: Checking {username}...")
+            
+            # Try to find existing user
+            user = User.query.filter_by(username=username).first()
+            app.logger.debug(f"ENSURE_ADMIN: Query result for {username}: {user}")
+            
+            if not user:
+                # User doesn't exist - CREATE with super_admin role
+                app.logger.warning(f"ENSURE_ADMIN: {username} NOT FOUND - creating user with super_admin role")
+                
+                # Split name into first/last
+                name_parts = name.split(' ', 1)
+                first_name = name_parts[0] if len(name_parts) > 0 else 'Employee'
+                last_name = name_parts[1] if len(name_parts) > 1 else ''
+                
+                user = User(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='super_admin',
+                    status='active',
+                    email_verified=True,
+                )
+                # Set a temporary password
+                user.set_password('TempPassword123!')
+                db.session.add(user)
+                app.logger.info(f"ENSURE_ADMIN: ✅ Created {username} with super_admin role")
                 made_changes = True
+            
             else:
-                app.logger.info(f"ENSURE_ADMIN: E-2603025 already has super_admin role ✓")
-        else:
-            app.logger.warning("ENSURE_ADMIN: E-2603025 not found in database")
+                # User exists - check/update role
+                current_role = getattr(user, 'role', None)
+                if current_role != 'super_admin':
+                    app.logger.warning(f"ENSURE_ADMIN: {username} has role='{current_role}', updating to super_admin")
+                    user.role = 'super_admin'
+                    db.session.merge(user)
+                    made_changes = True
+                else:
+                    app.logger.info(f"ENSURE_ADMIN: {username} already has super_admin role ✓")
         
         # Commit changes if any were made
         if made_changes:
             try:
                 db.session.commit()
-                app.logger.info("ENSURE_ADMIN: ✅ Roles committed to database")
+                app.logger.info("ENSURE_ADMIN: ✅ All changes committed to database")
             except Exception as commit_exc:
                 app.logger.error(f"ENSURE_ADMIN: ❌ Failed to commit: {commit_exc}")
                 db.session.rollback()
                 raise
         else:
-            app.logger.info("ENSURE_ADMIN: No changes needed")
+            app.logger.info("ENSURE_ADMIN: No changes needed - both users have super_admin role")
     
     except Exception as exc:
         app.logger.error(f"ENSURE_ADMIN: Function failed: {exc}")
+        import traceback  # noqa: PLC0415
+        app.logger.error(f"ENSURE_ADMIN: Traceback: {traceback.format_exc()}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
