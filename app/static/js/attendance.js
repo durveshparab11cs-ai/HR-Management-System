@@ -13,7 +13,7 @@
   // ================== INIT ==================
   
   function init() {
-    console.log('[ATTENDANCE] Initializing event listeners');
+    console.log('[ATTENDANCE] v2 - Initializing event listeners');
     
     // Photo zones
     el('photo-zone')?.addEventListener('click', () => {
