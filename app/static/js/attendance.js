@@ -1,176 +1,71 @@
 'use strict';
 
 (function () {
-  // Attendance system - LIVE CAMERA capture
+  // Attendance system - File upload with camera capture on mobile
   
   const el = (id) => document.getElementById(id);
   let ciPhotoReady = false;
   let coPhotoReady = false;
   let gpsWatchId = null;
   
-  // Setup camera click handlers
+  // Setup photo click handlers
   function setupPhotoClick() {
     const ciZone = el('photo-zone');
     const coZone = el('co-photo-zone');
     
     if (ciZone) {
-      ciZone.addEventListener('click', () => startCamera('ci'));
+      ciZone.addEventListener('click', () => openPhotoInput('ci'));
     }
     
     if (coZone) {
-      coZone.addEventListener('click', () => startCamera('co'));
+      coZone.addEventListener('click', () => openPhotoInput('co'));
     }
   }
   
-  // Start camera
-  async function startCamera(type) {
-    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
-    const video = el(type === 'ci' ? 'ci-video' : 'co-video');
-    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
-    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
-    const cameraError = el(type === 'ci' ? 'ci-camera-error' : 'co-camera-error');
-    const cameraDisabled = el(type === 'ci' ? 'ci-camera-disabled' : 'co-camera-disabled');
-    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
+  // Open file input - uses camera on mobile, file picker on desktop
+  function openPhotoInput(type) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // Prefer camera on mobile
     
-    try {
-      console.log('Requesting camera access for', type);
-      
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      
-      console.log('Camera access granted, stream:', stream);
-      
-      // Hide photo zone, show video
-      if (photoZone) photoZone.style.display = 'none';
-      if (videoContainer) videoContainer.style.display = 'block';
-      if (video) video.srcObject = stream;
-      
-      // Show camera status and capture button
-      if (cameraStatus) cameraStatus.style.display = 'block';
-      if (captureBtn) captureBtn.style.display = 'block';
-      if (cameraError) cameraError.style.display = 'none';
-      if (cameraDisabled) cameraDisabled.style.display = 'none';
-      
-      // Store stream for later cleanup
-      video.dataset.stream = 'active';
-      
-      // Setup capture button
-      captureBtn.onclick = () => capturePhoto(type, video, stream);
-      
-    } catch (err) {
-      console.error('Camera error:', err);
-      console.error('Error name:', err.name);
-      console.error('Error message:', err.message);
-      
-      // Hide video
-      if (videoContainer) videoContainer.style.display = 'none';
-      if (cameraStatus) cameraStatus.style.display = 'none';
-      if (captureBtn) captureBtn.style.display = 'none';
-      
-      // Show error or disabled message
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        console.log('Permission denied - showing disabled message');
-        if (cameraDisabled) cameraDisabled.style.display = 'block';
-        if (cameraError) cameraError.style.display = 'none';
-      } else {
-        console.log('Other error - showing error message');
-        if (cameraError) {
-          cameraError.style.display = 'block';
-          el(type === 'ci' ? 'ci-error-text' : 'co-error-text').textContent = 
-            'Camera not available: ' + err.message;
-        }
-        if (cameraDisabled) cameraDisabled.style.display = 'none';
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handlePhotoFile(type, file);
       }
-      
-      // Always show photo zone as fallback
-      if (photoZone) {
-        photoZone.style.display = 'block';
-        photoZone.innerHTML = '<div style="text-align:center;padding:20px"><i class="bi bi-exclamation-triangle fs-3 text-warning d-block mb-2"></i><div class="small fw-semibold text-muted">Camera Not Available</div><div style="font-size:.7rem;color:#94a3b8;margin-top:8px">Please enable camera in browser settings</div><div style="margin-top:12px;padding:8px;background:#fff3cd;border-radius:6px;font-size:.75rem;color:#856404"><strong>Fix:</strong> Click the camera icon in your address bar and enable camera access</div></div>';
-      }
-      
-      // Fallback: offer file upload
-      console.log('Setting up file input fallback');
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          handlePhotoFile(type, file);
-        }
-      });
-      
-      // Add file upload button to photo zone if camera failed
-      if (photoZone && photoZone.innerHTML.includes('Camera Not Available')) {
-        const fileBtn = document.createElement('button');
-        fileBtn.className = 'btn btn-sm btn-outline-secondary';
-        fileBtn.textContent = 'Upload Photo Instead';
-        fileBtn.style.marginTop = '12px';
-        fileBtn.onclick = () => input.click();
-        photoZone.appendChild(fileBtn);
-      }
-    }
+    });
+    
+    input.click();
   }
   
-  // Capture photo from video
-  function capturePhoto(type, video, stream) {
-    const canvas = el(type === 'ci' ? 'ci-canvas' : 'co-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Set canvas size to video size
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Flip horizontally (mirror effect) for selfies
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, -canvas.width, 0);
-    
-    // Get image data
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-    
-    // Stop camera stream
-    stream.getTracks().forEach(track => track.stop());
-    
-    // Show preview
-    handleCapturedPhoto(type, dataUrl);
-  }
-  
-  // Handle photo file upload (fallback)
+  // Handle photo file
   function handlePhotoFile(type, file) {
     const reader = new FileReader();
     
     reader.onload = (e) => {
       const dataUrl = e.target.result;
-      handleCapturedPhoto(type, dataUrl);
+      
+      // Show preview
+      const preview = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
+      const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
+      
+      if (preview) preview.src = dataUrl;
+      if (previewContainer) previewContainer.style.display = 'block';
+      
+      // Hide photo zone
+      const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
+      if (photoZone) photoZone.style.display = 'none';
+      
+      // Show retake button
+      const retakeBtn = el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake');
+      if (retakeBtn) retakeBtn.style.display = 'block';
+      
+      // Upload the photo
+      uploadSelfie(type, dataUrl);
     };
     
     reader.readAsDataURL(file);
-  }
-  
-  // Handle captured photo
-  function handleCapturedPhoto(type, dataUrl) {
-    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
-    const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
-    const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
-    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
-    const retakeBtn = el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake');
-    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
-    
-    // Hide video, show preview
-    if (videoContainer) videoContainer.style.display = 'none';
-    if (previewContainer) previewContainer.style.display = 'block';
-    if (previewImg) previewImg.src = dataUrl;
-    
-    // Show retake button, hide capture
-    if (captureBtn) captureBtn.style.display = 'none';
-    if (retakeBtn) retakeBtn.style.display = 'block';
-    if (cameraStatus) cameraStatus.style.display = 'none';
-    
-    // Upload the photo
-    uploadSelfie(type, dataUrl);
   }
   
   // Upload selfie
@@ -436,39 +331,21 @@
     // Setup events
     setupPhotoClick();
     
-    // Setup retake buttons - restart camera
+    // Setup retake buttons - restart photo input
     el('ci-btn-retake')?.addEventListener('click', () => {
-      const videoContainer = el('ci-video-container');
-      const previewContainer = el('ci-selfie-preview');
-      const photoZone = el('photo-zone');
-      const captureBtn = el('ci-btn-capture');
-      const retakeBtn = el('ci-btn-retake');
-      
-      if (videoContainer) videoContainer.style.display = 'none';
-      if (previewContainer) previewContainer.style.display = 'none';
-      if (photoZone) photoZone.style.display = 'block';
-      if (captureBtn) captureBtn.style.display = 'none';
-      if (retakeBtn) retakeBtn.style.display = 'none';
-      
+      el('ci-selfie-preview').style.display = 'none';
+      el('photo-zone').style.display = 'block';
+      el('ci-btn-retake').style.display = 'none';
       ciPhotoReady = false;
-      startCamera('ci');
+      openPhotoInput('ci');
     });
     
     el('co-btn-retake')?.addEventListener('click', () => {
-      const videoContainer = el('co-video-container');
-      const previewContainer = el('co-selfie-preview');
-      const photoZone = el('co-photo-zone');
-      const captureBtn = el('co-btn-capture');
-      const retakeBtn = el('co-btn-retake');
-      
-      if (videoContainer) videoContainer.style.display = 'none';
-      if (previewContainer) previewContainer.style.display = 'none';
-      if (photoZone) photoZone.style.display = 'block';
-      if (captureBtn) captureBtn.style.display = 'none';
-      if (retakeBtn) retakeBtn.style.display = 'none';
-      
+      el('co-selfie-preview').style.display = 'none';
+      el('co-photo-zone').style.display = 'block';
+      el('co-btn-retake').style.display = 'none';
       coPhotoReady = false;
-      startCamera('co');
+      openPhotoInput('co');
     });
     
     // Setup check-in/out
