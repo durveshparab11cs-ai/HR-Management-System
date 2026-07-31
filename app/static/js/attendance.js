@@ -31,13 +31,31 @@
     if (!videoContainer || !video) return;
     
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false
-      });
+      // Try with different constraint options for better compatibility
+      let stream = null;
+      
+      try {
+        // First try: high quality
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch (e) {
+        // Fallback: basic request
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
       
       video.srcObject = stream;
-      video.play();
+      video.setAttribute('playsinline', '');
+      video.play().catch(err => console.log('Play error:', err));
+      
       videoContainer.style.display = 'block';
       if (captureBtn) captureBtn.style.display = 'inline-flex';
       
@@ -45,8 +63,23 @@
       window.currentStream = stream;
       window.currentType = type;
       
+      console.log('Camera opened successfully');
+      
     } catch (err) {
-      alert('Camera access denied or not available: ' + err.message);
+      console.error('Camera error:', err.name, err.message);
+      
+      let msg = 'Camera access denied.';
+      if (err.name === 'NotAllowedError') {
+        msg = 'Camera permission denied. Click the lock icon in address bar → Camera → Allow, then try again.';
+      } else if (err.name === 'NotFoundError') {
+        msg = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError') {
+        msg = 'Camera is being used by another app.';
+      } else if (err.name === 'SecurityError') {
+        msg = 'Camera requires HTTPS connection.';
+      }
+      
+      alert(msg + '\n\nError: ' + err.message);
     }
   }
   
@@ -90,11 +123,31 @@
   // Upload selfie
   async function uploadSelfie(type, dataUrl) {
     try {
+      // Get CSRF token - try multiple methods
+      let csrfToken = '';
+      
+      // Method 1: From meta tag
+      const metaTag = document.querySelector('meta[name="csrf-token"]');
+      if (metaTag) csrfToken = metaTag.getAttribute('content');
+      
+      // Method 2: From inline script
+      if (!csrfToken) {
+        const scriptTag = document.querySelector('script#csrf');
+        if (scriptTag) csrfToken = scriptTag.textContent;
+      }
+      
+      // Method 3: Look in window object
+      if (!csrfToken && window.csrf_token) {
+        csrfToken = window.csrf_token;
+      }
+      
+      console.log('CSRF token:', csrfToken ? 'found' : 'not found');
+      
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': document.querySelector('script#csrf')?.textContent || ''
+          'X-CSRFToken': csrfToken || ''
         },
         body: JSON.stringify({
           selfie: dataUrl,
@@ -111,6 +164,8 @@
         // Generate proof image
         generateProof(type);
         enableCheckin();
+      } else {
+        alert('Upload failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -121,11 +176,20 @@
   // Generate proof image
   async function generateProof(type) {
     try {
+      let csrfToken = '';
+      const metaTag = document.querySelector('meta[name="csrf-token"]');
+      if (metaTag) csrfToken = metaTag.getAttribute('content');
+      if (!csrfToken) {
+        const scriptTag = document.querySelector('script#csrf');
+        if (scriptTag) csrfToken = scriptTag.textContent;
+      }
+      if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+      
       await fetch('/attendance/generate-proof-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': document.querySelector('script#csrf')?.textContent || ''
+          'X-CSRFToken': csrfToken || ''
         },
         body: JSON.stringify({
           type: type === 'ci' ? 'checkin' : 'checkout',
@@ -242,10 +306,19 @@
     // Setup check-in/out
     el('btn-checkin')?.addEventListener('click', () => {
       if (ciPhotoReady) {
+        let csrfToken = '';
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) csrfToken = metaTag.getAttribute('content');
+        if (!csrfToken) {
+          const scriptTag = document.querySelector('script#csrf');
+          if (scriptTag) csrfToken = scriptTag.textContent;
+        }
+        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        
         fetch('/attendance/checkin', {
           method: 'POST',
           headers: {
-            'X-CSRFToken': document.querySelector('script#csrf')?.textContent || ''
+            'X-CSRFToken': csrfToken || ''
           }
         }).then(() => location.reload());
       }
@@ -253,10 +326,19 @@
     
     el('btn-checkout')?.addEventListener('click', () => {
       if (coPhotoReady) {
+        let csrfToken = '';
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) csrfToken = metaTag.getAttribute('content');
+        if (!csrfToken) {
+          const scriptTag = document.querySelector('script#csrf');
+          if (scriptTag) csrfToken = scriptTag.textContent;
+        }
+        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
+        
         fetch('/attendance/checkout', {
           method: 'POST',
           headers: {
-            'X-CSRFToken': document.querySelector('script#csrf')?.textContent || ''
+            'X-CSRFToken': csrfToken || ''
           }
         }).then(() => location.reload());
       }
