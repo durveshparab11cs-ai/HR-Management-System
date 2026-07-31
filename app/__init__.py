@@ -1014,6 +1014,7 @@ def _ensure_super_admin_roles(app: Flask) -> None:
     - Runs automatically during app startup (in _auto_create_tables)
     - Is idempotent (safe to run multiple times)
     - Uses SQLAlchemy ORM only (no raw SQL)
+    - Searches for users by EMPLOYEE_CODE (through Employee table), not username
     - Creates users if they don't exist
     - Updates roles if users exist with wrong role
     - Uses EmployeeMaster data when creating users
@@ -1025,36 +1026,48 @@ def _ensure_super_admin_roles(app: Flask) -> None:
     - No manual intervention needed
     - Automatic on every deployment
     - Works even if Render Free doesn't support shell access
+    
+    KEY FIX: Users are found via Employee.employee_code → User relationship,
+    NOT by username (which is often a placeholder email-based value).
     """
     app.logger.info("ENSURE_ADMIN: ▶ Starting admin role verification routine...")
     
     try:
         from app.models.user import User  # noqa: PLC0415
+        from app.models.employee import Employee  # noqa: PLC0415
         from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
         from app.extensions.database import db  # noqa: PLC0415
         
-        # Employee codes and their fallback information
+        # Employee codes to ensure as super_admin
         target_codes = [
-            {'code': 'E-2512012', 'username': 'e_2512012', 'email': 'e_2512012@smarthrms.com', 'fallback_name': 'Pratik Prakash Sagvekar'},
-            {'code': 'E-2603025', 'username': 'e_2603025', 'email': 'e_2603025@smarthrms.com', 'fallback_name': 'Raj Sanjay Shukla'},
+            {'code': 'E-2512012', 'fallback_name': 'Pratik Prakash Sagvekar'},
+            {'code': 'E-2603025', 'fallback_name': 'Raj Sanjay Shukla'},
         ]
         
         made_changes = False
         
         for target in target_codes:
             emp_code = target['code']
-            username = target['username']
-            email = target['email']
             fallback_name = target['fallback_name']
             
-            app.logger.info(f"ENSURE_ADMIN: Checking {emp_code} ({username})...")
+            app.logger.info(f"ENSURE_ADMIN: Checking employee code {emp_code}...")
             
-            # Step 1: Try to find existing user by username
-            user = User.query.filter_by(username=username).first()
+            # Step 1: Find user by EMPLOYEE_CODE through Employee table
+            # This is how the system actually links users - via Employee.employee_code
+            user = (
+                db.session.query(User)
+                .join(Employee, Employee.user_id == User.id)
+                .filter(
+                    Employee.employee_code == emp_code,
+                    Employee.is_deleted == False,
+                    User.is_deleted == False,
+                )
+                .first()
+            )
             
             if user is None:
                 # User doesn't exist - need to create
-                app.logger.warning(f"ENSURE_ADMIN: User {username} not found, attempting creation...")
+                app.logger.warning(f"ENSURE_ADMIN: User with employee code {emp_code} not found, attempting creation...")
                 
                 # Try to get employee info from EmployeeMaster
                 emp_master = EmployeeMaster.query.filter_by(employee_code=emp_code).first()
@@ -1071,8 +1084,14 @@ def _ensure_super_admin_roles(app: Flask) -> None:
                 first_name = name_parts[0].strip() if len(name_parts) > 0 else 'Employee'
                 last_name = name_parts[1].strip() if len(name_parts) > 1 else 'Account'
                 
+                # Create username from employee code (lowercase, no dash)
+                username = emp_code.lower().replace('-', '')  # e.g. e2512012
+                
+                # Create placeholder email (internal format used by the system)
+                email = f"{username}@hrms.internal"
+                
                 # Create new user with super_admin role
-                app.logger.info(f"ENSURE_ADMIN: Creating user {username} ({first_name} {last_name})...")
+                app.logger.info(f"ENSURE_ADMIN: Creating user {username} ({first_name} {last_name}) for code {emp_code}...")
                 
                 new_user = User(
                     username=username,
@@ -1088,22 +1107,32 @@ def _ensure_super_admin_roles(app: Flask) -> None:
                 new_user.set_password('TempPassword@123')
                 
                 db.session.add(new_user)
-                app.logger.info(f"ENSURE_ADMIN: ✅ User {username} staged for creation with role=super_admin")
+                db.session.flush()  # Flush to get the user.id
+                
+                # Create Employee record linking user to employee_code
+                emp_record = Employee(
+                    user_id=new_user.id,
+                    employee_code=emp_code,
+                    created_by=new_user.id,
+                )
+                db.session.add(emp_record)
+                
+                app.logger.info(f"ENSURE_ADMIN: ✅ User {username} staged for creation with role=super_admin and employee_code={emp_code}")
                 made_changes = True
             
             else:
                 # User exists - check role
                 current_role = user.role
-                app.logger.info(f"ENSURE_ADMIN: Found {username}, current role='{current_role}'")
+                app.logger.info(f"ENSURE_ADMIN: Found user {user.username} (ID={user.id}) for employee code {emp_code}, current role='{current_role}'")
                 
                 if current_role != 'super_admin':
-                    app.logger.warning(f"ENSURE_ADMIN: Updating {username} role from '{current_role}' to 'super_admin'...")
+                    app.logger.warning(f"ENSURE_ADMIN: Updating {user.username} role from '{current_role}' to 'super_admin'...")
                     user.role = 'super_admin'
                     db.session.add(user)
-                    app.logger.info(f"ENSURE_ADMIN: ✅ User {username} role updated to super_admin")
+                    app.logger.info(f"ENSURE_ADMIN: ✅ User {user.username} role updated to super_admin")
                     made_changes = True
                 else:
-                    app.logger.info(f"ENSURE_ADMIN: ✓ {username} already has role=super_admin (no change needed)")
+                    app.logger.info(f"ENSURE_ADMIN: ✓ {user.username} (code {emp_code}) already has role=super_admin (no change needed)")
         
         # Step 2: Commit all changes atomically
         if made_changes:
@@ -1122,13 +1151,22 @@ def _ensure_super_admin_roles(app: Flask) -> None:
         # Step 3: Final verification
         app.logger.info("ENSURE_ADMIN: ▼ Final verification...")
         for target in target_codes:
-            username = target['username']
-            final_user = User.query.filter_by(username=username).first()
+            emp_code = target['code']
+            final_user = (
+                db.session.query(User)
+                .join(Employee, Employee.user_id == User.id)
+                .filter(
+                    Employee.employee_code == emp_code,
+                    Employee.is_deleted == False,
+                    User.is_deleted == False,
+                )
+                .first()
+            )
             if final_user:
                 status = "✅" if final_user.role == 'super_admin' else "❌"
-                app.logger.info(f"ENSURE_ADMIN: {status} {username}: role={final_user.role}")
+                app.logger.info(f"ENSURE_ADMIN: {status} {final_user.username} (code {emp_code}): role={final_user.role}")
             else:
-                app.logger.warning(f"ENSURE_ADMIN: ⚠️  {username}: not found after commit")
+                app.logger.warning(f"ENSURE_ADMIN: ⚠️  Code {emp_code}: user not found after commit")
         
         app.logger.info("ENSURE_ADMIN: ✅ Routine completed successfully")
     
