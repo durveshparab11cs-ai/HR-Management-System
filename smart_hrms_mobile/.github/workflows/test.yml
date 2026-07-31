@@ -1,0 +1,177 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flutter-version: [ 3.19.0, 3.22.0 ]  # Test on multiple versions
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter-version }}
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Analyze code
+        run: flutter analyze
+      
+      - name: Format check
+        run: dart format --set-exit-if-changed .
+      
+      - name: Run unit tests
+        run: flutter test --coverage --no-pub
+      
+      - name: Run integration tests
+        run: flutter test integration_test/ --coverage
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+      
+      - name: Generate coverage report
+        run: |
+          flutter pub add --dev coverage
+          flutter pub run coverage:format_coverage --packages=.packages -i coverage/lcov.info -o coverage/lcov_final.info
+      
+      - name: Check coverage threshold
+        run: |
+          python3 scripts/check_coverage.py --threshold 75
+        continue-on-error: true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Run security scan
+        run: |
+          flutter pub add --dev dependency_check
+          flutter pub run dependency_check:check --fail-on-vuln high
+        continue-on-error: true
+      
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  performance:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Run performance tests
+        run: flutter test test/performance/ --profile
+      
+      - name: Build APK for size analysis
+        run: flutter build apk --no-shrink
+      
+      - name: Analyze APK size
+        run: |
+          APK_SIZE=$(ls -lh build/app/outputs/apk/release/app-release.apk | awk '{print $5}')
+          echo "APK Size: $APK_SIZE"
+          if [ $(echo "$APK_SIZE" | numfmt --from=iec) -gt $(echo "100M" | numfmt --from=iec) ]; then
+            echo "⚠️ APK size exceeds 100MB"
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [ test, security-scan ]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Build APK
+        run: flutter build apk
+      
+      - name: Build App Bundle
+        run: flutter build appbundle
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: flutter-builds
+          path: |
+            build/app/outputs/apk/release/
+            build/app/outputs/bundle/release/
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [ test, build ]
+    if: always()
+    
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [ "${{ needs.test.result }}" == "failure" ] || [ "${{ needs.build.result }}" == "failure" ]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1
+        if: always()
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "Flutter Tests - ${{ steps.status.outputs.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Flutter Test Suite* - ${{ steps.status.outputs.status }}\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }

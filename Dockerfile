@@ -65,6 +65,9 @@ WORKDIR $APP_DIR
 # Copy application source code
 COPY --chown=hrms:hrms . .
 
+# Copy the update script (it's at repo root, not in submodule)
+COPY --chown=hrms:hrms update_admin_roles.py /app/update_admin_roles.py
+
 # Create runtime directories with correct permissions
 RUN mkdir -p /app/logs /app/instance/uploads /app/instance/sessions && \
     chown -R hrms:hrms /app/logs /app/instance
@@ -79,6 +82,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command — Gunicorn WSGI server
+# Default command — Run update script then Gunicorn WSGI server
+# First update admin roles, then start the app
 # Note: --keep-alive (hyphenated), --max-requests, log to stdout for Render
-CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level warning --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "python /app/update_admin_roles.py && mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level warning --access-logfile - --error-logfile - run:app"]

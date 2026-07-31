@@ -115,6 +115,9 @@ def create_app(env: str = "development") -> Flask:
     # ── Root redirect ────────────────────────────────────────────────
     _register_root_redirect(app)
 
+    # ── Global request handler for admin redirects ──────────────────
+    _register_request_handlers(app)
+
     # ── Auto-create DB tables (safe on first boot) ───────────────────
     _auto_create_tables(app)
 
@@ -552,6 +555,37 @@ def _register_health(app: Flask) -> None:
     def health():
         """Liveness probe — returns 200 OK when app is running."""
         return jsonify({"status": "ok", "version": app.config.get("APP_VERSION", "1.0.0")}), 200
+
+
+def _register_request_handlers(app: Flask) -> None:
+    """
+    Register global request handlers for admin user redirects and permissions.
+
+    - Redirect admin/super_admin users from /dashboard/* to /admin/
+    - Enforce dashboard access control
+    """
+    from flask import request, redirect, url_for  # noqa: PLC0415
+    from flask_login import current_user  # noqa: PLC0415
+
+    @app.before_request
+    def enforce_admin_access():
+        """Redirect admin users from /dashboard/ to /admin/."""
+        # Skip for non-authenticated users and special routes
+        if not current_user.is_authenticated:
+            return None
+
+        # Get current path
+        current_path = request.path.lower()
+        
+        # Check if trying to access /dashboard/ or /dashboard/*
+        if current_path.startswith("/dashboard"):
+            # Admin and super_admin users must use /admin/ dashboard
+            user_role = getattr(current_user, "role", None)
+            if user_role in ("super_admin", "admin", "hr_manager", "hr_staff"):
+                # Redirect to admin dashboard
+                return redirect(url_for("admin.index"))
+        
+        return None
 
 
 def _auto_create_tables(app: Flask) -> None:
