@@ -601,37 +601,10 @@
     }
 
     setGpsStatus('acquiring', 'Loading GPS…');
-
-    // Check permission state first to give informed status message
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then(function (perm) {
-        if (perm.state === 'denied') {
-          // Truly denied — show message immediately
-          setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
-          return;
-        }
-        // 'granted' or 'prompt' — request GPS directly
-        fetchGPS(false);
-
-        // Watch for permission state changes
-        perm.onchange = function () {
-          if (perm.state === 'granted' && !gpsReady) {
-            _permRetries = 0;
-            _gpsSuccessReceived = false;
-            setGpsStatus('acquiring', 'Permission granted — getting location…');
-            fetchGPS(false);
-          } else if (perm.state === 'denied' && !gpsReady) {
-            setGpsStatus('error', 'Location is blocked. Click the lock icon → Location → Allow, then reload.');
-          }
-        };
-      }).catch(function () {
-        // Permissions API not available — try GPS directly
-        fetchGPS(false);
-      });
-    } else {
-      // No Permissions API — try GPS directly
-      fetchGPS(false);
-    }
+    
+    // SKIP permissions check - just request GPS directly
+    // This avoids hanging on permissions API which is unreliable
+    fetchGPS(false);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
