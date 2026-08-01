@@ -10,8 +10,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    postDeploy: |
-      cd smart_hrms && python apply_production_fix_now.py && cd ..
+    postDeploy: python smart_hrms/apply_production_fix_now.py
     envVars:
       - key: FLASK_ENV
         value: production
