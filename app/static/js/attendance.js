@@ -1,622 +1,577 @@
 'use strict';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// attendance.js — Attendance dashboard: camera, GPS, check-in/out
+//
+// Root causes fixed in this version:
+//  #2  enableCheckin() now reads data-state attributes instead of textContent
+//  #3  ciPhotoReady / coPhotoReady are primed from server-side HAS_CI_PHOTO /
+//      HAS_CO_PHOTO constants on page load, so a refresh restores button state
+//  #5  upload error now shows data.message (not the absent data.error)
+//  #6  alert() + location.reload() replaced with in-page toast + smooth reload
+// ──────────────────────────────────────────────────────────────────────────────
+
 (function () {
-  // Attendance system - Direct camera capture via getUserMedia
-  
+
+  // ── helpers ───────────────────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
-  let ciPhotoReady = false;
-  let coPhotoReady = false;
-  let gpsWatchId = null;
+
+  // ── state ─────────────────────────────────────────────────────────────────
+  // #3 — prime from server-side flags so page refresh restores state correctly.
+  // HAS_CI_PHOTO / HAS_CO_PHOTO are injected by the template as JS consts.
+  let ciPhotoReady = (typeof HAS_CI_PHOTO !== 'undefined') ? HAS_CI_PHOTO : false;
+  let coPhotoReady = (typeof HAS_CO_PHOTO !== 'undefined') ? HAS_CO_PHOTO : false;
+  let gpsWatchId   = null;
   let currentStream = null;
-  
-  // Setup photo click handlers
+
+  console.log('[Attendance] Init — ciPhotoReady:', ciPhotoReady, '| coPhotoReady:', coPhotoReady);
+
+  // ── CSRF ──────────────────────────────────────────────────────────────────
+  function getCsrf() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    const script = el('csrf');
+    if (script) return script.textContent.trim();
+    if (typeof CSRF_TOKEN !== 'undefined') return CSRF_TOKEN;
+    return '';
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function showToast(msg, type = 'success', duration = 5000) {
+    const wrap = el('att-toasts');
+    if (!wrap) { console.warn('[Toast] container #att-toasts not found'); return; }
+
+    const iconMap = {
+      success: 'bi-check-circle-fill text-success',
+      error:   'bi-x-circle-fill text-danger',
+      warn:    'bi-exclamation-triangle-fill text-warning',
+      info:    'bi-info-circle-fill text-info',
+    };
+    const icon = iconMap[type] || iconMap.info;
+
+    const toast = document.createElement('div');
+    toast.className = `att-toast ${type === 'error' ? 'error' : type === 'warn' ? 'warn' : ''}`;
+    toast.innerHTML = `
+      <i class="bi ${icon} fs-5 flex-shrink-0"></i>
+      <div class="att-toast-body">${msg}</div>
+      <button class="att-toast-close" aria-label="Close">&times;</button>
+    `;
+    toast.querySelector('.att-toast-close').addEventListener('click', () => toast.remove());
+    wrap.appendChild(toast);
+    if (duration > 0) setTimeout(() => toast.remove(), duration);
+    return toast;
+  }
+
+  // ── Button enable/disable ─────────────────────────────────────────────────
+  // #2 — read data-state="already_checked_in" attribute instead of textContent,
+  //       which was unreliable due to icon text being included in textContent.
+  function enableCheckin() {
+    const btn         = el('btn-checkin');
+    const btnCheckout = el('btn-checkout');
+
+    console.log('[enableCheckin] ciPhotoReady:', ciPhotoReady, '| coPhotoReady:', coPhotoReady);
+
+    if (btn && ciPhotoReady) {
+      const state = btn.dataset.state || '';
+      if (state !== 'already_checked_in') {
+        btn.disabled = false;
+        console.log('✅ Check-in button ENABLED');
+        // Update helper text to confirm readiness
+        const txt = el('ci-text');
+        if (txt && txt.textContent.trim() === 'Upload Photo + GPS to Enable') {
+          txt.textContent = 'Check In Now';
+        }
+      }
+    }
+
+    if (btnCheckout && coPhotoReady) {
+      const state = btnCheckout.dataset.state || '';
+      if (state !== 'already_checked_out' && state !== 'check_in_first') {
+        btnCheckout.disabled = false;
+        console.log('✅ Check-out button ENABLED');
+        const txt = el('co-text');
+        if (txt && txt.textContent.trim() === 'Upload Photo + GPS to Enable') {
+          txt.textContent = 'Check Out Now';
+        }
+      }
+    }
+  }
+
+  // ── Camera ────────────────────────────────────────────────────────────────
   function setupPhotoClick() {
     const ciZone = el('photo-zone');
     const coZone = el('co-photo-zone');
-    
-    if (ciZone) {
-      ciZone.addEventListener('click', () => startLiveCamera('ci'));
-    }
-    
-    if (coZone) {
-      coZone.addEventListener('click', () => startLiveCamera('co'));
-    }
+    if (ciZone) ciZone.addEventListener('click', () => startLiveCamera('ci'));
+    if (coZone) coZone.addEventListener('click', () => startLiveCamera('co'));
   }
-  
-  // Start live camera using getUserMedia
+
   async function startLiveCamera(type) {
-    const photoZone = el(type === 'ci' ? 'photo-zone' : 'co-photo-zone');
-    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
-    const video = el(type === 'ci' ? 'ci-video' : 'co-video');
-    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
-    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
-    
+    const photoZone      = el(type === 'ci' ? 'photo-zone'        : 'co-photo-zone');
+    const videoContainer = el(type === 'ci' ? 'ci-video-container': 'co-video-container');
+    const video          = el(type === 'ci' ? 'ci-video'          : 'co-video');
+    const captureBtn     = el(type === 'ci' ? 'ci-btn-capture'    : 'co-btn-capture');
+    const cameraStatus   = el(type === 'ci' ? 'ci-camera-status'  : 'co-camera-status');
+
     try {
-      console.log('Requesting camera access for type:', type);
-      
-      // Stop any existing stream
+      console.log('[Camera] Requesting access for:', type);
+
       if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
       }
-      
-      // Request camera - try user-facing camera first
-      const constraints = {
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
-      
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
       currentStream = stream;
-      
-      console.log('Camera access granted! Stream active.');
-      
-      // Hide photo zone, show video
-      if (photoZone) photoZone.style.display = 'none';
+
+      console.log('[Camera] Access granted');
+
+      if (photoZone)      photoZone.style.display      = 'none';
       if (videoContainer) videoContainer.style.display = 'block';
-      
-      // Attach stream to video element
       video.srcObject = stream;
-      video.play();
-      
-      console.log('Video element setup complete');
-      
-      // Show status and capture button
+      await video.play();
+
       if (cameraStatus) cameraStatus.style.display = 'block';
       if (captureBtn) {
         captureBtn.style.display = 'block';
         captureBtn.onclick = () => captureFrame(type, video, stream);
       }
-      
     } catch (err) {
-      console.error('Camera error occurred:', err);
-      console.error('Error type:', err.name);
-      console.error('Error message:', err.message);
-      
-      // Show error message
+      console.error('[Camera] Error:', err.name, err.message);
       if (photoZone) {
         photoZone.innerHTML = `
           <div style="text-align:center;padding:20px;color:#991b1b">
             <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
             <div class="fw-bold" style="font-size:14px;margin-bottom:8px">Camera Access Required</div>
             <div style="font-size:12px;color:#666;margin-bottom:12px">
-              ${err.name === 'NotAllowedError' ? 
-                'Permission denied. Please enable camera in your browser settings.' :
-                'Camera unavailable: ' + err.message}
+              ${err.name === 'NotAllowedError'
+                ? 'Permission denied. Please enable camera in your browser settings.'
+                : 'Camera unavailable: ' + err.message}
             </div>
             <div style="font-size:11px;background:#fef3c7;padding:8px;border-radius:6px;color:#92400e">
-              <strong>Fix:</strong> Check address bar for camera icon and enable access
+              <strong>Fix:</strong> Click the camera icon in the browser address bar and allow access.
             </div>
-          </div>
-        `;
+          </div>`;
         photoZone.style.display = 'block';
       }
+      showToast(
+        err.name === 'NotAllowedError'
+          ? 'Camera permission denied. Enable camera access in browser settings.'
+          : 'Camera unavailable: ' + err.message,
+        'error'
+      );
     }
   }
-  
-  // Capture frame from video stream
+
   function captureFrame(type, video, stream) {
     const canvas = el(type === 'ci' ? 'ci-canvas' : 'co-canvas');
-    const ctx = canvas.getContext('2d');
-    
+    const ctx    = canvas.getContext('2d');
     try {
-      // Set canvas dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      console.log(`Capturing frame: ${canvas.width}x${canvas.height}`);
-      
-      // Flip for selfie (mirror)
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      console.log('[Camera] Capturing frame:', canvas.width, 'x', canvas.height);
+
+      // Mirror the selfie (matches the CSS scaleX(-1) on the video preview)
+      ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0);
-      
-      // Get JPEG data
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      
-      console.log('Frame captured, size:', dataUrl.length);
-      
-      // Stop camera stream
-      stream.getTracks().forEach(track => track.stop());
+      ctx.restore();
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      console.log('[Camera] Frame captured, data length:', dataUrl.length);
+
+      stream.getTracks().forEach(t => t.stop());
       currentStream = null;
-      
-      // Show preview and upload
+
       showPhotoPreview(type, dataUrl);
-      
     } catch (err) {
-      console.error('Capture error:', err);
-      alert('Failed to capture photo: ' + err.message);
+      console.error('[Camera] Capture error:', err);
+      showToast('Failed to capture photo: ' + err.message, 'error');
     }
   }
-  
-  // Show photo preview
+
   function showPhotoPreview(type, dataUrl) {
-    const videoContainer = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
-    const previewContainer = el(type === 'ci' ? 'ci-selfie-preview' : 'co-selfie-preview');
-    const previewImg = el(type === 'ci' ? 'ci-selfie-img' : 'co-selfie-img');
-    const captureBtn = el(type === 'ci' ? 'ci-btn-capture' : 'co-btn-capture');
-    const retakeBtn = el(type === 'ci' ? 'ci-btn-retake' : 'co-btn-retake');
-    const cameraStatus = el(type === 'ci' ? 'ci-camera-status' : 'co-camera-status');
-    
-    // Hide video, show preview
-    if (videoContainer) videoContainer.style.display = 'none';
+    const videoContainer  = el(type === 'ci' ? 'ci-video-container' : 'co-video-container');
+    const previewContainer= el(type === 'ci' ? 'ci-selfie-preview'  : 'co-selfie-preview');
+    const previewImg      = el(type === 'ci' ? 'ci-selfie-img'      : 'co-selfie-img');
+    const captureBtn      = el(type === 'ci' ? 'ci-btn-capture'     : 'co-btn-capture');
+    const retakeBtn       = el(type === 'ci' ? 'ci-btn-retake'      : 'co-btn-retake');
+    const cameraStatus    = el(type === 'ci' ? 'ci-camera-status'   : 'co-camera-status');
+
+    if (videoContainer)   videoContainer.style.display   = 'none';
     if (previewContainer) previewContainer.style.display = 'block';
-    if (previewImg) previewImg.src = dataUrl;
-    
-    // Update buttons
-    if (captureBtn) captureBtn.style.display = 'none';
-    if (retakeBtn) retakeBtn.style.display = 'block';
-    if (cameraStatus) cameraStatus.style.display = 'none';
-    
-    // Upload photo
+    if (previewImg)       previewImg.src                 = dataUrl;
+    if (captureBtn)       captureBtn.style.display       = 'none';
+    if (retakeBtn)        retakeBtn.style.display        = 'block';
+    if (cameraStatus)     cameraStatus.style.display     = 'none';
+
     uploadSelfie(type, dataUrl);
   }
-  
-  // Upload selfie
+
+  // ── Upload selfie ─────────────────────────────────────────────────────────
   async function uploadSelfie(type, dataUrl) {
+    const uploadLabel = type === 'ci' ? 'check-in' : 'check-out';
+    console.log('[Upload] Starting selfie upload for:', uploadLabel);
+
+    // Show uploading indicator on badge
+    const badge = el(type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
+    if (badge) {
+      badge.className = 'badge bg-warning-subtle text-warning small';
+      badge.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Uploading…';
+    }
+
     try {
-      // Get CSRF token
-      let csrfToken = '';
-      const metaTag = document.querySelector('meta[name="csrf-token"]');
-      if (metaTag) csrfToken = metaTag.getAttribute('content');
-      if (!csrfToken) {
-        const scriptTag = document.querySelector('script#csrf');
-        if (scriptTag) csrfToken = scriptTag.textContent;
-      }
-      if (!csrfToken && window.csrf_token) {
-        csrfToken = window.csrf_token;
-      }
-      
-      console.log('Uploading selfie for type:', type);
-      
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken || ''
+          'X-CSRFToken': getCsrf(),
         },
         body: JSON.stringify({
           selfie: dataUrl,
-          type: type === 'ci' ? 'checkin' : 'checkout'
-        })
+          type:   type === 'ci' ? 'checkin' : 'checkout',
+        }),
       });
-      
+
+      // Guard: make sure we got JSON, not an HTML error page
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('[Upload] Non-JSON response (HTTP', res.status, '):', text.slice(0, 300));
+        throw new Error(`Server returned HTTP ${res.status}. Check server logs.`);
+      }
+
       const data = await res.json();
-      console.log('Upload response:', data);
-      
+      console.log('[Upload] Server response:', data);
+
       if (data.success) {
+        // ── SUCCESS PATH ──────────────────────────────────────────
         if (type === 'ci') {
           ciPhotoReady = true;
-          console.log('✅ ciPhotoReady set to TRUE');
+          console.log('✅ ciPhotoReady = true');
         } else {
           coPhotoReady = true;
-          console.log('✅ coPhotoReady set to TRUE');
+          console.log('✅ coPhotoReady = true');
         }
-        
-        console.log('Photo ready, generating proof image');
-        
-        // Generate proof image (fire and forget)
-        generateProof(type);
-        
-        // Update button immediately
-        console.log('Calling enableCheckin() with ciPhotoReady:', ciPhotoReady);
+
+        // #2 — enable button via state attribute check (robust)
         enableCheckin();
-        
-        // Update badge
-        const badge = el(type === 'ci' ? 'ci-photo-badge' : 'co-photo-badge');
+
+        // Update badge to success
         if (badge) {
           badge.className = 'badge bg-success-subtle text-success small';
-          badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Captured';
+          badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>✓ Photo Uploaded';
         }
-        
-        // Update button text
+
+        // Update button text if still showing placeholder copy
         const btnText = el(type === 'ci' ? 'ci-text' : 'co-text');
-        if (btnText && type === 'ci') {
-          btnText.textContent = 'Check In Now';
-        } else if (btnText && type === 'co') {
-          btnText.textContent = 'Check Out Now';
+        if (btnText) {
+          btnText.textContent = type === 'ci' ? 'Check In Now' : 'Check Out Now';
         }
-        
-        alert('✓ Photo captured successfully! Ready for ' + (type === 'ci' ? 'check-in' : 'check-out') + '.');
+
+        // #6 — toast instead of alert()
+        showToast(`✓ Photo captured successfully! Ready for ${uploadLabel}.`, 'success');
+
+        // Generate proof image in background (fire-and-forget)
+        generateProof(type);
+
       } else {
-        alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+        // ── FAILURE PATH ──────────────────────────────────────────
+        // #5 — backend sends `message`, not `error`
+        const reason = data.message || data.error || 'Upload failed. Please retry.';
+        console.error('[Upload] Server-side failure:', reason);
+
+        if (badge) {
+          badge.className = 'badge bg-danger-subtle text-danger small';
+          badge.innerHTML = '<i class="bi bi-x-circle me-1"></i>Upload Failed';
+        }
+
+        showToast('❌ ' + reason, 'error');
       }
     } catch (err) {
-      console.error('Upload error:', err);
-      alert('❌ Upload failed: ' + err.message);
+      console.error('[Upload] Network/parse error:', err);
+      if (badge) {
+        badge.className = 'badge bg-danger-subtle text-danger small';
+        badge.innerHTML = '<i class="bi bi-x-circle me-1"></i>Upload Failed';
+      }
+      showToast('❌ Upload failed: ' + err.message, 'error');
     }
   }
-  
-  // Update clock display
-  function updateClock() {
-    const now = new Date();
-    
-    // Format time
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const clockDisplay = `${hours}:${minutes}:${seconds}`;
-    
-    // Format date
-    const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-    const dateDisplay = now.toLocaleDateString('en-IN', options);
-    
-    // Update DOM
-    const clockEl = el('att-clock');
-    const dateEl = el('att-date');
-    
-    if (clockEl) clockEl.textContent = clockDisplay;
-    if (dateEl) dateEl.textContent = dateDisplay;
-  }
-  
-  // Generate proof image
+
+  // ── Proof image (fire-and-forget) ─────────────────────────────────────────
   async function generateProof(type) {
     try {
-      let csrfToken = '';
-      const metaTag = document.querySelector('meta[name="csrf-token"]');
-      if (metaTag) csrfToken = metaTag.getAttribute('content');
-      if (!csrfToken) {
-        const scriptTag = document.querySelector('script#csrf');
-        if (scriptTag) csrfToken = scriptTag.textContent;
-      }
-      if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
-      
       await fetch('/attendance/generate-proof-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken || ''
+          'X-CSRFToken': getCsrf(),
         },
         body: JSON.stringify({
-          type: type === 'ci' ? 'checkin' : 'checkout',
-          latitude: window.lat || 0,
-          longitude: window.lon || 0,
-          accuracy: window.acc || 0,
-          distance_metres: window.distanceMetres || 0
-        })
+          type:             type === 'ci' ? 'checkin' : 'checkout',
+          latitude:         window.lat            || 0,
+          longitude:        window.lon            || 0,
+          accuracy:         window.acc            || 0,
+          distance_metres:  window.distanceMetres || 0,
+        }),
       });
     } catch (err) {
-      console.error('Proof generation error:', err);
+      // Non-critical — proof image is cosmetic
+      console.warn('[ProofImage] Generation failed (non-critical):', err.message);
     }
   }
-  
-  // Enable check-in/checkout buttons
-  function enableCheckin() {
-    const btn = el('btn-checkin');
-    const btnCheckout = el('btn-checkout');
-    
-    console.log('enableCheckin() called - ciPhotoReady:', ciPhotoReady, ', coPhotoReady:', coPhotoReady);
-    
-    // Enable check-in button if photo is ready and not already checked in
-    if (btn && ciPhotoReady) {
-      const isAlreadyCheckedIn = btn.textContent.includes('Already Checked In');
-      if (!isAlreadyCheckedIn) {
-        btn.disabled = false;
-        console.log('✅ Check-in button ENABLED');
-      }
-    }
-    
-    // Enable check-out button if photo is ready and user is checked in
-    if (btnCheckout && coPhotoReady) {
-      const isAlreadyCheckedOut = btnCheckout.textContent.includes('Already Checked Out');
-      const notCheckedIn = btnCheckout.textContent.includes('Check In First');
-      if (!isAlreadyCheckedOut && !notCheckedIn) {
-        btnCheckout.disabled = false;
-        console.log('✅ Check-out button ENABLED');
-      }
-    }
+
+  // ── Clock ─────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now     = new Date();
+    const hh      = String(now.getHours()).padStart(2, '0');
+    const mm      = String(now.getMinutes()).padStart(2, '0');
+    const ss      = String(now.getSeconds()).padStart(2, '0');
+    const clockEl = el('att-clock');
+    const dateEl  = el('att-date');
+    if (clockEl) clockEl.textContent = `${hh}:${mm}:${ss}`;
+    if (dateEl)  dateEl.textContent  = now.toLocaleDateString('en-IN', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    });
   }
-  
-  // Get GPS (background, doesn't block)
+
+  // ── GPS ───────────────────────────────────────────────────────────────────
   function getGPS() {
     if (!navigator.geolocation) {
-      const gpsText = el('gps-text');
-      if (gpsText) gpsText.textContent = 'Geolocation not available';
+      const t = el('gps-text');
+      if (t) t.textContent = 'Geolocation not supported by this browser';
       return;
     }
-    
-    const gpsStatus = el('gps-dot');
-    const gpsText = el('gps-text');
-    
-    // First, try to get one immediate position
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        window.lat = pos.coords.latitude;
-        window.lon = pos.coords.longitude;
-        window.acc = pos.coords.accuracy;
-        
-        if (gpsStatus) {
-          gpsStatus.classList.remove('acquiring');
-          gpsStatus.classList.add('ok');
-        }
-        if (gpsText) gpsText.textContent = 'GPS Ready ✓';
-        
-        // Update map if available
-        if (window.map && window.OFFICE) {
-          window.map.setView([window.lat, window.lon], 17);
-        }
-        
-        // Now watch for updates
-        gpsWatchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            window.lat = pos.coords.latitude;
-            window.lon = pos.coords.longitude;
-            window.acc = pos.coords.accuracy;
-            
-            if (window.map && window.OFFICE) {
-              window.map.setView([window.lat, window.lon], 17);
-            }
-          },
-          () => {
-            // Errors on watch are ignored
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      },
-      (err) => {
-        console.warn('GPS error:', err);
-        if (gpsStatus) {
-          gpsStatus.classList.remove('acquiring');
-          gpsStatus.classList.add('error');
-        }
-        if (gpsText) gpsText.textContent = 'GPS unavailable - Enable location services';
-        
-        // Still watch in background
-        gpsWatchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            window.lat = pos.coords.latitude;
-            window.lon = pos.coords.longitude;
-            window.acc = pos.coords.accuracy;
-            
-            if (gpsStatus) {
-              gpsStatus.classList.remove('error');
-              gpsStatus.classList.add('ok');
-            }
-            if (gpsText) gpsText.textContent = 'GPS Ready ✓';
-            
-            if (window.map && window.OFFICE) {
-              window.map.setView([window.lat, window.lon], 17);
-            }
-          },
-          () => {
-            // Ignore watch errors
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+
+    const dot  = el('gps-dot');
+    const text = el('gps-text');
+
+    function onPosition(pos) {
+      window.lat = pos.coords.latitude;
+      window.lon = pos.coords.longitude;
+      window.acc = pos.coords.accuracy;
+      if (dot)  { dot.classList.remove('acquiring', 'error'); dot.classList.add('ok'); }
+      if (text) text.textContent = 'GPS Ready ✓';
+      if (window.map && window.OFFICE) window.map.setView([window.lat, window.lon], 17);
+    }
+
+    function onError(err) {
+      console.warn('[GPS] Error:', err.message);
+      if (dot)  { dot.classList.remove('acquiring', 'ok'); dot.classList.add('error'); }
+      if (text) text.textContent = 'GPS unavailable — enable location services';
+    }
+
+    const opts = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+    navigator.geolocation.getCurrentPosition(onPosition, onError, opts);
+    gpsWatchId = navigator.geolocation.watchPosition(onPosition, () => {}, opts);
   }
-  
-  // Init map
+
+  // ── Map ───────────────────────────────────────────────────────────────────
   function initMap() {
     const container = el('att-map');
     if (!container || typeof L === 'undefined') {
-      console.warn('Map container not ready or Leaflet not loaded');
+      console.warn('[Map] Container missing or Leaflet not loaded');
       return;
     }
-    
-    // Ensure the map container is properly visible
     container.style.display = 'block';
-    container.style.zIndex = '1';
-    
+    container.style.zIndex  = '1';
+
     window.map = L.map('att-map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap'
+      attribution: '© OpenStreetMap',
     }).addTo(window.map);
-    
-    const officeData = document.getElementById('office-data');
+
+    const officeData = el('office-data');
     if (officeData) {
-      const data = JSON.parse(officeData.textContent);
-      window.OFFICE = data;
-      
-      if (data.lat && data.lon) {
-        // Draw office marker
-        L.marker([data.lat, data.lon], {
-          icon: L.divIcon({
-            html: '<div style="background:blue;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px blue;"></div>'
-          })
-        }).addTo(window.map);
-        
-        // Draw 25m radius circle
-        L.circle([data.lat, data.lon], {
-          radius: Math.max(data.radius || 100, 25),
-          color: 'blue',
-          weight: 2,
-          fillColor: 'blue',
-          fillOpacity: 0.1
-        }).addTo(window.map);
-        
-        // Center map on office
-        window.map.setView([data.lat, data.lon], 17);
-        
-        console.log('Map initialized with office at:', data.lat, data.lon, 'radius:', data.radius);
+      try {
+        const d = JSON.parse(officeData.textContent);
+        window.OFFICE = d;
+        if (d.lat && d.lon) {
+          L.marker([d.lat, d.lon], {
+            icon: L.divIcon({
+              html: '<div style="background:blue;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px blue"></div>',
+            }),
+          }).addTo(window.map);
+          L.circle([d.lat, d.lon], {
+            radius: Math.max(d.radius || 100, 25),
+            color: 'blue', weight: 2, fillColor: 'blue', fillOpacity: 0.1,
+          }).addTo(window.map);
+          window.map.setView([d.lat, d.lon], 17);
+          console.log('[Map] Initialized at office:', d.lat, d.lon, 'radius:', d.radius);
+        }
+      } catch (e) {
+        console.warn('[Map] Failed to parse office-data:', e);
       }
     }
   }
-  
-  // Boot
+
+  // ── Check-In submit ───────────────────────────────────────────────────────
+  function submitCheckin() {
+    if (!ciPhotoReady) {
+      showToast('Please capture your selfie first.', 'warn');
+      return;
+    }
+
+    const btn     = el('btn-checkin');
+    const btnText = el('ci-text');
+    const spinner = el('ci-spin');
+
+    if (btn)     btn.disabled              = true;
+    if (spinner) spinner.style.display     = 'inline-block';
+    if (btnText) btnText.textContent       = 'Processing…';
+
+    console.log('[CheckIn] GPS:', window.lat, window.lon, window.acc);
+
+    const form = new FormData();
+    form.append('latitude',  window.lat || 0);
+    form.append('longitude', window.lon || 0);
+    form.append('accuracy',  window.acc || 0);
+
+    fetch('/attendance/checkin', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: form,
+    })
+    .then(r => r.json())
+    .then(data => {
+      console.log('[CheckIn] Response:', data);
+      if (data.success) {
+        // #6 — toast, then reload so server-rendered tiles show correct time
+        showToast('✅ Checked in at ' + (data.time || '') + ' IST!', 'success', 3000);
+        setTimeout(() => location.reload(), 1800);
+      } else {
+        showToast('❌ ' + (data.message || 'Check-in failed'), 'error');
+        // Re-enable button so user can retry
+        if (btn)     btn.disabled          = false;
+        if (spinner) spinner.style.display = 'none';
+        if (btnText) btnText.textContent   = 'Check In Now';
+      }
+    })
+    .catch(err => {
+      console.error('[CheckIn] Network error:', err);
+      showToast('❌ Check-in failed: ' + err.message, 'error');
+      if (btn)     btn.disabled          = false;
+      if (spinner) spinner.style.display = 'none';
+      if (btnText) btnText.textContent   = 'Check In Now';
+    });
+  }
+
+  // ── Check-Out submit ──────────────────────────────────────────────────────
+  function submitCheckout() {
+    if (!coPhotoReady) {
+      showToast('Please capture your check-out selfie first.', 'warn');
+      return;
+    }
+
+    const btn     = el('btn-checkout');
+    const btnText = el('co-text');
+    const spinner = el('co-spin');
+
+    if (btn)     btn.disabled              = true;
+    if (spinner) spinner.style.display     = 'inline-block';
+    if (btnText) btnText.textContent       = 'Processing…';
+
+    console.log('[CheckOut] GPS:', window.lat, window.lon, window.acc);
+
+    const form = new FormData();
+    form.append('latitude',  window.lat || 0);
+    form.append('longitude', window.lon || 0);
+    form.append('accuracy',  window.acc || 0);
+
+    fetch('/attendance/checkout', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: form,
+    })
+    .then(r => r.json())
+    .then(data => {
+      console.log('[CheckOut] Response:', data);
+      if (data.success) {
+        showToast(
+          '✅ Checked out! Worked: ' + (data.working || '—'),
+          'success', 3000
+        );
+        setTimeout(() => location.reload(), 1800);
+      } else {
+        showToast('❌ ' + (data.message || 'Check-out failed'), 'error');
+        if (btn)     btn.disabled          = false;
+        if (spinner) spinner.style.display = 'none';
+        if (btnText) btnText.textContent   = 'Check Out Now';
+      }
+    })
+    .catch(err => {
+      console.error('[CheckOut] Network error:', err);
+      showToast('❌ Check-out failed: ' + err.message, 'error');
+      if (btn)     btn.disabled          = false;
+      if (spinner) spinner.style.display = 'none';
+      if (btnText) btnText.textContent   = 'Check Out Now';
+    });
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
   function boot() {
-    console.log('Attendance system starting...');
-    
-    // Update clock immediately and every second
+    console.log('[Attendance] Booting…');
+
     updateClock();
     setInterval(updateClock, 1000);
-    
-    // Setup events
+
+    // Camera click zones
     setupPhotoClick();
-    
-    // Setup retake buttons - restart camera
+
+    // Retake — reset flag and restart camera
     el('ci-btn-retake')?.addEventListener('click', () => {
-      el('ci-selfie-preview').style.display = 'none';
-      el('photo-zone').style.display = 'block';
-      el('ci-btn-retake').style.display = 'none';
       ciPhotoReady = false;
+      el('ci-selfie-preview').style.display = 'none';
+      el('photo-zone').style.display        = 'block';
+      el('ci-btn-retake').style.display     = 'none';
+      // Reset badge
+      const badge = el('ci-photo-badge');
+      if (badge) {
+        badge.className = 'badge bg-danger-subtle text-danger small';
+        badge.innerHTML = 'Required';
+      }
       startLiveCamera('ci');
     });
-    
+
     el('co-btn-retake')?.addEventListener('click', () => {
-      el('co-selfie-preview').style.display = 'none';
-      el('co-photo-zone').style.display = 'block';
-      el('co-btn-retake').style.display = 'none';
       coPhotoReady = false;
+      el('co-selfie-preview').style.display = 'none';
+      el('co-photo-zone').style.display     = 'block';
+      el('co-btn-retake').style.display     = 'none';
+      const badge = el('co-photo-badge');
+      if (badge) {
+        badge.className = 'badge bg-danger-subtle text-danger small';
+        badge.innerHTML = 'Required';
+      }
       startLiveCamera('co');
     });
-    
-    // Setup check-in/out
-    el('btn-checkin')?.addEventListener('click', () => {
-      if (ciPhotoReady) {
-        let csrfToken = '';
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) csrfToken = metaTag.getAttribute('content');
-        if (!csrfToken) {
-          const scriptTag = document.querySelector('script#csrf');
-          if (scriptTag) csrfToken = scriptTag.textContent;
-        }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
-        
-        console.log('Check-in button clicked. GPS:', window.lat, window.lon, window.acc);
-        
-        const formData = new FormData();
-        formData.append('latitude', window.lat || 0);
-        formData.append('longitude', window.lon || 0);
-        formData.append('accuracy', window.acc || 0);
-        
-        const btn = el('btn-checkin');
-        const btnText = el('ci-text');
-        const spinner = el('ci-spin');
-        
-        if (btn && btnText && spinner) {
-          btn.disabled = true;
-          spinner.style.display = 'inline-block';
-          btnText.textContent = 'Processing...';
-        }
-        
-        fetch('/attendance/checkin', {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken || ''
-          },
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          console.log('Check-in response:', data);
-          if (data.success) {
-            alert('✅ Check-in successful!\n' + data.message);
-            location.reload();
-          } else {
-            alert('❌ Check-in failed:\n' + data.message);
-            if (btn && btnText && spinner) {
-              btn.disabled = false;
-              spinner.style.display = 'none';
-              btnText.textContent = 'Check In Now';
-            }
-          }
-        })
-        .catch(err => {
-          console.error('Check-in error:', err);
-          alert('❌ Check-in failed: ' + err.message);
-          if (btn && btnText && spinner) {
-            btn.disabled = false;
-            spinner.style.display = 'none';
-            btnText.textContent = 'Check In Now';
-          }
-        });
-      }
-    });
-    
-    el('btn-checkout')?.addEventListener('click', () => {
-      if (coPhotoReady) {
-        let csrfToken = '';
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) csrfToken = metaTag.getAttribute('content');
-        if (!csrfToken) {
-          const scriptTag = document.querySelector('script#csrf');
-          if (scriptTag) csrfToken = scriptTag.textContent;
-        }
-        if (!csrfToken && window.csrf_token) csrfToken = window.csrf_token;
-        
-        console.log('Check-out button clicked. GPS:', window.lat, window.lon, window.acc);
-        
-        const formData = new FormData();
-        formData.append('latitude', window.lat || 0);
-        formData.append('longitude', window.lon || 0);
-        formData.append('accuracy', window.acc || 0);
-        
-        const btn = el('btn-checkout');
-        const btnText = el('co-text');
-        const spinner = el('co-spin');
-        
-        if (btn && btnText && spinner) {
-          btn.disabled = true;
-          spinner.style.display = 'inline-block';
-          btnText.textContent = 'Processing...';
-        }
-        
-        fetch('/attendance/checkout', {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken || ''
-          },
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          console.log('Check-out response:', data);
-          if (data.success) {
-            alert('✅ Check-out successful!\n' + data.message);
-            location.reload();
-          } else {
-            alert('❌ Check-out failed:\n' + data.message);
-            if (btn && btnText && spinner) {
-              btn.disabled = false;
-              spinner.style.display = 'none';
-              btnText.textContent = 'Check Out Now';
-            }
-          }
-        })
-        .catch(err => {
-          console.error('Check-out error:', err);
-          alert('❌ Check-out failed: ' + err.message);
-          if (btn && btnText && spinner) {
-            btn.disabled = false;
-            spinner.style.display = 'none';
-            btnText.textContent = 'Check Out Now';
-          }
-        });
-      }
-    });
-    
-    // Init map FIRST before GPS
+
+    // Check-in / Check-out buttons
+    el('btn-checkin')?.addEventListener('click',  submitCheckin);
+    el('btn-checkout')?.addEventListener('click', submitCheckout);
+
+    // #3 — If photo was already uploaded before this page load (server flag),
+    //       enable the button immediately without requiring a new capture.
+    if (ciPhotoReady || coPhotoReady) {
+      console.log('[Boot] Restoring button state from server flags');
+      enableCheckin();
+    }
+
+    // Map first, then GPS
     initMap();
-    
-    // Get GPS (non-blocking)
     getGPS();
-    
-    console.log('Attendance system ready');
+
+    console.log('[Attendance] Ready');
   }
-  
+
   // Wait for DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
-  
+
 })();

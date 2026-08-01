@@ -451,7 +451,7 @@ def capture_selfie():
         if not attendance_today:
             logger.info("Creating new attendance record for today")
             from app.models.attendance import Attendance  # noqa: PLC0415
-            from app.db import db  # noqa: PLC0415
+            from app.extensions.database import db  # noqa: PLC0415
             
             attendance_today = Attendance(
                 employee_id=employee.id,
@@ -463,23 +463,23 @@ def capture_selfie():
             logger.info("Attendance created: %s", attendance_today.id)
         
         # Get or create photo record
+        from app.extensions.database import db  # noqa: PLC0415
         photo = AttendancePhoto.query.filter_by(
             attendance_id=attendance_today.id
         ).first()
         
         if not photo:
             logger.info("Creating new photo record")
-            from app.db import db  # noqa: PLC0415
-            
             photo = AttendancePhoto(
                 attendance_id=attendance_today.id,
                 employee_id=employee.id,
+                file_path="",
             )
             db.session.add(photo)
-            db.session.commit()
-            logger.info("Photo record created: %s", photo.id)
+            db.session.flush()  # get ID without committing yet
+            logger.info("Photo record created (pending commit): %s", photo.id)
         
-        # Store selfie in appropriate field
+        # Store selfie in appropriate field — always overwrite (retake support)
         if capture_type == "checkin":
             photo.image_data = selfie_base64
             logger.info("Stored check-in selfie")
@@ -487,7 +487,6 @@ def capture_selfie():
             photo.checkout_image_data = selfie_base64
             logger.info("Stored check-out selfie")
         
-        from app.db import db  # noqa: PLC0415
         db.session.commit()
         logger.info("Selfie saved successfully")
         
@@ -648,7 +647,7 @@ def generate_proof_image():
             photo.checkout_image_data = proof_image_base64
             logger.info("Stored check-out proof image")
         
-        from app.db import db  # noqa: PLC0415
+        from app.extensions.database import db  # noqa: PLC0415
         db.session.commit()
         logger.info("Proof image saved to database")
         

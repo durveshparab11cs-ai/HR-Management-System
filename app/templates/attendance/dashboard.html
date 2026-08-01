@@ -457,21 +457,29 @@
 
       <!-- ── Check In / Check Out buttons ── -->
       <div class="d-grid gap-3">
-        <button class="btn-checkin" id="btn-checkin" disabled>
+        <button class="btn-checkin" id="btn-checkin"
+          data-state="{% if status.attendance and status.attendance.check_in_time %}already_checked_in{% else %}pending{% endif %}"
+          {% if status.attendance and status.attendance.check_in_time %}disabled{% elif not status.has_photo %}disabled{% endif %}>
           <div class="att-spinner" id="ci-spin"></div>
           <i class="bi bi-box-arrow-in-right" id="ci-icon"></i>
           <span id="ci-text">
             {% if status.attendance and status.attendance.check_in_time %}Already Checked In
+            {% elif status.has_photo %}Check In Now
             {% else %}Upload Photo + GPS to Enable{% endif %}
           </span>
         </button>
 
-        <button class="btn-checkout" id="btn-checkout" disabled>
+        <button class="btn-checkout" id="btn-checkout"
+          data-state="{% if not status.attendance or not status.attendance.check_in_time %}check_in_first{% elif status.attendance.check_out_time %}already_checked_out{% else %}pending{% endif %}"
+          {% if not status.attendance or not status.attendance.check_in_time %}disabled
+          {% elif status.attendance.check_out_time %}disabled
+          {% elif not status.has_checkout_photo %}disabled{% endif %}>
           <div class="att-spinner" id="co-spin"></div>
           <i class="bi bi-box-arrow-right" id="co-icon"></i>
           <span id="co-text">
             {% if not status.attendance or not status.attendance.check_in_time %}Check In First
             {% elif status.attendance.check_out_time %}Already Checked Out
+            {% elif status.has_checkout_photo %}Check Out Now
             {% else %}Upload Photo + GPS to Enable{% endif %}
           </span>
         </button>
