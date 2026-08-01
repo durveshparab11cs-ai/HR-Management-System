@@ -676,6 +676,65 @@
   "min_accuracy": {{ (office.min_gps_accuracy_metres | default(50, true)) if office else 50 }}
 }
 </script>
+
+<!-- Inline GPS init - runs immediately -->
+<script>
+  (function() {
+    // Start GPS immediately without waiting for DOM or other scripts
+    if (!navigator.geolocation) {
+      console.error('Geolocation not available');
+      return;
+    }
+    console.log('[GPS] Starting immediate geolocation watch');
+    window.lastGPS = { lat: null, lon: null, acc: null };
+    
+    navigator.geolocation.watchPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const acc = position.coords.accuracy;
+        
+        window.lat = lat;
+        window.lon = lon;
+        window.acc = acc;
+        window.lastGPS = { lat, lon, acc };
+        
+        console.log('[GPS] Position:', lat, lon, acc);
+        
+        // Update DOM if ready
+        const gpsText = document.getElementById('gps-text');
+        const gpsDot = document.getElementById('gps-dot');
+        const gpsCoords = document.getElementById('gps-coords');
+        const gpsLatLon = document.getElementById('gps-latlon');
+        const gpsDistText = document.getElementById('gps-dist-text');
+        
+        if (gpsText) gpsText.textContent = '✓ GPS locked — ' + acc.toFixed(0) + 'm accuracy';
+        if (gpsDot) gpsDot.className = 'gps-indicator ok';
+        if (gpsCoords) gpsCoords.style.display = 'block';
+        if (gpsLatLon) gpsLatLon.textContent = lat.toFixed(6) + ', ' + lon.toFixed(6);
+        if (gpsDistText) gpsDistText.textContent = acc.toFixed(0) + 'm';
+      },
+      error => {
+        console.error('[GPS] Error:', error.message);
+        const gpsText = document.getElementById('gps-text');
+        const gpsDot = document.getElementById('gps-dot');
+        if (gpsText) gpsText.innerHTML = '❌ GPS Error: ' + error.message;
+        if (gpsDot) gpsDot.className = 'gps-indicator error';
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  })();
+</script>
+
+<script id="office-data" type="application/json">
+{
+  "lat":          {{ office.latitude             if office else 18.520430 }},
+  "lon":          {{ office.longitude            if office else 73.856743 }},
+  "radius":       {{ office.radius_metres        if office else 100 }},
+  "name":         {{ (office.name | tojson)      if office else '"Head Office"' }},
+  "min_accuracy": {{ (office.min_gps_accuracy_metres | default(50, true)) if office else 50 }}
+}
+</script>
 <script>
   const CSRF_TOKEN   = "{{ csrf_token() }}";
   const CAN_CHECKIN  = {{ 'true' if status.can_check_in  else 'false' }};
