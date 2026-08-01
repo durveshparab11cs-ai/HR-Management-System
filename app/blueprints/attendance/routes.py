@@ -406,17 +406,10 @@ def capture_selfie():
     """
     Receive base64 selfie from live camera capture.
     Store in AttendancePhoto.image_data (check-in) or checkout_image_data (check-out).
-    
-    Expected JSON:
-    {
-        "selfie": "data:image/jpeg;base64,...",
-        "type": "checkin" | "checkout"
-    }
-    
-    Returns: {success, photo_id, has_photo, has_checkout_photo}
     """
     from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
     from app.db import db  # noqa: PLC0415
+    from app.models.attendance import Attendance  # noqa: PLC0415
     
     logger.info("===== CAPTURE SELFIE START =====")
     logger.info("User ID: %s", current_user.id)
@@ -425,7 +418,7 @@ def capture_selfie():
         employee = _emp_repo.get_by_user_id(current_user.id)
         if not employee:
             logger.error("CAPTURE SELFIE FAILED: Employee not found")
-            return jsonify(success=False, message="Employee profile not found."), 400
+            return jsonify(success=False, message="Employee not found."), 400
         
         logger.info("Employee ID: %s", employee.id)
         
@@ -435,28 +428,18 @@ def capture_selfie():
         capture_type = data.get("type", "checkin").lower()
         
         if not selfie_base64:
-            logger.error("CAPTURE SELFIE FAILED: No selfie data")
-            return jsonify(success=False, message="No selfie data received."), 400
-        
-        if not selfie_base64.startswith("data:image"):
-            logger.error("CAPTURE SELFIE FAILED: Invalid data URL format")
-            return jsonify(success=False, message="Invalid image data format."), 400
+            return jsonify(success=False, message="No photo data."), 400
         
         if capture_type not in ("checkin", "checkout"):
-            logger.error("CAPTURE SELFIE FAILED: Invalid type: %s", capture_type)
-            return jsonify(success=False, message="Invalid capture type."), 400
+            return jsonify(success=False, message="Invalid type."), 400
         
-        logger.info("Capture type: %s", capture_type)
-        logger.info("Selfie data length: %d bytes", len(selfie_base64))
+        logger.info("Type: %s, Data length: %d", capture_type, len(selfie_base64))
         
         # Get or create today's attendance
         today = date.today()
         attendance_today = _repo.get_today(employee.id, today)
         
         if not attendance_today:
-            logger.info("Creating new attendance record for today")
-            from app.models.attendance import Attendance  # noqa: PLC0415
-            
             attendance_today = Attendance(
                 employee_id=employee.id,
                 date=today,
@@ -464,7 +447,7 @@ def capture_selfie():
             )
             db.session.add(attendance_today)
             db.session.flush()
-            logger.info("Attendance created: %s", attendance_today.id)
+            logger.info("Created attendance: %s", attendance_today.id)
         
         # Get or create photo record
         photo = AttendancePhoto.query.filter_by(
@@ -472,56 +455,40 @@ def capture_selfie():
         ).first()
         
         if not photo:
-            logger.info("Creating new photo record")
-            
             photo = AttendancePhoto(
                 attendance_id=attendance_today.id,
                 employee_id=employee.id,
-                file_path="",  # Empty for base64-stored photos
             )
             db.session.add(photo)
             db.session.flush()
-            logger.info("Photo record created: %s", photo.id)
+            logger.info("Created photo: %s", photo.id)
         
-        # Store selfie in appropriate field
+        # Store selfie
         if capture_type == "checkin":
             photo.image_data = selfie_base64
-            logger.info("Stored check-in selfie")
-        else:  # checkout
+        else:
             photo.checkout_image_data = selfie_base64
-            logger.info("Stored check-out selfie")
         
         db.session.commit()
-        logger.info("Selfie saved successfully")
-        
-        # Return state for frontend
-        has_photo = bool(photo.image_data)
-        has_checkout_photo = bool(photo.checkout_image_data)
-        
-        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s, has_photo=%s, has_checkout_photo=%s",
-                   photo.id, has_photo, has_checkout_photo)
-        logger.info("===== CAPTURE SELFIE END (SUCCESS) =====")
+        logger.info("CAPTURE SELFIE SUCCESS")
         
         return jsonify(
             success=True,
             photo_id=photo.id,
-            has_photo=has_photo,
-            has_checkout_photo=has_checkout_photo,
-            message="Selfie captured successfully."
+            message="Selfie captured."
         )
     
     except Exception as exc:
-        logger.error("===== CAPTURE SELFIE EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
-        
-        db.session.rollback()
+        logger.error("CAPTURE SELFIE ERROR: %s", str(exc))
+        logger.error("Traceback: %s", traceback.format_exc())
+        try:
+            db.session.rollback()
+        except:
+            pass
         
         return jsonify(
             success=False,
-            message=f"Selfie capture failed: {str(exc)}"
+            message=f"Upload failed: {str(exc)}"
         ), 500
 
 
