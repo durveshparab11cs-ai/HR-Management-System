@@ -405,29 +405,42 @@ def upload_checkout_photo():
 def capture_selfie():
     """Receive base64 selfie from live camera capture."""
     from app.models.attendance_photo import AttendancePhoto
-    from app.db import db
+    from app.extensions.database import db
     from app.models.attendance import Attendance
+    
+    logger.info("===== CAPTURE SELFIE START =====")
     
     try:
         employee = _emp_repo.get_by_user_id(current_user.id)
         if not employee:
+            logger.error("CAPTURE SELFIE FAILED: Employee not found for user_id=%s", current_user.id)
             return jsonify(success=False, message="Employee not found"), 400
+        
+        logger.info("Employee ID: %s, Code: %s", employee.id, employee.employee_code)
         
         data = request.get_json() or {}
         selfie_base64 = data.get("selfie", "")
         capture_type = data.get("type", "checkin").lower()
         
+        logger.info("Capture type: %s, Base64 length: %d", capture_type, len(selfie_base64))
+        
         if not selfie_base64:
+            logger.error("CAPTURE SELFIE FAILED: No base64 data received")
             return jsonify(success=False, message="No photo"), 400
         
         if capture_type not in ("checkin", "checkout"):
+            logger.error("CAPTURE SELFIE FAILED: Invalid capture type: %s", capture_type)
             return jsonify(success=False, message="Invalid type"), 400
         
         today = date.today()
+        logger.info("Today's date: %s", today)
+        
         attendance_today = _repo.get_today(employee.id, today)
+        logger.info("Existing attendance today: %s", attendance_today)
         
         # Create attendance if doesn't exist
         if not attendance_today:
+            logger.info("Creating new Attendance record...")
             attendance_today = Attendance(
                 employee_id=employee.id,
                 date=today,
@@ -435,24 +448,38 @@ def capture_selfie():
             )
             db.session.add(attendance_today)
             db.session.flush()
+            logger.info("New Attendance ID: %s", attendance_today.id)
         
         # Create or update photo
+        logger.info("Looking for existing photo for attendance_id=%s", attendance_today.id)
         photo = AttendancePhoto.query.filter_by(attendance_id=attendance_today.id).first()
+        
         if not photo:
+            logger.info("Creating new AttendancePhoto record...")
             photo = AttendancePhoto(
                 attendance_id=attendance_today.id,
                 employee_id=employee.id
             )
             db.session.add(photo)
             db.session.flush()
+            logger.info("New Photo ID: %s", photo.id)
+        else:
+            logger.info("Using existing Photo ID: %s", photo.id)
         
         # Store photo based on type
         if capture_type == "checkin":
+            logger.info("Storing check-in selfie (base64 length: %d)", len(selfie_base64))
             photo.image_data = selfie_base64
         else:
+            logger.info("Storing check-out selfie (base64 length: %d)", len(selfie_base64))
             photo.checkout_image_data = selfie_base64
         
+        logger.info("Committing to database...")
         db.session.commit()
+        logger.info("Database commit successful")
+        
+        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s", photo.id)
+        logger.info("===== CAPTURE SELFIE END (SUCCESS) =====")
         
         return jsonify(
             success=True,
@@ -461,13 +488,17 @@ def capture_selfie():
         )
     
     except Exception as e:
+        logger.error("===== CAPTURE SELFIE EXCEPTION =====")
+        logger.error("Exception Type: %s", type(e).__name__)
+        logger.error("Exception Message: %s", str(e))
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
+        
         try:
             db.session.rollback()
-        except:
-            pass
-        
-        logger.error("Capture selfie error: %s", str(e))
-        logger.error("Traceback: %s", traceback.format_exc())
+            logger.info("Database rollback successful")
+        except Exception as rb_e:
+            logger.error("Rollback failed: %s", str(rb_e))
         
         return jsonify(
             success=False,
