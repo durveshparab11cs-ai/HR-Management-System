@@ -683,9 +683,13 @@ def _auto_create_tables(app: Flask) -> None:
                     app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating employees table...")
                     
                     try:
-                        # Drop foreign key constraints first (SQLite doesn't enforce these by default)
-                        # But PostgreSQL does, so we need to be careful
-                        db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
+                        # For PostgreSQL: use CASCADE to drop dependent objects
+                        dialect = db.engine.dialect.name
+                        if dialect == 'postgresql':
+                            db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
+                        else:
+                            # SQLite doesn't support CASCADE
+                            db.session.execute(text('DROP TABLE IF EXISTS employees'))
                         db.session.commit()
                         app.logger.info("✓ Dropped old employees table")
                         
@@ -694,7 +698,10 @@ def _auto_create_tables(app: Flask) -> None:
                         app.logger.info("✓ Recreated employees table with new schema")
                     except Exception as drop_err:
                         app.logger.warning("⚠️  Could not drop table: %s", drop_err)
-                        db.session.rollback()
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
                         # Continue anyway
             except Exception as exc:
                 app.logger.warning("⚠️  Column check failed: %s", exc)
