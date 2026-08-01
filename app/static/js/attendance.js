@@ -182,6 +182,11 @@ class CameraManager {
         if (gpsDistText) {
           gpsDistText.textContent = acc.toFixed(0) + 'm';
         }
+        
+        // Update map if callback is available
+        if (typeof window.mapUpdateUserLocation === 'function') {
+          window.mapUpdateUserLocation(lat, lon);
+        }
       },
       error => {
         console.error('[GPS] Error:', error.code, error.message);
@@ -595,4 +600,185 @@ class CameraManager {
   }
   
   console.log('[ATTENDANCE] Phase 1 complete - All handlers registered');
+})();
+
+// ============================================================================
+// LEAFLET MAP INITIALIZATION — GPS Verification with Geofence
+// ============================================================================
+
+(function() {
+  console.log('[MAP] Phase 2: Leaflet map initialization starting');
+  
+  // ========== 1. PARSE OFFICE DATA ==========
+  function getOfficeData() {
+    try {
+      const officeDataEl = document.getElementById('office-data');
+      if (!officeDataEl) {
+        console.error('[MAP] office-data script element not found');
+        return null;
+      }
+      
+      const data = JSON.parse(officeDataEl.textContent);
+      console.log('[MAP] Office data loaded:', data);
+      return data;
+    } catch (e) {
+      console.error('[MAP] Failed to parse office data:', e.message);
+      return null;
+    }
+  }
+  
+  const officeData = getOfficeData();
+  if (!officeData) {
+    console.warn('[MAP] Cannot initialize map - office data unavailable');
+    return;
+  }
+  
+  // ========== 2. INITIALIZE MAP ==========
+  let map = null;
+  let userMarker = null;
+  let geofenceCircle = null;
+  
+  function initMap() {
+    try {
+      // Create map instance
+      map = L.map('att-map').setView(
+        [officeData.lat, officeData.lon],
+        16
+      );
+      
+      console.log('[MAP] Map instance created, centered on office');
+      
+      // Add OpenStreetMap tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+        minZoom: 12
+      }).addTo(map);
+      
+      console.log('[MAP] Tile layer added');
+      
+      // Add office location marker (red pin)
+      const officeMarker = L.marker(
+        [officeData.lat, officeData.lon],
+        {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          }),
+          title: 'Office Location: ' + officeData.name
+        }
+      )
+        .bindPopup(officeData.name + '<br>Lat: ' + officeData.lat.toFixed(6) + '<br>Lon: ' + officeData.lon.toFixed(6))
+        .addTo(map);
+      
+      console.log('[MAP] Office marker added at', officeData.lat, officeData.lon);
+      
+      // Add geofence circle (green)
+      geofenceCircle = L.circle(
+        [officeData.lat, officeData.lon],
+        {
+          radius: officeData.radius,
+          color: '#10b981',
+          fillColor: '#d1fae5',
+          fillOpacity: 0.2,
+          weight: 2,
+          dashArray: '4, 4'
+        }
+      )
+        .bindPopup('Geofence Radius: ' + officeData.radius + 'm')
+        .addTo(map);
+      
+      console.log('[MAP] Geofence circle added, radius:', officeData.radius, 'm');
+      
+      // Add user location marker (blue) — will be updated when GPS updates
+      if (window.lastGPS && window.lastGPS.lat) {
+        userMarker = L.marker(
+          [window.lastGPS.lat, window.lastGPS.lon],
+          {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+              shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowSize: [41, 41]
+            }),
+            title: 'Your Location'
+          }
+        )
+          .bindPopup('Your Location<br>Lat: ' + window.lastGPS.lat.toFixed(6) + '<br>Lon: ' + window.lastGPS.lon.toFixed(6))
+          .addTo(map);
+        
+        console.log('[MAP] User marker added at', window.lastGPS.lat, window.lastGPS.lon);
+      } else {
+        console.warn('[MAP] GPS not available yet, user marker will be added when GPS locks');
+      }
+      
+      // ========== 3. GPS UPDATE CALLBACK ==========
+      // This function will be called whenever GPS position updates
+      window.mapUpdateUserLocation = function(lat, lon) {
+        try {
+          if (!map) {
+            console.warn('[MAP] Map not initialized yet');
+            return;
+          }
+          
+          if (!userMarker) {
+            // Create marker if it doesn't exist
+            userMarker = L.marker(
+              [lat, lon],
+              {
+                icon: L.icon({
+                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41]
+                }),
+                title: 'Your Location'
+              }
+            )
+              .bindPopup('Your Location<br>Lat: ' + lat.toFixed(6) + '<br>Lon: ' + lon.toFixed(6))
+              .addTo(map);
+            
+            console.log('[MAP] User marker created at', lat, lon);
+          } else {
+            // Update existing marker
+            userMarker.setLatLng([lat, lon]);
+            userMarker.setPopupContent('Your Location<br>Lat: ' + lat.toFixed(6) + '<br>Lon: ' + lon.toFixed(6));
+          }
+        } catch (e) {
+          console.error('[MAP] Error updating user location:', e.message);
+        }
+      };
+      
+      console.log('[MAP] mapUpdateUserLocation callback registered');
+      
+      // Fit map to show both office and user (if available)
+      if (userMarker) {
+        const group = new L.featureGroup([officeMarker, userMarker, geofenceCircle]);
+        map.fitBounds(group.getBounds(), { padding: [50, 50] });
+        console.log('[MAP] Map view adjusted to fit office and user markers');
+      }
+      
+      console.log('[MAP] Leaflet map initialization complete');
+    } catch (e) {
+      console.error('[MAP] Initialization error:', e.message, e.stack);
+    }
+  }
+  
+  // Initialize map when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMap);
+    console.log('[MAP] Waiting for DOMContentLoaded');
+  } else {
+    // DOM already loaded (this script runs in extra_js after </body>)
+    console.log('[MAP] DOM ready, initializing map immediately');
+    initMap();
+  }
 })();
