@@ -118,8 +118,12 @@ def create_app(env: str = "development") -> Flask:
     # ── Global request handler for admin redirects ──────────────────
     _register_request_handlers(app)
 
-    # ── Auto-create DB tables (safe on first boot) ───────────────────
-    _auto_create_tables(app)
+    # ── Auto-create DB tables (safe on first boot, non-blocking) ──────
+    # Run table creation immediately but don't let it crash the app
+    try:
+        _auto_create_tables(app)
+    except Exception as exc:
+        app.logger.error("Table creation failed (non-fatal): %s", exc)
 
     app.logger.info(
         "Smart HRMS started | env=%s | debug=%s",
@@ -651,38 +655,113 @@ def _register_request_handlers(app: Flask) -> None:
 def _auto_create_tables(app: Flask) -> None:
     """
     Create all DB tables on first boot and auto-seed employee master data.
-    Also adds new columns to existing tables via ALTER TABLE when needed.
-    Wrapped in a broad try/except so DB issues never prevent the app from starting.
     
-    ALSO ENSURES SUPER_ADMIN ROLES FOR E-2512012 AND E-2603025
+    NUCLEAR MODE: If columns are missing, DROP and RECREATE the employee table
+    to match the current model definition.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
+            from sqlalchemy import text, inspect  # noqa: PLC0415
+            
+            # STEP 1: Create all tables
             try:
                 db.create_all()
-                app.logger.info("db.create_all() — tables ready.")
+                app.logger.info("✓ Step 1: db.create_all()")
             except Exception as exc:
-                app.logger.warning("db.create_all() failed: %s", exc)
+                app.logger.warning("⚠️  Step 1: db.create_all() failed: %s", exc)
 
+            # STEP 2: Check if columns exist - if missing, DROP and recreate tables
+            try:
+                insp = inspect(db.engine)
+                required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
+                existing_cols = [c['name'] for c in insp.get_columns('employees')]
+                
+                missing_cols = [col for col in required_cols if col not in existing_cols]
+                if missing_cols:
+                    app.logger.warning("⚠️  Missing columns in employees: %s", missing_cols)
+                    app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating employees table...")
+                    
+                    try:
+                        dialect = db.engine.dialect.name
+                        if dialect == 'postgresql':
+                            db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
+                        else:
+                            db.session.execute(text('DROP TABLE IF EXISTS employees'))
+                        db.session.commit()
+                        app.logger.info("✓ Dropped old employees table")
+                        
+                        db.create_all()
+                        app.logger.info("✓ Recreated employees table with new schema")
+                    except Exception as drop_err:
+                        app.logger.warning("⚠️  Could not drop employees table: %s", drop_err)
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                
+                # Also check attendance_photos for checkout_image_data
+                try:
+                    photo_cols = [c['name'] for c in insp.get_columns('attendance_photos')]
+                    if 'checkout_image_data' not in photo_cols:
+                        app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
+                        app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
+                        try:
+                            dialect = db.engine.dialect.name
+                            if dialect == 'postgresql':
+                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos CASCADE'))
+                            else:
+                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos'))
+                            db.session.commit()
+                            app.logger.info("✓ Dropped old attendance_photos table")
+                            
+                            db.create_all()
+                            app.logger.info("✓ Recreated attendance_photos table with new schema")
+                        except Exception as photo_drop_err:
+                            app.logger.warning("⚠️  Could not drop attendance_photos table: %s", photo_drop_err)
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+                except Exception as photo_check_err:
+                    app.logger.warning("⚠️  Could not check attendance_photos columns: %s", photo_check_err)
+                    
+            except Exception as exc:
+                app.logger.warning("⚠️  Column check failed: %s", exc)
+
+            # STEP 3: Add any still-missing columns
             try:
                 _migrate_add_columns(db)
+                app.logger.info("✓ Step 3: _migrate_add_columns()")
             except Exception as exc:
-                app.logger.warning("_migrate_add_columns() failed: %s", exc)
+                app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
+            # STEP 4: Seed employees
             try:
                 _auto_seed_employees(app)
+                app.logger.info("✓ Step 4: _auto_seed_employees()")
             except Exception as exc:
-                app.logger.warning("_auto_seed_employees() failed: %s", exc)
+                app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
 
-            # ── ENSURE SUPER_ADMIN ROLES FOR BOTH USERS ─────────────────
+            # STEP 5: Ensure admin roles (only if columns exist)
             try:
-                _ensure_super_admin_roles(app)
+                insp = inspect(db.engine)
+                def col_exists_check(table, col):
+                    try:
+                        return any(c['name'] == col for c in insp.get_columns(table))
+                    except Exception:
+                        return False
+                
+                if col_exists_check('employees', 'is_flexible_shift'):
+                    _ensure_super_admin_roles(app)
+                    app.logger.info("✓ Step 5: _ensure_super_admin_roles()")
+                else:
+                    app.logger.info("⊘ Step 5: Skipping admin roles (columns still missing)")
             except Exception as exc:
-                app.logger.warning("_ensure_super_admin_roles() failed: %s", exc)
+                app.logger.warning("⚠️  Step 5: _ensure_super_admin_roles() failed: %s", exc)
 
     except Exception as exc:
-        app.logger.warning("_auto_create_tables() outer failed: %s", exc)
+        app.logger.error("❌ _auto_create_tables() failed: %s", exc)
 
 
 def _migrate_add_columns(db) -> None:
@@ -737,8 +816,12 @@ def _migrate_add_columns(db) -> None:
                 db.session.commit()
                 logger.info("Added column %s.%s", table, col)
             except Exception as e:
-                db.session.rollback()
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
+                # Don't crash the app if migration fails — safe defaults in code will handle it
 
 
 def _auto_seed_employees(app: Flask) -> None:

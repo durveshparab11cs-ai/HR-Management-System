@@ -141,6 +141,16 @@ def checkin():
         logger.info("===== CHECK IN END (FAILED) =====")
         return jsonify(success=False, message=message, gps=gps_detail), 400
         
+    except AttributeError as ae:
+        logger.error("===== CHECK IN ATTRIBUTE ERROR =====")
+        logger.error("Missing attribute: %s", str(ae))
+        import traceback
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CHECK IN END (ATTRIBUTE ERROR) =====")
+        return jsonify(
+            success=False,
+            message="System configuration error. Please contact support."
+        ), 500
     except Exception as exc:
         logger.error("===== CHECK IN EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
@@ -150,8 +160,7 @@ def checkin():
         logger.error("===== CHECK IN END (EXCEPTION) =====")
         return jsonify(
             success=False,
-            message=f"Check-in failed: {str(exc)}",
-            error_type=type(exc).__name__
+            message=f"Check-in failed: System error occurred."
         ), 500
 
 
@@ -203,7 +212,10 @@ def checkout():
         ).first()
         logger.info("Photo record found: %s", photo)
         
-        if not photo or not photo.checkout_image_data:
+        # Use getattr for safety - checkout_image_data might not exist on old Render DBs
+        has_checkout_photo = bool(photo and getattr(photo, 'checkout_image_data', None))
+        
+        if not has_checkout_photo:
             logger.error("CHECK OUT FAILED: No checkout photo found")
             return jsonify(
                 success=False,
@@ -261,27 +273,33 @@ def upload_photo():
     """
     Upload check-in proof photo.
     Returns updated state so frontend can sync button immediately.
+    ALWAYS returns JSON, never HTML error pages.
     """
     logger.info("===== PHOTO UPLOAD START =====")
     
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        logger.error("UPLOAD FAILED: Employee not found")
-        return jsonify(success=False, message="Employee profile not found."), 400
-    
-    logger.info("Employee ID: %s", employee.id)
-
-    file = request.files.get("photo")
-    if not file:
-        logger.error("UPLOAD FAILED: No file in request")
-        return jsonify(success=False, message="No file received."), 400
-    
-    logger.info("File received: %s (size: %d bytes)", file.filename, 
-               len(file.read()) if hasattr(file, 'read') else 0)
-    file.seek(0)  # Reset file pointer after reading
-
     try:
-        ok, message, photo_url = _svc.upload_photo(employee, file)
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("UPLOAD FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+
+        file = request.files.get("photo")
+        if not file:
+            logger.error("UPLOAD FAILED: No file in request")
+            return jsonify(success=False, message="No file received."), 400
+        
+        logger.info("File received: %s", file.filename)
+        file.seek(0)  # Reset file pointer
+
+        try:
+            ok, message, photo_url = _svc.upload_photo(employee, file)
+        except Exception as svc_exc:
+            logger.error("Service exception: %s", str(svc_exc))
+            logger.error("Traceback: %s", traceback.format_exc())
+            return jsonify(success=False, message="Upload service error: " + str(svc_exc)), 500
+        
         if ok:
             # Get updated status to return to frontend
             from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
@@ -302,7 +320,7 @@ def upload_photo():
                 success=True,
                 message=message,
                 photo_url=photo_url,
-                has_photo=has_photo,  # ✅ NEW: Return state
+                has_photo=has_photo,
                 can_check_in=bool(attendance_today and not attendance_today.check_in_time)
             )
         
@@ -311,18 +329,15 @@ def upload_photo():
         return jsonify(success=False, message=message), 400
         
     except Exception as exc:
-        logger.error("===== PHOTO UPLOAD EXCEPTION =====")
+        logger.error("===== PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
         logger.error("Exception Message: %s", str(exc))
-        import traceback
-        error_detail = traceback.format_exc()
-        logger.error("Traceback:\n%s", error_detail)
+        logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== PHOTO UPLOAD END (EXCEPTION) =====")
         
         return jsonify(
             success=False,
-            message=f"Upload failed: {str(exc)}",
-            error_detail=error_detail if current_user.is_admin else None
+            message="Upload failed: " + str(exc)
         ), 500
 
 
@@ -334,25 +349,36 @@ def upload_checkout_photo():
     """
     Upload check-out proof photo.
     Returns updated state so frontend can sync button immediately.
+    ALWAYS returns JSON, never HTML error pages.
+    WORKS EXACTLY LIKE CHECK-IN: photo uploaded first, then checkout time recorded.
     """
     logger.info("===== CHECKOUT PHOTO UPLOAD START =====")
     
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        logger.error("CHECKOUT UPLOAD FAILED: Employee not found")
-        return jsonify(success=False, message="Employee profile not found."), 400
-    
-    logger.info("Employee ID: %s", employee.id)
-
-    file = request.files.get("photo")
-    if not file:
-        logger.error("CHECKOUT UPLOAD FAILED: No file in request")
-        return jsonify(success=False, message="No file received."), 400
-
     try:
-        ok, message, photo = _svc.upload_checkout_photo(employee, file)
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("CHECKOUT UPLOAD FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+
+        file = request.files.get("photo")
+        if not file:
+            logger.error("CHECKOUT UPLOAD FAILED: No file in request")
+            return jsonify(success=False, message="No file received."), 400
+        
+        logger.info("Checkout file received: %s", file.filename)
+        file.seek(0)  # Reset file pointer
+
+        try:
+            ok, message, photo = _svc.upload_checkout_photo(employee, file)
+        except Exception as svc_exc:
+            logger.error("Service exception: %s", str(svc_exc))
+            logger.error("Traceback: %s", traceback.format_exc())
+            return jsonify(success=False, message="Checkout upload service error: " + str(svc_exc)), 500
+        
         if ok:
-            # Get updated state
+            # Get updated state to return to frontend
             from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
             today = date.today()
             attendance_today = _repo.get_today(employee.id, today)
@@ -370,7 +396,7 @@ def upload_checkout_photo():
             return jsonify(
                 success=True,
                 message=message,
-                has_checkout_photo=has_checkout_photo,  # ✅ NEW: Return state
+                has_checkout_photo=has_checkout_photo,
                 can_check_out=bool(
                     attendance_today 
                     and attendance_today.check_in_time 
@@ -383,18 +409,15 @@ def upload_checkout_photo():
         return jsonify(success=False, message=message), 400
         
     except Exception as exc:
-        logger.error("===== CHECKOUT PHOTO UPLOAD EXCEPTION =====")
+        logger.error("===== CHECKOUT PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
         logger.error("Exception Message: %s", str(exc))
-        import traceback
-        error_detail = traceback.format_exc()
-        logger.error("Traceback:\n%s", error_detail)
+        logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== CHECKOUT PHOTO UPLOAD END (EXCEPTION) =====")
         
         return jsonify(
             success=False,
-            message=f"Checkout upload failed: {str(exc)}",
-            error_detail=error_detail if current_user.is_admin else None
+            message="Checkout upload failed: " + str(exc)
         ), 500
 
 
@@ -403,106 +426,124 @@ def upload_checkout_photo():
 @attendance_bp.route("/capture-selfie", methods=["POST"])
 @login_required
 def capture_selfie():
-    """Receive base64 selfie from live camera capture."""
-    from app.models.attendance_photo import AttendancePhoto
-    from app.extensions.database import db
-    from app.models.attendance import Attendance
+    """
+    Receive base64 selfie from live camera capture.
+    Store in AttendancePhoto.image_data (check-in) or checkout_image_data (check-out).
     
+    Expected JSON:
+    {
+        "selfie": "data:image/jpeg;base64,...",
+        "type": "checkin" | "checkout"
+    }
+    
+    Returns: {success, photo_id, has_photo, has_checkout_photo}
+    """
+    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    from app.extensions.database import db  # noqa: PLC0415
+
     logger.info("===== CAPTURE SELFIE START =====")
+    logger.info("User ID: %s", current_user.id)
     
     try:
         employee = _emp_repo.get_by_user_id(current_user.id)
         if not employee:
-            logger.error("CAPTURE SELFIE FAILED: Employee not found for user_id=%s", current_user.id)
-            return jsonify(success=False, message="Employee not found"), 400
+            logger.error("CAPTURE SELFIE FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
         
-        logger.info("Employee ID: %s, Code: %s", employee.id, employee.employee_code)
+        logger.info("Employee ID: %s", employee.id)
         
+        # Get JSON payload
         data = request.get_json() or {}
-        selfie_base64 = data.get("selfie", "")
+        selfie_base64 = data.get("selfie", "").strip()
         capture_type = data.get("type", "checkin").lower()
         
-        logger.info("Capture type: %s, Base64 length: %d", capture_type, len(selfie_base64))
-        
         if not selfie_base64:
-            logger.error("CAPTURE SELFIE FAILED: No base64 data received")
-            return jsonify(success=False, message="No photo"), 400
+            logger.error("CAPTURE SELFIE FAILED: No selfie data")
+            return jsonify(success=False, message="No selfie data received."), 400
+        
+        if not selfie_base64.startswith("data:image"):
+            logger.error("CAPTURE SELFIE FAILED: Invalid data URL format")
+            return jsonify(success=False, message="Invalid image data format."), 400
         
         if capture_type not in ("checkin", "checkout"):
-            logger.error("CAPTURE SELFIE FAILED: Invalid capture type: %s", capture_type)
-            return jsonify(success=False, message="Invalid type"), 400
+            logger.error("CAPTURE SELFIE FAILED: Invalid type: %s", capture_type)
+            return jsonify(success=False, message="Invalid capture type."), 400
         
+        logger.info("Capture type: %s", capture_type)
+        logger.info("Selfie data length: %d bytes", len(selfie_base64))
+        
+        # Get or create today's attendance
         today = date.today()
-        logger.info("Today's date: %s", today)
-        
         attendance_today = _repo.get_today(employee.id, today)
-        logger.info("Existing attendance today: %s", attendance_today)
         
-        # Create attendance if doesn't exist
         if not attendance_today:
-            logger.info("Creating new Attendance record...")
+            logger.info("Creating new attendance record for today")
+            from app.models.attendance import Attendance  # noqa: PLC0415
+
             attendance_today = Attendance(
                 employee_id=employee.id,
                 date=today,
-                status="pending"
+                status="pending",
             )
             db.session.add(attendance_today)
             db.session.flush()
-            logger.info("New Attendance ID: %s", attendance_today.id)
+            logger.info("Attendance created: %s", attendance_today.id)
         
-        # Create or update photo
-        logger.info("Looking for existing photo for attendance_id=%s", attendance_today.id)
-        photo = AttendancePhoto.query.filter_by(attendance_id=attendance_today.id).first()
+        # Get or create photo record
+        photo = AttendancePhoto.query.filter_by(
+            attendance_id=attendance_today.id
+        ).first()
         
         if not photo:
-            logger.info("Creating new AttendancePhoto record...")
+            logger.info("Creating new photo record")
             photo = AttendancePhoto(
                 attendance_id=attendance_today.id,
-                employee_id=employee.id
+                employee_id=employee.id,
+                file_path="",
             )
             db.session.add(photo)
-            db.session.flush()
-            logger.info("New Photo ID: %s", photo.id)
-        else:
-            logger.info("Using existing Photo ID: %s", photo.id)
+            db.session.flush()  # get ID without committing yet
+            logger.info("Photo record created (pending commit): %s", photo.id)
         
-        # Store photo based on type
+        # Store selfie in appropriate field — always overwrite (retake support)
         if capture_type == "checkin":
-            logger.info("Storing check-in selfie (base64 length: %d)", len(selfie_base64))
             photo.image_data = selfie_base64
-        else:
-            logger.info("Storing check-out selfie (base64 length: %d)", len(selfie_base64))
+            logger.info("Stored check-in selfie")
+        else:  # checkout
             photo.checkout_image_data = selfie_base64
+            logger.info("Stored check-out selfie")
         
-        logger.info("Committing to database...")
         db.session.commit()
-        logger.info("Database commit successful")
+        logger.info("Selfie saved successfully")
         
-        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s", photo.id)
+        # Return state for frontend
+        has_photo = bool(photo.image_data)
+        has_checkout_photo = bool(photo.checkout_image_data)
+        
+        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s, has_photo=%s, has_checkout_photo=%s",
+                   photo.id, has_photo, has_checkout_photo)
         logger.info("===== CAPTURE SELFIE END (SUCCESS) =====")
         
         return jsonify(
             success=True,
             photo_id=photo.id,
-            message="Photo saved"
+            has_photo=has_photo,
+            has_checkout_photo=has_checkout_photo,
+            message="Selfie captured successfully."
         )
     
-    except Exception as e:
+    except Exception as exc:
         logger.error("===== CAPTURE SELFIE EXCEPTION =====")
-        logger.error("Exception Type: %s", type(e).__name__)
-        logger.error("Exception Message: %s", str(e))
+        logger.error("Exception Type: %s", type(exc).__name__)
+        logger.error("Exception Message: %s", str(exc))
         logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
         
-        try:
-            db.session.rollback()
-            logger.info("Database rollback successful")
-        except Exception as rb_e:
-            logger.error("Rollback failed: %s", str(rb_e))
+        db.session.rollback()
         
         return jsonify(
             success=False,
-            message=f"Error: {str(e)[:100]}"
+            message=f"Selfie capture failed: {str(exc)}"
         ), 500
 
 
@@ -634,7 +675,7 @@ def generate_proof_image():
             photo.checkout_image_data = proof_image_base64
             logger.info("Stored check-out proof image")
         
-        from app.db import db  # noqa: PLC0415
+        from app.extensions.database import db  # noqa: PLC0415
         db.session.commit()
         logger.info("Proof image saved to database")
         

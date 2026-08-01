@@ -14,6 +14,7 @@ Routes call this. This never touches HTTP directly.
 """
 
 import logging
+import traceback
 from datetime import datetime, date, timezone
 from typing import Optional, Tuple
 
@@ -340,19 +341,42 @@ class AttendanceService:
     ) -> Tuple[bool, str, Optional[str]]:
         """
         Save a check-out proof photo for today.
-        CHANGED: Now allows upload after check-in but BEFORE check-out.
+        WORKS EXACTLY LIKE CHECK-IN: uploads photo before checkout.
         """
+        logger.info("CHECKOUT_PHOTO_UPLOAD_SERVICE | emp=%s | file=%s", employee.id, file.filename if file else "None")
+        
         today = date.today()
         attendance = _repo.get_today(employee.id, today)
+        
+        logger.info("CHECKOUT_PHOTO_UPLOAD | Found attendance: %s", bool(attendance))
+        
         if not attendance:
+            logger.error("CHECKOUT_PHOTO_UPLOAD | No attendance record found")
             return False, "No attendance record found for today. Check in first.", None
+        
+        logger.info("CHECKOUT_PHOTO_UPLOAD | Attendance ID: %s | Check-in time: %s", 
+                   attendance.id, attendance.check_in_time)
+        
         if not attendance.check_in_time:
+            logger.error("CHECKOUT_PHOTO_UPLOAD | No check-in time found")
             return False, "No check-in found for today. Check in first.", None
-        # REMOVED: check for check_out_time — allow upload BEFORE checkout
-        ok, msg, photo = _photo.save_check_out_photo(attendance, employee.id, file)
-        if not ok:
-            return False, msg, None
-        return True, msg, None
+        
+        # Upload the checkout photo
+        try:
+            logger.info("CHECKOUT_PHOTO_UPLOAD | Calling save_check_out_photo...")
+            ok, msg, photo = _photo.save_check_out_photo(attendance, employee.id, file)
+            logger.info("CHECKOUT_PHOTO_UPLOAD | save_check_out_photo result: ok=%s, msg=%s", ok, msg)
+            
+            if not ok:
+                logger.error("CHECKOUT_PHOTO_UPLOAD | Photo save failed: %s", msg)
+                return False, msg, None
+            
+            logger.info("CHECKOUT_PHOTO_UPLOAD | Photo saved successfully: %s", photo.id if photo else "None")
+            return True, msg, None
+        except Exception as exc:
+            logger.error("CHECKOUT_PHOTO_UPLOAD | Exception: %s", str(exc))
+            logger.error("CHECKOUT_PHOTO_UPLOAD | Traceback: %s", traceback.format_exc())
+            return False, f"Photo upload failed: {str(exc)}", None
 
     # ── Today status ─────────────────────────────────────────────────
 
