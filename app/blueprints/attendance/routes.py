@@ -212,7 +212,10 @@ def checkout():
         ).first()
         logger.info("Photo record found: %s", photo)
         
-        if not photo or not photo.checkout_image_data:
+        # Use getattr for safety - checkout_image_data might not exist on old Render DBs
+        has_checkout_photo = bool(photo and getattr(photo, 'checkout_image_data', None))
+        
+        if not has_checkout_photo:
             logger.error("CHECK OUT FAILED: No checkout photo found")
             return jsonify(
                 success=False,
