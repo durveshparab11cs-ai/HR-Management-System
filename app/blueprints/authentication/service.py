@@ -238,37 +238,40 @@ class AuthService:
             auth_repo.create_user(user)
 
             # ══════════════════════════════════════════════════════════════
-            # CREATE EMPLOYEE PROFILE (ESSENTIAL - MUST NOT FAIL)
+            # CREATE EMPLOYEE PROFILE WITH DEPARTMENT FROM MASTER
             # ══════════════════════════════════════════════════════════════
-            # Simple direct creation without complex hospital/shift logic
-            # Hospital allocation can be done separately if needed
+            # CRITICAL FIX: Populate department, designation from master data
+            # This ensures employee dashboard shows correct department
             
             employee = Employee(
                 user_id=user.id,
                 employee_code=code,
-                department=master.department or None,
-                designation=master.designation or None,
+                department=master.department or None,  # ✅ POPULATE FROM MASTER
+                designation=master.designation or None,  # ✅ POPULATE FROM MASTER
                 created_by=user.id,
             )
             db.session.add(employee)
-            db.session.commit()
-
-            # Mark as registered in master
+            db.session.flush()  # Flush to get employee.id
+            
+            # Mark as registered in master - now with explicit commit
             auth_repo.mark_registered(master, user.id)
+            
+            # Final commit to ensure everything is persisted
+            db.session.commit()
 
             role_label = "Super Admin" if is_first else "Employee"
             success_msg = f"✓ Account created as {role_label}. You can now sign in."
             
             logger.info(
-                "REGISTERED_SUCCESS | user_id=%s | code=%s | role=%s | name=%s",
-                user.id, code, role, master.employee_name
+                "REGISTERED_SUCCESS | user_id=%s | code=%s | role=%s | name=%s | dept=%s",
+                user.id, code, role, master.employee_name, master.department
             )
             return True, success_msg, user
 
         except Exception as exc:
             db.session.rollback()
-            logger.error("Registration failed | code=%s | error=%s", code, exc, exc_info=True)
-            return False, "Registration failed. Please try again.", None
+            logger.error("Registration failed | code=%s | error=%s | traceback=%s", code, exc, exc, exc_info=True)
+            return False, f"Registration failed: {str(exc)}. Please contact HR.", None
 
     # ── Forgot Password ───────────────────────────────────────────────
 

@@ -180,13 +180,17 @@ class EmployeeService:
                     logger.warning("Photo upload failed during update: %s", e)
 
             emp_repo.update(employee)
-            logger.info("Employee updated: id=%s", emp_id)
+            
+            # ✅ EXPLICIT COMMIT to ensure all changes persist
+            db.session.commit()
+            
+            logger.info("Employee updated: id=%s, department=%s", emp_id, employee.department)
             return True, "Employee profile updated successfully."
 
         except Exception as e:
             db.session.rollback()
             logger.error("Employee update failed: %s", e, exc_info=True)
-            return False, "Failed to update employee."
+            return False, f"Failed to update employee: {str(e)}"
 
     def reset_password(self, emp_id: int, new_password: Optional[str] = None) -> Tuple[bool, str]:
         employee = emp_repo.get_by_id(emp_id)
