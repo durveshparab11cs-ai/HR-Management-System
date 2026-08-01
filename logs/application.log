@@ -8,3 +8,48 @@
 2026-07-31 10:41:40 | DEBUG    | application | Request logger middleware registered.
 2026-07-31 10:46:02 | DEBUG    | application | Request logger middleware registered.
 2026-07-31 10:49:30 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:01:09 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:01:21 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:01:33 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:01:57 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:02:05 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:02:23 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:02:53 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:03:19 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:03:19 | INFO     | application | RESPONSE | id=unknown | POST /auth/login | status=302 | user=anonymous | ip=127.0.0.1 | duration=-1ms
+2026-08-01 15:03:58 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:04:15 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:04:15 | INFO     | application | RESPONSE | id=unknown | POST /auth/login | status=302 | user=anonymous | ip=127.0.0.1 | duration=-1ms
+2026-08-01 15:04:15 | DEBUG    | application | REQUEST | id=e8d3d84371d3 | GET /auth/login | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:04:15 | INFO     | application | RESPONSE | id=e8d3d84371d3 | GET /auth/login | status=200 | user=anonymous | ip=127.0.0.1 | duration=15.0ms
+2026-08-01 15:04:37 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:04:37 | INFO     | application | RESPONSE | id=unknown | POST /auth/login | status=302 | user=anonymous | ip=127.0.0.1 | duration=-1ms
+2026-08-01 15:04:37 | DEBUG    | application | REQUEST | id=ee3646559adb | GET /auth/login | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:04:37 | INFO     | application | RESPONSE | id=ee3646559adb | GET /auth/login | status=200 | user=anonymous | ip=127.0.0.1 | duration=15.0ms
+2026-08-01 15:04:52 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:05:18 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:06:11 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:06:34 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:06:34 | DEBUG    | application | REQUEST | id=7c94e4531078 | GET /dashboard/ | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:06:34 | INFO     | application | RESPONSE | id=7c94e4531078 | GET /dashboard/ | status=302 | user=5 | ip=127.0.0.1 | duration=0.0ms
+2026-08-01 15:06:58 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:06:58 | DEBUG    | application | REQUEST | id=867fa92ac91e | GET /dashboard/ | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:06:58 | INFO     | application | RESPONSE | id=867fa92ac91e | GET /dashboard/ | status=302 | user=5 | ip=127.0.0.1 | duration=0.0ms
+2026-08-01 15:06:58 | DEBUG    | application | REQUEST | id=6be4ce40137b | GET /admin | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:06:58 | INFO     | application | RESPONSE | id=6be4ce40137b | GET /admin | status=200 | user=5 | ip=127.0.0.1 | duration=63.0ms
+2026-08-01 15:08:15 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:08:35 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:08:36 | DEBUG    | application | REQUEST | id=591d970379b3 | GET /dashboard/ | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:08:36 | INFO     | application | RESPONSE | id=591d970379b3 | GET /dashboard/ | status=302 | user=5 | ip=127.0.0.1 | duration=0.0ms
+2026-08-01 15:08:36 | DEBUG    | application | REQUEST | id=8c671fc8e4ba | GET /admin | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:08:36 | INFO     | application | RESPONSE | id=8c671fc8e4ba | GET /admin | status=200 | user=5 | ip=127.0.0.1 | duration=62.0ms
+2026-08-01 15:13:29 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:13:46 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:14:07 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:14:31 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:14:54 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:15:09 | DEBUG    | application | Request logger middleware registered.
+2026-08-01 15:15:10 | DEBUG    | application | REQUEST | id=a2a7676438ee | GET /dashboard/ | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:15:10 | INFO     | application | RESPONSE | id=a2a7676438ee | GET /dashboard/ | status=302 | user=6 | ip=127.0.0.1 | duration=0.0ms
+2026-08-01 15:15:10 | DEBUG    | application | REQUEST | id=73fa4844090e | GET /admin | ip=127.0.0.1 | ua=unknown
+2026-08-01 15:15:10 | INFO     | application | RESPONSE | id=73fa4844090e | GET /admin | status=200 | user=6 | ip=127.0.0.1 | duration=62.0ms
