@@ -692,9 +692,22 @@ def _auto_create_tables(app: Flask) -> None:
                 app.logger.warning("⚠️  Step 3: _auto_seed_employees() failed (non-fatal): %s", exc)
 
             # STEP 4: Ensure admin roles (columns should exist now)
+            # Skip if columns don't exist yet - will run on next boot after migration
             try:
-                _ensure_super_admin_roles(app)
-                app.logger.info("✓ Step 4: _ensure_super_admin_roles() — admin roles verified")
+                from sqlalchemy import inspect
+                insp = inspect(db.engine)
+                def col_exists_check(table, col):
+                    try:
+                        return any(c['name'] == col for c in insp.get_columns(table))
+                    except Exception:
+                        return False
+                
+                # Only run if required columns exist
+                if col_exists_check('employees', 'is_flexible_shift') and col_exists_check('employees', 'required_working_hours'):
+                    _ensure_super_admin_roles(app)
+                    app.logger.info("✓ Step 4: _ensure_super_admin_roles() — admin roles verified")
+                else:
+                    app.logger.info("⊘ Step 4: _ensure_super_admin_roles() — skipped (columns not ready yet, will retry on next boot)")
             except Exception as exc:
                 app.logger.warning("⚠️  Step 4: _ensure_super_admin_roles() failed (non-fatal): %s", exc)
 
