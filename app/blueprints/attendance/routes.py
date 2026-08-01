@@ -346,25 +346,36 @@ def upload_checkout_photo():
     """
     Upload check-out proof photo.
     Returns updated state so frontend can sync button immediately.
+    ALWAYS returns JSON, never HTML error pages.
+    WORKS EXACTLY LIKE CHECK-IN: photo uploaded first, then checkout time recorded.
     """
     logger.info("===== CHECKOUT PHOTO UPLOAD START =====")
     
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        logger.error("CHECKOUT UPLOAD FAILED: Employee not found")
-        return jsonify(success=False, message="Employee profile not found."), 400
-    
-    logger.info("Employee ID: %s", employee.id)
-
-    file = request.files.get("photo")
-    if not file:
-        logger.error("CHECKOUT UPLOAD FAILED: No file in request")
-        return jsonify(success=False, message="No file received."), 400
-
     try:
-        ok, message, photo = _svc.upload_checkout_photo(employee, file)
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("CHECKOUT UPLOAD FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+
+        file = request.files.get("photo")
+        if not file:
+            logger.error("CHECKOUT UPLOAD FAILED: No file in request")
+            return jsonify(success=False, message="No file received."), 400
+        
+        logger.info("Checkout file received: %s", file.filename)
+        file.seek(0)  # Reset file pointer
+
+        try:
+            ok, message, photo = _svc.upload_checkout_photo(employee, file)
+        except Exception as svc_exc:
+            logger.error("Service exception: %s", str(svc_exc))
+            logger.error("Traceback: %s", traceback.format_exc())
+            return jsonify(success=False, message="Checkout upload service error: " + str(svc_exc)), 500
+        
         if ok:
-            # Get updated state
+            # Get updated state to return to frontend
             from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
             today = date.today()
             attendance_today = _repo.get_today(employee.id, today)
@@ -382,7 +393,7 @@ def upload_checkout_photo():
             return jsonify(
                 success=True,
                 message=message,
-                has_checkout_photo=has_checkout_photo,  # ✅ NEW: Return state
+                has_checkout_photo=has_checkout_photo,
                 can_check_out=bool(
                     attendance_today 
                     and attendance_today.check_in_time 
@@ -395,18 +406,15 @@ def upload_checkout_photo():
         return jsonify(success=False, message=message), 400
         
     except Exception as exc:
-        logger.error("===== CHECKOUT PHOTO UPLOAD EXCEPTION =====")
+        logger.error("===== CHECKOUT PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
         logger.error("Exception Message: %s", str(exc))
-        import traceback
-        error_detail = traceback.format_exc()
-        logger.error("Traceback:\n%s", error_detail)
+        logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== CHECKOUT PHOTO UPLOAD END (EXCEPTION) =====")
         
         return jsonify(
             success=False,
-            message=f"Checkout upload failed: {str(exc)}",
-            error_detail=error_detail if current_user.is_admin else None
+            message="Checkout upload failed: " + str(exc)
         ), 500
 
 
