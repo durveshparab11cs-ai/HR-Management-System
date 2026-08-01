@@ -69,7 +69,7 @@ def compute_check_in_meta(
     if employee_id:
         from app.models.employee import Employee
         employee = Employee.query.get(employee_id)
-        if employee and employee.is_flexible_shift:
+        if employee and getattr(employee, 'is_flexible_shift', False):
             # Flexible employees are never late
             return False, 0
     
@@ -141,8 +141,8 @@ def compute_check_out_meta(
         from app.models.employee import Employee
         employee = Employee.query.get(employee_id)
         if employee:
-            is_flexible = bool(employee.is_flexible_shift)
-            required_hours = employee.required_working_hours or 9
+            is_flexible = bool(getattr(employee, 'is_flexible_shift', False))
+            required_hours = getattr(employee, 'required_working_hours', None) or 9
     
     # FLEXIBLE SHIFT LOGIC
     if is_flexible:
