@@ -151,7 +151,11 @@ class BaseConfig:
         "X-Frame-Options": "SAMEORIGIN",
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "microphone=(), camera=()",
+        # camera and geolocation are intentionally ALLOWED:
+        # the attendance system requires getUserMedia() for selfie capture
+        # and navigator.geolocation for GPS check-in/out.
+        # Blocking them with camera=() / geolocation=() would deny all employees.
+        "Permissions-Policy": "microphone=()",
     }
 
 

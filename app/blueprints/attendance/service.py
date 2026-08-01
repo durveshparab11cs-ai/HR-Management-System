@@ -400,14 +400,16 @@ class AttendanceService:
                 has_photo          = False
                 has_checkout_photo = False
 
-        can_upload = bool(
-            attendance
-            and attendance.check_in_time
-            and not has_photo
-        )
+        # can_upload_photo: allowed before check-in (selfie capture is a pre-check-in step)
+        # A pending attendance record (status="pending") is created when the selfie is stored.
+        # We only block re-upload if the user has ALREADY checked in AND photo exists.
+        can_upload = not (attendance and attendance.check_in_time and has_photo)
+
+        # can_upload_checkout: allowed after check-in but BEFORE check-out
         can_upload_checkout = bool(
             attendance
-            and attendance.check_out_time
+            and attendance.check_in_time
+            and not attendance.check_out_time
             and not has_checkout_photo
         )
 

@@ -80,23 +80,16 @@ class PhotoService:
             logger.warning("PHOTO_UPLOAD | emp=%s | FAIL: magic bytes invalid", employee_id)
             return False, "File does not appear to be a valid image. Please select a JPG, PNG, or WEBP file.", None
 
-        # Duplicate check — but allow replacement if old record has no base64 data
-        # (happens when existing record was saved as a file that no longer exists
-        # after a Render redeploy wiped the ephemeral filesystem)
+        # Allow replacement: if a photo record already exists (e.g. retake via file upload),
+        # update it in place rather than blocking with a duplicate error.
+        # The capture_selfie route (base64 path) already handles this correctly by
+        # overwriting image_data directly; this branch covers the multipart file upload path.
         existing = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
         if existing:
-            if existing.image_data:
-                # Already has valid base64 data — truly a duplicate
-                logger.info("PHOTO_UPLOAD | emp=%s | att=%s | FAIL: already uploaded", employee_id, attendance.id)
-                return False, "A photo has already been uploaded for this check-in.", None
-            else:
-                # Old file-based record with no image_data — delete it and replace
-                logger.info(
-                    "PHOTO_UPLOAD | emp=%s | att=%s | replacing stale file-based record (id=%s)",
-                    employee_id, attendance.id, existing.id,
-                )
-                db.session.delete(existing)
-                db.session.flush()  # ensure deleted before new insert
+            logger.info(
+                "PHOTO_UPLOAD | emp=%s | att=%s | replacing existing photo record (id=%s)",
+                employee_id, attendance.id, existing.id,
+            )
 
         # Read file bytes, optionally compress, then encode as base64 data URL
         try:
@@ -120,19 +113,29 @@ class PhotoService:
             logger.error("PHOTO_ENCODE_FAILED | emp=%s | %s", employee_id, exc)
             return False, "Failed to process photo. Please try again.", None
 
-        # Persist to DB
+        # Persist to DB — update existing record or create new
         try:
-            photo = AttendancePhoto(
-                attendance_id=attendance.id,
-                employee_id=employee_id,
-                file_path="",           # empty — photo stored in image_data
-                image_data=data_url,    # base64 data URL stored in DB
-                original_filename=file.filename[:255],
-                file_size_bytes=size,
-                mime_type=mime,
-                ip_address=self._get_ip(),
-            )
-            db.session.add(photo)
+            existing_for_save = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
+            if existing_for_save:
+                existing_for_save.image_data        = data_url
+                existing_for_save.original_filename = file.filename[:255]
+                existing_for_save.file_size_bytes   = size
+                existing_for_save.mime_type         = mime
+                existing_for_save.ip_address        = self._get_ip()
+                existing_for_save.file_path         = ""
+                photo = existing_for_save
+            else:
+                photo = AttendancePhoto(
+                    attendance_id=attendance.id,
+                    employee_id=employee_id,
+                    file_path="",
+                    image_data=data_url,
+                    original_filename=file.filename[:255],
+                    file_size_bytes=size,
+                    mime_type=mime,
+                    ip_address=self._get_ip(),
+                )
+                db.session.add(photo)
             db.session.commit()
             logger.info(
                 "PHOTO_SAVED_DB | emp=%s | att=%s | size=%d | mime=%s",
