@@ -111,10 +111,12 @@
     const video          = el(type === 'ci' ? 'ci-video'          : 'co-video');
     const captureBtn     = el(type === 'ci' ? 'ci-btn-capture'    : 'co-btn-capture');
     const cameraStatus   = el(type === 'ci' ? 'ci-camera-status'  : 'co-camera-status');
+    const statusTextEl   = el(type === 'ci' ? 'ci-status-text'    : 'co-status-text');
 
     try {
       console.log('[Camera] Requesting access for:', type);
 
+      // Stop any existing stream before requesting a new one
       if (currentStream) {
         currentStream.getTracks().forEach(t => t.stop());
         currentStream = null;
@@ -126,68 +128,50 @@
       });
       currentStream = stream;
 
-      console.log('[Camera] Access granted');
+      console.log('[Camera] Access granted — stream active');
 
+      // Hide the click-to-open zone, show the live preview
       if (photoZone)      photoZone.style.display      = 'none';
       if (videoContainer) videoContainer.style.display = 'block';
       video.srcObject = stream;
       await video.play();
 
-      if (cameraStatus) cameraStatus.style.display = 'block';
-      if (statusText) statusText.textContent = 'Requesting camera access...';
-      if (cameraError) cameraError.style.display = 'none';
-      if (cameraDisabled) cameraDisabled.style.display = 'none';
-      
-      // Initialize camera if not already done
-      if (type === 'ci' && !ciCamera) {
-        ciCamera = new CameraCapture('ci-video', 'ci-canvas');
-      } else if (type === 'co' && !coCamera) {
-        coCamera = new CameraCapture('co-video', 'co-canvas');
-      }
-      
-      const camera = type === 'ci' ? ciCamera : coCamera;
-      console.log('Camera instance created');
-      
-      // Start camera with timeout
-      console.log('Starting camera stream...');
-      await Promise.race([
-        camera.start(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Camera startup timeout')), 8000)
-        )
-      ]);
-      
-      console.log('Camera stream started, showing video container');
-      
-      // Show video container and capture button
-      if (videoContainer) {
-        videoContainer.style.display = 'block';
-        console.log('Video container shown');
-      }
+      // Show "Camera Ready" status — never show an error while preview is live
+      if (cameraStatus)  cameraStatus.style.display = 'block';
+      if (statusTextEl)  statusTextEl.textContent   = '🟢 Camera Ready — tap Capture Selfie';
+
+      // Wire the capture button to this exact stream/video pair
       if (captureBtn) {
         captureBtn.style.display = 'block';
-        console.log('Capture button shown');
+        // Replace any previous onclick to avoid duplicate handlers
+        captureBtn.onclick = () => captureFrame(type, video, stream);
+        console.log('[Camera] Capture button wired');
       }
+
     } catch (err) {
       console.error('[Camera] Error:', err.name, err.message);
+
+      // Only show errors when the camera genuinely failed (not while preview is running)
+      const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
+      const errorMsg = isDenied
+        ? 'Permission denied. Please enable camera in your browser settings.'
+        : 'Camera unavailable: ' + err.message;
+
       if (photoZone) {
         photoZone.innerHTML = `
           <div style="text-align:center;padding:20px;color:#991b1b">
             <i class="bi bi-exclamation-circle fs-1 d-block mb-2"></i>
             <div class="fw-bold" style="font-size:14px;margin-bottom:8px">Camera Access Required</div>
-            <div style="font-size:12px;color:#666;margin-bottom:12px">
-              ${err.name === 'NotAllowedError'
-                ? 'Permission denied. Please enable camera in your browser settings.'
-                : 'Camera unavailable: ' + err.message}
-            </div>
+            <div style="font-size:12px;color:#666;margin-bottom:12px">${errorMsg}</div>
             <div style="font-size:11px;background:#fef3c7;padding:8px;border-radius:6px;color:#92400e">
               <strong>Fix:</strong> Click the camera icon in the browser address bar and allow access.
             </div>
           </div>`;
         photoZone.style.display = 'block';
       }
+
       showToast(
-        err.name === 'NotAllowedError'
+        isDenied
           ? 'Camera permission denied. Enable camera access in browser settings.'
           : 'Camera unavailable: ' + err.message,
         'error'
@@ -333,7 +317,7 @@
   // ── Proof image (fire-and-forget) ─────────────────────────────────────────
   async function generateProof(type) {
     try {
-      await fetch('/attendance/generate-proof-image', {
+      const res = await fetch('/attendance/generate-proof-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -347,23 +331,23 @@
           distance_metres:  window.distanceMetres || 0,
         }),
       });
-      
-      console.log('Proof generation response status:', res.status);
-      
+
+      console.log('[ProofImage] Response status:', res.status);
+
       if (!res.ok) {
         const text = await res.text();
-        console.error('Proof generation HTTP error:', res.status, text);
-        throw new Error(`HTTP ${res.status}: Proof generation failed`);
+        console.warn('[ProofImage] HTTP error:', res.status, text.slice(0, 200));
+        return; // non-critical — don't throw
       }
-      
+
       const data = await res.json();
-      console.log('Proof generation response:', data);
-      
-      if (!data.success) {
-        console.error('Proof generation failed:', data.message);
+      if (data.success) {
+        console.log('[ProofImage] Generated successfully');
+      } else {
+        console.warn('[ProofImage] Server-side failure:', data.message);
       }
     } catch (err) {
-      // Non-critical — proof image is cosmetic
+      // Non-critical — proof image is cosmetic, never block the check-in flow
       console.warn('[ProofImage] Generation failed (non-critical):', err.message);
     }
   }
