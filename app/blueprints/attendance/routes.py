@@ -270,27 +270,33 @@ def upload_photo():
     """
     Upload check-in proof photo.
     Returns updated state so frontend can sync button immediately.
+    ALWAYS returns JSON, never HTML error pages.
     """
     logger.info("===== PHOTO UPLOAD START =====")
     
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        logger.error("UPLOAD FAILED: Employee not found")
-        return jsonify(success=False, message="Employee profile not found."), 400
-    
-    logger.info("Employee ID: %s", employee.id)
-
-    file = request.files.get("photo")
-    if not file:
-        logger.error("UPLOAD FAILED: No file in request")
-        return jsonify(success=False, message="No file received."), 400
-    
-    logger.info("File received: %s (size: %d bytes)", file.filename, 
-               len(file.read()) if hasattr(file, 'read') else 0)
-    file.seek(0)  # Reset file pointer after reading
-
     try:
-        ok, message, photo_url = _svc.upload_photo(employee, file)
+        employee = _emp_repo.get_by_user_id(current_user.id)
+        if not employee:
+            logger.error("UPLOAD FAILED: Employee not found")
+            return jsonify(success=False, message="Employee profile not found."), 400
+        
+        logger.info("Employee ID: %s", employee.id)
+
+        file = request.files.get("photo")
+        if not file:
+            logger.error("UPLOAD FAILED: No file in request")
+            return jsonify(success=False, message="No file received."), 400
+        
+        logger.info("File received: %s", file.filename)
+        file.seek(0)  # Reset file pointer
+
+        try:
+            ok, message, photo_url = _svc.upload_photo(employee, file)
+        except Exception as svc_exc:
+            logger.error("Service exception: %s", str(svc_exc))
+            logger.error("Traceback: %s", traceback.format_exc())
+            return jsonify(success=False, message="Upload service error: " + str(svc_exc)), 500
+        
         if ok:
             # Get updated status to return to frontend
             from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
@@ -311,7 +317,7 @@ def upload_photo():
                 success=True,
                 message=message,
                 photo_url=photo_url,
-                has_photo=has_photo,  # ✅ NEW: Return state
+                has_photo=has_photo,
                 can_check_in=bool(attendance_today and not attendance_today.check_in_time)
             )
         
@@ -320,18 +326,15 @@ def upload_photo():
         return jsonify(success=False, message=message), 400
         
     except Exception as exc:
-        logger.error("===== PHOTO UPLOAD EXCEPTION =====")
+        logger.error("===== PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
         logger.error("Exception Message: %s", str(exc))
-        import traceback
-        error_detail = traceback.format_exc()
-        logger.error("Traceback:\n%s", error_detail)
+        logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== PHOTO UPLOAD END (EXCEPTION) =====")
         
         return jsonify(
             success=False,
-            message=f"Upload failed: {str(exc)}",
-            error_detail=error_detail if current_user.is_admin else None
+            message="Upload failed: " + str(exc)
         ), 500
 
 
