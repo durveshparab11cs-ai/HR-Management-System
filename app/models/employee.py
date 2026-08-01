@@ -9,7 +9,7 @@ Separation of concerns:
 """
 
 from datetime import date
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, ForeignKey, Integer, String, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship, backref as sa_backref
 
 from app.core.base_model import BaseModel
@@ -52,6 +52,10 @@ class Employee(BaseModel):
     office_settings_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("office_settings.id"), nullable=True
     )
+    shift_start_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    shift_end_time: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_flexible_shift: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
+    required_working_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=9)
 
     # ── Hierarchy ─────────────────────────────────────────────────────
     manager_id: Mapped[int | None] = mapped_column(

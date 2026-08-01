@@ -141,6 +141,16 @@ def checkin():
         logger.info("===== CHECK IN END (FAILED) =====")
         return jsonify(success=False, message=message, gps=gps_detail), 400
         
+    except AttributeError as ae:
+        logger.error("===== CHECK IN ATTRIBUTE ERROR =====")
+        logger.error("Missing attribute: %s", str(ae))
+        import traceback
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("===== CHECK IN END (ATTRIBUTE ERROR) =====")
+        return jsonify(
+            success=False,
+            message="System configuration error. Please contact support."
+        ), 500
     except Exception as exc:
         logger.error("===== CHECK IN EXCEPTION =====")
         logger.error("Exception Type: %s", type(exc).__name__)
@@ -150,8 +160,7 @@ def checkin():
         logger.error("===== CHECK IN END (EXCEPTION) =====")
         return jsonify(
             success=False,
-            message=f"Check-in failed: {str(exc)}",
-            error_type=type(exc).__name__
+            message=f"Check-in failed: System error occurred."
         ), 500
 
 
