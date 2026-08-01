@@ -206,7 +206,9 @@ class CameraManager {
   const photoZone = document.getElementById('photo-zone');
   if (photoZone) {
     console.log('[PHOTO-ZONE] Check-in zone found, adding click handler');
-    photoZone.addEventListener('click', async () => {
+    photoZone.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       console.log('[PHOTO-ZONE] Clicked - starting camera');
       try {
         const cam = new CameraManager('ci');
@@ -214,21 +216,31 @@ class CameraManager {
         const captureBtn = document.getElementById('ci-btn-capture');
         const statusDiv = document.getElementById('ci-camera-status');
         
+        console.log('[PHOTO-ZONE] Elements:', {
+          videoContainer: !!videoContainer,
+          captureBtn: !!captureBtn,
+          statusDiv: !!statusDiv
+        });
+        
         photoZone.style.display = 'none';
         if (videoContainer) videoContainer.style.display = 'block';
         if (statusDiv) statusDiv.style.display = 'block';
         
-        console.log('[PHOTO-ZONE] Starting camera');
+        console.log('[PHOTO-ZONE] Starting camera...');
         await cam.start();
-        console.log('[PHOTO-ZONE] Camera started');
+        console.log('[PHOTO-ZONE] Camera started successfully');
         
         if (captureBtn) {
           captureBtn.style.display = 'block';
           captureBtn.onclick = async () => {
-            console.log('[PHOTO-ZONE] Capture clicked');
+            console.log('[PHOTO-ZONE] Capture button clicked');
             try {
+              console.log('[PHOTO-ZONE] Capturing frame...');
               const jpeg = await cam.capture();
+              console.log('[PHOTO-ZONE] Frame captured, size:', jpeg.length);
+              
               await cam.stop();
+              console.log('[PHOTO-ZONE] Camera stopped');
               
               if (videoContainer) videoContainer.style.display = 'none';
               if (statusDiv) statusDiv.style.display = 'none';
@@ -239,14 +251,17 @@ class CameraManager {
               const retakeBtn = document.getElementById('ci-btn-retake');
               
               if (preview) preview.style.display = 'block';
-              if (previewImg) previewImg.src = jpeg;
+              if (previewImg) {
+                previewImg.src = jpeg;
+                console.log('[PHOTO-ZONE] Preview image set');
+              }
               if (retakeBtn) retakeBtn.style.display = 'block';
               
               window.ciSelfieData = jpeg;
-              console.log('[PHOTO-ZONE] Uploading check-in photo');
+              console.log('[PHOTO-ZONE] Uploading check-in photo, size:', jpeg.length);
               await uploadPhoto(jpeg, 'checkin');
             } catch (e) {
-              console.error('[PHOTO-ZONE] Capture error:', e.message);
+              console.error('[PHOTO-ZONE] Capture error:', e.message, e.stack);
               alert('❌ Capture failed: ' + e.message);
               await cam.stop();
               if (videoContainer) videoContainer.style.display = 'none';
@@ -255,20 +270,22 @@ class CameraManager {
           };
         }
       } catch (e) {
-        console.error('[PHOTO-ZONE] Error:', e.message);
+        console.error('[PHOTO-ZONE] Error:', e.message, e.stack);
         alert('❌ Camera: ' + e.message);
         photoZone.style.display = 'block';
       }
     });
   } else {
-    console.warn('[PHOTO-ZONE] Check-in photo-zone element not found');
+    console.warn('[PHOTO-ZONE] Check-in photo-zone element NOT found on page');
   }
   
   // ========== 3b. CAMERA CAPTURE FOR CHECK-OUT ==========
   const coPhotoZone = document.getElementById('co-photo-zone');
   if (coPhotoZone) {
     console.log('[CO-PHOTO-ZONE] Check-out zone found, adding click handler');
-    coPhotoZone.addEventListener('click', async () => {
+    coPhotoZone.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       console.log('[CO-PHOTO-ZONE] Clicked - starting camera');
       try {
         const cam = new CameraManager('co');
@@ -276,21 +293,31 @@ class CameraManager {
         const captureBtn = document.getElementById('co-btn-capture');
         const statusDiv = document.getElementById('co-camera-status');
         
+        console.log('[CO-PHOTO-ZONE] Elements:', {
+          videoContainer: !!videoContainer,
+          captureBtn: !!captureBtn,
+          statusDiv: !!statusDiv
+        });
+        
         coPhotoZone.style.display = 'none';
         if (videoContainer) videoContainer.style.display = 'block';
         if (statusDiv) statusDiv.style.display = 'block';
         
-        console.log('[CO-PHOTO-ZONE] Starting camera');
+        console.log('[CO-PHOTO-ZONE] Starting camera...');
         await cam.start();
-        console.log('[CO-PHOTO-ZONE] Camera started');
+        console.log('[CO-PHOTO-ZONE] Camera started successfully');
         
         if (captureBtn) {
           captureBtn.style.display = 'block';
           captureBtn.onclick = async () => {
-            console.log('[CO-PHOTO-ZONE] Capture clicked');
+            console.log('[CO-PHOTO-ZONE] Capture button clicked');
             try {
+              console.log('[CO-PHOTO-ZONE] Capturing frame...');
               const jpeg = await cam.capture();
+              console.log('[CO-PHOTO-ZONE] Frame captured, size:', jpeg.length);
+              
               await cam.stop();
+              console.log('[CO-PHOTO-ZONE] Camera stopped');
               
               if (videoContainer) videoContainer.style.display = 'none';
               if (statusDiv) statusDiv.style.display = 'none';
@@ -301,14 +328,17 @@ class CameraManager {
               const retakeBtn = document.getElementById('co-btn-retake');
               
               if (preview) preview.style.display = 'block';
-              if (previewImg) previewImg.src = jpeg;
+              if (previewImg) {
+                previewImg.src = jpeg;
+                console.log('[CO-PHOTO-ZONE] Preview image set');
+              }
               if (retakeBtn) retakeBtn.style.display = 'block';
               
               window.coSelfieData = jpeg;
-              console.log('[CO-PHOTO-ZONE] Uploading check-out photo');
+              console.log('[CO-PHOTO-ZONE] Uploading check-out photo, size:', jpeg.length);
               await uploadPhoto(jpeg, 'checkout');
             } catch (e) {
-              console.error('[CO-PHOTO-ZONE] Capture error:', e.message);
+              console.error('[CO-PHOTO-ZONE] Capture error:', e.message, e.stack);
               alert('❌ Capture failed: ' + e.message);
               await cam.stop();
               if (videoContainer) videoContainer.style.display = 'none';
@@ -317,13 +347,13 @@ class CameraManager {
           };
         }
       } catch (e) {
-        console.error('[CO-PHOTO-ZONE] Error:', e.message);
+        console.error('[CO-PHOTO-ZONE] Error:', e.message, e.stack);
         alert('❌ Camera: ' + e.message);
         coPhotoZone.style.display = 'block';
       }
     });
   } else {
-    console.warn('[CO-PHOTO-ZONE] Check-out photo-zone element not found');
+    console.warn('[CO-PHOTO-ZONE] Check-out photo-zone element NOT found on page');
   }
   
   
