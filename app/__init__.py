@@ -671,7 +671,7 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 1: db.create_all() failed: %s", exc)
 
-            # STEP 2: Check if columns exist - if missing, DROP and recreate
+            # STEP 2: Check if columns exist - if missing, DROP and recreate tables
             try:
                 insp = inspect(db.engine)
                 required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
@@ -679,30 +679,53 @@ def _auto_create_tables(app: Flask) -> None:
                 
                 missing_cols = [col for col in required_cols if col not in existing_cols]
                 if missing_cols:
-                    app.logger.warning("⚠️  Missing columns: %s", missing_cols)
+                    app.logger.warning("⚠️  Missing columns in employees: %s", missing_cols)
                     app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating employees table...")
                     
                     try:
-                        # For PostgreSQL: use CASCADE to drop dependent objects
                         dialect = db.engine.dialect.name
                         if dialect == 'postgresql':
                             db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
                         else:
-                            # SQLite doesn't support CASCADE
                             db.session.execute(text('DROP TABLE IF EXISTS employees'))
                         db.session.commit()
                         app.logger.info("✓ Dropped old employees table")
                         
-                        # Recreate from current model
                         db.create_all()
                         app.logger.info("✓ Recreated employees table with new schema")
                     except Exception as drop_err:
-                        app.logger.warning("⚠️  Could not drop table: %s", drop_err)
+                        app.logger.warning("⚠️  Could not drop employees table: %s", drop_err)
                         try:
                             db.session.rollback()
                         except Exception:
                             pass
-                        # Continue anyway
+                
+                # Also check attendance_photos for checkout_image_data
+                try:
+                    photo_cols = [c['name'] for c in insp.get_columns('attendance_photos')]
+                    if 'checkout_image_data' not in photo_cols:
+                        app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
+                        app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
+                        try:
+                            dialect = db.engine.dialect.name
+                            if dialect == 'postgresql':
+                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos CASCADE'))
+                            else:
+                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos'))
+                            db.session.commit()
+                            app.logger.info("✓ Dropped old attendance_photos table")
+                            
+                            db.create_all()
+                            app.logger.info("✓ Recreated attendance_photos table with new schema")
+                        except Exception as photo_drop_err:
+                            app.logger.warning("⚠️  Could not drop attendance_photos table: %s", photo_drop_err)
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+                except Exception as photo_check_err:
+                    app.logger.warning("⚠️  Could not check attendance_photos columns: %s", photo_check_err)
+                    
             except Exception as exc:
                 app.logger.warning("⚠️  Column check failed: %s", exc)
 
