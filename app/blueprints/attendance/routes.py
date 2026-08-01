@@ -416,8 +416,8 @@ def capture_selfie():
     Returns: {success, photo_id, has_photo, has_checkout_photo}
     """
     from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    from app.db import db  # noqa: PLC0415
-    
+    from app.extensions.database import db  # noqa: PLC0415
+
     logger.info("===== CAPTURE SELFIE START =====")
     logger.info("User ID: %s", current_user.id)
     
@@ -456,8 +456,7 @@ def capture_selfie():
         if not attendance_today:
             logger.info("Creating new attendance record for today")
             from app.models.attendance import Attendance  # noqa: PLC0415
-            from app.extensions.database import db  # noqa: PLC0415
-            
+
             attendance_today = Attendance(
                 employee_id=employee.id,
                 date=today,
@@ -468,7 +467,6 @@ def capture_selfie():
             logger.info("Attendance created: %s", attendance_today.id)
         
         # Get or create photo record
-        from app.extensions.database import db  # noqa: PLC0415
         photo = AttendancePhoto.query.filter_by(
             attendance_id=attendance_today.id
         ).first()
