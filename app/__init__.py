@@ -657,37 +657,46 @@ def _auto_create_tables(app: Flask) -> None:
     Create all DB tables on first boot and auto-seed employee master data.
     Also adds new columns to existing tables via ALTER TABLE when needed.
     
-    CRITICAL: This function MUST NOT crash the app. All errors are caught and logged.
-    Database operations have implicit timeouts from the connection pool.
+    CRITICAL ORDER:
+    1. Create tables first
+    2. Add missing columns BEFORE any inserts
+    3. Seed data
+    4. Ensure admin roles
+    
+    This ensures columns exist before INSERT operations.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
             
-            # Try to create tables - don't crash if it fails
+            # STEP 1: Create all tables - don't crash if it fails
             try:
                 db.create_all()
-                app.logger.info("✓ db.create_all() — tables created/verified")
+                app.logger.info("✓ Step 1: db.create_all() — tables created/verified")
             except Exception as exc:
-                app.logger.warning("⚠️  db.create_all() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 1: db.create_all() failed (non-fatal): %s", exc)
 
-            # Try to add missing columns - don't crash if it fails
+            # STEP 2: Add missing columns BEFORE any insert operations
+            # This is critical - if columns are missing, INSERT will fail
             try:
                 _migrate_add_columns(db)
+                app.logger.info("✓ Step 2: _migrate_add_columns() — columns added/verified")
             except Exception as exc:
-                app.logger.warning("⚠️  _migrate_add_columns() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 2: _migrate_add_columns() failed (non-fatal): %s", exc)
 
-            # Try to seed employees - don't crash if it fails
+            # STEP 3: Seed employees - don't crash if it fails
             try:
                 _auto_seed_employees(app)
+                app.logger.info("✓ Step 3: _auto_seed_employees() — seed complete")
             except Exception as exc:
-                app.logger.warning("⚠️  _auto_seed_employees() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 3: _auto_seed_employees() failed (non-fatal): %s", exc)
 
-            # Try to ensure admin roles - don't crash if it fails
+            # STEP 4: Ensure admin roles (columns should exist now)
             try:
                 _ensure_super_admin_roles(app)
+                app.logger.info("✓ Step 4: _ensure_super_admin_roles() — admin roles verified")
             except Exception as exc:
-                app.logger.warning("⚠️  _ensure_super_admin_roles() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 4: _ensure_super_admin_roles() failed (non-fatal): %s", exc)
 
     except Exception as exc:
         # Last-resort catch - app must still start
