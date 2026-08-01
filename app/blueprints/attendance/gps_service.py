@@ -108,27 +108,42 @@ class GPSService:
         Returns:
             GPSVerificationResult with full details.
         """
-        # Determine GPS reference point: Hospital (priority) or Office (fallback)
-        if employee.hospital_id and employee.hospital:
-            # Use allocated hospital coordinates
-            reference_lat = employee.hospital.latitude
-            reference_lon = employee.hospital.longitude
-            allowed_radius = employee.hospital.allowed_radius_metres
-            location_name = employee.hospital.hospital_name
+        # Determine GPS reference point: Employee's office or provided office (fallback)
+        reference_office = None
+        location_name = "Office"
+        
+        # Priority 1: Use employee's assigned office if exists
+        if employee.office_settings_id and employee.office:
+            reference_office = employee.office
+            location_name = employee.office.name if hasattr(employee.office, 'name') else "Employee Office"
             logger.info(
-                "GPS_REFERENCE | emp=%s | using_hospital=%s | lat=%.7f | lon=%.7f | radius=%dm",
-                employee.id, location_name, reference_lat, reference_lon, allowed_radius
+                "GPS_REFERENCE | emp=%s | using_employee_office=%s | office_id=%d",
+                employee.id, location_name, employee.office_settings_id
             )
-        else:
-            # Fallback to office settings
-            reference_lat = office.latitude
-            reference_lon = office.longitude
-            allowed_radius = office.radius_metres
+        # Priority 2: Use provided office parameter (fallback)
+        elif office:
+            reference_office = office
             location_name = office.name if hasattr(office, 'name') else "Office"
             logger.info(
-                "GPS_REFERENCE | emp=%s | using_office=%s | lat=%.7f | lon=%.7f | radius=%dm",
-                employee.id, location_name, reference_lat, reference_lon, allowed_radius
+                "GPS_REFERENCE | emp=%s | using_provided_office=%s",
+                employee.id, location_name
             )
+        
+        # Safety check - if no office found, return error
+        if not reference_office:
+            reason = "No office location configured. Contact HR."
+            logger.error("GPS_NO_OFFICE | emp=%s | cannot_proceed", employee.id)
+            self._log(employee, None, None, None, None, action, reason)
+            return GPSVerificationResult(success=False, error=reason)
+        
+        reference_lat = reference_office.latitude
+        reference_lon = reference_office.longitude
+        allowed_radius = reference_office.radius_metres
+        
+        logger.info(
+            "GPS_REFERENCE_FINAL | emp=%s | location=%s | lat=%.7f | lon=%.7f | radius=%dm",
+            employee.id, location_name, reference_lat, reference_lon, allowed_radius
+        )
         
         # Step 1: Parse
         try:
@@ -169,7 +184,7 @@ class GPSService:
             )
 
         # Step 2b: Log accuracy for audit — no hard rejection on accuracy alone.
-        min_accuracy = getattr(office, 'min_gps_accuracy_metres', 50)
+        min_accuracy = getattr(reference_office, 'min_gps_accuracy_metres', 50)
         if accuracy is not None and accuracy > min_accuracy:
             logger.info(
                 "GPS_LOW_ACCURACY_ACCEPTED | emp=%s | accuracy=%.0fm | threshold=%dm | action=%s",
