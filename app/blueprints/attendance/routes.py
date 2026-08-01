@@ -416,6 +416,7 @@ def capture_selfie():
     Returns: {success, photo_id, has_photo, has_checkout_photo}
     """
     from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+    from app.db import db  # noqa: PLC0415
     
     logger.info("===== CAPTURE SELFIE START =====")
     logger.info("User ID: %s", current_user.id)
@@ -436,6 +437,10 @@ def capture_selfie():
         if not selfie_base64:
             logger.error("CAPTURE SELFIE FAILED: No selfie data")
             return jsonify(success=False, message="No selfie data received."), 400
+        
+        if not selfie_base64.startswith("data:image"):
+            logger.error("CAPTURE SELFIE FAILED: Invalid data URL format")
+            return jsonify(success=False, message="Invalid image data format."), 400
         
         if capture_type not in ("checkin", "checkout"):
             logger.error("CAPTURE SELFIE FAILED: Invalid type: %s", capture_type)
@@ -459,7 +464,7 @@ def capture_selfie():
                 status="pending",
             )
             db.session.add(attendance_today)
-            db.session.commit()
+            db.session.flush()
             logger.info("Attendance created: %s", attendance_today.id)
         
         # Get or create photo record
@@ -512,6 +517,8 @@ def capture_selfie():
         logger.error("Exception Message: %s", str(exc))
         logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
+        
+        db.session.rollback()
         
         return jsonify(
             success=False,

@@ -134,9 +134,39 @@
       await video.play();
 
       if (cameraStatus) cameraStatus.style.display = 'block';
+      if (statusText) statusText.textContent = 'Requesting camera access...';
+      if (cameraError) cameraError.style.display = 'none';
+      if (cameraDisabled) cameraDisabled.style.display = 'none';
+      
+      // Initialize camera if not already done
+      if (type === 'ci' && !ciCamera) {
+        ciCamera = new CameraCapture('ci-video', 'ci-canvas');
+      } else if (type === 'co' && !coCamera) {
+        coCamera = new CameraCapture('co-video', 'co-canvas');
+      }
+      
+      const camera = type === 'ci' ? ciCamera : coCamera;
+      console.log('Camera instance created');
+      
+      // Start camera with timeout
+      console.log('Starting camera stream...');
+      await Promise.race([
+        camera.start(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Camera startup timeout')), 8000)
+        )
+      ]);
+      
+      console.log('Camera stream started, showing video container');
+      
+      // Show video container and capture button
+      if (videoContainer) {
+        videoContainer.style.display = 'block';
+        console.log('Video container shown');
+      }
       if (captureBtn) {
         captureBtn.style.display = 'block';
-        captureBtn.onclick = () => captureFrame(type, video, stream);
+        console.log('Capture button shown');
       }
     } catch (err) {
       console.error('[Camera] Error:', err.name, err.message);
@@ -317,6 +347,21 @@
           distance_metres:  window.distanceMetres || 0,
         }),
       });
+      
+      console.log('Proof generation response status:', res.status);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Proof generation HTTP error:', res.status, text);
+        throw new Error(`HTTP ${res.status}: Proof generation failed`);
+      }
+      
+      const data = await res.json();
+      console.log('Proof generation response:', data);
+      
+      if (!data.success) {
+        console.error('Proof generation failed:', data.message);
+      }
     } catch (err) {
       // Non-critical — proof image is cosmetic
       console.warn('[ProofImage] Generation failed (non-critical):', err.message);
