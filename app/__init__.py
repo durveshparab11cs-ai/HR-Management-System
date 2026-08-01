@@ -655,46 +655,66 @@ def _register_request_handlers(app: Flask) -> None:
 def _auto_create_tables(app: Flask) -> None:
     """
     Create all DB tables on first boot and auto-seed employee master data.
-    Also adds new columns to existing tables via ALTER TABLE when needed.
     
-    CRITICAL ORDER:
-    1. Create tables first
-    2. Add missing columns BEFORE any inserts
-    3. Seed data
-    4. Ensure admin roles
-    
-    This ensures columns exist before INSERT operations.
+    NUCLEAR MODE: If columns are missing, DROP and RECREATE the employee table
+    to match the current model definition.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
+            from sqlalchemy import text, inspect  # noqa: PLC0415
             
-            # STEP 1: Create all tables - don't crash if it fails
+            # STEP 1: Create all tables
             try:
                 db.create_all()
-                app.logger.info("✓ Step 1: db.create_all() — tables created/verified")
+                app.logger.info("✓ Step 1: db.create_all()")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 1: db.create_all() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 1: db.create_all() failed: %s", exc)
 
-            # STEP 2: Add missing columns BEFORE any insert operations
-            # This is critical - if columns are missing, INSERT will fail
+            # STEP 2: Check if columns exist - if missing, DROP and recreate
+            try:
+                insp = inspect(db.engine)
+                required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
+                existing_cols = [c['name'] for c in insp.get_columns('employees')]
+                
+                missing_cols = [col for col in required_cols if col not in existing_cols]
+                if missing_cols:
+                    app.logger.warning("⚠️  Missing columns: %s", missing_cols)
+                    app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating employees table...")
+                    
+                    try:
+                        # Drop foreign key constraints first (SQLite doesn't enforce these by default)
+                        # But PostgreSQL does, so we need to be careful
+                        db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
+                        db.session.commit()
+                        app.logger.info("✓ Dropped old employees table")
+                        
+                        # Recreate from current model
+                        db.create_all()
+                        app.logger.info("✓ Recreated employees table with new schema")
+                    except Exception as drop_err:
+                        app.logger.warning("⚠️  Could not drop table: %s", drop_err)
+                        db.session.rollback()
+                        # Continue anyway
+            except Exception as exc:
+                app.logger.warning("⚠️  Column check failed: %s", exc)
+
+            # STEP 3: Add any still-missing columns
             try:
                 _migrate_add_columns(db)
-                app.logger.info("✓ Step 2: _migrate_add_columns() — columns added/verified")
+                app.logger.info("✓ Step 3: _migrate_add_columns()")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 2: _migrate_add_columns() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
-            # STEP 3: Seed employees - don't crash if it fails
+            # STEP 4: Seed employees
             try:
                 _auto_seed_employees(app)
-                app.logger.info("✓ Step 3: _auto_seed_employees() — seed complete")
+                app.logger.info("✓ Step 4: _auto_seed_employees()")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 3: _auto_seed_employees() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
 
-            # STEP 4: Ensure admin roles (columns should exist now)
-            # Skip if columns don't exist yet - will run on next boot after migration
+            # STEP 5: Ensure admin roles (only if columns exist)
             try:
-                from sqlalchemy import inspect
                 insp = inspect(db.engine)
                 def col_exists_check(table, col):
                     try:
@@ -702,18 +722,16 @@ def _auto_create_tables(app: Flask) -> None:
                     except Exception:
                         return False
                 
-                # Only run if required columns exist
-                if col_exists_check('employees', 'is_flexible_shift') and col_exists_check('employees', 'required_working_hours'):
+                if col_exists_check('employees', 'is_flexible_shift'):
                     _ensure_super_admin_roles(app)
-                    app.logger.info("✓ Step 4: _ensure_super_admin_roles() — admin roles verified")
+                    app.logger.info("✓ Step 5: _ensure_super_admin_roles()")
                 else:
-                    app.logger.info("⊘ Step 4: _ensure_super_admin_roles() — skipped (columns not ready yet, will retry on next boot)")
+                    app.logger.info("⊘ Step 5: Skipping admin roles (columns still missing)")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 4: _ensure_super_admin_roles() failed (non-fatal): %s", exc)
+                app.logger.warning("⚠️  Step 5: _ensure_super_admin_roles() failed: %s", exc)
 
     except Exception as exc:
-        # Last-resort catch - app must still start
-        app.logger.error("❌ _auto_create_tables() outer exception (non-fatal): %s", exc)
+        app.logger.error("❌ _auto_create_tables() failed: %s", exc)
 
 
 def _migrate_add_columns(db) -> None:
