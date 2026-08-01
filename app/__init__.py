@@ -737,8 +737,12 @@ def _migrate_add_columns(db) -> None:
                 db.session.commit()
                 logger.info("Added column %s.%s", table, col)
             except Exception as e:
-                db.session.rollback()
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
+                # Don't crash the app if migration fails — safe defaults in code will handle it
 
 
 def _auto_seed_employees(app: Flask) -> None:
