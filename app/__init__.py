@@ -118,8 +118,12 @@ def create_app(env: str = "development") -> Flask:
     # ── Global request handler for admin redirects ──────────────────
     _register_request_handlers(app)
 
-    # ── Auto-create DB tables (safe on first boot) ───────────────────
-    _auto_create_tables(app)
+    # ── Auto-create DB tables (safe on first boot, non-blocking) ──────
+    # Run table creation immediately but don't let it crash the app
+    try:
+        _auto_create_tables(app)
+    except Exception as exc:
+        app.logger.error("Table creation failed (non-fatal): %s", exc)
 
     app.logger.info(
         "Smart HRMS started | env=%s | debug=%s",
@@ -652,37 +656,42 @@ def _auto_create_tables(app: Flask) -> None:
     """
     Create all DB tables on first boot and auto-seed employee master data.
     Also adds new columns to existing tables via ALTER TABLE when needed.
-    Wrapped in a broad try/except so DB issues never prevent the app from starting.
     
-    ALSO ENSURES SUPER_ADMIN ROLES FOR E-2512012 AND E-2603025
+    CRITICAL: This function MUST NOT crash the app. All errors are caught and logged.
+    Database operations have implicit timeouts from the connection pool.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
+            
+            # Try to create tables - don't crash if it fails
             try:
                 db.create_all()
-                app.logger.info("db.create_all() — tables ready.")
+                app.logger.info("✓ db.create_all() — tables created/verified")
             except Exception as exc:
-                app.logger.warning("db.create_all() failed: %s", exc)
+                app.logger.warning("⚠️  db.create_all() failed (non-fatal): %s", exc)
 
+            # Try to add missing columns - don't crash if it fails
             try:
                 _migrate_add_columns(db)
             except Exception as exc:
-                app.logger.warning("_migrate_add_columns() failed: %s", exc)
+                app.logger.warning("⚠️  _migrate_add_columns() failed (non-fatal): %s", exc)
 
+            # Try to seed employees - don't crash if it fails
             try:
                 _auto_seed_employees(app)
             except Exception as exc:
-                app.logger.warning("_auto_seed_employees() failed: %s", exc)
+                app.logger.warning("⚠️  _auto_seed_employees() failed (non-fatal): %s", exc)
 
-            # ── ENSURE SUPER_ADMIN ROLES FOR BOTH USERS ─────────────────
+            # Try to ensure admin roles - don't crash if it fails
             try:
                 _ensure_super_admin_roles(app)
             except Exception as exc:
-                app.logger.warning("_ensure_super_admin_roles() failed: %s", exc)
+                app.logger.warning("⚠️  _ensure_super_admin_roles() failed (non-fatal): %s", exc)
 
     except Exception as exc:
-        app.logger.warning("_auto_create_tables() outer failed: %s", exc)
+        # Last-resort catch - app must still start
+        app.logger.error("❌ _auto_create_tables() outer exception (non-fatal): %s", exc)
 
 
 def _migrate_add_columns(db) -> None:
