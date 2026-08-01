@@ -403,92 +403,75 @@ def upload_checkout_photo():
 @attendance_bp.route("/capture-selfie", methods=["POST"])
 @login_required
 def capture_selfie():
-    """
-    Receive base64 selfie from live camera capture.
-    Store in AttendancePhoto.image_data (check-in) or checkout_image_data (check-out).
-    """
-    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    from app.db import db  # noqa: PLC0415
-    from app.models.attendance import Attendance  # noqa: PLC0415
-    
-    logger.info("===== CAPTURE SELFIE START =====")
-    logger.info("User ID: %s", current_user.id)
+    """Receive base64 selfie from live camera capture."""
+    from app.models.attendance_photo import AttendancePhoto
+    from app.db import db
+    from app.models.attendance import Attendance
     
     try:
         employee = _emp_repo.get_by_user_id(current_user.id)
         if not employee:
-            logger.error("CAPTURE SELFIE FAILED: Employee not found")
-            return jsonify(success=False, message="Employee not found."), 400
+            return jsonify(success=False, message="Employee not found"), 400
         
-        logger.info("Employee ID: %s", employee.id)
-        
-        # Get JSON payload
         data = request.get_json() or {}
-        selfie_base64 = data.get("selfie", "").strip()
+        selfie_base64 = data.get("selfie", "")
         capture_type = data.get("type", "checkin").lower()
         
         if not selfie_base64:
-            return jsonify(success=False, message="No photo data."), 400
+            return jsonify(success=False, message="No photo"), 400
         
         if capture_type not in ("checkin", "checkout"):
-            return jsonify(success=False, message="Invalid type."), 400
+            return jsonify(success=False, message="Invalid type"), 400
         
-        logger.info("Type: %s, Data length: %d", capture_type, len(selfie_base64))
-        
-        # Get or create today's attendance
         today = date.today()
         attendance_today = _repo.get_today(employee.id, today)
         
+        # Create attendance if doesn't exist
         if not attendance_today:
             attendance_today = Attendance(
                 employee_id=employee.id,
                 date=today,
-                status="pending",
+                status="pending"
             )
             db.session.add(attendance_today)
             db.session.flush()
-            logger.info("Created attendance: %s", attendance_today.id)
         
-        # Get or create photo record
-        photo = AttendancePhoto.query.filter_by(
-            attendance_id=attendance_today.id
-        ).first()
-        
+        # Create or update photo
+        photo = AttendancePhoto.query.filter_by(attendance_id=attendance_today.id).first()
         if not photo:
             photo = AttendancePhoto(
                 attendance_id=attendance_today.id,
-                employee_id=employee.id,
+                employee_id=employee.id
             )
             db.session.add(photo)
             db.session.flush()
-            logger.info("Created photo: %s", photo.id)
         
-        # Store selfie
+        # Store photo based on type
         if capture_type == "checkin":
             photo.image_data = selfie_base64
         else:
             photo.checkout_image_data = selfie_base64
         
         db.session.commit()
-        logger.info("CAPTURE SELFIE SUCCESS")
         
         return jsonify(
             success=True,
             photo_id=photo.id,
-            message="Selfie captured."
+            message="Photo saved"
         )
     
-    except Exception as exc:
-        logger.error("CAPTURE SELFIE ERROR: %s", str(exc))
-        logger.error("Traceback: %s", traceback.format_exc())
+    except Exception as e:
         try:
             db.session.rollback()
         except:
             pass
         
+        logger.error("Capture selfie error: %s", str(e))
+        logger.error("Traceback: %s", traceback.format_exc())
+        
         return jsonify(
             success=False,
-            message=f"Upload failed: {str(exc)}"
+            message=f"Error: {str(e)[:100]}"
         ), 500
 
 
