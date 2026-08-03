@@ -660,6 +660,8 @@ def emergency_reset_attendance():
 def employee_allocation():
     """Manage employee hospital and shift allocations."""
     from app.models.hospital import Hospital
+    from app.models.employee import Employee
+    from app.models.user import User, UserStatus
     from app.extensions.database import db
     
     try:
