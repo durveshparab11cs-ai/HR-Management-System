@@ -86,7 +86,7 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-semibold">Effective From</label>
-                <input type="date" class="form-control" id="bulkEffectiveDate" value="{{ today() }}">
+                <input type="date" class="form-control" id="bulkEffectiveDate" value="{{ today }}">
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-semibold">&nbsp;</label>
@@ -214,7 +214,7 @@ async function assignShiftToEmployee(employeeId, shiftId) {
     const formData = new FormData();
     formData.append('employee_id', employeeId);
     formData.append('shift_id', shiftId);
-    formData.append('effective_date', document.getElementById('bulkEffectiveDate').value || '{{ today() }}');
+    formData.append('effective_date', document.getElementById('bulkEffectiveDate').value || '{{ today }}');
     
     try {
         const response = await fetch('{{ url_for("admin.assign_single_shift") }}', {
@@ -355,7 +355,7 @@ async function assignAllShifts() {
             },
             body: JSON.stringify({
                 assignments: assignments,
-                effective_date: document.getElementById('bulkEffectiveDate').value || '{{ today() }}'
+                effective_date: document.getElementById('bulkEffectiveDate').value || '{{ today }}'
             })
         });
         
