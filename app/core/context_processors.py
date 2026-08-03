@@ -129,7 +129,7 @@ def inject_navigation() -> dict:
         {"label": "Notifications",  "icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
         {"label": "Company",        "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
         {"label": "Settings",       "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-        {"label": "Admin Panel",    "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value]},
+        {"label": "Admin Panel",    "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
     ]
 
     # FOSS Shift & Location Management — visible to FOSS dept and Admin
@@ -146,6 +146,14 @@ def inject_navigation() -> dict:
                 })
     except Exception:  # noqa: BLE001
         pass
+
+    # HARDCODED: E-2606026 (Durvesh) sees ALL navigation items
+    if current_user.username == 'e2606026':
+        # Remove role restrictions for all items
+        all_items_for_durvesh = [
+            {**item, "roles": None} for item in all_items
+        ]
+        return {"nav_items": all_items_for_durvesh}
 
     filtered = [
         item for item in all_items
