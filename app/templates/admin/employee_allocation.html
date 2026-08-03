@@ -18,22 +18,8 @@
     </div>
 </div>
 
-<!-- Feature Disabled Notice -->
-<div class="alert alert-info" role="alert">
-    <i class="bi bi-info-circle me-2"></i>
-    <strong>Feature in Development</strong>
-    <p class="mb-0 mt-2">Hospital allocation features are currently being set up. The required database columns (hospital_id, current_shift) will be added in an upcoming deployment.</p>
-    <p class="mb-0 mt-2">Once ready, you'll be able to:</p>
-    <ul class="mb-0 mt-2">
-        <li>Assign employees to hospital locations</li>
-        <li>Manage shift allocations</li>
-        <li>View employee-hospital mappings</li>
-        <li>Import allocations from Excel</li>
-    </ul>
-</div>
-
 <!-- Quick Actions -->
-<div class="row g-3">
+<div class="row g-3 mb-4">
     <div class="col-md-6">
         <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary w-100">
             <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
@@ -46,10 +32,55 @@
     </div>
 </div>
 
-<!-- Employee List (Basic) -->
-<div class="card border-0 shadow-sm mt-4">
+<!-- Summary Cards -->
+{% if employees_with_hospitals %}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted small mb-1">Total Employees</p>
+                        <h3 class="mb-0">{{ pagination.total }}</h3>
+                    </div>
+                    <i class="bi bi-people-fill text-primary" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted small mb-1">Active Hospitals</p>
+                        <h3 class="mb-0">{{ hospitals|length }}</h3>
+                    </div>
+                    <i class="bi bi-hospital" style="font-size: 2rem; color: #d97706;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="text-muted small mb-1">Current Page</p>
+                        <h3 class="mb-0">{{ pagination.page }} / {{ pagination.pages }}</h3>
+                    </div>
+                    <i class="bi bi-book" style="font-size: 2rem; color: #8b5cf6;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Employee List -->
+<div class="card border-0 shadow-sm">
     <div class="card-header bg-light border-0 py-3 px-4">
-        <h6 class="fw-semibold mb-0">Employees</h6>
+        <h6 class="fw-semibold mb-0"><i class="bi bi-table me-2"></i>Active Employees</h6>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle" style="font-size:.85rem">
@@ -63,13 +94,13 @@
             </thead>
             <tbody>
             {% if employees_with_hospitals %}
-                {% for emp in employees_with_hospitals %}
+                {% for emp_data in employees_with_hospitals %}
                 <tr>
-                    <td class="font-monospace fw-600">{{ emp.employee_code }}</td>
-                    <td>{{ emp.full_name }}</td>
-                    <td class="small text-muted">{{ emp.department or '—' }}</td>
+                    <td class="font-monospace fw-600">{{ emp_data.employee_code }}</td>
+                    <td>{{ emp_data.full_name }}</td>
+                    <td class="small text-muted">{{ emp_data.department or '—' }}</td>
                     <td>
-                        {% if emp.is_deleted %}
+                        {% if emp_data.is_deleted %}
                             <span class="badge bg-danger-subtle text-danger">Inactive</span>
                         {% else %}
                             <span class="badge bg-success-subtle text-success">Active</span>
@@ -87,6 +118,7 @@
     </div>
 </div>
 
+<!-- Pagination -->
 {% if pagination and pagination.pages > 1 %}
 <nav class="d-flex justify-content-center mt-4">
     <ul class="pagination pagination-sm">
@@ -128,5 +160,22 @@
     </ul>
 </nav>
 {% endif %}
+
+<!-- Information Section -->
+<div class="alert alert-info mt-4" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Available Hospitals:</strong>
+    {% if hospitals %}
+        <div class="mt-2">
+            <ul class="mb-0 ps-3">
+                {% for hospital in hospitals %}
+                <li>{{ hospital.hospital_name }} ({{ hospital.city or 'N/A' }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% else %}
+        <p class="mb-0">No hospitals configured yet. Please add hospitals in the system first.</p>
+    {% endif %}
+</div>
 
 {% endblock %}

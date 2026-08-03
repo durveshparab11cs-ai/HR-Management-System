@@ -654,6 +654,57 @@ def emergency_reset_attendance():
 
 # ── Shift Assignment Routes ───────────────────────────────────────────
 
+@admin_bp.route("/employee-allocation")
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def employee_allocation():
+    """Manage employee hospital and shift allocations."""
+    from app.models.hospital import Hospital
+    from app.extensions.database import db
+    
+    try:
+        # Get active hospitals
+        hospitals = Hospital.query.filter_by(is_active=True).order_by(Hospital.hospital_name).all()
+        
+        # Get all active employees with their current assignments
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
+        
+        employees_query = (
+            db.session.query(Employee, User)
+            .join(User, Employee.user_id == User.id)
+            .filter(Employee.is_deleted == False, User.status == UserStatus.ACTIVE.value)
+            .order_by(Employee.employee_code)
+        )
+        
+        pagination = employees_query.paginate(page=page, per_page=per_page, error_out=False)
+        employees_with_hospitals = []
+        
+        for emp, user in pagination.items:
+            employees_with_hospitals.append({
+                'employee': emp,
+                'user': user,
+                'full_name': user.full_name,
+                'employee_code': emp.employee_code,
+                'department': emp.department,
+                'is_deleted': emp.is_deleted
+            })
+        
+        return render_template(
+            'admin/employee_allocation.html',
+            title='Employee Allocation',
+            employees_with_hospitals=employees_with_hospitals,
+            hospitals=hospitals,
+            pagination=pagination
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger('admin')
+        logger.error('employee_allocation error: %s', str(e))
+        flash('Error loading employee allocation page. Please try again.', 'danger')
+        return redirect(url_for('admin.index'))
+
+
 @admin_bp.route("/shift-assignment")
 @login_required
 @roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
