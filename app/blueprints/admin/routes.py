@@ -110,6 +110,88 @@ def index():
     )
 
 
+@admin_bp.route("/attendance/all")
+@login_required
+@admin_required
+def view_all_attendance():
+    """
+    View all employees' attendance with check-in and check-out proof photos.
+    Shows today's attendance by default, with date filter and pagination.
+    """
+    from datetime import datetime as _dt
+    from app.models.attendance import Attendance
+    from app.models.attendance_photo import AttendancePhoto
+    from app.models.employee import Employee
+    from app.models.user import User
+    from sqlalchemy import desc
+    from app.extensions.database import db
+
+    # Get date filter (default: today)
+    date_str = request.args.get("date", "").strip()
+    try:
+        view_date = _dt.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+    except ValueError:
+        view_date = date.today()
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+
+    # Query all attendance for the given date with employee data
+    query = (
+        db.session.query(Attendance, Employee, User, AttendancePhoto)
+        .join(Employee, Attendance.employee_id == Employee.id)
+        .join(User, Employee.user_id == User.id)
+        .outerjoin(AttendancePhoto, Attendance.id == AttendancePhoto.attendance_id)
+        .filter(
+            Attendance.date == view_date,
+            Attendance.is_deleted == False,
+            Employee.is_deleted == False,
+            User.is_deleted == False,
+        )
+        .order_by(desc(Attendance.check_in_time))
+    )
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Format attendance data for template
+    attendance_data = []
+    for att, emp, usr, photo in pagination.items:
+        from datetime import timedelta
+
+        # Convert times to IST
+        def to_ist(dt):
+            if not dt:
+                return None
+            return dt + timedelta(hours=5, minutes=30)
+
+        check_in_ist = to_ist(att.check_in_time)
+        check_out_ist = to_ist(att.check_out_time)
+
+        attendance_data.append({
+            'attendance': att,
+            'employee': emp,
+            'user': usr,
+            'photo': photo,
+            'check_in_time_ist': check_in_ist,
+            'check_out_time_ist': check_out_ist,
+            'working_hours_display': att.working_hours_display,
+            'employee_code': emp.employee_code,
+            'employee_name': usr.full_name,
+            'department': emp.department or '—',
+            'status_display': att.status.replace('_', ' ').title(),
+        })
+
+    return render_template(
+        "admin/view_all_attendance.html",
+        title="All Employee Attendance",
+        view_date=view_date,
+        date_str=view_date.strftime("%Y-%m-%d"),
+        attendance_data=attendance_data,
+        pagination=pagination,
+        page=page,
+    )
+
+
 @admin_bp.route("/office-settings", methods=["GET", "POST"])
 @login_required
 @admin_required

@@ -1,0 +1,278 @@
+{% extends 'layouts/base.html' %}
+{% block title %}All Employee Attendance — {{ app_name }}{% endblock %}
+{% block extra_css %}
+<style>
+.photo-thumbnail { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #e9ecef; transition: all 0.2s; }
+.photo-thumbnail:hover { border-color: #0d6efd; transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.photo-container { display: flex; gap: 8px; align-items: center; }
+.status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+.status-present { background-color: #d4edda; color: #155724; }
+.status-absent { background-color: #f8d7da; color: #721c24; }
+.status-half_day { background-color: #fff3cd; color: #856404; }
+.status-on_leave { background-color: #d1ecf1; color: #0c5460; }
+.time-display { font-family: 'Monaco', 'Courier New', monospace; font-size: 0.9rem; }
+.modal-img { max-width: 100%; max-height: 60vh; border-radius: 8px; }
+.filter-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px; }
+.table-responsive { border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+table { margin: 0; }
+th { background-color: #1a3c6e; color: white; font-weight: 600; border: none; }
+tbody tr:hover { background-color: #f8f9fa; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Admin Panel', 'admin.index'), ('All Attendance', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div>
+        <h1 class="h4 fw-bold mb-0">
+            <i class="bi bi-calendar-check me-2"></i>All Employee Attendance
+        </h1>
+        <p class="text-muted small mb-0">View check-in and check-out records with proof photos</p>
+    </div>
+    <a href="{{ url_for('admin.export_daily_attendance', date=date_str) }}" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-download me-1"></i>Export to Excel
+    </a>
+</div>
+
+<!-- ── Date Filter ── -->
+<div class="filter-section">
+    <form method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+        <div class="flex-grow-1" style="min-width: 200px;">
+            <label for="date-input" class="form-label fw-600 small text-uppercase mb-2">Select Date</label>
+            <input type="date" id="date-input" name="date" value="{{ date_str }}" class="form-control form-control-sm">
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-search me-1"></i>View Attendance
+        </button>
+        <a href="{{ url_for('admin.view_all_attendance') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Today
+        </a>
+    </form>
+</div>
+
+<!-- ── Summary Stats ── -->
+{% if attendance_data %}
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-light">
+            <div class="card-body p-3">
+                <div class="text-muted small">Total Checked In</div>
+                <div class="h5 fw-bold text-success">{{ attendance_data | selectattr('attendance.check_in_time') | list | length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-light">
+            <div class="card-body p-3">
+                <div class="text-muted small">Total Checked Out</div>
+                <div class="h5 fw-bold text-info">{{ attendance_data | selectattr('attendance.check_out_time') | list | length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-light">
+            <div class="card-body p-3">
+                <div class="text-muted small">With Photos</div>
+                <div class="h5 fw-bold text-primary">{{ attendance_data | selectattr('photo') | list | length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 bg-light">
+            <div class="card-body p-3">
+                <div class="text-muted small">Late Arrivals</div>
+                <div class="h5 fw-bold text-warning">{{ attendance_data | selectattr('attendance.is_late') | list | length }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Attendance Table ── -->
+{% if attendance_data %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th style="width: 5%">#</th>
+                <th style="width: 10%">Employee Code</th>
+                <th style="width: 15%">Employee Name</th>
+                <th style="width: 10%">Department</th>
+                <th style="width: 12%">Check-In (IST)</th>
+                <th style="width: 12%">Check-Out (IST)</th>
+                <th style="width: 10%">Working Hours</th>
+                <th style="width: 12%">Proof Photos</th>
+                <th style="width: 8%">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in attendance_data %}
+            <tr>
+                <td class="text-muted small">{{ loop.index }}</td>
+                <td class="font-monospace fw-600">{{ item.employee_code }}</td>
+                <td>{{ item.employee_name }}</td>
+                <td class="small text-muted">{{ item.department }}</td>
+                
+                <!-- Check-In Time -->
+                <td>
+                    {% if item.check_in_time_ist %}
+                        <div class="time-display fw-600">{{ item.check_in_time_ist.strftime('%I:%M %p') }}</div>
+                        <div class="small text-muted">{{ item.attendance.check_in_time.strftime('%Y-%m-%d') }}</div>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                
+                <!-- Check-Out Time -->
+                <td>
+                    {% if item.check_out_time_ist %}
+                        <div class="time-display fw-600">{{ item.check_out_time_ist.strftime('%I:%M %p') }}</div>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                
+                <!-- Working Hours -->
+                <td>
+                    {% if item.working_hours_display and item.working_hours_display != '—' %}
+                        <span class="badge bg-light text-dark">{{ item.working_hours_display }}</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                
+                <!-- Proof Photos -->
+                <td>
+                    <div class="photo-container">
+                        {% if item.photo %}
+                            {% if item.photo.image_data %}
+                                <img src="{{ item.photo.image_data }}" alt="Check-in Photo" class="photo-thumbnail" data-bs-toggle="modal" data-bs-target="#photoModal{{ item.attendance.id }}" title="Check-in Proof">
+                            {% endif %}
+                            {% if item.photo.checkout_image_data %}
+                                <img src="{{ item.photo.checkout_image_data }}" alt="Check-out Photo" class="photo-thumbnail" data-bs-toggle="modal" data-bs-target="#photoModalCheckout{{ item.attendance.id }}" title="Check-out Proof">
+                            {% endif %}
+                        {% endif %}
+                        {% if not item.photo or (not item.photo.image_data and not item.photo.checkout_image_data) %}
+                            <span class="text-muted small">No photos</span>
+                        {% endif %}
+                    </div>
+                </td>
+                
+                <!-- Status -->
+                <td>
+                    <span class="status-badge status-{{ item.attendance.status }}">
+                        {{ item.status_display }}
+                    </span>
+                </td>
+            </tr>
+            
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ── All Photo Modals (outside table loop) ── -->
+{% for item in attendance_data %}
+    <!-- Photo Modal for Check-In -->
+    {% if item.photo and item.photo.image_data %}
+    <div class="modal fade" id="photoModal{{ item.attendance.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">{{ item.employee_name }} — Check-In Proof</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="{{ item.photo.image_data }}" alt="Check-in Photo" class="modal-img">
+                    <div class="mt-3 text-muted small">
+                        <div>Time: {{ item.check_in_time_ist.strftime('%I:%M %p') if item.check_in_time_ist else '—' }}</div>
+                        <div>{{ item.attendance.check_in_time.strftime('%A, %d %B %Y') if item.attendance.check_in_time else '—' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Photo Modal for Check-Out -->
+    {% if item.photo and item.photo.checkout_image_data %}
+    <div class="modal fade" id="photoModalCheckout{{ item.attendance.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold">{{ item.employee_name }} — Check-Out Proof</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="{{ item.photo.checkout_image_data }}" alt="Check-out Photo" class="modal-img">
+                    <div class="mt-3 text-muted small">
+                        <div>Time: {{ item.check_out_time_ist.strftime('%I:%M %p') if item.check_out_time_ist else '—' }}</div>
+                        <div>{{ item.attendance.check_out_time.strftime('%A, %d %B %Y') if item.attendance.check_out_time else '—' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+</div>
+
+<!-- ── Pagination ── -->
+{% if pagination.pages > 1 %}
+<nav class="d-flex justify-content-center mt-4">
+    <ul class="pagination pagination-sm">
+        {% if pagination.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.view_all_attendance', date=date_str, page=1) }}">First</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.view_all_attendance', date=date_str, page=pagination.prev_num) }}">← Previous</a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=3, left_margin=1, right_margin=1) %}
+            {% if page_num %}
+                {% if page_num == pagination.page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.view_all_attendance', date=date_str, page=page_num) }}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.view_all_attendance', date=date_str, page=pagination.next_num) }}">Next →</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.view_all_attendance', date=date_str, page=pagination.pages) }}">Last</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<!-- ── No Data ── -->
+<div class="alert alert-info text-center py-5">
+    <i class="bi bi-info-circle" style="font-size: 2.5rem;"></i>
+    <h5 class="mt-3 fw-bold">No Attendance Records</h5>
+    <p class="text-muted mb-0">No employees have checked in on <strong>{{ view_date.strftime('%d %B %Y') }}</strong></p>
+</div>
+{% endif %}
+
+{% endblock %}
