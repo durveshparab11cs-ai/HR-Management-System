@@ -743,6 +743,13 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
             
+            # STEP 4.3: Seed hospitals
+            try:
+                _auto_seed_hospitals(app)
+                app.logger.info("✓ Step 4.3: _auto_seed_hospitals()")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 4.3: _auto_seed_hospitals() failed: %s", exc)
+            
             # STEP 4.5: Seed shifts
             try:
                 _auto_seed_shifts(app)
@@ -829,6 +836,79 @@ def _migrate_add_columns(db) -> None:
                     pass
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
+
+
+def _auto_seed_hospitals(app: Flask) -> None:
+    """Seed hospitals if not already present."""
+    try:
+        from app.models.hospital import Hospital  # noqa: PLC0415
+        from app.extensions.database import db as _db  # noqa: PLC0415
+        
+        # Check if hospitals already exist
+        if Hospital.query.count() > 0:
+            app.logger.info("Hospitals already seeded — skipping.")
+            return
+        
+        hospitals_list = [
+            "AIIMS Hospital (Gorakhpur)",
+            "Akurdi Hospital",
+            "Ameyash Hospital",
+            "Bharatratna Dr.BabaSaheb Ambedkar Hospital",
+            "Bhosari Hospital",
+            "Dr. M L Dhavale Hospital",
+            "Dr R.N. Cooper Muncipial General Hospital",
+            "Hyderabad Omega Hospital (Jabalpur)",
+            "Jijamata Hospital",
+            "Jupiter Hospital (THANE)",
+            "K B Bhaba Hospital-Bandra",
+            "KEM Hospital",
+            "Kolhapur Cancer Centre",
+            "LDC Hospital",
+            "M.W. Desai Hospital",
+            "MT Agarwal Hospital (Mulund)",
+            "Nair Hospital",
+            "Nana Palkar (Parel)",
+            "Nana Palkar Hospital(Santacruz)",
+            "Nana Palkar Hospital(Thane)",
+            "Peerless Hospital Guwahati",
+            "Rajawadi Hospital",
+            "Ranchi Cancer Hospital",
+            "RST RCH Hospital",
+            "Satyanand Hospital(Shahjahanpur)",
+            "Shankarrao Masulka Eye Hospital",
+            "Shantitol Shanghvi Eye Hospital",
+            "Shatabdi Hospital",
+            "Shree Ramkrishna Netralaya",
+            "Shree Ramkrishna Netralaya (Thane)",
+            "Shree Ramkrishna Netralaya(Vashi)",
+            "Siddhagiri Hospital",
+            "Sion Hospital",
+            "SVD Sawarkar Hospital (Mulund)",
+            "SVICCAR Hospital",
+            "Swargadeo Sukafa Multi speciality Hospital",
+            "Talera Hospital",
+            "Thergoan Hospital",
+            "V.N. Desai Hospital",
+            "Walawatkar Hospital",
+            "YCM Hospital(Pune)",
+        ]
+        
+        for hospital_name in hospitals_list:
+            hospital = Hospital(
+                hospital_name=hospital_name,
+                is_active=True
+            )
+            _db.session.add(hospital)
+        
+        _db.session.commit()
+        app.logger.info(f"✓ Auto-seeded {len(hospitals_list)} hospitals")
+    except Exception as exc:
+        app.logger.error("Auto-seed hospitals failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 def _auto_seed_shifts(app: Flask) -> None:
