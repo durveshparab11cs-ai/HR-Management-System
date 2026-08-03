@@ -195,9 +195,9 @@
       <div class="att-pill">
         <div class="att-dot {% if status.attendance.check_out_time %}off{% endif %}"></div>
         {% if status.attendance.check_out_time %}
-          Signed Out — <span class="utc-to-ist">{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span> IST
+          Signed Out — <span class="utc-to-ist" data-utc-time="{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ status.attendance.check_out_time.strftime('%H:%M') }}</span> IST
         {% else %}
-          Signed In — <span class="utc-to-ist">{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span> IST
+          Signed In — <span class="utc-to-ist" data-utc-time="{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ status.attendance.check_in_time.strftime('%H:%M') }}</span> IST
         {% endif %}
       </div>
     {% elif status.attendance and status.attendance.status == 'pending' %}
@@ -222,7 +222,7 @@
       <div class="att-tile-label">Check In (IST)</div>
       <div class="att-tile-value">
         {% if status.attendance and status.attendance.check_in_time %}
-          <span class="utc-to-ist">{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+          <span class="utc-to-ist" data-utc-time="{{ status.attendance.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ status.attendance.check_in_time.strftime('%H:%M') }}</span>
         {% else %}—{% endif %}
       </div>
     </div>
@@ -230,7 +230,7 @@
       <div class="att-tile-label">Check Out (IST)</div>
       <div class="att-tile-value">
         {% if status.attendance and status.attendance.check_out_time %}
-          <span class="utc-to-ist">{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+          <span class="utc-to-ist" data-utc-time="{{ status.attendance.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ status.attendance.check_out_time.strftime('%H:%M') }}</span>
         {% else %}—{% endif %}
       </div>
     </div>
@@ -576,7 +576,7 @@
         <!-- In Time -->
         <td class="small">
           {% if att.check_in_time %}
-          <span class="utc-to-ist fw-semibold">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+          <span class="utc-to-ist fw-semibold" data-utc-time="{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ att.check_in_time.strftime('%H:%M') }}</span>
           {% else %}<span class="text-muted">—</span>{% endif %}
         </td>
 

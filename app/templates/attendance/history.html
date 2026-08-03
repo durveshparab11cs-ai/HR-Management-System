@@ -250,14 +250,14 @@
                 <!-- In Time -->
                 <td class="small">
                     {% if att.check_in_time %}
-                    <span class="utc-to-ist fw-semibold">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+                    <span class="utc-to-ist fw-semibold" data-utc-time="{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ att.check_in_time.strftime('%H:%M') }}</span>
                     {% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
 
                 <!-- Out Time -->
                 <td class="small">
                     {% if att.check_out_time %}
-                    <span class="utc-to-ist fw-semibold">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}</span>
+                    <span class="utc-to-ist fw-semibold" data-utc-time="{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') }}">{{ att.check_out_time.strftime('%H:%M') }}</span>
                     {% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
 
