@@ -58,9 +58,11 @@ def assign_shifts_bulk():
         )
     except Exception as e:
         import logging
+        import traceback
         logger = logging.getLogger('admin')
         logger.error('shift_assignment error: %s', str(e))
-        flash('Error loading shift assignment page. Please try again.', 'danger')
+        logger.error('Traceback: %s', traceback.format_exc())
+        flash(f'Error loading shift assignment page: {str(e)}', 'danger')
         return redirect(url_for('admin.index'))
 
 
