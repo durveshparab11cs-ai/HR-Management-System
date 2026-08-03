@@ -54,13 +54,15 @@ def roles_required(*roles: UserRole) -> Callable:
                 return redirect(url_for("authentication.login", next=request.url))
 
             user_role = getattr(current_user, "role", None)
-            if user_role not in roles:
+            # Extract enum values for comparison (user_role is a string)
+            allowed_roles = [r.value for r in roles]
+            if user_role not in allowed_roles:
                 logger.warning(
                     "Authorization denied | user_id=%s | role=%s | endpoint=%s | required=%s",
                     current_user.id,
                     user_role,
                     request.endpoint,
-                    [r.value for r in roles],
+                    allowed_roles,
                 )
                 # Log a security event
                 security_logger = logging.getLogger("security")

@@ -30,8 +30,11 @@ def index():
         forced_dept = None
     else:
         forced_dept = get_dept_filter()
-    department = forced_dept if forced_dept else request.args.get("dept", "")
-    branch = request.args.get("branch", "")
+    # Convert empty string department to None for "All Departments"
+    dept_param = request.args.get("dept", "").strip()
+    department = forced_dept if forced_dept else (dept_param if dept_param else None)
+    branch_param = request.args.get("branch", "").strip()
+    branch = branch_param if branch_param else None
     pagination = _repo.get_all(page=page, per_page=25, search=search, department=department, branch=branch)
     departments = _repo.get_departments()
     branches = _repo.get_branches()

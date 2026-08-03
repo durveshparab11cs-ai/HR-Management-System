@@ -30,7 +30,7 @@ class EmployeeRepository:
     def get_by_employee_code(self, code: str) -> Optional[Employee]:
         return Employee.query.filter_by(employee_code=code.upper(), is_deleted=False).first()
 
-    def get_all(self, page: int = 1, per_page: int = 25, search: str = "", department: str = "", branch: str = ""):
+    def get_all(self, page: int = 1, per_page: int = 25, search: str = "", department: str | None = None, branch: str | None = None):
         q = (
             Employee.query
             .join(User, Employee.user_id == User.id)
@@ -45,9 +45,9 @@ class EmployeeRepository:
                 Employee.employee_code.ilike(term),
                 Employee.mobile.ilike(term),
             ))
-        if department:
+        if department:  # Only filter if department is not None and not empty
             q = q.filter(Employee.department.ilike(f"%{department}%"))
-        if branch:
+        if branch:  # Only filter if branch is not None and not empty
             q = q.filter(Employee.branch.ilike(f"%{branch}%"))
         return q.order_by(Employee.employee_code.asc()).paginate(page=page, per_page=per_page, error_out=False)
 
