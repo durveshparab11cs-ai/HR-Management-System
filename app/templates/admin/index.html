@@ -23,14 +23,8 @@
 
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <div>
-        {% set current_hour = now.strftime('%H') | int %}
-        <h1 class="h4 fw-bold mb-0">
-            Good 
-            {%- if current_hour < 12 %} Morning
-            {%- elif current_hour < 17 %} Afternoon
-            {%- elif current_hour < 21 %} Evening
-            {%- else %} Night
-            {%- endif %}, {{ current_user.first_name }}!
+        <h1 class="h4 fw-bold mb-0" id="greetingText">
+            Good Morning, {{ current_user.first_name }}!
         </h1>
         <p class="text-muted small mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
     </div>
@@ -332,6 +326,32 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
+// Update greeting based on current time
+function updateGreeting() {
+    const now = new Date();
+    const hour = now.getHours();
+    let greeting = 'Good Morning';
+    
+    if (hour >= 12 && hour < 17) {
+        greeting = 'Good Afternoon';
+    } else if (hour >= 17 && hour < 21) {
+        greeting = 'Good Evening';
+    } else if (hour >= 21 || hour < 0) {
+        greeting = 'Good Night';
+    }
+    
+    const greetingElement = document.getElementById('greetingText');
+    if (greetingElement) {
+        greetingElement.textContent = greeting + ', {{ current_user.first_name }}!';
+    }
+}
+
+// Update greeting on page load
+updateGreeting();
+
+// Update greeting every minute to reflect time changes
+setInterval(updateGreeting, 60000);
+
 document.getElementById('btn-reset-attendance').addEventListener('click', function() {
     // Show confirmation dialog
     const confirmed = confirm(
