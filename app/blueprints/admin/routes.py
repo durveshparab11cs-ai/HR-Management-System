@@ -654,58 +654,6 @@ def emergency_reset_attendance():
 
 # ── Shift Assignment Routes ───────────────────────────────────────────
 
-@admin_bp.route("/employee-allocation")
-@login_required
-@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
-def employee_allocation():
-    """Manage employee hospital and shift allocations."""
-    try:
-        from app.models.employee import Employee
-        from app.models.user import User
-        
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
-        
-        # Simple query without UserStatus to avoid import issues
-        employees_query = (
-            Employee.query
-            .filter_by(is_deleted=False)
-            .order_by(Employee.employee_code)
-        )
-        
-        pagination = employees_query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        employees_with_hospitals = []
-        for emp in pagination.items:
-            user = User.query.get(emp.user_id) if emp.user_id else None
-            employees_with_hospitals.append({
-                'employee': emp,
-                'user': user,
-                'full_name': user.full_name if user else emp.employee_code,
-                'employee_code': emp.employee_code,
-                'department': emp.department,
-                'is_deleted': emp.is_deleted
-            })
-        
-        # Get hospitals (simplified)
-        from app.models.hospital import Hospital
-        hospitals = Hospital.query.filter_by(is_active=True).all() if hasattr(Hospital, 'query') else []
-        
-        return render_template(
-            'admin/employee_allocation.html',
-            title='Employee Allocation',
-            employees_with_hospitals=employees_with_hospitals,
-            hospitals=hospitals,
-            pagination=pagination
-        )
-    except Exception as e:
-        import logging
-        logger = logging.getLogger('admin')
-        logger.error('employee_allocation error: %s', str(e), exc_info=True)
-        flash('Error loading employee allocation page.', 'danger')
-        return redirect(url_for('admin.index'))
-
-
 @admin_bp.route("/shift-assignment")
 @login_required
 @roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
