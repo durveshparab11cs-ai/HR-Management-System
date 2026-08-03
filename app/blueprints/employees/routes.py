@@ -25,7 +25,11 @@ def index():
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "")
     # Dept filter: if user has a forced department, override any URL param
-    forced_dept = get_dept_filter()
+    # EXCEPT for SUPER_ADMIN and ADMIN users who should always see all
+    if current_user.role in ('super_admin', 'admin'):
+        forced_dept = None
+    else:
+        forced_dept = get_dept_filter()
     department = forced_dept if forced_dept else request.args.get("dept", "")
     branch = request.args.get("branch", "")
     pagination = _repo.get_all(page=page, per_page=25, search=search, department=department, branch=branch)
