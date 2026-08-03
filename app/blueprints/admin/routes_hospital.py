@@ -206,13 +206,10 @@ def employee_allocation():
         # Build simple query without hospital_id and current_shift (fields don't exist yet)
         query = Employee.query.filter_by(is_deleted=False)
         
-        # Apply search filter
+        # Apply search filter only on employee_code (it's a real database column)
         if search_query:
             query = query.filter(
-                db.or_(
-                    Employee.employee_code.ilike(f'%{search_query}%'),
-                    Employee.full_name.ilike(f'%{search_query}%')
-                )
+                Employee.employee_code.ilike(f'%{search_query}%')
             )
         
         # Order by employee code
@@ -224,7 +221,7 @@ def employee_allocation():
         # Get all hospitals for filter dropdown (if table exists)
         all_hospitals = []
         try:
-            all_hospitals = Hospital.query.filter_by(is_deleted=False).order_by(Hospital.name).all()
+            all_hospitals = Hospital.query.filter_by(is_deleted=False).order_by(Hospital.hospital_name).all()
         except Exception:
             all_hospitals = []
         
