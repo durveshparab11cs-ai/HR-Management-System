@@ -54,7 +54,7 @@ def assign_shifts_bulk():
             employees=employees,
             shifts=shifts,
             employee_shifts=employee_shifts,
-            today=date.today()
+            today=datetime.now().date()
         )
     except Exception as e:
         import logging
