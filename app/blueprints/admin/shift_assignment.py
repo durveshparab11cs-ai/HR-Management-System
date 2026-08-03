@@ -19,40 +19,49 @@ from app.constants.enums import UserStatus
 
 def assign_shifts_bulk():
     """Bulk shift assignment page for HR/Admin."""
-    
-    # Get all active employees (join with User to check status)
-    employees = (
-        Employee.query
-        .join(User, Employee.user_id == User.id)
-        .filter(Employee.is_deleted == False, User.status == UserStatus.ACTIVE.value)
-        .order_by(Employee.employee_code)
-        .all()
-    )
-    
-    # Get all active shifts
-    shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
-    
-    # Get current assignments for each employee with shift relationship loaded
-    employee_shifts = {}
-    for emp in employees:
-        assignment = (
-            EmployeeShiftAssignment.query
-            .options(joinedload(EmployeeShiftAssignment.shift))
-            .filter(
-                EmployeeShiftAssignment.employee_id == emp.id,
-                EmployeeShiftAssignment.effective_until.is_(None)
-            )
-            .first()
+    try:
+        # Get all active employees (join with User to check status)
+        employees = (
+            Employee.query
+            .join(User, Employee.user_id == User.id)
+            .filter(Employee.is_deleted == False, User.status == UserStatus.ACTIVE.value)
+            .order_by(Employee.employee_code)
+            .all()
         )
-        employee_shifts[emp.id] = assignment.shift if assignment and assignment.shift else None
-    
-    return render_template(
-        'admin/shift_assignment.html',
-        employees=employees,
-        shifts=shifts,
-        employee_shifts=employee_shifts,
-        today=date.today
-    )
+        
+        # Get all active shifts
+        shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
+        
+        # Get current assignments for each employee with shift relationship loaded
+        employee_shifts = {}
+        for emp in employees:
+            try:
+                assignment = (
+                    EmployeeShiftAssignment.query
+                    .options(joinedload(EmployeeShiftAssignment.shift))
+                    .filter(
+                        EmployeeShiftAssignment.employee_id == emp.id,
+                        EmployeeShiftAssignment.effective_until.is_(None)
+                    )
+                    .first()
+                )
+                employee_shifts[emp.id] = assignment.shift if assignment and assignment.shift else None
+            except Exception:
+                employee_shifts[emp.id] = None
+        
+        return render_template(
+            'admin/shift_assignment.html',
+            employees=employees,
+            shifts=shifts,
+            employee_shifts=employee_shifts,
+            today=date.today()
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger('admin')
+        logger.error('shift_assignment error: %s', str(e))
+        flash('Error loading shift assignment page. Please try again.', 'danger')
+        return redirect(url_for('admin.index'))
 
 
 def assign_shift_to_employee():

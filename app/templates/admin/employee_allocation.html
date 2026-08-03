@@ -1,0 +1,132 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Employee Allocation — {{ app_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Admin Panel', 'admin.index'), ('Employee Allocation', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-0">
+            <i class="bi bi-geo-alt-fill me-2 text-primary"></i>Employee Allocation
+        </h1>
+        <p class="text-muted small mb-0">Manage employee hospital and shift assignments</p>
+    </div>
+</div>
+
+<!-- Feature Disabled Notice -->
+<div class="alert alert-info" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Feature in Development</strong>
+    <p class="mb-0 mt-2">Hospital allocation features are currently being set up. The required database columns (hospital_id, current_shift) will be added in an upcoming deployment.</p>
+    <p class="mb-0 mt-2">Once ready, you'll be able to:</p>
+    <ul class="mb-0 mt-2">
+        <li>Assign employees to hospital locations</li>
+        <li>Manage shift allocations</li>
+        <li>View employee-hospital mappings</li>
+        <li>Import allocations from Excel</li>
+    </ul>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-3">
+    <div class="col-md-6">
+        <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a href="{{ url_for('admin.shift_assignment') }}" class="btn btn-outline-primary w-100">
+            <i class="bi bi-calendar-check me-1"></i>Manage Shifts
+        </a>
+    </div>
+</div>
+
+<!-- Employee List (Basic) -->
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-light border-0 py-3 px-4">
+        <h6 class="fw-semibold mb-0">Employees</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" style="font-size:.85rem">
+            <thead class="table-light">
+                <tr>
+                    <th>Employee Code</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% if employees_with_hospitals %}
+                {% for emp in employees_with_hospitals %}
+                <tr>
+                    <td class="font-monospace fw-600">{{ emp.employee_code }}</td>
+                    <td>{{ emp.full_name }}</td>
+                    <td class="small text-muted">{{ emp.department or '—' }}</td>
+                    <td>
+                        {% if emp.is_deleted %}
+                            <span class="badge bg-danger-subtle text-danger">Inactive</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success">Active</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-5">No employees found</td>
+                </tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if pagination and pagination.pages > 1 %}
+<nav class="d-flex justify-content-center mt-4">
+    <ul class="pagination pagination-sm">
+        {% if pagination.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.employee_allocation', page=1) }}">First</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.employee_allocation', page=pagination.prev_num) }}">← Previous</a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=3, left_margin=1, right_margin=1) %}
+            {% if page_num %}
+                {% if page_num == pagination.page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.employee_allocation', page=page_num) }}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.employee_allocation', page=pagination.next_num) }}">Next →</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.employee_allocation', page=pagination.pages) }}">Last</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}
