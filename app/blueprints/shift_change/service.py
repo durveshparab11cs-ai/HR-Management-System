@@ -78,7 +78,7 @@ class ShiftChangeService:
         requested_end_time: datetime.time,
         effective_date: datetime.date,
         reason: str,
-        reporting_manager_code: str,
+        reporting_manager_name: str,
         remarks: str = None,
         requested_shift_id: int = None,
         attachment: FileStorage = None
@@ -90,23 +90,23 @@ class ShiftChangeService:
             (success: bool, message: str, request_id: int or None)
         """
         try:
-            # Validation: reporting manager code
-            manager_code = reporting_manager_code.strip().upper()
-            if not manager_code:
-                return False, "Reporting Manager Code is required", None
+            # Validation: reporting manager name
+            manager_name = reporting_manager_name.strip() if reporting_manager_name else ""
+            if not manager_name:
+                return False, "Reporting Manager is required", None
             
-            # Validate manager exists and get name
+            # Find manager by name to get their code
             from app.models.employee_master import EmployeeMaster
-            manager = EmployeeMaster.query.filter_by(employee_code=manager_code, is_active=True).first()
+            manager = EmployeeMaster.query.filter_by(employee_name=manager_name, is_active=True).first()
             if not manager:
-                return False, f"Reporting Manager with code {manager_code} not found or inactive", None
+                return False, f"Reporting Manager '{manager_name}' not found or inactive", None
+            
+            manager_code = manager.employee_code
             
             # Prevent self-approval
             employee = Employee.query.get(employee_id)
-            if employee and employee.employee_code.upper() == manager_code:
+            if employee and employee.employee_code.upper() == manager_code.upper():
                 return False, "You cannot select yourself as Reporting Manager", None
-            
-            manager_name = manager.employee_name
             
             # Validation: effective date not in past
             if effective_date < datetime.date.today():

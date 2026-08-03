@@ -159,6 +159,8 @@ def dashboard():
 @login_required
 def create_request():
     """Create new shift change request."""
+    from app.blueprints.shift_change.forms import get_manager_choices
+    
     # Get current employee
     employee = Employee.query.filter_by(user_id=current_user.id).first()
     if not employee:
@@ -180,6 +182,9 @@ def create_request():
         for s in active_shifts
     ]
     
+    # Populate reporting manager choices
+    form.reporting_manager.choices = get_manager_choices()
+    
     if form.validate_on_submit():
         # Submit request
         success, message, request_id = service.submit_shift_change_request(
@@ -189,7 +194,7 @@ def create_request():
             requested_end_time=form.requested_end_time.data,
             effective_date=form.effective_date.data,
             reason=form.reason.data,
-            reporting_manager_code=form.reporting_manager_code.data,
+            reporting_manager_name=form.reporting_manager.data,
             remarks=form.remarks.data,
             requested_shift_id=form.requested_shift_id.data if form.requested_shift_id.data > 0 else None,
             attachment=form.attachment.data

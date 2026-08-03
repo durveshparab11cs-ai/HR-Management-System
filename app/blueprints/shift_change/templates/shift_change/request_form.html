@@ -96,28 +96,16 @@
                     <hr class="my-4">
                     <h6 class="fw-semibold mb-3">Approval Details</h6>
                     
-                    <!-- Reporting Manager Code -->
+                    <!-- Reporting Manager Dropdown -->
                     <div class="mb-4">
-                        {{ form.reporting_manager_code.label(class="form-label fw-semibold required") }}
-                        <div class="input-group">
-                            {{ form.reporting_manager_code(class="form-control", id="reportingManagerCode", placeholder="Enter manager employee code", required=True) }}
-                            <button class="btn btn-outline-secondary" type="button" id="lookupManagerBtn">
-                                <i class="bi bi-search"></i> Lookup
-                            </button>
-                        </div>
-                        <div class="form-text">Enter your reporting manager's employee code (e.g., E-2606026)</div>
-                        {% if form.reporting_manager_code.errors %}
+                        {{ form.reporting_manager.label(class="form-label fw-semibold") }}
+                        {{ form.reporting_manager(class="form-select", id="reportingManagerSelect") }}
+                        <div class="form-text">Select your reporting manager from the list</div>
+                        {% if form.reporting_manager.errors %}
                         <div class="text-danger small mt-1">
-                            {% for error in form.reporting_manager_code.errors %}{{ error }}{% endfor %}
+                            {% for error in form.reporting_manager.errors %}{{ error }}{% endfor %}
                         </div>
                         {% endif %}
-                        <div id="managerDetails" class="mt-3" style="display: none;">
-                            <div class="alert alert-info">
-                                <div><strong>Manager Name:</strong> <span id="managerName"></span></div>
-                                <div><strong>Designation:</strong> <span id="managerDesignation"></span></div>
-                                <div><strong>Department:</strong> <span id="managerDepartment"></span></div>
-                            </div>
-                        </div>
                     </div>
                     
                     <!-- Attachment -->
@@ -167,33 +155,6 @@
 </div>
 
 <script>
-// Lookup Manager functionality
-document.getElementById('lookupManagerBtn').addEventListener('click', function() {
-    const code = document.getElementById('reportingManagerCode').value.trim().toUpperCase();
-    if (!code) {
-        alert('Please enter a manager employee code');
-        return;
-    }
-    
-    fetch(`/shift-change/lookup-manager?code=${encodeURIComponent(code)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.found) {
-                document.getElementById('managerName').textContent = data.name;
-                document.getElementById('managerDesignation').textContent = data.designation;
-                document.getElementById('managerDepartment').textContent = data.department;
-                document.getElementById('managerDetails').style.display = 'block';
-            } else {
-                alert(data.message || 'Manager not found');
-                document.getElementById('managerDetails').style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error looking up manager:', error);
-            alert('Error looking up manager. Please try again.');
-        });
-});
-
 // Auto-fill times when predefined shift is selected
 document.getElementById('requestedShiftSelect').addEventListener('change', function() {
     const shiftId = this.value;
@@ -215,9 +176,9 @@ document.getElementById('shiftChangeForm').addEventListener('submit', function(e
     const endTime = document.querySelector('input[name="requested_end_time"]').value;
     const effectiveDate = document.querySelector('input[name="effective_date"]').value;
     const reason = document.querySelector('textarea[name="reason"]').value;
-    const reportingManagerCode = document.getElementById('reportingManagerCode').value.trim();
+    const reportingManager = document.getElementById('reportingManagerSelect').value;
     
-    if (!startTime || !endTime || !effectiveDate || !reason.trim() || !reportingManagerCode) {
+    if (!startTime || !endTime || !effectiveDate || !reason.trim() || !reportingManager) {
         e.preventDefault();
         alert('Please fill in all required fields');
         return false;
