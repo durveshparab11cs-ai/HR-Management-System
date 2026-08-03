@@ -742,6 +742,13 @@ def _auto_create_tables(app: Flask) -> None:
                 app.logger.info("✓ Step 4: _auto_seed_employees()")
             except Exception as exc:
                 app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
+            
+            # STEP 4.5: Seed shifts
+            try:
+                _auto_seed_shifts(app)
+                app.logger.info("✓ Step 4.5: _auto_seed_shifts()")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 4.5: _auto_seed_shifts() failed: %s", exc)
 
             # STEP 5: Ensure admin roles (only if columns exist)
             try:
@@ -822,6 +829,75 @@ def _migrate_add_columns(db) -> None:
                     pass
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
+
+
+def _auto_seed_shifts(app: Flask) -> None:
+    """Seed 24 shift timings if not already present."""
+    try:
+        from app.models.company import Shift  # noqa: PLC0415
+        from app.extensions.database import db as _db  # noqa: PLC0415
+        
+        # Check if shifts already exist
+        if Shift.query.count() > 0:
+            app.logger.info("Shifts already seeded — skipping.")
+            return
+        
+        # Define 24 shifts with timings
+        shifts_data = [
+            {"name": "06:00 AM to 03:00 PM", "code": "SHIFT_0600_1500", "start_time": "06:00", "end_time": "15:00", "is_night": False},
+            {"name": "06:30 AM to 03:30 PM", "code": "SHIFT_0630_1530", "start_time": "06:30", "end_time": "15:30", "is_night": False},
+            {"name": "07:00 AM to 04:00 PM", "code": "SHIFT_0700_1600", "start_time": "07:00", "end_time": "16:00", "is_night": False},
+            {"name": "07:30 AM to 04:30 PM", "code": "SHIFT_0730_1630", "start_time": "07:30", "end_time": "16:30", "is_night": False},
+            {"name": "08:00 AM to 05:00 PM", "code": "SHIFT_0800_1700", "start_time": "08:00", "end_time": "17:00", "is_night": False},
+            {"name": "08:00 AM to 06:00 PM", "code": "SHIFT_0800_1800", "start_time": "08:00", "end_time": "18:00", "is_night": False},
+            {"name": "08:30 AM to 05:30 PM", "code": "SHIFT_0830_1730", "start_time": "08:30", "end_time": "17:30", "is_night": False},
+            {"name": "09:00 AM to 06:00 PM", "code": "SHIFT_0900_1800", "start_time": "09:00", "end_time": "18:00", "is_night": False},
+            {"name": "09:30 AM to 06:30 PM", "code": "SHIFT_0930_1830", "start_time": "09:30", "end_time": "18:30", "is_night": False},
+            {"name": "10:00 AM to 06:00 PM", "code": "SHIFT_1000_1800", "start_time": "10:00", "end_time": "18:00", "is_night": False},
+            {"name": "10:00 AM to 07:00 PM", "code": "SHIFT_1000_1900", "start_time": "10:00", "end_time": "19:00", "is_night": False},
+            {"name": "10:15 AM to 07:15 PM", "code": "SHIFT_1015_1915", "start_time": "10:15", "end_time": "19:15", "is_night": False},
+            {"name": "10:30 AM to 07:30 PM", "code": "SHIFT_1030_1930", "start_time": "10:30", "end_time": "19:30", "is_night": False},
+            {"name": "11:00 AM to 08:00 PM", "code": "SHIFT_1100_2000", "start_time": "11:00", "end_time": "20:00", "is_night": False},
+            {"name": "11:30 AM to 08:30 PM", "code": "SHIFT_1130_2030", "start_time": "11:30", "end_time": "20:30", "is_night": False},
+            {"name": "12:00 PM to 09:00 PM", "code": "SHIFT_1200_2100", "start_time": "12:00", "end_time": "21:00", "is_night": False},
+            {"name": "12:30 PM to 09:30 PM", "code": "SHIFT_1230_2130", "start_time": "12:30", "end_time": "21:30", "is_night": False},
+            {"name": "12:45 PM to 09:45 PM", "code": "SHIFT_1245_2145", "start_time": "12:45", "end_time": "21:45", "is_night": False},
+            {"name": "01:00 PM to 10:00 PM", "code": "SHIFT_1300_2200", "start_time": "13:00", "end_time": "22:00", "is_night": False},
+            {"name": "01:00 PM to 06:00 PM", "code": "SHIFT_1300_1800", "start_time": "13:00", "end_time": "18:00", "is_night": False},
+            {"name": "07:00 PM to 04:00 AM", "code": "SHIFT_1900_0400", "start_time": "19:00", "end_time": "04:00", "is_night": True},
+            {"name": "09:00 PM to 06:00 AM", "code": "SHIFT_2100_0600", "start_time": "21:00", "end_time": "06:00", "is_night": True},
+            {"name": "10:00 PM to 06:00 AM", "code": "SHIFT_2200_0600", "start_time": "22:00", "end_time": "06:00", "is_night": True},
+            {"name": "10:00 PM to 07:00 AM", "code": "SHIFT_2200_0700", "start_time": "22:00", "end_time": "07:00", "is_night": True},
+            {"name": "10:30 PM to 07:30 AM", "code": "SHIFT_2230_0730", "start_time": "22:30", "end_time": "07:30", "is_night": True},
+        ]
+        
+        from datetime import time as dt_time
+        for shift_data in shifts_data:
+            start_h, start_m = map(int, shift_data["start_time"].split(":"))
+            end_h, end_m = map(int, shift_data["end_time"].split(":"))
+            
+            shift = Shift(
+                name=shift_data["name"],
+                code=shift_data["code"],
+                start_time=dt_time(start_h, start_m),
+                end_time=dt_time(end_h, end_m),
+                is_night_shift=shift_data["is_night"],
+                is_active=True,
+                grace_minutes=10,
+                break_minutes=60,
+                working_days="Mon-Sun"
+            )
+            _db.session.add(shift)
+        
+        _db.session.commit()
+        app.logger.info("✓ Auto-seeded 25 shift timings")
+    except Exception as exc:
+        app.logger.error("Auto-seed shifts failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 def _auto_seed_employees(app: Flask) -> None:
