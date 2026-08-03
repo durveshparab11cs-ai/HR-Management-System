@@ -53,3 +53,8 @@
 2026-08-01 15:15:10 | INFO     | application | RESPONSE | id=a2a7676438ee | GET /dashboard/ | status=302 | user=6 | ip=127.0.0.1 | duration=0.0ms
 2026-08-01 15:15:10 | DEBUG    | application | REQUEST | id=73fa4844090e | GET /admin | ip=127.0.0.1 | ua=unknown
 2026-08-01 15:15:10 | INFO     | application | RESPONSE | id=73fa4844090e | GET /admin | status=200 | user=6 | ip=127.0.0.1 | duration=62.0ms
+2026-08-03 15:08:57 | DEBUG    | application | Request logger middleware registered.
+2026-08-03 15:09:49 | DEBUG    | application | Request logger middleware registered.
+2026-08-03 15:11:11 | DEBUG    | application | Request logger middleware registered.
+2026-08-03 15:16:07 | DEBUG    | application | Request logger middleware registered.
+2026-08-03 15:16:48 | DEBUG    | application | Request logger middleware registered.
