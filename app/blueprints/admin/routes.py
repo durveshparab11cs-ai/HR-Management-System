@@ -661,7 +661,8 @@ def employee_allocation():
     """Manage employee hospital and shift allocations."""
     from app.models.hospital import Hospital
     from app.models.employee import Employee
-    from app.models.user import User, UserStatus
+    from app.models.user import User
+    from app.constants.enums import UserStatus
     from app.extensions.database import db
     
     try:
