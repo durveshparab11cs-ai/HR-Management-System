@@ -118,10 +118,11 @@
                 <tr>
                     <th class="ps-4" style="width:5%">#</th>
                     <th style="width:10%">Emp Code</th>
-                    <th style="width:20%">Name</th>
-                    <th style="width:15%">Department</th>
-                    <th style="width:25%">Assigned Shift</th>
-                    <th style="width:15%">Status</th>
+                    <th style="width:15%">Name</th>
+                    <th style="width:12%">Department</th>
+                    <th style="width:18%">Assigned Shift</th>
+                    <th style="width:18%">Assigned Hospital</th>
+                    <th style="width:12%">Status</th>
                     <th class="pe-4" style="width:10%">Actions</th>
                 </tr>
             </thead>
@@ -143,6 +144,19 @@
                         <option value="{{ shift.id }}"
                                 {% if employee_shifts[employee.id] and employee_shifts[employee.id].id == shift.id %}selected{% endif %}>
                             {{ shift.name }} ({{ shift.start_time.strftime('%I:%M %p') }} - {{ shift.end_time.strftime('%I:%M %p') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select class="form-select form-select-sm hospital-select" 
+                            data-employee-id="{{ employee.id }}"
+                            onchange="assignHospitalToEmployee({{ employee.id }}, this.value)">
+                        <option value="">-- Select Hospital --</option>
+                        {% for hospital in hospitals %}
+                        <option value="{{ hospital.hospital_name }}"
+                                {% if employee_hospitals[employee.id] == hospital.hospital_name %}selected{% endif %}>
+                            {{ hospital.hospital_name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -394,3 +408,31 @@ function showToast(message, type) {
 </script>
 
 {% endblock %}
+
+// Assign hospital to single employee
+async function assignHospitalToEmployee(employeeId, hospitalName) {
+    if (!hospitalName) return;
+    
+    const formData = new FormData();
+    formData.append('employee_id', employeeId);
+    formData.append('hospital_name', hospitalName);
+    formData.append('effective_date', document.getElementById('bulkEffectiveDate').value || '{{ today }}');
+    
+    try {
+        const response = await fetch('{{ url_for("admin.assign_hospital") }}', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error assigning hospital', 'danger');
+        console.error(error);
+    }
+}

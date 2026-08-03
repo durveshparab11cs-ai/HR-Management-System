@@ -20,6 +20,9 @@ from app.constants.enums import UserStatus
 def assign_shifts_bulk():
     """Bulk shift assignment page for HR/Admin."""
     try:
+        from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
+        from app.models.hospital import Hospital  # noqa: PLC0415
+        
         # Get all active employees (join with User to check status)
         employees = (
             Employee.query
@@ -32,7 +35,10 @@ def assign_shifts_bulk():
         # Get all active shifts
         shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
         
-        # Get current assignments for each employee with shift relationship loaded
+        # Get all active hospitals
+        hospitals = Hospital.query.filter_by(is_active=True, is_deleted=False).order_by(Hospital.hospital_name).all()
+        
+        # Get current shift assignments for each employee
         employee_shifts = {}
         for emp in employees:
             try:
@@ -49,11 +55,29 @@ def assign_shifts_bulk():
             except Exception:
                 employee_shifts[emp.id] = None
         
+        # Get current hospital assignments for each employee
+        employee_hospitals = {}
+        for emp in employees:
+            try:
+                assignment = (
+                    EmployeeHospitalAssignment.query
+                    .filter(
+                        EmployeeHospitalAssignment.employee_id == emp.id,
+                        EmployeeHospitalAssignment.effective_until.is_(None)
+                    )
+                    .first()
+                )
+                employee_hospitals[emp.id] = assignment.hospital_name if assignment else None
+            except Exception:
+                employee_hospitals[emp.id] = None
+        
         return render_template(
             'admin/shift_assignment.html',
             employees=employees,
             shifts=shifts,
+            hospitals=hospitals,
             employee_shifts=employee_shifts,
+            employee_hospitals=employee_hospitals,
             today=(datetime.now().date()).isoformat()
         )
     except Exception as e:
@@ -300,4 +324,78 @@ def get_employee_shift_info():
             })
             
     except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+def assign_hospital_to_employee():
+    """Assign hospital to a single employee."""
+    from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
+    from datetime import datetime, timedelta, date  # noqa: PLC0415, F401
+    
+    employee_id = request.form.get('employee_id', type=int)
+    hospital_name = request.form.get('hospital_name', '').strip()
+    effective_date_str = request.form.get('effective_date', '')
+    
+    if not employee_id:
+        return jsonify({'success': False, 'message': 'Employee ID required'}), 400
+    if not hospital_name:
+        return jsonify({'success': False, 'message': 'Hospital name required'}), 400
+    
+    try:
+        # Parse effective date
+        if effective_date_str:
+            effective_date = datetime.strptime(effective_date_str, '%Y-%m-%d').date()
+        else:
+            effective_date = date.today()
+        
+        # Get employee
+        employee = Employee.query.get(employee_id)
+        if not employee:
+            return jsonify({'success': False, 'message': 'Employee not found'}), 404
+        
+        # Check for current assignment
+        current_assignment = (
+            EmployeeHospitalAssignment.query
+            .filter(
+                EmployeeHospitalAssignment.employee_id == employee_id,
+                EmployeeHospitalAssignment.effective_until.is_(None)
+            )
+            .first()
+        )
+        
+        # Close current assignment if different hospital
+        if current_assignment:
+            if current_assignment.hospital_name == hospital_name:
+                return jsonify({
+                    'success': False,
+                    'message': f'{employee.name} is already assigned to {hospital_name}'
+                }), 400
+            
+            # Close previous assignment
+            current_assignment.effective_until = effective_date - timedelta(days=1)
+            db.session.add(current_assignment)
+        
+        # Create new assignment
+        new_assignment = EmployeeHospitalAssignment(
+            employee_id=employee_id,
+            hospital_name=hospital_name,
+            effective_from=effective_date,
+            notes=f"Assigned by {current_user.username if current_user else 'System'}"
+        )
+        
+        db.session.add(new_assignment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ {employee.name} assigned to {hospital_name}',
+            'employee_id': employee_id,
+            'hospital_name': hospital_name
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logger = logging.getLogger('admin')
+        logger.error('Hospital assignment error: %s', str(e))
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500

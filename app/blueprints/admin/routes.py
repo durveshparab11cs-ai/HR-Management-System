@@ -697,3 +697,12 @@ def get_employee_shift():
     """Get employee shift info (AJAX)."""
     from .shift_assignment import get_employee_shift_info
     return get_employee_shift_info()
+
+
+@admin_bp.route("/shift-assignment/assign-hospital", methods=["POST"])
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def assign_hospital():
+    """Assign hospital to employee (AJAX)."""
+    from .shift_assignment import assign_hospital_to_employee
+    return assign_hospital_to_employee()
