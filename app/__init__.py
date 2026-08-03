@@ -2,7 +2,7 @@
 app/__init__.py
 ================
 Smart HRMS Application Factory.
-
+Build: 2026-08-03 15:26 - Security and filter fixes deployed
 The create_app() factory is the single entry point for constructing
 the Flask application. It follows the Application Factory Pattern which:
     - Allows multiple instances (testing, production) with different configs
