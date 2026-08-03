@@ -209,8 +209,18 @@
             {% for att in today_records[:15] %}
             <tr>
                 <td class="ps-4 fw-medium">{{ att.employee.full_name }}</td>
-                <td><span class="utc-to-ist">{{ att.check_in_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_in_time else '—' }}</span></td>
-                <td><span class="utc-to-ist">{{ att.check_out_time.strftime('%Y-%m-%dT%H:%M:%SZ') if att.check_out_time else '—' }}</span></td>
+                <td>
+                    {% if att.check_in_time %}
+                    {% set ist_time = att.check_in_time + timedelta(hours=5, minutes=30) %}
+                    <span>{{ ist_time.strftime('%H:%M') }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if att.check_out_time %}
+                    {% set ist_time = att.check_out_time + timedelta(hours=5, minutes=30) %}
+                    <span>{{ ist_time.strftime('%H:%M') }}</span>
+                    {% else %}—{% endif %}
+                </td>
                 <td class="fw-semibold">{{ att.working_hours_display }}</td>
                 <td>
                     <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
