@@ -23,11 +23,13 @@ def inject_globals() -> dict:
         Dictionary of variables available in all Jinja2 templates.
     """
     from flask import current_app  # noqa: PLC0415
+    from datetime import timedelta  # noqa: PLC0415
 
     return {
         "app_name": current_app.config.get("APP_NAME", "Smart HRMS"),
         "app_version": current_app.config.get("APP_VERSION", "1.0.0"),
         "current_year": datetime.now(timezone.utc).year,
+        "timedelta": timedelta,  # Make timedelta available in templates
     }
 
 
