@@ -55,6 +55,8 @@ _svc   = AdminService()
 @admin_required
 def index():
     today = date.today()
+    from datetime import datetime
+    now = datetime.now()
     try:
         total_employees   = _emp.count_total()
     except Exception:
@@ -97,6 +99,7 @@ def index():
         "admin/index.html",
         title="Admin Dashboard",
         today=today,
+        now=now,
         total_employees=total_employees,
         checked_in_today=checked_in_today,
         checked_out_today=checked_out_today,
