@@ -30,6 +30,11 @@ _lsvc  = LeaveService()
 def index():
     from app.models.employee_master import EmployeeMaster
     
+    # HARDCODED: E-2606026 (Durvesh Parab) is always super admin portal
+    if current_user.username == 'e2606026':
+        from flask import redirect, url_for
+        return redirect(url_for("admin.index"), code=302)
+    
     # DIRECT CHECK - if role is admin-level, MUST go to /admin/
     # This is a failsafe redirect
     if current_user.role in ('super_admin', 'admin', 'hr_manager', 'hr_staff'):
