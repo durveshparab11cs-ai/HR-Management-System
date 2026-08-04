@@ -915,17 +915,18 @@ def _auto_seed_hospitals(app: Flask) -> None:
 
 
 def _auto_seed_shifts(app: Flask) -> None:
-    """Seed 24 shift timings if not already present."""
+    """Seed 25 shift timings if not already present."""
     try:
         from app.models.company import Shift  # noqa: PLC0415
         from app.extensions.database import db as _db  # noqa: PLC0415
         
         # Check if shifts already exist
-        if Shift.query.count() > 0:
-            app.logger.info("Shifts already seeded — skipping.")
+        existing_shifts = Shift.query.count()
+        if existing_shifts > 0:
+            app.logger.info(f"Shifts already seeded ({existing_shifts} shifts) — skipping.")
             return
         
-        # Define 24 shifts with timings
+        # Define 25 shifts with timings
         shifts_data = [
             {"name": "06:00 AM to 03:00 PM", "code": "SHIFT_0600_1500", "start_time": "06:00", "end_time": "15:00", "is_night": False},
             {"name": "06:30 AM to 03:30 PM", "code": "SHIFT_0630_1530", "start_time": "06:30", "end_time": "15:30", "is_night": False},
@@ -973,7 +974,7 @@ def _auto_seed_shifts(app: Flask) -> None:
             _db.session.add(shift)
         
         _db.session.commit()
-        app.logger.info("✓ Auto-seeded 25 shift timings")
+        app.logger.info(f"✓ Auto-seeded {len(shifts_data)} shift timings")
     except Exception as exc:
         app.logger.error("Auto-seed shifts failed: %s", exc)
         try:
