@@ -915,16 +915,11 @@ def _auto_seed_hospitals(app: Flask) -> None:
 
 
 def _auto_seed_shifts(app: Flask) -> None:
-    """Seed 25 shift timings if not already present."""
+    """Seed 25 shift timings. Uses UPSERT to replace old shifts with new ones."""
     try:
         from app.models.company import Shift  # noqa: PLC0415
         from app.extensions.database import db as _db  # noqa: PLC0415
-        
-        # Check if shifts already exist
-        existing_shifts = Shift.query.count()
-        if existing_shifts > 0:
-            app.logger.info(f"Shifts already seeded ({existing_shifts} shifts) — skipping.")
-            return
+        from sqlalchemy import and_
         
         # Define 25 shifts with timings
         shifts_data = [
@@ -956,25 +951,50 @@ def _auto_seed_shifts(app: Flask) -> None:
         ]
         
         from datetime import time as dt_time
+        
+        # UPSERT logic: for each shift, update if exists by code, else insert
+        seeded_count = 0
+        updated_count = 0
+        
         for shift_data in shifts_data:
             start_h, start_m = map(int, shift_data["start_time"].split(":"))
             end_h, end_m = map(int, shift_data["end_time"].split(":"))
             
-            shift = Shift(
-                name=shift_data["name"],
-                code=shift_data["code"],
-                start_time=dt_time(start_h, start_m),
-                end_time=dt_time(end_h, end_m),
-                is_night_shift=shift_data["is_night"],
-                is_active=True,
-                grace_minutes=10,
-                break_minutes=60,
-                working_days="Mon-Sun"
-            )
-            _db.session.add(shift)
+            # Check if shift exists by code
+            existing = Shift.query.filter_by(code=shift_data["code"]).first()
+            
+            if existing:
+                # Update existing shift
+                existing.name = shift_data["name"]
+                existing.start_time = dt_time(start_h, start_m)
+                existing.end_time = dt_time(end_h, end_m)
+                existing.is_night_shift = shift_data["is_night"]
+                existing.is_active = True
+                existing.grace_minutes = 10
+                existing.break_minutes = 60
+                existing.working_days = "Mon-Sun"
+                _db.session.add(existing)
+                updated_count += 1
+            else:
+                # Create new shift
+                shift = Shift(
+                    name=shift_data["name"],
+                    code=shift_data["code"],
+                    start_time=dt_time(start_h, start_m),
+                    end_time=dt_time(end_h, end_m),
+                    is_night_shift=shift_data["is_night"],
+                    is_active=True,
+                    grace_minutes=10,
+                    break_minutes=60,
+                    working_days="Mon-Sun"
+                )
+                _db.session.add(shift)
+                seeded_count += 1
         
         _db.session.commit()
-        app.logger.info(f"✓ Auto-seeded {len(shifts_data)} shift timings")
+        
+        total = Shift.query.count()
+        app.logger.info(f"✓ Shift seeding complete: {seeded_count} new + {updated_count} updated = {total} total shifts")
     except Exception as exc:
         app.logger.error("Auto-seed shifts failed: %s", exc)
         try:
