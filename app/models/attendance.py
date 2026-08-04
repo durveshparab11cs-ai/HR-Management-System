@@ -6,7 +6,7 @@ One row per employee per date.
 """
 
 import datetime
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Time
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base_model import BaseModel
@@ -14,6 +14,10 @@ from app.core.base_model import BaseModel
 
 class Attendance(BaseModel):
     __tablename__ = "attendance"
+    __table_args__ = (
+        # Ensure one attendance record per employee per date
+        UniqueConstraint('employee_id', 'date', name='uq_attendance_emp_date'),
+    )
 
     # ── Core ──────────────────────────────────────────────────────────
     employee_id: Mapped[int] = mapped_column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
