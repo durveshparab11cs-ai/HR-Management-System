@@ -58,3 +58,22 @@
 2026-08-03 15:11:11 | DEBUG    | application | Request logger middleware registered.
 2026-08-03 15:16:07 | DEBUG    | application | Request logger middleware registered.
 2026-08-03 15:16:48 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:17:21 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:17:32 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:22:00 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:24:29 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:24:29 | DEBUG    | application | REQUEST | id=ac04ca160833 | GET /admin/shift-assignment | ip=127.0.0.1 | ua=unknown
+2026-08-04 15:24:29 | INFO     | application | RESPONSE | id=ac04ca160833 | GET /admin/shift-assignment | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-04 15:24:29 | DEBUG    | application | REQUEST | id=0245fd01c3de | GET /admin | ip=127.0.0.1 | ua=unknown
+2026-08-04 15:24:29 | INFO     | application | RESPONSE | id=0245fd01c3de | GET /admin | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-04 15:24:29 | DEBUG    | application | REQUEST | id=d0f7c6cf211e | GET /admin/hospitals | ip=127.0.0.1 | ua=unknown
+2026-08-04 15:24:29 | INFO     | application | RESPONSE | id=d0f7c6cf211e | GET /admin/hospitals | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-04 15:29:04 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:29:05 | DEBUG    | application | REQUEST | id=45781f5575c3 | GET /admin/hospitals | ip=127.0.0.1 | ua=unknown
+2026-08-04 15:29:05 | INFO     | application | RESPONSE | id=45781f5575c3 | GET /admin/hospitals | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-04 15:29:56 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:29:56 | DEBUG    | application | REQUEST | id=0cafae2e8bd3 | GET /admin/hospitals | ip=127.0.0.1 | ua=unknown
+2026-08-04 15:29:56 | INFO     | application | RESPONSE | id=0cafae2e8bd3 | GET /admin/hospitals | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-04 15:30:58 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:31:16 | DEBUG    | application | Request logger middleware registered.
+2026-08-04 15:31:42 | DEBUG    | application | Request logger middleware registered.

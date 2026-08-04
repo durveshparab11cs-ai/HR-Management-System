@@ -53,7 +53,14 @@ class Hospital(BaseModel):
     @property
     def employee_count(self) -> int:
         """Get count of employees assigned to this hospital."""
-        return len(self.employees) if self.employees else 0
+        # Note: Hospital-Employee relationship is not yet implemented
+        # For now, query from Employee table directly if needed
+        try:
+            if hasattr(self, 'employees') and self.employees:
+                return len(self.employees)
+        except (AttributeError, TypeError):
+            pass
+        return 0
     
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
