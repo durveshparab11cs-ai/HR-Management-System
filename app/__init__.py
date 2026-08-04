@@ -849,59 +849,62 @@ def _auto_seed_hospitals(app: Flask) -> None:
             app.logger.info("Hospitals already seeded — skipping.")
             return
         
-        hospitals_list = [
-            "AIIMS Hospital (Gorakhpur)",
-            "Akurdi Hospital",
-            "Ameyash Hospital",
-            "Bharatratna Dr.BabaSaheb Ambedkar Hospital",
-            "Bhosari Hospital",
-            "Dr. M L Dhavale Hospital",
-            "Dr R.N. Cooper Muncipial General Hospital",
-            "Hyderabad Omega Hospital (Jabalpur)",
-            "Jijamata Hospital",
-            "Jupiter Hospital (THANE)",
-            "K B Bhaba Hospital-Bandra",
-            "KEM Hospital",
-            "Kolhapur Cancer Centre",
-            "LDC Hospital",
-            "M.W. Desai Hospital",
-            "MT Agarwal Hospital (Mulund)",
-            "Nair Hospital",
-            "Nana Palkar (Parel)",
-            "Nana Palkar Hospital(Santacruz)",
-            "Nana Palkar Hospital(Thane)",
-            "Peerless Hospital Guwahati",
-            "Rajawadi Hospital",
-            "Ranchi Cancer Hospital",
-            "RST RCH Hospital",
-            "Satyanand Hospital(Shahjahanpur)",
-            "Shankarrao Masulka Eye Hospital",
-            "Shantitol Shanghvi Eye Hospital",
-            "Shatabdi Hospital",
-            "Shree Ramkrishna Netralaya",
-            "Shree Ramkrishna Netralaya (Thane)",
-            "Shree Ramkrishna Netralaya(Vashi)",
-            "Siddhagiri Hospital",
-            "Sion Hospital",
-            "SVD Sawarkar Hospital (Mulund)",
-            "SVICCAR Hospital",
-            "Swargadeo Sukafa Multi speciality Hospital",
-            "Talera Hospital",
-            "Thergoan Hospital",
-            "V.N. Desai Hospital",
-            "Walawatkar Hospital",
-            "YCM Hospital(Pune)",
+        # Hospital data with default coordinates (can be updated later)
+        hospitals_data = [
+            {"name": "AIIMS Hospital (Gorakhpur)", "lat": 26.7606, "lng": 83.1849},
+            {"name": "Akurdi Hospital", "lat": 18.6298, "lng": 73.8119},
+            {"name": "Ameyash Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Bharatratna Dr.BabaSaheb Ambedkar Hospital", "lat": 19.0760, "lng": 72.8777},
+            {"name": "Bhosari Hospital", "lat": 18.6510, "lng": 73.9125},
+            {"name": "Dr. M L Dhavale Hospital", "lat": 18.9220, "lng": 72.8347},
+            {"name": "Dr R.N. Cooper Muncipial General Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Hyderabad Omega Hospital (Jabalpur)", "lat": 23.1815, "lng": 79.9864},
+            {"name": "Jijamata Hospital", "lat": 19.0576, "lng": 72.8295},
+            {"name": "Jupiter Hospital (THANE)", "lat": 19.2183, "lng": 72.9781},
+            {"name": "K B Bhaba Hospital-Bandra", "lat": 19.0596, "lng": 72.8295},
+            {"name": "KEM Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Kolhapur Cancer Centre", "lat": 16.7050, "lng": 74.2433},
+            {"name": "LDC Hospital", "lat": 19.1136, "lng": 72.8697},
+            {"name": "M.W. Desai Hospital", "lat": 18.9626, "lng": 72.8266},
+            {"name": "MT Agarwal Hospital (Mulund)", "lat": 19.1686, "lng": 72.9629},
+            {"name": "Nair Hospital", "lat": 18.9626, "lng": 72.8266},
+            {"name": "Nana Palkar (Parel)", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Nana Palkar Hospital(Santacruz)", "lat": 19.0876, "lng": 72.8479},
+            {"name": "Nana Palkar Hospital(Thane)", "lat": 19.2183, "lng": 72.9781},
+            {"name": "Peerless Hospital Guwahati", "lat": 26.1445, "lng": 91.7362},
+            {"name": "Rajawadi Hospital", "lat": 19.1136, "lng": 72.8697},
+            {"name": "Ranchi Cancer Hospital", "lat": 23.3441, "lng": 85.3096},
+            {"name": "RST RCH Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Satyanand Hospital(Shahjahanpur)", "lat": 27.8817, "lng": 79.6040},
+            {"name": "Shankarrao Masulka Eye Hospital", "lat": 18.5204, "lng": 73.8567},
+            {"name": "Shantitol Shanghvi Eye Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Shatabdi Hospital", "lat": 19.1136, "lng": 72.8697},
+            {"name": "Shree Ramkrishna Netralaya", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Shree Ramkrishna Netralaya (Thane)", "lat": 19.2183, "lng": 72.9781},
+            {"name": "Shree Ramkrishna Netralaya(Vashi)", "lat": 19.0766, "lng": 72.9966},
+            {"name": "Siddhagiri Hospital", "lat": 17.8299, "lng": 73.3149},
+            {"name": "Sion Hospital", "lat": 19.0576, "lng": 72.8295},
+            {"name": "SVD Sawarkar Hospital (Mulund)", "lat": 19.1686, "lng": 72.9629},
+            {"name": "SVICCAR Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Swargadeo Sukafa Multi speciality Hospital", "lat": 26.1445, "lng": 91.7362},
+            {"name": "Talera Hospital", "lat": 18.4386, "lng": 73.9144},
+            {"name": "Thergoan Hospital", "lat": 18.5204, "lng": 73.8567},
+            {"name": "V.N. Desai Hospital", "lat": 18.9626, "lng": 72.8266},
+            {"name": "Walawatkar Hospital", "lat": 18.9220, "lng": 72.8347},
+            {"name": "YCM Hospital(Pune)", "lat": 18.5204, "lng": 73.8567},
         ]
         
-        for hospital_name in hospitals_list:
+        for h_data in hospitals_data:
             hospital = Hospital(
-                hospital_name=hospital_name,
+                hospital_name=h_data["name"],
+                latitude=h_data["lat"],
+                longitude=h_data["lng"],
                 is_active=True
             )
             _db.session.add(hospital)
         
         _db.session.commit()
-        app.logger.info(f"✓ Auto-seeded {len(hospitals_list)} hospitals")
+        app.logger.info(f"✓ Auto-seeded {len(hospitals_data)} hospitals")
     except Exception as exc:
         app.logger.error("Auto-seed hospitals failed: %s", exc)
         try:
