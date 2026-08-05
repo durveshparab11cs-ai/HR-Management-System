@@ -17,22 +17,16 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
                     <input type="text" name="q" class="form-control" placeholder="Search name, email, code…" value="{{ search }}">
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <select name="dept" class="form-select form-select-sm {% if department %}border-primary{% endif %}" style="{% if department %}border-width: 2px;{% endif %}">
                     <option value="">All Departments</option>
                     {% for d in departments %}<option value="{{ d }}" {% if d and department and d.lower()==department.lower() %}selected{% endif %}>{{ d }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select name="branch" class="form-select form-select-sm {% if branch %}border-primary{% endif %}" style="{% if branch %}border-width: 2px;{% endif %}" onchange="this.form.submit();">
-                    <option value="">All Branches</option>
-                    {% for b in branches %}<option value="{{ b }}" {% if b and branch and b.lower()==branch.lower() %}selected{% endif %}>{{ b }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-2">
@@ -44,7 +38,7 @@
 </div>
 
 <!-- Active Filters Badge -->
-{% if department or branch or search %}
+{% if department or search %}
 <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
     <div class="d-flex align-items-center gap-2 flex-wrap">
         <small class="fw-semibold">Active Filters:</small>
@@ -56,11 +50,6 @@
         {% if department %}
             <span class="badge bg-info">
                 <i class="bi bi-bookmark-fill"></i> Department: {{ department }}
-            </span>
-        {% endif %}
-        {% if branch %}
-            <span class="badge bg-info">
-                <i class="bi bi-geo-alt-fill"></i> Branch: {{ branch }}
             </span>
         {% endif %}
     </div>

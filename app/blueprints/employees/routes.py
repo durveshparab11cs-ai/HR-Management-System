@@ -44,16 +44,10 @@ def index():
         # Only filter if a specific department is selected
         department = dept_param
     
-    branch_param = request.args.get("branch", "").strip()
-    branch = None
-    if branch_param and branch_param != "":
-        branch = branch_param
-    
     logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}, forced_dept={repr(forced_dept)}")
     
-    pagination = _repo.get_all(page=page, per_page=25, search=search, department=department, branch=branch)
+    pagination = _repo.get_all(page=page, per_page=25, search=search, department=department)
     departments = _repo.get_departments()
-    branches = _repo.get_branches()
     
     logger.info(f"Pagination total: {pagination.total}, departments: {departments}")
     
@@ -64,9 +58,7 @@ def index():
         employees=pagination.items,
         search=search,
         department=department,
-        branch=branch,
         departments=departments,
-        branches=branches,
         dept_locked=bool(forced_dept),
     )
 

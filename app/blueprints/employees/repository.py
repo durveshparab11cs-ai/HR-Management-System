@@ -30,7 +30,7 @@ class EmployeeRepository:
     def get_by_employee_code(self, code: str) -> Optional[Employee]:
         return Employee.query.filter_by(employee_code=code.upper(), is_deleted=False).first()
 
-    def get_all(self, page: int = 1, per_page: int = 25, search: str = "", department: str | None = None, branch: str | None = None):
+    def get_all(self, page: int = 1, per_page: int = 25, search: str = "", department: str | None = None):
         """
         Get paginated list of all registered employees (from Employee table).
         Matches Shift Assignment query to show the same employees.
@@ -67,10 +67,6 @@ class EmployeeRepository:
         # Department filter - exact match (case-insensitive)
         if department and department.strip():
             q = q.filter(func.lower(Employee.department) == func.lower(department.strip()))
-        
-        # Branch filter - exact match (case-insensitive)
-        if branch and branch.strip():
-            q = q.filter(func.lower(Employee.branch) == func.lower(branch.strip()))
         
         return q.order_by(Employee.employee_code.asc()).paginate(page=page, per_page=per_page, error_out=False)
 
@@ -122,16 +118,6 @@ class EmployeeRepository:
             .all()
         )
         return [r.department for r in rows]
-
-    def get_branches(self) -> list:
-        rows = (
-            db.session.query(Employee.branch)
-            .filter(Employee.is_deleted == False, Employee.branch.isnot(None))
-            .distinct()
-            .order_by(Employee.branch)
-            .all()
-        )
-        return [r.branch for r in rows]
 
     # ── User account ops ──────────────────────────────────────────────
     def get_user_by_id(self, user_id: int) -> Optional[User]:
