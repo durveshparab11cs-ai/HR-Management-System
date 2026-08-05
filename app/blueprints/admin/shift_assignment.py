@@ -24,6 +24,8 @@ def assign_shifts_bulk():
         from app.models.hospital import Hospital  # noqa: PLC0415
         from app.models.company import Shift  # noqa: PLC0415
         from app.extensions.database import db as _db  # noqa: PLC0415
+        import logging
+        logger = logging.getLogger('admin')
         
         # Ensure all 25 shifts exist (idempotent UPSERT)
         try:
@@ -85,23 +87,36 @@ def assign_shifts_bulk():
             _db.session.commit()
         except Exception as e:
             _db.session.rollback()
-            import logging
-            logging.getLogger('admin').error("Shift seeding failed: %s", str(e))
+            logger.error("Shift seeding failed: %s", str(e))
         
-        # Get all active employees (join with User to check status)
-        employees = (
-            Employee.query
-            .join(User, Employee.user_id == User.id)
-            .filter(Employee.is_deleted == False, User.status == UserStatus.ACTIVE.value)
-            .order_by(Employee.employee_code)
-            .all()
-        )
+        # Get all active employees - use simpler query to avoid join issues
+        try:
+            employees = (
+                Employee.query
+                .filter(Employee.is_deleted == False)
+                .order_by(Employee.employee_code)
+                .all()
+            )
+            logger.info(f"Loaded {len(employees)} employees")
+        except Exception as e:
+            logger.error(f"Employee query failed: {e}")
+            employees = []
         
         # Get all active shifts
-        shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
+        try:
+            shifts = Shift.query.filter_by(is_active=True, is_deleted=False).order_by(Shift.name).all()
+            logger.info(f"Loaded {len(shifts)} shifts")
+        except Exception as e:
+            logger.error(f"Shift query failed: {e}")
+            shifts = []
         
         # Get all active hospitals
-        hospitals = Hospital.query.filter_by(is_active=True, is_deleted=False).order_by(Hospital.hospital_name).all()
+        try:
+            hospitals = Hospital.query.filter_by(is_active=True, is_deleted=False).order_by(Hospital.hospital_name).all()
+            logger.info(f"Loaded {len(hospitals)} hospitals")
+        except Exception as e:
+            logger.error(f"Hospital query failed: {e}")
+            hospitals = []
         
         # Get current shift assignments for each employee
         employee_shifts = {}
@@ -117,7 +132,8 @@ def assign_shifts_bulk():
                     .first()
                 )
                 employee_shifts[emp.id] = assignment.shift if assignment and assignment.shift else None
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Shift assignment query failed for emp {emp.id}: {e}")
                 employee_shifts[emp.id] = None
         
         # Get current hospital assignments for each employee
@@ -133,7 +149,8 @@ def assign_shifts_bulk():
                     .first()
                 )
                 employee_hospitals[emp.id] = assignment.hospital_name if assignment else None
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Hospital assignment query failed for emp {emp.id}: {e}")
                 employee_hospitals[emp.id] = None
         
         return render_template(
