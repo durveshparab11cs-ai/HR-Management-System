@@ -182,7 +182,7 @@ def _init_extensions(app: Flask) -> None:
     mail.init_app(app)
     csrf.init_app(app)
     
-    limiter.init_app(app, default_limits=["1000/hour"])
+    limiter.init_app(app)
     
     cache.init_app(app)
 

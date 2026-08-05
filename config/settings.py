@@ -88,7 +88,7 @@ class BaseConfig:
     # --------------------------------------------------------------------------
     # Flask-Limiter
     # --------------------------------------------------------------------------
-    RATELIMIT_DEFAULT: str = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
+    RATELIMIT_DEFAULT: str = os.environ.get("RATELIMIT_DEFAULT", "1000 per hour")
     RATELIMIT_STORAGE_URL: str = os.environ.get("RATELIMIT_STORAGE_URL", "memory://")
     RATELIMIT_STRATEGY: str = os.environ.get("RATELIMIT_STRATEGY", "fixed-window")
     RATELIMIT_HEADERS_ENABLED: bool = True
