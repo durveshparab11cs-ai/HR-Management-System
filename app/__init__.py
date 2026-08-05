@@ -181,7 +181,11 @@ def _init_extensions(app: Flask) -> None:
     configure_login_manager(app)
     mail.init_app(app)
     csrf.init_app(app)
-    limiter.init_app(app)
+    
+    # Configure rate limiter with higher default limit to prevent false positives
+    # Default: 200 per day per IP is too strict for web dashboard usage
+    limiter.init_app(app, default_limits=["1000 per hour"])
+    
     cache.init_app(app)
 
     # Flask-Session: ensure session dir exists, fallback to no server-session
