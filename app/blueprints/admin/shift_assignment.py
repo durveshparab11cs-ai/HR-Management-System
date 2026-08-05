@@ -194,7 +194,13 @@ def assign_shift_to_employee():
         shift = Shift.query.get(shift_id)
         
         if not employee or not shift:
-            return jsonify({'success': False, 'message': 'Employee or Shift not found'}), 404
+            msg = f"Employee ID {employee_id}" if not employee else ""
+            msg += f" or Shift ID {shift_id}" if not shift else ""
+            return jsonify({'success': False, 'message': f'{msg} not found'}), 404
+        
+        # Get employee name safely
+        emp_name = employee.name if employee else f"Employee #{employee_id}"
+        shift_name = shift.name if shift else f"Shift #{shift_id}"
         
         # Check if employee already has an active assignment
         current_assignment = EmployeeShiftAssignment.query.filter(
@@ -207,7 +213,7 @@ def assign_shift_to_employee():
             if current_assignment.shift_id == shift_id:
                 return jsonify({
                     'success': False,
-                    'message': f'{employee.name} is already assigned to {shift.name}'
+                    'message': f'{emp_name} is already assigned to {shift_name}'
                 }), 400
             
             # Close previous assignment
@@ -222,7 +228,7 @@ def assign_shift_to_employee():
             assigned_by=current_user.id,
             assigned_date=datetime.utcnow(),
             reason="Initial shift assignment by HR/Admin",
-            remarks=f"Assigned {shift.name} shift"
+            remarks=f"Assigned {shift_name} shift"
         )
         
         db.session.add(new_assignment)
@@ -230,14 +236,16 @@ def assign_shift_to_employee():
         
         return jsonify({
             'success': True,
-            'message': f'✅ {employee.name} assigned to {shift.name} shift',
+            'message': f'✅ {emp_name} assigned to {shift_name} shift',
             'employee_id': employee_id,
-            'shift_name': shift.name,
+            'shift_name': shift_name,
             'shift_timing': f"{shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')}"
         })
         
     except Exception as e:
         db.session.rollback()
+        import logging
+        logging.getLogger('admin').error(f'Shift assignment error: {str(e)}')
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
