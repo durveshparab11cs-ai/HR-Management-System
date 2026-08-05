@@ -123,6 +123,10 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
               id="tab-register" type="button" onclick="switchTab('register')">
         <i class="bi bi-person-plus-fill"></i> Register
       </button>
+      <button class="tab-btn {% if active_tab=='forgot' %}active{% endif %}"
+              id="tab-forgot" type="button" onclick="switchTab('forgot')">
+        <i class="bi bi-key"></i> Forgot Password
+      </button>
     </div>
 
     <!-- ── SIGN IN ── -->
@@ -273,6 +277,42 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
         </p>
       </form>
     </div>
+
+    <!-- ── FORGOT PASSWORD ── -->
+    <div class="tab-panel {% if active_tab=='forgot' %}active{% endif %}" id="panel-forgot">
+      <p class="panel-title">Reset password</p>
+      <p class="panel-sub">Enter your Employee Code to get a reset link</p>
+
+      {% if error and active_tab == 'forgot' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="forgot-form" novalidate>
+        {{ forgot_form.hidden_tag() if forgot_form else '' }}
+        <input type="hidden" name="action" value="forgot">
+
+        <div class="f-group">
+          <label class="f-label" for="f-code">Employee Code</label>
+          <div class="f-row {% if forgot_form and forgot_form.employee_code.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
+            <input type="text" id="f-code" name="employee_code" placeholder="e.g. E-2603028" 
+                   autocomplete="off" oninput="this.value=this.value.toUpperCase()" required>
+          </div>
+          {% if forgot_form %}{% for e in forgot_form.employee_code.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}{% endif %}
+        </div>
+
+        <button type="submit" class="btn-submit" id="f-btn">
+          <div class="btn-spin" id="f-spin"></div>
+          <span id="f-txt">Send Reset Link</span>
+        </button>
+
+        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5;text-align:center">
+          A reset token will be sent to your registered email address. 
+          If you don't receive it, please contact HR.
+        </p>
+      </form>
+    </div>
   </div>
 
   <!-- New account prompt (under sign-in) -->
@@ -399,6 +439,7 @@ function wireLoading(formId, btnId, spinId, txtId, loadTxt) {
 }
 wireLoading('login-form', 'l-btn', 'l-spin', 'l-txt', 'Signing in…');
 wireLoading('reg-form',   'r-btn', 'r-spin', 'r-txt', 'Creating account…');
+wireLoading('forgot-form', 'f-btn', 'f-spin', 'f-txt', 'Sending reset link…');
 
 // ── Auto-focus ────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function() {
