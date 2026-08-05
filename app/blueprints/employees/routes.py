@@ -21,30 +21,23 @@ _repo = EmployeeRepository()
 @login_required
 @hr_required
 def index():
-    from app.core.dept_filter import get_dept_filter  # noqa: PLC0415
     import logging
     logger = logging.getLogger(__name__)
     
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "")
     
-    # Dept filter: if user has a forced department, override any URL param
-    # EXCEPT for SUPER_ADMIN and ADMIN users who should always see all
-    if current_user.role in ('super_admin', 'admin'):
-        forced_dept = None
-    else:
-        forced_dept = get_dept_filter()
-    
-    # Get department param - if it's "All Departments" or empty, set to None
-    dept_param = request.args.get("dept", "").strip()
+    # For Employee Directory, HR users should always see all departments by default
+    # (no forced department filter, only URL-based filtering)
     department = None
-    if forced_dept:
-        department = forced_dept
-    elif dept_param and dept_param != "":
+    
+    # Get department param from URL
+    dept_param = request.args.get("dept", "").strip()
+    if dept_param and dept_param != "":
         # Only filter if a specific department is selected
         department = dept_param
     
-    logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}, forced_dept={repr(forced_dept)}")
+    logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}")
     
     pagination = _repo.get_all(page=page, per_page=25, search=search, department=department)
     departments = _repo.get_departments()
@@ -59,7 +52,7 @@ def index():
         search=search,
         department=department,
         departments=departments,
-        dept_locked=bool(forced_dept),
+        dept_locked=False,
     )
 
 
