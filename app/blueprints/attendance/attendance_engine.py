@@ -188,8 +188,13 @@ def compute_check_out_meta(
     overtime_minutes = max(0, int((co - shift_end_utc).total_seconds() / 60)) \
                        if co > shift_end_utc else 0
 
-    # Half-day: worked less than threshold (e.g. 300 min = 5 hours)
-    is_half_day = working_minutes < half_day_threshold
+    # Half-day: worked at least half-day threshold but less than full day (9 hours)
+    # Examples:
+    # - 39 minutes → NOT half-day, should be ABSENT (below threshold)
+    # - 300 minutes (5 hours) → HALF_DAY (at/above threshold, below full day)
+    # - 540 minutes (9 hours) → PRESENT (full day)
+    FULL_DAY_THRESHOLD = 9 * 60  # 540 minutes
+    is_half_day = (half_day_threshold <= working_minutes < FULL_DAY_THRESHOLD)
 
     # Early leave: checked out before shift end (minus grace)
     early_leave_threshold = shift_end_utc - timedelta(minutes=grace_period)
