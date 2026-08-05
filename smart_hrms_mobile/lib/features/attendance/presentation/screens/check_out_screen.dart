@@ -96,18 +96,78 @@ class _CheckOutScreenState extends ConsumerState<CheckOutScreen> {
         throw 'Location permissions denied';
       }
 
-      // Get current position
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      // iOS SPECIFIC FIX: Get multiple location samples and use the most accurate
+      // iOS GPS can have high variance on first fix, so we wait for multiple readings
+      final List<Position> positions = [];
+      final startTime = DateTime.now();
+      const maxWaitTime = Duration(seconds: 15);
+      const minAccuracy = 30.0; // meters - good GPS accuracy threshold
+
+      debugPrint('[GPS] Starting iOS multi-sample GPS collection...');
+
+      // Collect multiple GPS samples
+      final locationStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 0, // Get every update
+          timeLimit: maxWaitTime,
+        ),
+      );
+
+      await for (final position in locationStream) {
+        positions.add(position);
+        debugPrint(
+          '[GPS] Sample ${positions.length}: lat=${position.latitude}, '
+          'lon=${position.longitude}, accuracy=${position.accuracy}m',
+        );
+
+        // Stop if we get good accuracy or timeout
+        if (position.accuracy <= minAccuracy ||
+            DateTime.now().difference(startTime) > maxWaitTime) {
+          debugPrint(
+            '[GPS] Stopping collection - accuracy=${position.accuracy}m, '
+            'samples=${positions.length}',
+          );
+          break;
+        }
+
+        // Also stop if we have enough samples with decent accuracy
+        if (positions.length >= 3 &&
+            positions.every((p) => p.accuracy <= 50)) {
+          debugPrint(
+            '[GPS] Stopping collection - enough good samples, '
+            'accuracy=${position.accuracy}m',
+          );
+          break;
+        }
+
+        // Safety: hard stop at 30 samples
+        if (positions.length >= 30) {
+          debugPrint('[GPS] Reached max samples, stopping collection');
+          break;
+        }
+      }
+
+      if (positions.isEmpty) {
+        throw 'Unable to get GPS location. Please enable location services.';
+      }
+
+      // Use the position with best (lowest) accuracy
+      final bestPosition = positions.reduce((a, b) =>
+          a.accuracy < b.accuracy ? a : b);
+
+      debugPrint(
+        '[GPS] Selected best position: accuracy=${bestPosition.accuracy}m, '
+        'samples collected=${positions.length}',
       );
 
       setState(() {
-        _currentPosition = position;
+        _currentPosition = bestPosition;
         _isLoadingLocation = false;
       });
 
       // Validate location with office settings
-      await _validateLocation(position);
+      await _validateLocation(bestPosition);
     } catch (e) {
       setState(() => _isLoadingLocation = false);
       _showError('Location error: $e');
