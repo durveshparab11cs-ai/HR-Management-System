@@ -170,12 +170,25 @@ def reset_password(token: str):
     form  = ResetPasswordForm()
     error = None
 
-    if form.validate_on_submit():
-        ok, msg = _svc.reset_password(token, form.password.data)
-        if ok:
-            flash(msg, "success")
-            return redirect(url_for("authentication.login"))
-        error = msg
+    if request.method == "POST":
+        # On POST, validate form and reset password
+        if form.validate_on_submit():
+            ok, msg = _svc.reset_password(token, form.password.data)
+            if ok:
+                flash(msg, "success")
+                return redirect(url_for("authentication.login"))
+            error = msg
+        else:
+            # Form validation failed
+            if form.password.errors:
+                error = form.password.errors[0]
+            elif form.confirm_password.errors:
+                error = form.confirm_password.errors[0]
+            else:
+                error = "Please fill in all fields correctly."
+    else:
+        # On GET, just render the form (no CSRF check needed yet)
+        pass
 
     return render_template(
         "authentication/reset_password.html",
