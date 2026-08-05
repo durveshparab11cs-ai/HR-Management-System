@@ -1,0 +1,210 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Hospital Details — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Admin', url_for('admin.index')), ('Hospitals', url_for('admin.hospitals_list')), (hospital.hospital_name, None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h1 class="h4 fw-bold mb-0">
+                    <i class="bi bi-hospital text-primary me-2"></i>{{ hospital.hospital_name }}
+                </h1>
+                <p class="text-muted small mb-0 mt-2">Hospital Location & GPS Details</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin.hospital_edit', hospital_id=hospital.id) }}" class="btn btn-primary">
+                    <i class="bi bi-pencil me-1"></i>Edit
+                </a>
+                <a href="{{ url_for('admin.hospitals_list') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hospital Information -->
+<div class="row g-4 mb-4">
+    <!-- Main Details -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0 py-3 px-4">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Hospital Information
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Hospital Code</div>
+                        <div class="fw-semibold">
+                            {% if hospital.hospital_code %}
+                            <code>{{ hospital.hospital_code }}</code>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Hospital Name</div>
+                        <div class="fw-semibold">{{ hospital.hospital_name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">City</div>
+                        <div class="fw-semibold">
+                            {% if hospital.city %}
+                            {{ hospital.city }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">State</div>
+                        <div class="fw-semibold">
+                            {% if hospital.state %}
+                            {{ hospital.state }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="small text-muted mb-1">Location</div>
+                        <div class="fw-semibold">
+                            {% if hospital.location %}
+                            {{ hospital.location }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="small text-muted mb-1">Address</div>
+                        <div class="fw-semibold">
+                            {% if hospital.address %}
+                            {{ hospital.address }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light border-0 py-3 px-4">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-toggle-on me-2"></i>Status
+                </h6>
+            </div>
+            <div class="card-body p-4 text-center">
+                {% if hospital.is_active %}
+                <span class="badge bg-success-subtle text-success p-2" style="font-size: 0.9rem;">
+                    <i class="bi bi-check-circle me-1"></i>Active
+                </span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary p-2" style="font-size: 0.9rem;">
+                    <i class="bi bi-x-circle me-1"></i>Inactive
+                </span>
+                {% endif %}
+                <div class="small text-muted mt-3">{{ hospital.status }}</div>
+            </div>
+        </div>
+
+        <!-- Employee Count -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0 py-3 px-4">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-people me-2"></i>Employees
+                </h6>
+            </div>
+            <div class="card-body p-4 text-center">
+                <h3 class="fw-bold mb-0">{{ hospital.employee_count }}</h3>
+                <div class="small text-muted">Employees Allocated</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GPS Coordinates -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0 py-3 px-4">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-geo-alt text-danger me-2"></i>GPS Coordinates
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Latitude</div>
+                        <div class="fw-semibold monospace">{{ "%.6f"|format(hospital.latitude) }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted mb-1">Longitude</div>
+                        <div class="fw-semibold monospace">{{ "%.6f"|format(hospital.longitude) }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="small text-muted mb-1">Allowed Radius</div>
+                        <div class="fw-semibold">{{ hospital.allowed_radius_metres }} metres</div>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <p class="small text-muted mb-2">Location on Map:</p>
+                        <a href="https://maps.google.com/?q={{ hospital.latitude }},{{ hospital.longitude }}" 
+                           target="_blank" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-map me-1"></i>Open in Google Maps
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timestamps -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0 py-3 px-4">
+                <h6 class="fw-semibold mb-0">
+                    <i class="bi bi-clock-history me-2"></i>Timestamps
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="small text-muted mb-1">Created</div>
+                    <div class="small">
+                        {{ hospital.created_at.strftime('%d %b %Y, %H:%M') if hospital.created_at else '—' }}
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <div class="small text-muted mb-1">Last Updated</div>
+                    <div class="small">
+                        {{ hospital.updated_at.strftime('%d %b %Y, %H:%M') if hospital.updated_at else '—' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.hospital_edit', hospital_id=hospital.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-1"></i>Edit Hospital
+            </a>
+            <a href="{{ url_for('admin.hospitals_list') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
