@@ -182,9 +182,7 @@ def _init_extensions(app: Flask) -> None:
     mail.init_app(app)
     csrf.init_app(app)
     
-    # Configure rate limiter with higher default limit to prevent false positives
-    # Default: 200 per day per IP is too strict for web dashboard usage
-    limiter.init_app(app, default_limits=["1000 per hour"])
+    limiter.init_app(app, default_limits=["1000/hour"])
     
     cache.init_app(app)
 
