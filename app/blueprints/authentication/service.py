@@ -64,9 +64,82 @@ class AuthService:
 
         user = auth_repo.get_by_employee_code(code)
 
-        # ── Auto-create Employee record if missing ────────────────────
-        # This handles cases where User exists but Employee record was deleted
-        # or never created (backward compatibility)
+        # ── Auto-create User + Employee if code found in EmployeeMaster ────
+        # This is the main auto-registration on first login
+        if not user:
+            try:
+                master = EmployeeMaster.query.filter_by(employee_code=code).first()
+                if master and not master.is_registered:
+                    # Create User from EmployeeMaster
+                    name_parts = master.employee_name.strip().split(" ", 1)
+                    first_name = name_parts[0]
+                    last_name = name_parts[1] if len(name_parts) > 1 else "."
+                    
+                    email = f"{code.lower().replace('-', '')}@hrms.internal"
+                    username = code.lower().replace("-", "")
+                    
+                    # Generate unique email if collision
+                    if User.query.filter_by(email=email).first():
+                        email = f"{email}.{datetime.utcnow().strftime('%s')}"
+                    if User.query.filter_by(username=username).first():
+                        username = f"{username}_{datetime.utcnow().strftime('%f')}"
+                    
+                    # Create User with temp password (user will set real one on first login)
+                    user = User(
+                        email=email,
+                        username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        role=UserRole.EMPLOYEE.value,
+                        status=UserStatus.ACTIVE.value,
+                        email_verified=True,
+                    )
+                    user.set_password(password)
+                    db.session.add(user)
+                    db.session.flush()  # Get user.id
+                    
+                    # Find office by working_location
+                    office_settings_id = None
+                    if master.working_location:
+                        from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+                        office = OfficeSettings.query.filter(
+                            OfficeSettings.is_deleted == False,
+                            OfficeSettings.name.ilike(master.working_location)
+                        ).first()
+                        if office:
+                            office_settings_id = office.id
+                            logger.info("Found office %s for employee %s", office.name, code)
+                    
+                    # Create Employee profile with data from EmployeeMaster
+                    employee = Employee(
+                        user_id=user.id,
+                        employee_code=code,
+                        department=master.department or None,
+                        designation=master.designation or None,
+                        office_settings_id=office_settings_id,
+                        created_by=user.id,
+                    )
+                    db.session.add(employee)
+                    db.session.flush()
+                    
+                    # Mark master as registered
+                    master.is_registered = True
+                    master.registered_on = datetime.utcnow()
+                    db.session.add(master)
+                    
+                    # Commit everything
+                    db.session.commit()
+                    logger.info(
+                        "AUTO_REGISTER_ON_LOGIN | user_id=%s | code=%s | dept=%s | office=%s",
+                        user.id, code, master.department, office_settings_id
+                    )
+            except Exception as exc:
+                db.session.rollback()
+                logger.error("Failed to auto-register on login: %s", exc, exc_info=True)
+                user = None
+
+        # ── Auto-create Employee record if User exists but Employee missing ────
+        # This handles backward compatibility
         if not user:
             user = User.query.filter_by(username=code.lower().replace("-", "")).first()
             if user and not user.is_deleted:
