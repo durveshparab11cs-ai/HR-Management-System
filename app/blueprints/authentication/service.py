@@ -76,18 +76,31 @@ class AuthService:
                         employee_code=code
                     ).first()
                     if master:
+                        # Find office by working_location
+                        office_settings_id = None
+                        if master.working_location:
+                            from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+                            office = OfficeSettings.query.filter(
+                                OfficeSettings.is_deleted == False,
+                                OfficeSettings.name.ilike(master.working_location)
+                            ).first()
+                            if office:
+                                office_settings_id = office.id
+                                logger.info("Found office %s for employee %s", office.name, code)
+                        
                         employee = Employee(
                             user_id=user.id,
                             employee_code=code,
                             department=master.department or None,
                             designation=master.designation or None,
+                            office_settings_id=office_settings_id,  # ✅ SET FROM MASTER
                             created_by=user.id,
                         )
                         db.session.add(employee)
                         db.session.commit()
                         logger.info(
-                            "AUTO_CREATE_EMPLOYEE | user_id=%s | code=%s | dept=%s",
-                            user.id, code, master.department
+                            "AUTO_CREATE_EMPLOYEE | user_id=%s | code=%s | dept=%s | office=%s",
+                            user.id, code, master.department, office_settings_id
                         )
                         # Refetch user with new employee relation
                         db.session.refresh(user)
@@ -273,14 +286,31 @@ class AuthService:
             # ══════════════════════════════════════════════════════════════
             # CREATE EMPLOYEE PROFILE WITH DEPARTMENT FROM MASTER
             # ══════════════════════════════════════════════════════════════
-            # CRITICAL FIX: Populate department, designation from master data
+            # CRITICAL FIX: Populate department, designation, office from master data
             # This ensures employee dashboard shows correct department
+            # and GPS validation uses correct office coordinates
+            
+            # Find office by working_location
+            office_settings_id = None
+            if master.working_location:
+                from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+                office = OfficeSettings.query.filter(
+                    OfficeSettings.is_deleted == False,
+                    OfficeSettings.name.ilike(master.working_location)
+                ).first()
+                if office:
+                    office_settings_id = office.id
+                    logger.info("Found office %s for employee %s", office.name, code)
+                else:
+                    logger.warning("No office found for working_location=%s, using default", 
+                                 master.working_location)
             
             employee = Employee(
                 user_id=user.id,
                 employee_code=code,
                 department=master.department or None,  # ✅ POPULATE FROM MASTER
                 designation=master.designation or None,  # ✅ POPULATE FROM MASTER
+                office_settings_id=office_settings_id,  # ✅ POPULATE FROM MASTER
                 created_by=user.id,
             )
             db.session.add(employee)
