@@ -45,7 +45,7 @@ class AuthService:
         """
         Authenticate using Employee Code + Password + Department.
 
-        1. Look up User via Employee.employee_code
+        1. Look up User via Employee.employee_code (or create Employee if missing)
         2. Check account status / lock
         3. Verify password
         4. Validate department matches employee's assigned department
@@ -55,12 +55,45 @@ class AuthService:
         """
         from flask import session  # noqa: PLC0415
         from app.constants.enums import GLOBAL_ACCESS_DEPARTMENTS  # noqa: PLC0415
+        from app.models.employee import Employee  # noqa: PLC0415
+        from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
 
         ip = self._get_ip()
         ua = request.user_agent.string if request.user_agent else None
         code = employee_code.strip().upper()
 
         user = auth_repo.get_by_employee_code(code)
+
+        # ── Auto-create Employee record if missing ────────────────────
+        # This handles cases where User exists but Employee record was deleted
+        # or never created (backward compatibility)
+        if not user:
+            user = User.query.filter_by(username=code.lower().replace("-", "")).first()
+            if user and not user.is_deleted:
+                # User exists but no Employee record → create one from EmployeeMaster
+                try:
+                    master = EmployeeMaster.query.filter_by(
+                        employee_code=code
+                    ).first()
+                    if master:
+                        employee = Employee(
+                            user_id=user.id,
+                            employee_code=code,
+                            department=master.department or None,
+                            designation=master.designation or None,
+                            created_by=user.id,
+                        )
+                        db.session.add(employee)
+                        db.session.commit()
+                        logger.info(
+                            "AUTO_CREATE_EMPLOYEE | user_id=%s | code=%s | dept=%s",
+                            user.id, code, master.department
+                        )
+                        # Refetch user with new employee relation
+                        db.session.refresh(user)
+                except Exception as exc:
+                    db.session.rollback()
+                    logger.warning("Failed to auto-create employee record: %s", exc)
 
         if not user:
             auth_repo.record_login(None, code, False, ip, ua, "employee_code_not_found")
