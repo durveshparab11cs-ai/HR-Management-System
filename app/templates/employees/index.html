@@ -24,13 +24,13 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <select name="dept" class="form-select form-select-sm">
+                <select name="dept" class="form-select form-select-sm {% if department %}border-primary{% endif %}" style="{% if department %}border-width: 2px;{% endif %}">
                     <option value="">All Departments</option>
                     {% for d in departments %}<option value="{{ d }}" {% if d and department and d.lower()==department.lower() %}selected{% endif %}>{{ d }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
-                <select name="branch" class="form-select form-select-sm" onchange="this.form.submit();">
+                <select name="branch" class="form-select form-select-sm {% if branch %}border-primary{% endif %}" style="{% if branch %}border-width: 2px;{% endif %}" onchange="this.form.submit();">
                     <option value="">All Branches</option>
                     {% for b in branches %}<option value="{{ b }}" {% if b and branch and b.lower()==branch.lower() %}selected{% endif %}>{{ b }}</option>{% endfor %}
                 </select>
@@ -42,6 +42,31 @@
         </form>
     </div>
 </div>
+
+<!-- Active Filters Badge -->
+{% if department or branch or search %}
+<div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <small class="fw-semibold">Active Filters:</small>
+        {% if search %}
+            <span class="badge bg-info">
+                <i class="bi bi-search"></i> Search: "{{ search }}"
+            </span>
+        {% endif %}
+        {% if department %}
+            <span class="badge bg-info">
+                <i class="bi bi-bookmark-fill"></i> Department: {{ department }}
+            </span>
+        {% endif %}
+        {% if branch %}
+            <span class="badge bg-info">
+                <i class="bi bi-geo-alt-fill"></i> Branch: {{ branch }}
+            </span>
+        {% endif %}
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Clear filters"></button>
+</div>
+{% endif %}
 
 <!-- Table -->
 <div class="card border-0 shadow-sm">
