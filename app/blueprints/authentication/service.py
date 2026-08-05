@@ -439,6 +439,7 @@ class AuthService:
     def reset_password(self, token: str, new_password: str) -> Tuple[bool, str]:
         """Validate a reset token and set new password."""
         from app.utils.password_utils import hash_token  # noqa: PLC0415
+        from datetime import datetime as dt, timezone  # noqa: PLC0415
 
         token_hash = hash_token(token)
         user       = auth_repo.get_user_by_reset_token(token_hash)
@@ -446,8 +447,18 @@ class AuthService:
         if not user:
             return False, "Invalid or expired reset link."
 
-        if user.password_reset_expires_at and user.password_reset_expires_at < datetime.utcnow():
-            return False, "Reset link has expired. Request a new one."
+        # Compare datetimes safely - use timezone-aware datetime
+        if user.password_reset_expires_at:
+            # Get current time in UTC (timezone-aware)
+            now = dt.now(timezone.utc)
+            # Make expires_at timezone-aware if it isn't already
+            expires_at = user.password_reset_expires_at
+            if expires_at.tzinfo is None:
+                # Assume UTC if naive
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            if expires_at < now:
+                return False, "Reset link has expired. Request a new one."
 
         user.set_password(new_password)
         user.failed_login_attempts = 0
