@@ -19,7 +19,6 @@ _svc = AuthService()
 # ── Login / Register ──────────────────────────────────────────────────
 
 @authentication_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit(Limits.RateLimit.LOGIN)
 def login():
     if current_user.is_authenticated:
         return redirect(_svc.get_dashboard_url(current_user))
