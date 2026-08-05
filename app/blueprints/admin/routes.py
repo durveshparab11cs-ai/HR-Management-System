@@ -317,31 +317,7 @@ def preview_import():
 def employee_master():
     """View all employees in the master table."""
     from app.models.employee_master import EmployeeMaster
-    from app.models.employee import Employee
     from flask import request as _req
-    
-    # Sync department and designation from Employee to EmployeeMaster
-    try:
-        employees = Employee.query.filter(
-            Employee.is_deleted == False,
-            Employee.employee_code.isnot(None)
-        ).all()
-        
-        for emp in employees:
-            master = EmployeeMaster.query.filter_by(employee_code=emp.employee_code).first()
-            if master:
-                # Sync department and designation if they're missing in master
-                if not master.department and emp.department:
-                    master.department = emp.department
-                if not master.designation and emp.designation:
-                    master.designation = emp.designation
-                db.session.add(master)
-        
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        import logging
-        logging.getLogger('admin').warning(f"Employee master sync failed: {e}")
     
     search = _req.args.get("q", "").strip()
     status = _req.args.get("status", "")
