@@ -134,7 +134,7 @@ def check_in():
     """
     Mark check-in with GPS coordinates.
     
-    Note: Photo must be uploaded first via /attendance/upload-photo.
+    Photo can be uploaded before or after check-in.
     
     Request Body:
         {
@@ -173,27 +173,7 @@ def check_in():
             "longitude": "Longitude is required" if not lon else None,
         })
     
-    # Validate photo exists
-    today = date.today()
-    attendance_today = _att.get_today(employee.id, today)
-    
-    if attendance_today and attendance_today.id:
-        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-        photo = AttendancePhoto.query.filter_by(attendance_id=attendance_today.id).first()
-        if not photo or (not photo.image_data and not photo.file_path):
-            return error_response(
-                message="Check-in photo is required. Please upload a selfie first.",
-                code="PHOTO_REQUIRED",
-                status_code=400
-            )
-    else:
-        return error_response(
-            message="Check-in photo is required. Please upload a selfie first.",
-            code="PHOTO_REQUIRED",
-            status_code=400
-        )
-    
-    # Perform check-in
+    # Perform check-in (photo is optional at check-in time)
     ok, message, attendance, gps_detail = _svc.check_in(employee, lat, lon, acc)
     
     if not ok:
