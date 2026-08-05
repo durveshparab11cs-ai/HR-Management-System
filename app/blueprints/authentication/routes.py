@@ -70,9 +70,8 @@ def login():
             if forgot_form.validate_on_submit():
                 ok, payload = _svc.initiate_password_reset(forgot_form.employee_code.data)
                 if ok:
-                    # Success - show token message
-                    success_msg = f"Reset token: {payload} — Give this to the employee."
-                    active_tab = "forgot"
+                    # Redirect directly to reset password page with token
+                    return redirect(url_for("authentication.reset_password", token=payload))
                 else:
                     error = payload
                     active_tab = "forgot"
