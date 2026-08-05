@@ -64,10 +64,13 @@ class EmployeeRepository:
                 Employee.employee_code.ilike(term),
             ))
         
-        if department:
-            q = q.filter(Employee.department.ilike(f"%{department}%"))
-        if branch:
-            q = q.filter(Employee.branch.ilike(f"%{branch}%"))
+        # Department filter - exact match (case-insensitive)
+        if department and department.strip():
+            q = q.filter(func.lower(Employee.department) == func.lower(department.strip()))
+        
+        # Branch filter - exact match (case-insensitive)
+        if branch and branch.strip():
+            q = q.filter(func.lower(Employee.branch) == func.lower(branch.strip()))
         
         return q.order_by(Employee.employee_code.asc()).paginate(page=page, per_page=per_page, error_out=False)
 
