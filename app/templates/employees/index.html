@@ -26,13 +26,13 @@
             <div class="col-md-3">
                 <select name="dept" class="form-select form-select-sm">
                     <option value="">All Departments</option>
-                    {% for d in departments %}<option value="{{ d }}" {% if d==department %}selected{% endif %}>{{ d }}</option>{% endfor %}
+                    {% for d in departments %}<option value="{{ d }}" {% if d and department and d.lower()==department.lower() %}selected{% endif %}>{{ d }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Branches</option>
-                    {% for b in branches %}<option value="{{ b }}" {% if b==branch %}selected{% endif %}>{{ b }}</option>{% endfor %}
+                    {% for b in branches %}<option value="{{ b }}" {% if b and branch and b.lower()==branch.lower() %}selected{% endif %}>{{ b }}</option>{% endfor %}
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-2">
