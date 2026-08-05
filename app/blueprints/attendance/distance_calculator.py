@@ -99,7 +99,12 @@ def calculate(
     """
     dist   = haversine_metres(employee_lat, employee_lon, office_lat, office_lon)
     bering = bearing_degrees(office_lat, office_lon, employee_lat, employee_lon)
-    within = dist <= allowed_radius_metres
+    
+    # Add GPS tolerance buffer to account for accuracy variance
+    # iOS and other devices may have +/- 20m variance due to GPS accuracy
+    GPS_TOLERANCE_BUFFER = 20  # meters
+    effective_radius = allowed_radius_metres + GPS_TOLERANCE_BUFFER
+    within = dist <= effective_radius
 
     return DistanceResult(
         distance_metres=dist,
