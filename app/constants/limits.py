@@ -43,7 +43,7 @@ class Limits:
     class RateLimit:
         """Per-endpoint rate limit strings (Flask-Limiter format)."""
         LOGIN: str = "5 per minute;20 per hour"
-        PASSWORD_RESET: str = "3 per hour"
+        PASSWORD_RESET: str = "10 per hour"
         API_DEFAULT: str = "60 per minute"
         REGISTRATION: str = "3 per hour"
         EXPORT: str = "10 per hour"
