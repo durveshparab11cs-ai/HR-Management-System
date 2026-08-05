@@ -157,29 +157,9 @@ def refresh_session():
 def forgot_password():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.index"))
-
-    form    = ForgotPasswordForm()
-    result  = None
-    token   = None
-    success = False
-
-    if form.validate_on_submit():
-        ok, payload = _svc.initiate_password_reset(form.employee_code.data)
-        if ok:
-            success = True
-            token   = payload   # raw token — admin gives this to the employee
-            result  = "Reset token generated. Please give this token to the employee."
-        else:
-            result = payload
-
-    return render_template(
-        "authentication/forgot_password.html",
-        title="Forgot Password",
-        form=form,
-        result=result,
-        success=success,
-        token=token,
-    )
+    
+    # Redirect to login page with forgot tab
+    return redirect(url_for("authentication.login", tab="forgot"))
 
 
 # ── Reset Password ────────────────────────────────────────────────────
