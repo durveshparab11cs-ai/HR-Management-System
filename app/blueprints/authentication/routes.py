@@ -29,6 +29,7 @@ def login():
     forgot_form   = ForgotPasswordForm()
     error         = None
     active_tab    = request.args.get("tab", "login")
+    success_msg   = None
 
     if request.method == "POST":
         action = request.form.get("action", "login")
@@ -70,13 +71,13 @@ def login():
                 ok, payload = _svc.initiate_password_reset(forgot_form.employee_code.data)
                 if ok:
                     # Success - show token message
-                    error = None
-                    flash(f"✓ Reset token: {payload}. Give this to the employee.", "success")
+                    success_msg = f"Reset token: {payload} — Give this to the employee."
                     active_tab = "forgot"
                 else:
                     error = payload
                     active_tab = "forgot"
             else:
+                error = "Please enter a valid Employee Code."
                 active_tab = "forgot"
 
     return render_template(
@@ -86,6 +87,7 @@ def login():
         register_form=register_form,
         forgot_form=forgot_form,
         error=error,
+        success_msg=success_msg,
         active_tab=active_tab,
     )
 

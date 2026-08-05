@@ -283,6 +283,10 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
       <p class="panel-title">Reset password</p>
       <p class="panel-sub">Enter your Employee Code to get a reset link</p>
 
+      {% if success_msg and active_tab == 'forgot' %}
+      <div class="auth-success"><i class="bi bi-check-circle-fill"></i><div><strong>{{ success_msg }}</strong></div></div>
+      {% endif %}
+
       {% if error and active_tab == 'forgot' %}
       <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
       {% endif %}
