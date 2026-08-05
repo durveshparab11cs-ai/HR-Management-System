@@ -193,14 +193,10 @@ def assign_shift_to_employee():
         employee = Employee.query.get(employee_id)
         shift = Shift.query.get(shift_id)
         
-        if not employee or not shift:
-            msg = f"Employee ID {employee_id}" if not employee else ""
-            msg += f" or Shift ID {shift_id}" if not shift else ""
-            return jsonify({'success': False, 'message': f'{msg} not found'}), 404
-        
-        # Get employee name safely
-        emp_name = employee.name if employee else f"Employee #{employee_id}"
-        shift_name = shift.name if shift else f"Shift #{shift_id}"
+        if not employee:
+            return jsonify({'success': False, 'message': f'Employee #{employee_id} not found'}), 404
+        if not shift:
+            return jsonify({'success': False, 'message': f'Shift #{shift_id} not found'}), 404
         
         # Check if employee already has an active assignment
         current_assignment = EmployeeShiftAssignment.query.filter(
@@ -213,7 +209,7 @@ def assign_shift_to_employee():
             if current_assignment.shift_id == shift_id:
                 return jsonify({
                     'success': False,
-                    'message': f'{emp_name} is already assigned to {shift_name}'
+                    'message': f'Employee already assigned to this shift'
                 }), 400
             
             # Close previous assignment
@@ -227,8 +223,8 @@ def assign_shift_to_employee():
             effective_from=effective_date,
             assigned_by=current_user.id,
             assigned_date=datetime.utcnow(),
-            reason="Initial shift assignment by HR/Admin",
-            remarks=f"Assigned {shift_name} shift"
+            reason="Shift assignment by HR/Admin",
+            remarks=f"Assigned shift: {shift.name}"
         )
         
         db.session.add(new_assignment)
@@ -236,9 +232,9 @@ def assign_shift_to_employee():
         
         return jsonify({
             'success': True,
-            'message': f'✅ {emp_name} assigned to {shift_name} shift',
+            'message': f'✅ Shift assigned successfully',
             'employee_id': employee_id,
-            'shift_name': shift_name,
+            'shift_name': shift.name,
             'shift_timing': f"{shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')}"
         })
         
@@ -246,7 +242,7 @@ def assign_shift_to_employee():
         db.session.rollback()
         import logging
         logging.getLogger('admin').error(f'Shift assignment error: {str(e)}')
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Shift assignment failed'}), 500
 
 
 def assign_shifts_bulk_submit():
