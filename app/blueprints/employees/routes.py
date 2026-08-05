@@ -22,8 +22,12 @@ _repo = EmployeeRepository()
 @hr_required
 def index():
     from app.core.dept_filter import get_dept_filter  # noqa: PLC0415
+    import logging
+    logger = logging.getLogger(__name__)
+    
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "")
+    
     # Dept filter: if user has a forced department, override any URL param
     # EXCEPT for SUPER_ADMIN and ADMIN users who should always see all
     if current_user.role in ('super_admin', 'admin'):
@@ -45,9 +49,14 @@ def index():
     if branch_param and branch_param != "":
         branch = branch_param
     
+    logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}, forced_dept={repr(forced_dept)}")
+    
     pagination = _repo.get_all(page=page, per_page=25, search=search, department=department, branch=branch)
     departments = _repo.get_departments()
     branches = _repo.get_branches()
+    
+    logger.info(f"Pagination total: {pagination.total}, departments: {departments}")
+    
     return render_template(
         "employees/index.html",
         title="Employees",
