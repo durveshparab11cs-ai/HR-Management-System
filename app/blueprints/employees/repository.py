@@ -32,26 +32,43 @@ class EmployeeRepository:
 
     def get_all(self, page: int = 1, per_page: int = 25, search: str = "", department: str | None = None, branch: str | None = None):
         """
-        Get paginated list of registered employees (those with User accounts).
+        Get paginated list of all registered employees (from Employee table).
+        Matches Shift Assignment query to show the same employees.
         """
-        q = (
-            Employee.query
-            .join(User, Employee.user_id == User.id)
-            .filter(Employee.is_deleted == False)
-        )
+        q = Employee.query.filter(Employee.is_deleted == False)
+        
         if search:
             term = f"%{search}%"
             q = q.filter(or_(
-                User.first_name.ilike(term),
-                User.last_name.ilike(term),
-                User.email.ilike(term),
                 Employee.employee_code.ilike(term),
                 Employee.mobile.ilike(term),
             ))
+            # Also search by name via user if user exists
+            from app.models.user import User  # noqa: PLC0415
+            q_user = (
+                Employee.query
+                .join(User, Employee.user_id == User.id, isouter=True)
+                .filter(
+                    Employee.is_deleted == False,
+                    or_(
+                        User.first_name.ilike(term),
+                        User.last_name.ilike(term),
+                        User.email.ilike(term),
+                    )
+                )
+            )
+            # Combine queries
+            emp_codes_from_user = [e.employee_code for e in q_user.all()]
+            q = q.filter(or_(
+                Employee.employee_code.in_(emp_codes_from_user),
+                Employee.employee_code.ilike(term),
+            ))
+        
         if department:
             q = q.filter(Employee.department.ilike(f"%{department}%"))
         if branch:
             q = q.filter(Employee.branch.ilike(f"%{branch}%"))
+        
         return q.order_by(Employee.employee_code.asc()).paginate(page=page, per_page=per_page, error_out=False)
 
     def get_all_active(self) -> list:
