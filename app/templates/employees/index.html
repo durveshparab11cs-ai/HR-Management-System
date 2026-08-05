@@ -30,7 +30,7 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <select name="branch" class="form-select form-select-sm">
+                <select name="branch" class="form-select form-select-sm" onchange="this.form.submit();">
                     <option value="">All Branches</option>
                     {% for b in branches %}<option value="{{ b }}" {% if b and branch and b.lower()==branch.lower() %}selected{% endif %}>{{ b }}</option>{% endfor %}
                 </select>
