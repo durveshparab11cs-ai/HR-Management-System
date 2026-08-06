@@ -200,17 +200,16 @@ def assign_shifts_bulk():
 
 
 def assign_shift_to_employee():
-    """Assign shift to a single employee."""
+    """Assign shift to a single employee (AJAX)."""
+    import logging
+    from datetime import timedelta
+    logger = logging.getLogger('admin')
     
     employee_id = request.form.get('employee_id', type=int)
     shift_id = request.form.get('shift_id', type=int)
     effective_date = request.form.get('effective_date')
     
-    logger = logging.getLogger('admin')
-    logger.info(f"[ASSIGN_SHIFT] Attempting to assign shift {shift_id} to employee {employee_id}")
-    
     if not employee_id or not shift_id:
-        logger.error(f"[ASSIGN_SHIFT] Missing parameters: employee_id={employee_id}, shift_id={shift_id}")
         return jsonify({'success': False, 'message': 'Employee and Shift are required'}), 400
     
     try:
@@ -220,22 +219,16 @@ def assign_shift_to_employee():
         else:
             effective_date = date.today()
         
-        logger.info(f"[ASSIGN_SHIFT] Effective date: {effective_date}")
-        
         # Get employee and shift
         employee = Employee.query.get(employee_id)
         shift = Shift.query.get(shift_id)
         
         if not employee:
-            logger.error(f"[ASSIGN_SHIFT] Employee {employee_id} not found")
             return jsonify({'success': False, 'message': f'Employee #{employee_id} not found'}), 404
         if not shift:
-            logger.error(f"[ASSIGN_SHIFT] Shift {shift_id} not found")
             return jsonify({'success': False, 'message': f'Shift #{shift_id} not found'}), 404
         
-        logger.info(f"[ASSIGN_SHIFT] Found employee: {employee.name}, shift: {shift.name}")
-        
-        # Check if employee already has an ACTIVE assignment (using improved logic)
+        # Check if employee already has an ACTIVE assignment
         from sqlalchemy import or_
         today = date.today()
         
@@ -247,26 +240,19 @@ def assign_shift_to_employee():
             )
         ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
         
-        logger.info(f"[ASSIGN_SHIFT] Current active assignment: {current_assignment}")
-        
         # Close current assignment if exists and different shift
         if current_assignment:
-            logger.info(f"[ASSIGN_SHIFT] Found existing active assignment with shift {current_assignment.shift_id}")
-            
             if current_assignment.shift_id == shift_id:
-                logger.warning(f"[ASSIGN_SHIFT] Employee already assigned to same shift")
                 return jsonify({
                     'success': False,
                     'message': f'Employee already assigned to this shift'
                 }), 400
             
             # Close previous assignment
-            logger.info(f"[ASSIGN_SHIFT] Closing previous assignment, setting effective_until to {effective_date - timedelta(days=1)}")
             current_assignment.effective_until = effective_date - timedelta(days=1)
             db.session.add(current_assignment)
         
         # Create new assignment
-        logger.info(f"[ASSIGN_SHIFT] Creating new assignment")
         new_assignment = EmployeeShiftAssignment(
             employee_id=employee_id,
             shift_id=shift_id,
@@ -280,8 +266,6 @@ def assign_shift_to_employee():
         db.session.add(new_assignment)
         db.session.commit()
         
-        logger.info(f"[ASSIGN_SHIFT] SUCCESS: New assignment created with ID {new_assignment.id}")
-        
         return jsonify({
             'success': True,
             'message': f'✅ Shift assigned successfully',
@@ -291,15 +275,9 @@ def assign_shift_to_employee():
         })
         
     except Exception as exc:
-        logger.error(f"[ASSIGN_SHIFT] EXCEPTION: {type(exc).__name__}: {str(exc)}")
-        logger.error(f"[ASSIGN_SHIFT] Traceback: {traceback.format_exc()}")
+        logger.error(f"[ASSIGN_SHIFT] Error: {str(exc)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error: {str(exc)}'}), 500
-    except Exception as e:
-        db.session.rollback()
-        import logging
-        logging.getLogger('admin').error(f'Shift assignment error: {str(e)}')
-        return jsonify({'success': False, 'message': f'Shift assignment failed'}), 500
 
 
 def assign_shifts_bulk_submit():
@@ -500,13 +478,9 @@ def assign_hospital_to_employee():
         hospital_name = request.form.get('hospital_name', '').strip()
         effective_date_str = request.form.get('effective_date', '')
         
-        logger.info(f"[ASSIGN_HOSPITAL] emp_id={employee_id}, hospital={hospital_name}, effective_date={effective_date_str}")
-        
         if not employee_id:
-            logger.warning("[ASSIGN_HOSPITAL] Missing employee_id")
             return jsonify({'success': False, 'message': 'Employee ID required'}), 400
         if not hospital_name:
-            logger.warning("[ASSIGN_HOSPITAL] Missing hospital_name")
             return jsonify({'success': False, 'message': 'Hospital name required'}), 400
         
         # Parse effective date
@@ -518,15 +492,10 @@ def assign_hospital_to_employee():
         else:
             effective_date = date.today()
         
-        logger.info(f"[ASSIGN_HOSPITAL] parsed effective_date={effective_date}")
-        
         # Get employee
         employee = Employee.query.get(employee_id)
         if not employee:
-            logger.warning(f"[ASSIGN_HOSPITAL] Employee {employee_id} not found")
             return jsonify({'success': False, 'message': 'Employee not found'}), 404
-        
-        logger.info(f"[ASSIGN_HOSPITAL] Found employee: {employee.name}")
         
         # Check for current assignment
         current_assignment = (
@@ -538,24 +507,19 @@ def assign_hospital_to_employee():
             .first()
         )
         
-        logger.info(f"[ASSIGN_HOSPITAL] Current assignment: {current_assignment}")
-        
         # Close current assignment if different hospital
         if current_assignment:
             if current_assignment.hospital_name == hospital_name:
-                logger.info(f"[ASSIGN_HOSPITAL] Already assigned to same hospital, returning error")
                 return jsonify({
                     'success': False,
                     'message': f'{employee.name} is already assigned to {hospital_name}'
                 }), 400
             
             # Close previous assignment
-            logger.info(f"[ASSIGN_HOSPITAL] Closing previous assignment")
             current_assignment.effective_until = effective_date - timedelta(days=1)
             db.session.add(current_assignment)
         
         # Create new assignment
-        logger.info(f"[ASSIGN_HOSPITAL] Creating new assignment")
         new_assignment = EmployeeHospitalAssignment(
             employee_id=employee_id,
             hospital_name=hospital_name,
@@ -565,8 +529,6 @@ def assign_hospital_to_employee():
         
         db.session.add(new_assignment)
         db.session.commit()
-        
-        logger.info(f"[ASSIGN_HOSPITAL] SUCCESS - committed assignment")
         
         return jsonify({
             'success': True,
@@ -580,5 +542,5 @@ def assign_hospital_to_employee():
             db.session.rollback()
         except:
             pass
-        logger.error(f'[ASSIGN_HOSPITAL_ERROR] Hospital assignment error: {str(e)}', exc_info=True)
+        logger.error(f'Hospital assignment error: {str(e)}', exc_info=True)
         return jsonify({'success': False, 'message': f'Error assigning hospital: {str(e)}'}), 500
