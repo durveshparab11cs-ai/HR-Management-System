@@ -15,8 +15,10 @@
                     <p class="mb-2">Your Excel file must contain the following columns:</p>
                     <ul class="mb-0">
                         <li><strong>EMP-CODE</strong> - Employee code (must exist in database)</li>
-                        <li><strong>SHIFT</strong> - Shift name, code, or timing (e.g., "11:00 AM to 08:00 PM" or "SHIFT_1100_2000")</li>
+                        <li><strong>HOSPITAL NAME</strong> - Hospital name (optional, use exact name or it will be skipped)</li>
+                        <li><strong>SHIFT</strong> - Shift name, code, or timing (optional, e.g., "12:00 PM to 09:00 PM")</li>
                     </ul>
+                    <p class="mt-2 mb-0"><strong>Note:</strong> At least one of HOSPITAL NAME or SHIFT must be provided for each employee.</p>
                 </div>
                 
                 <form method="POST" enctype="multipart/form-data" id="shiftImportForm">
@@ -81,25 +83,29 @@
                     
                     <!-- Sample Format -->
                     <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> <strong>Sample Excel Format:</strong>
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Sample Excel Format (3 Columns):</strong>
                         <table class="table table-sm table-bordered mt-2 mb-0">
                             <thead>
                                 <tr>
                                     <th>EMP-CODE</th>
+                                    <th>HOSPITAL NAME</th>
                                     <th>SHIFT</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>EMP001</td>
-                                    <td>11:00 AM to 08:00 PM</td>
+                                    <td>E-2606061</td>
+                                    <td>Head Office</td>
+                                    <td>12:00 PM to 09:00 PM</td>
                                 </tr>
                                 <tr>
-                                    <td>EMP002</td>
+                                    <td>E-2606026</td>
+                                    <td>Branch Office</td>
                                     <td>SHIFT_0800_1700</td>
                                 </tr>
                                 <tr>
-                                    <td>EMP003</td>
+                                    <td>E-2606032</td>
+                                    <td>Head Office</td>
                                     <td>09:00 AM to 06:00 PM</td>
                                 </tr>
                             </tbody>
@@ -179,7 +185,13 @@
                     <div class="col-md-3">
                         <div class="p-3 bg-success bg-opacity-10 rounded">
                             <p class="text-success fw-bold mb-0">✅ {{ import_result.assigned or 0 }}</p>
-                            <small class="text-muted">Assigned</small>
+                            <small class="text-muted">Shifts Assigned</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-success bg-opacity-10 rounded">
+                            <p class="text-success fw-bold mb-0">✅ {{ import_result.hospitals_assigned or 0 }}</p>
+                            <small class="text-muted">Hospitals Assigned</small>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -192,12 +204,6 @@
                         <div class="p-3 bg-info bg-opacity-10 rounded">
                             <p class="text-info fw-bold mb-0">❌ {{ import_result.notfound or 0 }}</p>
                             <small class="text-muted">Not Found</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-danger bg-opacity-10 rounded">
-                            <p class="text-danger fw-bold mb-0">⚠ {{ import_result.errors or 0 }}</p>
-                            <small class="text-muted">Errors</small>
                         </div>
                     </div>
                 </div>
@@ -214,6 +220,7 @@
                                     <th>Code</th>
                                     <th>Name</th>
                                     <th>Shift</th>
+                                    <th>Hospital</th>
                                     <th>Status</th>
                                     <th>Reason</th>
                                 </tr>
@@ -224,6 +231,7 @@
                                     <td><code>{{ detail.emp_code }}</code></td>
                                     <td>{{ detail.emp_name }}</td>
                                     <td>{{ detail.shift_name }}</td>
+                                    <td>{{ detail.hospital_name }}</td>
                                     <td>
                                         {% if detail.status == 'assigned' %}
                                         <span class="badge bg-success">✅ Assigned</span>
