@@ -53,6 +53,7 @@ def index():
         department=department,
         departments=departments,
         dept_locked=False,
+        branch=None,  # Not used in filtering currently
     )
 
 
