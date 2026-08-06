@@ -489,29 +489,44 @@ def get_employee_shift_info():
 
 def assign_hospital_to_employee():
     """Assign hospital to a single employee."""
-    from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
-    from datetime import datetime, timedelta, date  # noqa: PLC0415, F401
-    
-    employee_id = request.form.get('employee_id', type=int)
-    hospital_name = request.form.get('hospital_name', '').strip()
-    effective_date_str = request.form.get('effective_date', '')
-    
-    if not employee_id:
-        return jsonify({'success': False, 'message': 'Employee ID required'}), 400
-    if not hospital_name:
-        return jsonify({'success': False, 'message': 'Hospital name required'}), 400
+    import logging
+    logger = logging.getLogger('admin')
     
     try:
+        from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
+        from datetime import datetime, timedelta, date  # noqa: PLC0415, F401
+        
+        employee_id = request.form.get('employee_id', type=int)
+        hospital_name = request.form.get('hospital_name', '').strip()
+        effective_date_str = request.form.get('effective_date', '')
+        
+        logger.info(f"[ASSIGN_HOSPITAL] emp_id={employee_id}, hospital={hospital_name}, effective_date={effective_date_str}")
+        
+        if not employee_id:
+            logger.warning("[ASSIGN_HOSPITAL] Missing employee_id")
+            return jsonify({'success': False, 'message': 'Employee ID required'}), 400
+        if not hospital_name:
+            logger.warning("[ASSIGN_HOSPITAL] Missing hospital_name")
+            return jsonify({'success': False, 'message': 'Hospital name required'}), 400
+        
         # Parse effective date
         if effective_date_str:
-            effective_date = datetime.strptime(effective_date_str, '%Y-%m-%d').date()
+            try:
+                effective_date = datetime.strptime(effective_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                effective_date = date.today()
         else:
             effective_date = date.today()
+        
+        logger.info(f"[ASSIGN_HOSPITAL] parsed effective_date={effective_date}")
         
         # Get employee
         employee = Employee.query.get(employee_id)
         if not employee:
+            logger.warning(f"[ASSIGN_HOSPITAL] Employee {employee_id} not found")
             return jsonify({'success': False, 'message': 'Employee not found'}), 404
+        
+        logger.info(f"[ASSIGN_HOSPITAL] Found employee: {employee.name}")
         
         # Check for current assignment
         current_assignment = (
@@ -523,19 +538,24 @@ def assign_hospital_to_employee():
             .first()
         )
         
+        logger.info(f"[ASSIGN_HOSPITAL] Current assignment: {current_assignment}")
+        
         # Close current assignment if different hospital
         if current_assignment:
             if current_assignment.hospital_name == hospital_name:
+                logger.info(f"[ASSIGN_HOSPITAL] Already assigned to same hospital, returning error")
                 return jsonify({
                     'success': False,
                     'message': f'{employee.name} is already assigned to {hospital_name}'
                 }), 400
             
             # Close previous assignment
+            logger.info(f"[ASSIGN_HOSPITAL] Closing previous assignment")
             current_assignment.effective_until = effective_date - timedelta(days=1)
             db.session.add(current_assignment)
         
         # Create new assignment
+        logger.info(f"[ASSIGN_HOSPITAL] Creating new assignment")
         new_assignment = EmployeeHospitalAssignment(
             employee_id=employee_id,
             hospital_name=hospital_name,
@@ -546,6 +566,8 @@ def assign_hospital_to_employee():
         db.session.add(new_assignment)
         db.session.commit()
         
+        logger.info(f"[ASSIGN_HOSPITAL] SUCCESS - committed assignment")
+        
         return jsonify({
             'success': True,
             'message': f'✅ {employee.name} assigned to {hospital_name}',
@@ -554,8 +576,9 @@ def assign_hospital_to_employee():
         })
         
     except Exception as e:
-        db.session.rollback()
-        import logging
-        logger = logging.getLogger('admin')
-        logger.error('Hospital assignment error: %s', str(e))
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        try:
+            db.session.rollback()
+        except:
+            pass
+        logger.error(f'[ASSIGN_HOSPITAL_ERROR] Hospital assignment error: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Error assigning hospital: {str(e)}'}), 500
