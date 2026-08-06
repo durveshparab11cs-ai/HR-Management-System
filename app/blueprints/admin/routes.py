@@ -231,40 +231,61 @@ def office_settings():
 @login_required
 @admin_required
 def users():
-    page = request.args.get("page", 1, type=int)
-    search = request.args.get("q", "")
-    # For admin user management, we need to bypass department filtering
-    # Query directly without department constraint
-    from app.models.employee import Employee
-    from sqlalchemy import or_
-    
-    query = Employee.query.filter(Employee.is_deleted == False)
-    
-    if search:
-        term = f"%{search}%"
+    try:
+        page = request.args.get("page", 1, type=int)
+        search = request.args.get("q", "")
+        # For admin user management, we need to bypass department filtering
+        # Query directly without department constraint
+        from app.models.employee import Employee
         from app.models.user import User
-        query = (
-            query.join(User, Employee.user_id == User.id, isouter=True)
-            .filter(or_(
-                Employee.employee_code.ilike(term),
-                User.first_name.ilike(term),
-                User.last_name.ilike(term),
-                User.email.ilike(term),
-                Employee.mobile.ilike(term),
-            ))
+        from sqlalchemy import or_
+        
+        query = Employee.query.filter(Employee.is_deleted == False)
+        
+        if search:
+            term = f"%{search}%"
+            query = (
+                query.join(User, Employee.user_id == User.id, isouter=True)
+                .filter(or_(
+                    Employee.employee_code.ilike(term),
+                    User.first_name.ilike(term),
+                    User.last_name.ilike(term),
+                    User.email.ilike(term),
+                    Employee.mobile.ilike(term),
+                ))
+            )
+        
+        pagination = query.order_by(Employee.employee_code.asc()).paginate(
+            page=page, per_page=25, error_out=False
         )
-    
-    pagination = query.order_by(Employee.employee_code.asc()).paginate(
-        page=page, per_page=25, error_out=False
-    )
-    
-    return render_template(
-        "admin/users.html",
-        title="User Management",
-        pagination=pagination,
-        employees=pagination.items,
-        search=search,
-    )
+        
+        return render_template(
+            "admin/users.html",
+            title="User Management",
+            pagination=pagination,
+            employees=pagination.items,
+            search=search,
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"USER_MANAGEMENT_ERROR: {str(e)}", exc_info=True)
+        # Return empty list on error instead of crashing
+        from flask import flash
+        flash(f"Error loading users: {str(e)}", "warning")
+        from app.extensions.database import db
+        class EmptyPagination:
+            items = []
+            pages = 1
+            page = 1
+            per_page = 25
+            total = 0
+        return render_template(
+            "admin/users.html",
+            title="User Management",
+            pagination=EmptyPagination(),
+            employees=[],
+            search="",
+        )
 
 
 @admin_bp.route("/audit-logs")
