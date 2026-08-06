@@ -135,6 +135,7 @@
     {% if pagination.pages > 1 %}
     <div class="card-footer bg-transparent">
         {% set url_params = {'q': search, 'dept': department, 'branch': branch} %}
+        {% set endpoint = 'employees.index' %}
         {% include 'shared/pagination.html' %}
     </div>
     {% endif %}

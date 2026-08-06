@@ -24,36 +24,42 @@ def index():
     import logging
     logger = logging.getLogger(__name__)
     
-    page = request.args.get("page", 1, type=int)
-    search = request.args.get("q", "")
-    
-    # For Employee Directory, HR users should always see all departments by default
-    # (no forced department filter, only URL-based filtering)
-    department = None
-    
-    # Get department param from URL
-    dept_param = request.args.get("dept", "").strip()
-    if dept_param and dept_param != "":
-        # Only filter if a specific department is selected
-        department = dept_param
-    
-    logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}")
-    
-    pagination = _repo.get_all(page=page, per_page=25, search=search, department=department)
-    departments = _repo.get_departments()
-    
-    logger.info(f"Pagination total: {pagination.total}, departments: {departments}")
-    
-    return render_template(
-        "employees/index.html",
-        title="Employees",
-        pagination=pagination,
-        employees=pagination.items,
-        search=search,
-        department=department,
-        departments=departments,
-        dept_locked=False,
-    )
+    try:
+        page = request.args.get("page", 1, type=int)
+        search = request.args.get("q", "")
+        
+        # For Employee Directory, HR users should always see all departments by default
+        # (no forced department filter, only URL-based filtering)
+        department = None
+        
+        # Get department param from URL
+        dept_param = request.args.get("dept", "").strip()
+        if dept_param and dept_param != "":
+            # Only filter if a specific department is selected
+            department = dept_param
+        
+        logger.info(f"Employee index: dept_param={repr(dept_param)}, department={repr(department)}")
+        
+        pagination = _repo.get_all(page=page, per_page=25, search=search, department=department)
+        departments = _repo.get_departments()
+        
+        logger.info(f"Pagination total: {pagination.total}, departments: {departments}")
+        
+        return render_template(
+            "employees/index.html",
+            title="Employees",
+            pagination=pagination,
+            employees=pagination.items,
+            search=search,
+            department=department,
+            departments=departments or [],  # Ensure it's always a list
+            dept_locked=False,
+            branch=None,  # Not used in filtering currently
+        )
+    except Exception as e:
+        logger.error(f"Employee index error: {e}", exc_info=True)
+        flash(f"Error loading employees: {str(e)}", "danger")
+        return redirect(url_for("dashboard.index"))
 
 
 @employees_bp.route("/create", methods=["GET", "POST"])

@@ -764,9 +764,14 @@ def shift_assignment_import():
     from .forms import ShiftImportForm
     from .shift_import import ShiftImportService
     from datetime import datetime
+    from app.models.employee import Employee
     
     form = ShiftImportForm()
     import_result = None
+    
+    # Get all available employee codes for reference
+    available_employees = Employee.query.filter_by(is_deleted=False).order_by(Employee.employee_code).all()
+    employee_codes = [(emp.employee_code, emp.name) for emp in available_employees]
     
     if form.validate_on_submit():
         try:
@@ -782,6 +787,9 @@ def shift_assignment_import():
             
             if import_result.get('success'):
                 flash(import_result.get('message', 'Import completed'), 'success')
+                # After successful import, redirect to shift assignment page to see updated data
+                # This ensures the page reloads with fresh data from the database
+                return redirect(url_for('admin.shift_assignment'))
             else:
                 flash(import_result.get('message', 'Import failed'), 'danger')
                 
@@ -795,7 +803,8 @@ def shift_assignment_import():
         'admin/shift_assignment_import.html',
         form=form,
         import_result=import_result,
-        today=today
+        today=today,
+        employee_codes=employee_codes
     )
 
 
