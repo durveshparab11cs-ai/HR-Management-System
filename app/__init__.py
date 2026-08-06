@@ -746,7 +746,8 @@ def _auto_create_tables(app: Flask) -> None:
             try:
                 insp = inspect(db.engine)
                 required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
-                existing_cols = [c['name'] for c in insp.get_columns('employees')]
+                emp_cols = insp.get_columns('employees')
+                existing_cols = [c.name for c in emp_cols]
                 
                 missing_cols = [col for col in required_cols if col not in existing_cols]
                 if missing_cols:
@@ -773,7 +774,8 @@ def _auto_create_tables(app: Flask) -> None:
                 
                 # Also check attendance_photos for checkout_image_data
                 try:
-                    photo_cols = [c['name'] for c in insp.get_columns('attendance_photos')]
+                    photo_cols_list = insp.get_columns('attendance_photos')
+                    photo_cols = [c.name for c in photo_cols_list]
                     if 'checkout_image_data' not in photo_cols:
                         app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
                         app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
