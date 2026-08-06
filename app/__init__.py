@@ -683,7 +683,7 @@ def _auto_create_tables(app: Flask) -> None:
             # STEP 1.5: Verify employee_hospital_assignments table exists (CRITICAL for hospital import)
             try:
                 insp = inspect(db.engine)
-                tables = [t['name'] for t in insp.get_table_names()]
+                tables = insp.get_table_names()
                 
                 if 'employee_hospital_assignments' not in tables:
                     app.logger.warning("⚠️  employee_hospital_assignments table missing, creating explicitly...")
