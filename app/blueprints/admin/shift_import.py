@@ -146,14 +146,7 @@ class ShiftImportService:
             
             if not employee:
                 not_found += 1
-                details.append({
-                    "emp_code": emp_code,
-                    "emp_name": "?",
-                    "shift_name": shift_input or "?",
-                    "hospital_name": hospital_input or "?",
-                    "status": "notfound",
-                    "reason": f"Employee code '{emp_code}' not found in system"
-                })
+                # Silently skip - don't add to details
                 logger.warning(f"Employee not found: {emp_code}")
                 continue
 
@@ -164,15 +157,6 @@ class ShiftImportService:
             if shift_input:
                 shift = self._match_shift(shift_input)
                 if not shift:
-                    not_found += 1
-                    details.append({
-                        "emp_code": emp_code,
-                        "emp_name": employee.name,
-                        "shift_name": shift_input,
-                        "hospital_name": hospital_input or "?",
-                        "status": "notfound",
-                        "reason": f"Shift '{shift_input}' not found"
-                    })
                     logger.warning(f"Shift not found: {shift_input}")
                     shift = None
 
@@ -255,15 +239,8 @@ class ShiftImportService:
 
             # Skip if nothing to assign
             if not shift and not hospital_name:
-                details.append({
-                    "emp_code": emp_code,
-                    "emp_name": employee.name,
-                    "shift_name": shift_input or "?",
-                    "hospital_name": hospital_input or "?",
-                    "status": "error",
-                    "reason": "No shift or hospital to assign"
-                })
-                error_count += 1
+                # DON'T count as error - just skip silently for not found employees
+                logger.info(f"[SKIP] {emp_code}: No shift or hospital to assign")
                 continue
 
             # Assign shift if provided
