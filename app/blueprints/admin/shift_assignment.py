@@ -4,6 +4,8 @@ admin/shift_assignment.py
 Bulk shift assignment for HR/Admin to assign shifts to employees.
 """
 
+import logging
+import traceback
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
@@ -200,7 +202,11 @@ def assign_shift_to_employee():
     shift_id = request.form.get('shift_id', type=int)
     effective_date = request.form.get('effective_date')
     
+    logger = logging.getLogger('admin')
+    logger.info(f"[ASSIGN_SHIFT] Attempting to assign shift {shift_id} to employee {employee_id}")
+    
     if not employee_id or not shift_id:
+        logger.error(f"[ASSIGN_SHIFT] Missing parameters: employee_id={employee_id}, shift_id={shift_id}")
         return jsonify({'success': False, 'message': 'Employee and Shift are required'}), 400
     
     try:
@@ -210,34 +216,53 @@ def assign_shift_to_employee():
         else:
             effective_date = date.today()
         
+        logger.info(f"[ASSIGN_SHIFT] Effective date: {effective_date}")
+        
         # Get employee and shift
         employee = Employee.query.get(employee_id)
         shift = Shift.query.get(shift_id)
         
         if not employee:
+            logger.error(f"[ASSIGN_SHIFT] Employee {employee_id} not found")
             return jsonify({'success': False, 'message': f'Employee #{employee_id} not found'}), 404
         if not shift:
+            logger.error(f"[ASSIGN_SHIFT] Shift {shift_id} not found")
             return jsonify({'success': False, 'message': f'Shift #{shift_id} not found'}), 404
         
-        # Check if employee already has an active assignment
+        logger.info(f"[ASSIGN_SHIFT] Found employee: {employee.name}, shift: {shift.name}")
+        
+        # Check if employee already has an ACTIVE assignment (using improved logic)
+        from sqlalchemy import or_
+        today = date.today()
+        
         current_assignment = EmployeeShiftAssignment.query.filter(
             EmployeeShiftAssignment.employee_id == employee_id,
-            EmployeeShiftAssignment.effective_until.is_(None)
-        ).first()
+            or_(
+                EmployeeShiftAssignment.effective_until.is_(None),
+                EmployeeShiftAssignment.effective_until >= today
+            )
+        ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
+        
+        logger.info(f"[ASSIGN_SHIFT] Current active assignment: {current_assignment}")
         
         # Close current assignment if exists and different shift
         if current_assignment:
+            logger.info(f"[ASSIGN_SHIFT] Found existing active assignment with shift {current_assignment.shift_id}")
+            
             if current_assignment.shift_id == shift_id:
+                logger.warning(f"[ASSIGN_SHIFT] Employee already assigned to same shift")
                 return jsonify({
                     'success': False,
                     'message': f'Employee already assigned to this shift'
                 }), 400
             
             # Close previous assignment
+            logger.info(f"[ASSIGN_SHIFT] Closing previous assignment, setting effective_until to {effective_date - timedelta(days=1)}")
             current_assignment.effective_until = effective_date - timedelta(days=1)
             db.session.add(current_assignment)
         
         # Create new assignment
+        logger.info(f"[ASSIGN_SHIFT] Creating new assignment")
         new_assignment = EmployeeShiftAssignment(
             employee_id=employee_id,
             shift_id=shift_id,
@@ -251,6 +276,8 @@ def assign_shift_to_employee():
         db.session.add(new_assignment)
         db.session.commit()
         
+        logger.info(f"[ASSIGN_SHIFT] SUCCESS: New assignment created with ID {new_assignment.id}")
+        
         return jsonify({
             'success': True,
             'message': f'✅ Shift assigned successfully',
@@ -259,6 +286,11 @@ def assign_shift_to_employee():
             'shift_timing': f"{shift.start_time.strftime('%I:%M %p')} - {shift.end_time.strftime('%I:%M %p')}"
         })
         
+    except Exception as exc:
+        logger.error(f"[ASSIGN_SHIFT] EXCEPTION: {type(exc).__name__}: {str(exc)}")
+        logger.error(f"[ASSIGN_SHIFT] Traceback: {traceback.format_exc()}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error: {str(exc)}'}), 500
     except Exception as e:
         db.session.rollback()
         import logging
