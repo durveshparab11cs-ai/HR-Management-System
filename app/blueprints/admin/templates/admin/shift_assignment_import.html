@@ -1,25 +1,43 @@
 {% extends 'layouts/base.html' %}
-{% block title %}Import Shift Assignments — {{ app_name }}{% endblock %}
+{% block title %}Import Shift & Hospital Assignments — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-6">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-upload"></i> Import Shift Assignments</h5>
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Import Shift & Hospital Assignments</h5>
             </div>
             <div class="card-body p-4">
-                <!-- Instructions -->
-                <div class="alert alert-info">
-                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Excel Format Requirements</h6>
-                    <p class="mb-2">Your Excel file must contain the following columns:</p>
-                    <ul class="mb-0">
-                        <li><strong>EMP-CODE</strong> - Employee code (must exist in database)</li>
-                        <li><strong>SHIFT</strong> - Shift name, code, or timing (e.g., "11:00 AM to 08:00 PM" or "SHIFT_1100_2000")</li>
-                    </ul>
+                
+                <!-- Sample Format -->
+                <div class="mb-4">
+                    <h6 class="fw-semibold mb-3">Sample Excel Format:</h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>EMP-CODE</th>
+                                <th>HOSPITAL NAME</th>
+                                <th>SHIFT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>E-2512012</td>
+                                <td>AIIMS Hospital (Gorakhpur)</td>
+                                <td>10:00 AM to 06:00 PM</td>
+                            </tr>
+                            <tr>
+                                <td>E-2603025</td>
+                                <td>Akurdi Hospital</td>
+                                <td>12:00 PM to 09:00 PM</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
                 
-                <form method="POST" enctype="multipart/form-data" id="shiftImportForm">
+                <!-- Upload Form -->
+                <form method="POST" enctype="multipart/form-data">
                     {{ form.csrf_token }}
                     
                     <div class="mb-3">
@@ -31,241 +49,82 @@
                         <small class="text-muted">Allowed formats: .xlsx, .xls</small>
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label fw-semibold">Effective From Date</label>
                         <input type="date" name="effective_date" class="form-control" value="{{ today }}" required>
-                        <small class="text-muted">All shifts will be assigned from this date</small>
                     </div>
-                    
-                    <!-- Examples -->
-                    <div class="card bg-light mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Shift Input Examples:</h6>
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Input Format</th>
-                                        <th>Match Type</th>
-                                        <th>Example</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><code>Exact Shift Name</code></td>
-                                        <td>Direct match</td>
-                                        <td><code>11:00 AM to 08:00 PM</code></td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>Shift Code</code></td>
-                                        <td>Direct match</td>
-                                        <td><code>SHIFT_1100_2000</code></td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>Partial Match</code></td>
-                                        <td>Search name</td>
-                                        <td><code>11:00 to 8:00</code></td>
-                                    </tr>
-                                    <tr>
-                                        <td><code>Time Range</code></td>
-                                        <td>Parse times</td>
-                                        <td><code>11:00 AM to 8:00 PM</code></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <p class="text-muted small mt-2 mb-0">
-                                ℹ️ System tries to match in order: exact name → exact code → partial name → time range. 
-                                Use shift names from the dropdown for best results.
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Sample Format -->
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> <strong>Sample Excel Format:</strong>
-                        <table class="table table-sm table-bordered mt-2 mb-0">
-                            <thead>
-                                <tr>
-                                    <th>EMP-CODE</th>
-                                    <th>SHIFT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>EMP001</td>
-                                    <td>11:00 AM to 08:00 PM</td>
-                                </tr>
-                                <tr>
-                                    <td>EMP002</td>
-                                    <td>SHIFT_0800_1700</td>
-                                </tr>
-                                <tr>
-                                    <td>EMP003</td>
-                                    <td>09:00 AM to 06:00 PM</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-lightbulb"></i> <strong>Tips:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>All employees must exist in the system (matched by EMP-CODE)</li>
-                            <li>Previous shift assignments will be closed and replaced</li>
-                            <li>If shift is not found, the row will be skipped with details</li>
-                            <li>Duplicates and already-assigned shifts will be skipped</li>
-                            <li>Download the "Export" list from Shift Assignment page to get current employee codes</li>
-                        </ul>
-                    </div>
-                    
-                    <hr class="my-4">
                     
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-upload"></i> Import Shifts
+                            <i class="bi bi-upload"></i> Import
                         </button>
                         <a href="{{ url_for('admin.shift_assignment') }}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Back to Shift Assignment
+                            Back
                         </a>
                     </div>
                 </form>
             </div>
         </div>
         
-        <!-- Process Overview -->
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><i class="bi bi-diagram-3"></i> Import Process</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col">
-                        <div class="badge bg-primary rounded-circle p-3 mb-2">1</div>
-                        <p class="small mb-0">Read Excel</p>
-                    </div>
-                    <div class="col">
-                        <div class="badge bg-primary rounded-circle p-3 mb-2">2</div>
-                        <p class="small mb-0">Validate Format</p>
-                    </div>
-                    <div class="col">
-                        <div class="badge bg-primary rounded-circle p-3 mb-2">3</div>
-                        <p class="small mb-0">Match Employees</p>
-                    </div>
-                    <div class="col">
-                        <div class="badge bg-primary rounded-circle p-3 mb-2">4</div>
-                        <p class="small mb-0">Match Shifts</p>
-                    </div>
-                    <div class="col">
-                        <div class="badge bg-success rounded-circle p-3 mb-2">5</div>
-                        <p class="small mb-0">Update Database</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Import Results (shown after submit) -->
+        <!-- Results -->
         {% if import_result %}
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-header {% if import_result.success %}bg-success{% else %}bg-danger{% endif %} text-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-{% if import_result.success %}check-circle{% else %}exclamation-circle{% endif %}"></i>
-                    Import Results
-                </h6>
+                <h6 class="mb-0">{{ import_result.message }}</h6>
             </div>
             <div class="card-body">
-                <p class="mb-3"><strong>{{ import_result.message }}</strong></p>
-                
                 {% if import_result.success %}
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <div class="p-3 bg-success bg-opacity-10 rounded">
-                            <p class="text-success fw-bold mb-0">✅ {{ import_result.assigned or 0 }}</p>
-                            <small class="text-muted">Assigned</small>
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <div class="p-2 bg-light rounded text-center">
+                            <h6 class="mb-0">{{ import_result.assigned or 0 }}</h6>
+                            <small>Shifts</small>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-warning bg-opacity-10 rounded">
-                            <p class="text-warning fw-bold mb-0">⊘ {{ import_result.skipped or 0 }}</p>
-                            <small class="text-muted">Skipped</small>
+                    <div class="col-4">
+                        <div class="p-2 bg-light rounded text-center">
+                            <h6 class="mb-0">{{ import_result.hospitals_assigned or 0 }}</h6>
+                            <small>Hospitals</small>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-info bg-opacity-10 rounded">
-                            <p class="text-info fw-bold mb-0">❌ {{ import_result.notfound or 0 }}</p>
-                            <small class="text-muted">Not Found</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-danger bg-opacity-10 rounded">
-                            <p class="text-danger fw-bold mb-0">⚠ {{ import_result.errors or 0 }}</p>
-                            <small class="text-muted">Errors</small>
+                    <div class="col-4">
+                        <div class="p-2 bg-light rounded text-center">
+                            <h6 class="mb-0">{{ import_result.notfound or 0 }}</h6>
+                            <small>Not Found</small>
                         </div>
                     </div>
                 </div>
                 {% endif %}
                 
-                <!-- Detailed Results -->
-                {% if import_result.details and import_result.details|length > 0 %}
-                <div class="mt-3">
-                    <h6 class="fw-semibold">Detailed Results:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Shift</th>
-                                    <th>Status</th>
-                                    <th>Reason</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for detail in import_result.details %}
-                                <tr>
-                                    <td><code>{{ detail.emp_code }}</code></td>
-                                    <td>{{ detail.emp_name }}</td>
-                                    <td>{{ detail.shift_name }}</td>
-                                    <td>
-                                        {% if detail.status == 'assigned' %}
-                                        <span class="badge bg-success">✅ Assigned</span>
-                                        {% elif detail.status == 'skipped' %}
-                                        <span class="badge bg-warning">⊘ Skipped</span>
-                                        {% elif detail.status == 'notfound' %}
-                                        <span class="badge bg-info">❌ Not Found</span>
-                                        {% elif detail.status == 'error' %}
-                                        <span class="badge bg-danger">⚠ Error</span>
-                                        {% endif %}
-                                    </td>
-                                    <td><small class="text-muted">{{ detail.reason }}</small></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                {% if import_result.details %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detail in import_result.details %}
+                            <tr>
+                                <td>{{ detail.emp_code }}</td>
+                                <td>
+                                    {% if detail.status == 'assigned' %}
+                                    <span class="badge bg-success">OK</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ detail.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
                 {% endif %}
-                
-                <hr class="my-3">
-                
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('admin.shift_assignment_import') }}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-upload"></i> Import More
-                    </a>
-                    <a href="{{ url_for('admin.shift_assignment') }}" class="btn btn-secondary btn-sm">
-                        <i class="bi bi-arrow-left"></i> Back to Shift Assignment
-                    </a>
-                </div>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
-
-<style>
-    code {
-        background-color: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.85rem;
-    }
-</style>
 {% endblock %}
