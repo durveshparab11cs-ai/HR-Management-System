@@ -171,9 +171,13 @@ def assign_shifts_bulk():
                     .order_by(EmployeeHospitalAssignment.effective_from.desc())
                     .first()
                 )
-                employee_hospitals[emp.id] = assignment.hospital_name if assignment else None
+                hospital_name = assignment.hospital_name if assignment else None
+                employee_hospitals[emp.id] = hospital_name
+                
+                if hospital_name:
+                    logger.info(f"[HOSPITAL_DISPLAY] Emp {emp.employee_code} (ID={emp.id}): {hospital_name}")
             except Exception as e:
-                logger.warning(f"Hospital assignment query failed for emp {emp.id}: {e}")
+                logger.warning(f"Hospital assignment query failed for emp {emp.id}: {e}", exc_info=True)
                 employee_hospitals[emp.id] = None
         
         return render_template(
