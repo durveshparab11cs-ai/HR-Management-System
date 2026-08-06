@@ -110,7 +110,7 @@ class ShiftImportService:
         details    = []
 
         for row in rows:
-            emp_code = (row.get("EMP-CODE") or "").strip().upper()
+            emp_code = (row.get("EMP-CODE") or "").strip()  # Don't force uppercase
             shift_input = (row.get("SHIFT") or "").strip()
 
             if not emp_code or not shift_input:
@@ -124,8 +124,15 @@ class ShiftImportService:
                 })
                 continue
 
-            # Find employee by code
+            # Find employee by code - try both exact and case-insensitive match
             employee = Employee.query.filter_by(employee_code=emp_code).first()
+            
+            # If not found, try case-insensitive match
+            if not employee:
+                employee = Employee.query.filter(
+                    Employee.employee_code.ilike(emp_code)
+                ).first()
+            
             if not employee:
                 not_found += 1
                 details.append({
@@ -135,6 +142,7 @@ class ShiftImportService:
                     "status": "notfound",
                     "reason": f"Employee code '{emp_code}' not found in system"
                 })
+                logger.warning(f"Employee not found: {emp_code}")
                 continue
 
             # Find shift - try multiple match strategies
