@@ -754,6 +754,51 @@ def assign_hospital():
     return assign_hospital_to_employee()
 
 
+# ── Shift Import Routes ───────────────────────────────────────────
+
+@admin_bp.route("/shift-assignment/import", methods=["GET", "POST"])
+@login_required
+@roles_required(UserRole.SUPER_ADMIN, UserRole.HR_MANAGER, UserRole.ADMIN)
+def shift_assignment_import():
+    """Import shift assignments from Excel file."""
+    from .forms import ShiftImportForm
+    from .shift_import import ShiftImportService
+    from datetime import datetime
+    
+    form = ShiftImportForm()
+    import_result = None
+    
+    if form.validate_on_submit():
+        try:
+            file = form.file.data
+            effective_date = request.form.get('effective_date')
+            
+            service = ShiftImportService()
+            import_result = service.import_from_file(
+                file=file,
+                effective_date=effective_date,
+                assigned_by_user_id=current_user.id
+            )
+            
+            if import_result.get('success'):
+                flash(import_result.get('message', 'Import completed'), 'success')
+            else:
+                flash(import_result.get('message', 'Import failed'), 'danger')
+                
+        except Exception as e:
+            import logging
+            logging.getLogger('admin').error(f"Shift import error: {str(e)}")
+            flash(f'Error during import: {str(e)}', 'danger')
+    
+    today = date.today().isoformat()
+    return render_template(
+        'admin/shift_assignment_import.html',
+        form=form,
+        import_result=import_result,
+        today=today
+    )
+
+
 @admin_bp.route("/shifts/reseed", methods=["POST"])
 @login_required
 @roles_required(UserRole.SUPER_ADMIN)

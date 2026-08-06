@@ -5,6 +5,7 @@ Admin panel forms.
 """
 
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
 from wtforms import (
     BooleanField, FloatField, IntegerField, StringField, TextAreaField, TimeField
 )
@@ -38,3 +39,13 @@ class OfficeSettingsForm(FlaskForm):
     ])
     allow_remote_checkin = BooleanField("Allow Remote Check-In (bypass geofence)")
     selfie_required = BooleanField("Require Selfie on Check-In (future)")
+
+
+class ShiftImportForm(FlaskForm):
+    file = FileField(
+        "Excel File",
+        validators=[
+            DataRequired(),
+            FileAllowed(['xlsx', 'xls'], 'Excel files only')
+        ]
+    )
