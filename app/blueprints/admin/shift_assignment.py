@@ -248,13 +248,13 @@ def assign_shift_to_employee():
 def assign_shifts_bulk_submit():
     """Bulk assign shifts to multiple employees at once."""
     
-    assignments = request.json.get('assignments', [])
-    effective_date = request.json.get('effective_date')
-    
-    if not assignments:
-        return jsonify({'success': False, 'message': 'No assignments provided'}), 400
-    
     try:
+        assignments = request.json.get('assignments', [])
+        effective_date = request.json.get('effective_date')
+        
+        if not assignments:
+            return jsonify({'success': False, 'message': 'No assignments provided'}), 400
+        
         # Parse date
         if effective_date:
             effective_date = datetime.strptime(effective_date, '%Y-%m-%d').date()
@@ -266,13 +266,13 @@ def assign_shifts_bulk_submit():
         errors = []
         
         for assignment in assignments:
-            employee_id = assignment.get('employee_id')
-            shift_id = assignment.get('shift_id')
-            
-            if not employee_id or not shift_id:
-                continue
-            
             try:
+                employee_id = assignment.get('employee_id')
+                shift_id = assignment.get('shift_id')
+                
+                if not employee_id or not shift_id:
+                    continue
+                
                 employee = Employee.query.get(employee_id)
                 shift = Shift.query.get(shift_id)
                 
@@ -311,11 +311,22 @@ def assign_shifts_bulk_submit():
                 success_count += 1
                 
             except Exception as e:
+                import logging
+                logging.error(f"Error assigning shift to employee {employee_id}: {str(e)}", exc_info=True)
                 errors.append(f"Error for employee {employee_id}: {str(e)}")
                 error_count += 1
         
         # Commit all changes
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.error(f"Shift assignment commit failed: {str(e)}", exc_info=True)
+            return jsonify({
+                'success': False, 
+                'message': f'Failed to save assignments: {str(e)}'
+            }), 500
         
         message = f"✅ Successfully assigned shifts to {success_count} employees"
         if error_count > 0:
@@ -331,7 +342,9 @@ def assign_shifts_bulk_submit():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        import logging
+        logging.error(f"Shift bulk assignment error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
 
 def remove_shift_assignment():
