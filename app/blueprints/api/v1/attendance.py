@@ -298,34 +298,39 @@ def upload_checkin_photo():
             }
         }
     """
-    user = g.current_user
-    employee = _emp.get_by_user_id(user.id)
-    
-    if not employee:
-        return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
-    
-    file = request.files.get("photo")
-    if not file:
-        return validation_error_response({"photo": "Photo file is required"})
-    
-    ok, message, photo = _svc.upload_photo(employee, file)
-    
-    if not ok:
-        return error_response(message=message, code="PHOTO_UPLOAD_FAILED")
-    
-    today = date.today()
-    attendance_today = _att.get_today(employee.id, today)
-    
-    return success_response(
-        data={
-            "has_photo": True,
-            "can_check_in": bool(
-                attendance_today and
-                not attendance_today.check_in_time
-            ),
-        },
-        message=message
-    )
+    try:
+        user = g.current_user
+        employee = _emp.get_by_user_id(user.id)
+        
+        if not employee:
+            return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
+        
+        file = request.files.get("photo")
+        if not file:
+            return validation_error_response({"photo": "Photo file is required"})
+        
+        ok, message, photo = _svc.upload_photo(employee, file)
+        
+        if not ok:
+            return error_response(message=message, code="PHOTO_UPLOAD_FAILED")
+        
+        today = date.today()
+        attendance_today = _att.get_today(employee.id, today)
+        
+        return success_response(
+            data={
+                "has_photo": True,
+                "can_check_in": bool(
+                    attendance_today and
+                    not attendance_today.check_in_time
+                ),
+            },
+            message=message
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"PHOTO_UPLOAD_ERROR: {str(e)}", exc_info=True)
+        return error_response(message=f"Server error: {str(e)}", code="SERVER_ERROR", status_code=500)
 
 
 # ── Upload Check-out Photo ───────────────────────────────────────────
@@ -339,35 +344,40 @@ def upload_checkout_photo():
     
     Accepts multipart/form-data with 'photo' field.
     """
-    user = g.current_user
-    employee = _emp.get_by_user_id(user.id)
-    
-    if not employee:
-        return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
-    
-    file = request.files.get("photo")
-    if not file:
-        return validation_error_response({"photo": "Photo file is required"})
-    
-    ok, message, photo = _svc.upload_checkout_photo(employee, file)
-    
-    if not ok:
-        return error_response(message=message, code="PHOTO_UPLOAD_FAILED")
-    
-    today = date.today()
-    attendance_today = _att.get_today(employee.id, today)
-    
-    return success_response(
-        data={
-            "has_photo": True,
-            "can_check_out": bool(
-                attendance_today and
-                attendance_today.check_in_time and
-                not attendance_today.check_out_time
-            ),
-        },
-        message=message
-    )
+    try:
+        user = g.current_user
+        employee = _emp.get_by_user_id(user.id)
+        
+        if not employee:
+            return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
+        
+        file = request.files.get("photo")
+        if not file:
+            return validation_error_response({"photo": "Photo file is required"})
+        
+        ok, message, photo = _svc.upload_checkout_photo(employee, file)
+        
+        if not ok:
+            return error_response(message=message, code="PHOTO_UPLOAD_FAILED")
+        
+        today = date.today()
+        attendance_today = _att.get_today(employee.id, today)
+        
+        return success_response(
+            data={
+                "has_photo": True,
+                "can_check_out": bool(
+                    attendance_today and
+                    attendance_today.check_in_time and
+                    not attendance_today.check_out_time
+                ),
+            },
+            message=message
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"CHECKOUT_PHOTO_UPLOAD_ERROR: {str(e)}", exc_info=True)
+        return error_response(message=f"Server error: {str(e)}", code="SERVER_ERROR", status_code=500)
 
 
 # ── Attendance History ───────────────────────────────────────────────
