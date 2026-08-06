@@ -251,40 +251,48 @@ class ShiftImportService:
         if not shift_input:
             return None
 
-        shift_input = shift_input.strip().upper()
+        original_input = shift_input
+        shift_input_upper = shift_input.strip().upper()
+
+        logger.info(f"[SHIFT_MATCH] Looking for shift: '{original_input}'")
 
         # Strategy 1: Exact match by name (case-insensitive)
         shift = Shift.query.filter(
-            Shift.name.ilike(shift_input),
+            Shift.name.ilike(shift_input_upper),
             Shift.is_active == True,
             Shift.is_deleted == False
         ).first()
         if shift:
+            logger.info(f"[SHIFT_MATCH] Strategy 1 (exact name): FOUND - {shift.name} (ID: {shift.id})")
             return shift
 
         # Strategy 2: Exact match by code (case-insensitive)
         shift = Shift.query.filter(
-            Shift.code.ilike(shift_input),
+            Shift.code.ilike(shift_input_upper),
             Shift.is_active == True,
             Shift.is_deleted == False
         ).first()
         if shift:
+            logger.info(f"[SHIFT_MATCH] Strategy 2 (exact code): FOUND - {shift.name} (ID: {shift.id})")
             return shift
 
-        # Strategy 3: Partial match by name (contains)
+        # Strategy 3: Partial match by name (contains) - case insensitive
         shift = Shift.query.filter(
-            Shift.name.ilike(f"%{shift_input}%"),
+            Shift.name.ilike(f"%{shift_input_upper}%"),
             Shift.is_active == True,
             Shift.is_deleted == False
         ).first()
         if shift:
+            logger.info(f"[SHIFT_MATCH] Strategy 3 (partial name): FOUND - {shift.name} (ID: {shift.id})")
             return shift
 
         # Strategy 4: Try to match time range pattern (e.g., "11:00 AM to 08:00 PM")
         shift = self._match_by_time_range(shift_input)
         if shift:
+            logger.info(f"[SHIFT_MATCH] Strategy 4 (time range): FOUND - {shift.name} (ID: {shift.id})")
             return shift
 
+        logger.warning(f"[SHIFT_MATCH] NO MATCH FOUND for: '{original_input}'")
         return None
 
     def _match_by_time_range(self, shift_input: str) -> Optional:
@@ -293,10 +301,16 @@ class ShiftImportService:
         E.g., "11:00 AM to 08:00 PM" → find shift with matching start/end times
         """
         try:
-            # Try to parse format: "HH:MM AM to HH:MM PM"
+            # Try to parse format: "HH:MM AM to HH:MM PM" (with flexible spacing)
             import re
-            match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)\s*to\s*(\d{1,2}):(\d{2})\s*(AM|PM)', shift_input, re.IGNORECASE)
+            # More flexible pattern: handles "12:00 PM to 09:00 PM" or "12:00PM to 09:00PM"
+            match = re.search(
+                r'(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)\s*to\s*(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)',
+                shift_input,
+                re.IGNORECASE
+            )
             if not match:
+                logger.debug(f"No time range pattern found in: {shift_input}")
                 return None
 
             start_h, start_m, start_period, end_h, end_m, end_period = match.groups()
@@ -320,16 +334,24 @@ class ShiftImportService:
             start_time = dt_time(start_h, start_m)
             end_time = dt_time(end_h, end_m)
 
+            logger.debug(f"Parsed time range: {start_time} to {end_time}")
+
             shift = Shift.query.filter(
                 Shift.start_time == start_time,
                 Shift.end_time == end_time,
                 Shift.is_active == True,
                 Shift.is_deleted == False
             ).first()
+            
+            if shift:
+                logger.info(f"Matched shift by time range: {shift.name} (ID: {shift.id})")
+            else:
+                logger.warning(f"No shift found for time range {start_time} to {end_time}")
+            
             return shift
 
         except Exception as e:
-            logger.debug(f"Time range matching failed for '{shift_input}': {e}")
+            logger.warning(f"Time range matching failed for '{shift_input}': {e}")
             return None
 
     def _parse_sheet(self, ws) -> Tuple[List[str], List[Dict], List[str]]:

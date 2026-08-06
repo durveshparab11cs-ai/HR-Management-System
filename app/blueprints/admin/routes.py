@@ -782,6 +782,9 @@ def shift_assignment_import():
             
             if import_result.get('success'):
                 flash(import_result.get('message', 'Import completed'), 'success')
+                # After successful import, redirect to shift assignment page to see updated data
+                # This ensures the page reloads with fresh data from the database
+                return redirect(url_for('admin.shift_assignment'))
             else:
                 flash(import_result.get('message', 'Import failed'), 'danger')
                 
