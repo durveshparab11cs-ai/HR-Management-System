@@ -210,6 +210,9 @@ class ShiftImportService:
                                 'SHANTILAL SANGHAVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
                                 'SHANTILAL SHANGHVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
                                 'Shantilol Shanghvi Eye Hospital': 'Shantitol Shanghvi Eye Hospital',
+                                'WALAWALKAR': 'Walawatkar Hospital',
+                                'WALAWALKER': 'Walawatkar Hospital',
+                                'WALAWATKAR': 'Walawatkar Hospital',
                             }
                             
                             normalized_input = hospital_normalized.upper()
