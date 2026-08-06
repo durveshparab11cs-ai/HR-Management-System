@@ -184,28 +184,50 @@ async function assignShiftToEmployee(employeeId, shiftId) {
     formData.append('employee_id', employeeId);
     formData.append('shift_id', shiftId);
     
-    // Add CSRF token
+    // Add CSRF token to FormData
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     if (csrfToken) {
         formData.append('csrf_token', csrfToken);
     }
     
+    console.log('[SHIFT_ASSIGN]', 'Sending request to', '{{ url_for("admin.assign_single_shift") }}');
+    console.log('[SHIFT_ASSIGN]', 'Emp ID:', employeeId, 'Shift ID:', shiftId, 'CSRF Token:', csrfToken?.substring(0, 10) + '...');
+    
     try {
         const response = await fetch('{{ url_for("admin.assign_single_shift") }}', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken || ''
+            }
         });
         
-        const data = await response.json();
+        console.log('[SHIFT_ASSIGN]', 'Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
+        
+        const text = await response.text();
+        console.log('[SHIFT_ASSIGN]', 'Response text:', text.substring(0, 200));
+        
+        // Try to parse as JSON
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('[SHIFT_ASSIGN]', 'Failed to parse response as JSON:', e.message);
+            console.error('[SHIFT_ASSIGN]', 'Full response:', text);
+            showToast('Error: Server returned invalid response (not JSON)', 'danger');
+            return;
+        }
         
         if (data.success) {
             showToast(data.message || 'Shift assigned successfully', 'success');
+            // Reload page to reflect changes
+            setTimeout(() => location.reload(), 1500);
         } else {
             showToast(data.message || 'Error assigning shift', 'danger');
         }
     } catch (error) {
         showToast('Error assigning shift: ' + error.message, 'danger');
-        console.error(error);
+        console.error('[SHIFT_ASSIGN]', 'Exception:', error);
     }
 }
 
@@ -217,28 +239,49 @@ async function assignHospitalToEmployee(employeeId, hospitalName) {
     formData.append('employee_id', employeeId);
     formData.append('hospital_name', hospitalName);
     
-    // Add CSRF token
+    // Add CSRF token to FormData
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     if (csrfToken) {
         formData.append('csrf_token', csrfToken);
     }
     
+    console.log('[HOSPITAL_ASSIGN]', 'Sending request to', '{{ url_for("admin.assign_hospital") }}');
+    console.log('[HOSPITAL_ASSIGN]', 'Emp ID:', employeeId, 'Hospital:', hospitalName);
+    
     try {
         const response = await fetch('{{ url_for("admin.assign_hospital") }}', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken || ''
+            }
         });
         
-        const data = await response.json();
+        console.log('[HOSPITAL_ASSIGN]', 'Response status:', response.status);
+        
+        const text = await response.text();
+        console.log('[HOSPITAL_ASSIGN]', 'Response text:', text.substring(0, 200));
+        
+        // Try to parse as JSON
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('[HOSPITAL_ASSIGN]', 'Failed to parse response as JSON');
+            showToast('Error: Server returned invalid response', 'danger');
+            return;
+        }
         
         if (data.success) {
             showToast(data.message || 'Hospital assigned successfully', 'success');
+            // Reload to reflect changes
+            setTimeout(() => location.reload(), 1500);
         } else {
             showToast(data.message || 'Error assigning hospital', 'danger');
         }
     } catch (error) {
         showToast('Error assigning hospital: ' + error.message, 'danger');
-        console.error(error);
+        console.error('[HOSPITAL_ASSIGN]', 'Exception:', error);
     }
 }
 
