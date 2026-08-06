@@ -437,6 +437,8 @@ def capture_selfie():
     }
     
     Returns: {success, photo_id, has_photo, has_checkout_photo}
+    
+    ALWAYS returns JSON, never HTML errors.
     """
     from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
     from app.extensions.database import db  # noqa: PLC0415
@@ -445,6 +447,14 @@ def capture_selfie():
     logger.info("User ID: %s", current_user.id)
     
     try:
+        # Ensure we always return JSON, never HTML
+        response_headers = {'Content-Type': 'application/json'}
+        
+        # Check authentication first
+        if not current_user or not current_user.is_authenticated:
+            logger.error("CAPTURE SELFIE FAILED: User not authenticated")
+            return jsonify(success=False, message="Authentication required. Please log in again."), 401
+        
         employee = _emp_repo.get_by_user_id(current_user.id)
         if not employee:
             logger.error("CAPTURE SELFIE FAILED: Employee not found")
@@ -452,8 +462,13 @@ def capture_selfie():
         
         logger.info("Employee ID: %s", employee.id)
         
-        # Get JSON payload
-        data = request.get_json() or {}
+        # Get JSON payload with safe parsing
+        try:
+            data = request.get_json(silent=True) or {}
+        except Exception as json_err:
+            logger.error("CAPTURE SELFIE FAILED: JSON parsing error: %s", str(json_err))
+            return jsonify(success=False, message="Invalid JSON format."), 400
+        
         selfie_base64 = data.get("selfie", "").strip()
         capture_type = data.get("type", "checkin").lower()
         
@@ -539,7 +554,10 @@ def capture_selfie():
         logger.error("Traceback:\n%s", traceback.format_exc())
         logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
         
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception as rollback_err:
+            logger.error("Rollback failed: %s", str(rollback_err))
         
         return jsonify(
             success=False,

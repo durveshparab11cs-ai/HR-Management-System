@@ -368,6 +368,8 @@ class CameraManager {
     try {
       const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
       
+      console.log('[UPLOAD] CSRF token present:', !!csrf);
+      
       // Use /capture-selfie endpoint which handles base64 JSON
       const res = await fetch('/attendance/capture-selfie', {
         method: 'POST',
@@ -379,7 +381,29 @@ class CameraManager {
       });
       
       console.log('[UPLOAD] Response status:', res.status);
-      const d = await res.json();
+      console.log('[UPLOAD] Response content-type:', res.headers.get('content-type'));
+      
+      // Check if response is actually JSON
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.error('[UPLOAD] INVALID RESPONSE TYPE: Expected JSON but got', contentType);
+        const text = await res.text();
+        console.error('[UPLOAD] Response body (first 500 chars):', text.substring(0, 500));
+        alert('❌ Server error (invalid response type). Check console.');
+        return;
+      }
+      
+      let d;
+      try {
+        d = await res.json();
+      } catch (parseErr) {
+        console.error('[UPLOAD] JSON PARSE ERROR:', parseErr.message);
+        const text = await res.text();
+        console.error('[UPLOAD] Response body:', text.substring(0, 200));
+        alert('❌ Invalid response from server. Please try again.');
+        return;
+      }
+      
       console.log('[UPLOAD] Response data:', d);
       
       if (!res.ok || !d.success) {
@@ -438,7 +462,8 @@ class CameraManager {
         alert('✅ Check-in photo uploaded!');
       }
     } catch (e) {
-      console.error('[UPLOAD] Error:', e.message);
+      console.error('[UPLOAD] ERROR:', e.message);
+      console.error('[UPLOAD] Stack:', e.stack);
       alert('❌ Upload: ' + e.message);
     }
   }
