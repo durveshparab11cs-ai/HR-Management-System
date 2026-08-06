@@ -233,7 +233,31 @@ def office_settings():
 def users():
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "")
-    pagination = _emp.get_all(page=page, per_page=25, search=search)
+    # For admin user management, we need to bypass department filtering
+    # Query directly without department constraint
+    from app.models.employee import Employee
+    from sqlalchemy import or_
+    
+    query = Employee.query.filter(Employee.is_deleted == False)
+    
+    if search:
+        term = f"%{search}%"
+        from app.models.user import User
+        query = (
+            query.join(User, Employee.user_id == User.id, isouter=True)
+            .filter(or_(
+                Employee.employee_code.ilike(term),
+                User.first_name.ilike(term),
+                User.last_name.ilike(term),
+                User.email.ilike(term),
+                Employee.mobile.ilike(term),
+            ))
+        )
+    
+    pagination = query.order_by(Employee.employee_code.asc()).paginate(
+        page=page, per_page=25, error_out=False
+    )
+    
     return render_template(
         "admin/users.html",
         title="User Management",
