@@ -184,6 +184,12 @@ async function assignShiftToEmployee(employeeId, shiftId) {
     formData.append('employee_id', employeeId);
     formData.append('shift_id', shiftId);
     
+    // Add CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        formData.append('csrf_token', csrfToken);
+    }
+    
     try {
         const response = await fetch('{{ url_for("admin.assign_single_shift") }}', {
             method: 'POST',
@@ -211,6 +217,12 @@ async function assignHospitalToEmployee(employeeId, hospitalName) {
     formData.append('employee_id', employeeId);
     formData.append('hospital_name', hospitalName);
     
+    // Add CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        formData.append('csrf_token', csrfToken);
+    }
+    
     try {
         const response = await fetch('{{ url_for("admin.assign_hospital") }}', {
             method: 'POST',
@@ -236,6 +248,12 @@ async function removeShiftFromEmployee(employeeId) {
     
     const formData = new FormData();
     formData.append('employee_id', employeeId);
+    
+    // Add CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (csrfToken) {
+        formData.append('csrf_token', csrfToken);
+    }
     
     try {
         const response = await fetch('{{ url_for("admin.remove_shift") }}', {
