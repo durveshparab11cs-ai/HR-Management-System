@@ -144,10 +144,61 @@ class ShiftImportService:
                     Employee.employee_code.ilike(emp_code)
                 ).first()
             
+            # AUTO-CREATE EMPLOYEE IF NOT FOUND
+            if not employee:
+                try:
+                    logger.info(f"[AUTO_CREATE_EMPLOYEE] Creating employee: {emp_code}")
+                    
+                    # Get or create a stub user for this employee
+                    from app.models.user import User
+                    from werkzeug.security import generate_password_hash
+                    
+                    user = User.query.filter_by(username=emp_code.lower()).first()
+                    if not user:
+                        # Split employee code to create name parts
+                        parts = emp_code.split('-')
+                        first_name = parts[0] if parts else "Employee"
+                        last_name = emp_code
+                        
+                        user = User(
+                            username=emp_code.lower(),
+                            email=f"{emp_code.lower()}@company.local",
+                            first_name=first_name,
+                            last_name=last_name,
+                            password_hash=generate_password_hash("temp_password"),
+                            role='employee',
+                            status='active'
+                        )
+                        db.session.add(user)
+                        db.session.flush()
+                    
+                    # Create Employee record
+                    employee = Employee(
+                        user_id=user.id,
+                        employee_code=emp_code,
+                        department="General",
+                        designation="Staff"
+                    )
+                    db.session.add(employee)
+                    db.session.flush()
+                    logger.info(f"[AUTO_CREATE_EMPLOYEE] Created employee: {emp_code} (user_id={user.id})")
+                    
+                except Exception as exc:
+                    logger.error(f"[AUTO_CREATE_EMPLOYEE] Failed to create employee {emp_code}: {str(exc)}")
+                    error_count += 1
+                    details.append({
+                        "emp_code": emp_code,
+                        "emp_name": "?",
+                        "shift_name": shift_input or "?",
+                        "hospital_name": hospital_input or "?",
+                        "status": "error",
+                        "reason": f"Could not create employee: {str(exc)}"
+                    })
+                    continue
+            
             if not employee:
                 not_found += 1
-                # Silently skip - don't add to details
-                logger.warning(f"Employee not found: {emp_code}")
+                logger.warning(f"Employee not found and could not be created: {emp_code}")
                 continue
 
             shift = None
