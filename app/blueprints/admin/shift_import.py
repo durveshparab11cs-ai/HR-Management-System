@@ -180,9 +180,12 @@ class ShiftImportService:
             if hospital_input:
                 logger.info(f"[HOSPITAL_LOOKUP] Looking for: '{hospital_input}'")
                 
+                # Normalize hospital name for comparison
+                hospital_normalized = hospital_input.strip()
+                
                 # Try exact match first (case-insensitive)
                 hospital = Hospital.query.filter(
-                    Hospital.hospital_name.ilike(hospital_input),
+                    Hospital.hospital_name.ilike(hospital_normalized),
                     Hospital.is_active == True,
                     Hospital.is_deleted == False
                 ).first()
@@ -193,7 +196,7 @@ class ShiftImportService:
                 else:
                     # If exact match fails, try partial match (contains)
                     hospital = Hospital.query.filter(
-                        Hospital.hospital_name.ilike(f"%{hospital_input}%"),
+                        Hospital.hospital_name.ilike(f"%{hospital_normalized}%"),
                         Hospital.is_active == True,
                         Hospital.is_deleted == False
                     ).first()
@@ -207,7 +210,7 @@ class ShiftImportService:
                             Hospital.is_active == True,
                             Hospital.is_deleted == False
                         ).all()
-                        keywords = [k.strip().lower() for k in hospital_input.split() if k.strip()]
+                        keywords = [k.strip().lower() for k in hospital_normalized.split() if k.strip()]
                         
                         for h in all_hospitals:
                             if all(kw in h.hospital_name.lower() for kw in keywords):
@@ -216,8 +219,27 @@ class ShiftImportService:
                                 break
                         
                         if not hospital_name:
-                            logger.warning(f"[HOSPITAL_LOOKUP] No match for: '{hospital_input}'")
-                            not_found += 1
+                            # Try special name mapping for known variations
+                            name_mapping = {
+                                'DR. RN COOPER HOSPITAL': 'Dr R.N. Cooper Muncipial General Hospital',
+                                'RN COOPER': 'Dr R.N. Cooper Muncipial General Hospital',
+                                'SHANTILAL SANGHAVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
+                                'SHANTILAL SHANGHVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
+                                'Shantilol Shanghvi Eye Hospital': 'Shantitol Shanghvi Eye Hospital',
+                            }
+                            
+                            normalized_input = hospital_normalized.upper()
+                            for key, mapped_name in name_mapping.items():
+                                if key.upper() in normalized_input or normalized_input in key.upper():
+                                    hospital = Hospital.query.filter_by(hospital_name=mapped_name).first()
+                                    if hospital:
+                                        logger.info(f"[HOSPITAL_LOOKUP] Name mapping match: '{hospital.hospital_name}'")
+                                        hospital_name = hospital.hospital_name
+                                        break
+                            
+                            if not hospital_name:
+                                logger.warning(f"[HOSPITAL_LOOKUP] No match for: '{hospital_input}'")
+                                not_found += 1
 
             # Skip row only if BOTH shift AND hospital are missing/failed
             if (shift_input and not shift) and (hospital_input and not hospital_name):
