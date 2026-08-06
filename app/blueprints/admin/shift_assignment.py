@@ -249,6 +249,10 @@ def assign_shifts_bulk_submit():
     """Bulk assign shifts to multiple employees at once."""
     
     try:
+        from datetime import timedelta  # Import here too
+        from app.models.hospital_assignment import EmployeeHospitalAssignment
+        from app.models.hospital import Hospital
+        
         assignments = request.json.get('assignments', [])
         effective_date = request.json.get('effective_date')
         
