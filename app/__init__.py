@@ -666,12 +666,81 @@ def _auto_create_tables(app: Flask) -> None:
             from app.extensions.database import db  # noqa: PLC0415
             from sqlalchemy import text, inspect  # noqa: PLC0415
             
+            # STEP 0.5: Ensure EmployeeHospitalAssignment model is imported so SQLAlchemy knows about it
+            try:
+                from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: F401, PLC0415
+                app.logger.info("✓ Step 0.5: EmployeeHospitalAssignment model imported")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 0.5: Failed to import EmployeeHospitalAssignment: %s", exc)
+            
             # STEP 1: Create all tables
             try:
                 db.create_all()
                 app.logger.info("✓ Step 1: db.create_all()")
             except Exception as exc:
                 app.logger.warning("⚠️  Step 1: db.create_all() failed: %s", exc)
+
+            # STEP 1.5: Verify employee_hospital_assignments table exists (CRITICAL for hospital import)
+            try:
+                insp = inspect(db.engine)
+                tables = [t['name'] for t in insp.get_table_names()]
+                
+                if 'employee_hospital_assignments' not in tables:
+                    app.logger.warning("⚠️  employee_hospital_assignments table missing, creating explicitly...")
+                    
+                    # Use raw SQL to create the table
+                    dialect = db.engine.dialect.name
+                    if dialect == 'postgresql':
+                        create_sql = text("""
+                            CREATE TABLE IF NOT EXISTS employee_hospital_assignments (
+                                id SERIAL PRIMARY KEY,
+                                employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+                                hospital_id INTEGER REFERENCES hospitals(id) ON DELETE SET NULL,
+                                hospital_name VARCHAR(200),
+                                effective_from DATE,
+                                effective_until DATE,
+                                notes TEXT,
+                                is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+                                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                                deleted_at TIMESTAMP WITH TIME ZONE,
+                                deleted_by INTEGER
+                            );
+                            CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_employee_id ON employee_hospital_assignments(employee_id);
+                            CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_hospital_id ON employee_hospital_assignments(hospital_id);
+                            CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_active ON employee_hospital_assignments(effective_from, effective_until) WHERE is_deleted = FALSE;
+                        """)
+                    else:
+                        create_sql = text("""
+                            CREATE TABLE IF NOT EXISTS employee_hospital_assignments (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                employee_id INTEGER NOT NULL REFERENCES employees(id),
+                                hospital_id INTEGER REFERENCES hospitals(id),
+                                hospital_name VARCHAR(200),
+                                effective_from DATE,
+                                effective_until DATE,
+                                notes TEXT,
+                                is_deleted BOOLEAN NOT NULL DEFAULT 0,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                deleted_at TIMESTAMP,
+                                deleted_by INTEGER
+                            );
+                            CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_employee_id ON employee_hospital_assignments(employee_id);
+                            CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_hospital_id ON employee_hospital_assignments(hospital_id);
+                        """)
+                    
+                    db.session.execute(create_sql)
+                    db.session.commit()
+                    app.logger.info("✓ Step 1.5: Created employee_hospital_assignments table explicitly")
+                else:
+                    app.logger.info("✓ Step 1.5: employee_hospital_assignments table exists")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 1.5: Could not create hospital assignment table: %s", exc)
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
 
             # STEP 2: Check if columns exist - if missing, DROP and recreate tables
             try:

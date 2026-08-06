@@ -283,6 +283,16 @@ class ShiftImportService:
                 try:
                     logger.info(f"[HOSPITAL_ASSIGN_START] emp_id={employee.id}, hospital='{hospital_name}'")
                     
+                    # CRITICAL: Verify the table exists and is accessible
+                    from sqlalchemy import inspect as sa_inspect
+                    insp = sa_inspect(db.engine)
+                    tables = [t['name'] for t in insp.get_table_names()]
+                    if 'employee_hospital_assignments' not in tables:
+                        logger.error(f"[HOSPITAL_ASSIGN] FATAL: employee_hospital_assignments table does not exist!")
+                        logger.error(f"[HOSPITAL_ASSIGN] Available tables: {tables}")
+                        error_count += 1
+                        continue
+                    
                     current_hospital = EmployeeHospitalAssignment.query.filter(
                         EmployeeHospitalAssignment.employee_id == employee.id,
                         EmployeeHospitalAssignment.effective_until.is_(None)
@@ -303,6 +313,7 @@ class ShiftImportService:
                             logger.info(f"[HOSPITAL_ASSIGN] Marked previous for update")
 
                         # Create new assignment
+                        logger.info(f"[HOSPITAL_ASSIGN] Creating EmployeeHospitalAssignment object...")
                         new_hospital_assignment = EmployeeHospitalAssignment(
                             employee_id=employee.id,
                             hospital_name=hospital_name,
@@ -310,9 +321,14 @@ class ShiftImportService:
                             notes=f"Bulk import by user {assigned_by_user_id}"
                         )
                         logger.info(f"[HOSPITAL_ASSIGN] Created object: {new_hospital_assignment}")
+                        logger.info(f"[HOSPITAL_ASSIGN] Object attributes: id={new_hospital_assignment.id}, emp_id={new_hospital_assignment.employee_id}, hospital='{new_hospital_assignment.hospital_name}', effective_from={new_hospital_assignment.effective_from}")
                         
                         db.session.add(new_hospital_assignment)
                         logger.info(f"[HOSPITAL_ASSIGN] Added to session")
+                        
+                        # Verify object was added
+                        in_session = new_hospital_assignment in db.session.new
+                        logger.info(f"[HOSPITAL_ASSIGN] In session.new: {in_session}")
                         
                         hospitals_assigned += 1
                         logger.info(f"[HOSPITAL_ASSIGN] hospitals_assigned incremented to {hospitals_assigned}")
