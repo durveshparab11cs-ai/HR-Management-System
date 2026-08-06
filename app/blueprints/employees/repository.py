@@ -110,14 +110,19 @@ class EmployeeRepository:
         return f"{prefix}{num:04d}"
 
     def get_departments(self) -> list:
-        rows = (
-            db.session.query(Employee.department)
-            .filter(Employee.is_deleted == False, Employee.department.isnot(None))
-            .distinct()
-            .order_by(Employee.department)
-            .all()
-        )
-        return [r.department for r in rows]
+        try:
+            rows = (
+                db.session.query(Employee.department)
+                .filter(Employee.is_deleted == False, Employee.department.isnot(None))
+                .distinct()
+                .order_by(Employee.department)
+                .all()
+            )
+            return [r[0] for r in rows if r[0]]  # Handle tuple unpacking
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"get_departments error: {e}")
+            return []  # Return empty list on error instead of crashing
 
     # ── User account ops ──────────────────────────────────────────────
     def get_user_by_id(self, user_id: int) -> Optional[User]:
