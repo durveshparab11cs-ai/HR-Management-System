@@ -937,6 +937,7 @@ def _auto_seed_hospitals(app: Flask) -> None:
             {"name": "K B Bhaba Hospital-Bandra", "lat": 19.0596, "lng": 72.8295},
             {"name": "KEM Hospital", "lat": 19.0176, "lng": 72.8479},
             {"name": "Kolhapur Cancer Centre", "lat": 16.7050, "lng": 74.2433},
+            {"name": "Krishna Hospital", "lat": 0.0, "lng": 0.0},
             {"name": "LDC Hospital", "lat": 19.1136, "lng": 72.8697},
             {"name": "M.W. Desai Hospital", "lat": 18.9626, "lng": 72.8266},
             {"name": "MT Agarwal Hospital (Mulund)", "lat": 19.1686, "lng": 72.9629},
