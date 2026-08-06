@@ -289,7 +289,7 @@ class ShiftImportService:
                     # CRITICAL: Verify the table exists and is accessible
                     from sqlalchemy import inspect as sa_inspect
                     insp = sa_inspect(db.engine)
-                    tables = [t['name'] for t in insp.get_table_names()]
+                    tables = insp.get_table_names()
                     if 'employee_hospital_assignments' not in tables:
                         logger.error(f"[HOSPITAL_ASSIGN] FATAL: employee_hospital_assignments table does not exist!")
                         logger.error(f"[HOSPITAL_ASSIGN] Available tables: {tables}")
