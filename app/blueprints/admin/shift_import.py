@@ -155,6 +155,7 @@ class ShiftImportService:
             hospital_name = None
 
             # Find shift if provided
+            shift = None
             if shift_input:
                 shift = self._match_shift(shift_input)
                 if not shift:
@@ -168,32 +169,100 @@ class ShiftImportService:
                         "reason": f"Shift '{shift_input}' not found"
                     })
                     logger.warning(f"Shift not found: {shift_input}")
-                    continue
+                    # Don't continue - we might still have a hospital to assign
+                    shift = None  # Ensure shift is None if not found
 
             # Find hospital if provided
+            hospital_name = None
+            hospital_lookup_failed = False
             if hospital_input:
+                logger.info(f"[HOSPITAL_LOOKUP] Start: emp_code={emp_code}, looking for hospital='{hospital_input}'")
+                
+                # Try exact match first (case-insensitive)
                 hospital = Hospital.query.filter(
                     Hospital.hospital_name.ilike(hospital_input),
                     Hospital.is_active == True,
                     Hospital.is_deleted == False
                 ).first()
                 
-                if not hospital:
-                    not_found += 1
-                    details.append({
-                        "emp_code": emp_code,
-                        "emp_name": employee.name,
-                        "shift_name": shift_input or "?",
-                        "hospital_name": hospital_input,
-                        "status": "notfound",
-                        "reason": f"Hospital '{hospital_input}' not found"
-                    })
-                    logger.warning(f"Hospital not found: {hospital_input}")
-                    continue
+                if hospital:
+                    logger.info(f"[HOSPITAL_LOOKUP] Strategy 1 (exact): FOUND '{hospital_input}' → DB name: '{hospital.hospital_name}'")
+                    hospital_name = hospital.hospital_name
+                else:
+                    logger.debug(f"[HOSPITAL_LOOKUP] Strategy 1 (exact) failed for: '{hospital_input}'")
+                    
+                    # If exact match fails, try partial match (contains)
+                    hospital = Hospital.query.filter(
+                        Hospital.hospital_name.ilike(f"%{hospital_input}%"),
+                        Hospital.is_active == True,
+                        Hospital.is_deleted == False
+                    ).first()
+                    
+                    if hospital:
+                        logger.info(f"[HOSPITAL_LOOKUP] Strategy 2 (partial): FOUND '{hospital_input}' → DB name: '{hospital.hospital_name}'")
+                        hospital_name = hospital.hospital_name
+                    else:
+                        logger.debug(f"[HOSPITAL_LOOKUP] Strategy 2 (partial) failed for: '{hospital_input}'")
+                        
+                        # Try reverse partial: search for hospitals that contain the input keywords
+                        all_hospitals = Hospital.query.filter(
+                            Hospital.is_active == True,
+                            Hospital.is_deleted == False
+                        ).all()
+                        logger.info(f"[HOSPITAL_LOOKUP] Searching {len(all_hospitals)} active hospitals for keywords in '{hospital_input}'")
+                        
+                        # Split input into keywords
+                        keywords = [k.strip().lower() for k in hospital_input.split() if k.strip()]
+                        logger.info(f"[HOSPITAL_LOOKUP] Keywords to match: {keywords}")
+                        
+                        for h in all_hospitals:
+                            h_name_lower = h.hospital_name.lower()
+                            # Check if all keywords match
+                            if all(kw in h_name_lower for kw in keywords):
+                                logger.info(f"[HOSPITAL_LOOKUP] Strategy 3 (keyword match): FOUND '{hospital_input}' → DB name: '{h.hospital_name}'")
+                                hospital_name = h.hospital_name
+                                break
+                        
+                        if not hospital_name:
+                            logger.warning(f"[HOSPITAL_LOOKUP] NO MATCH for '{hospital_input}' after 3 strategies")
+                            logger.warning(f"[HOSPITAL_LOOKUP] First 15 available hospitals in DB:")
+                            for h in all_hospitals[:15]:
+                                logger.warning(f"  - '{h.hospital_name}'")
+                            if len(all_hospitals) > 15:
+                                logger.warning(f"  ... and {len(all_hospitals) - 15} more")
+                            hospital_lookup_failed = True
                 
-                hospital_name = hospital.hospital_name
+                # If hospital not found, log error but don't skip row
+                if not hospital_name:
+                    not_found += 1
+                    logger.error(f"[HOSPITAL_LOOKUP] FAILED: emp_code={emp_code}, hospital_input='{hospital_input}'")
+                    hospital_lookup_failed = True
 
-            # Assign shift if provided
+            # Skip row only if BOTH shift AND hospital are missing/failed
+            if (shift_input and not shift) and (hospital_input and not hospital_name):
+                # Both shift and hospital required but both failed
+                details.append({
+                    "emp_code": emp_code,
+                    "emp_name": employee.name,
+                    "shift_name": shift_input or "—",
+                    "hospital_name": hospital_input or "—",
+                    "status": "notfound",
+                    "reason": f"Both shift and hospital not found"
+                })
+                continue
+
+            # Skip if nothing to assign
+            if not shift and not hospital_name:
+                details.append({
+                    "emp_code": emp_code,
+                    "emp_name": employee.name,
+                    "shift_name": shift_input or "?",
+                    "hospital_name": hospital_input or "?",
+                    "status": "error",
+                    "reason": "No shift or hospital to assign"
+                })
+                error_count += 1
+                continue
             if shift:
                 try:
                     current_assignment = EmployeeShiftAssignment.query.filter(
