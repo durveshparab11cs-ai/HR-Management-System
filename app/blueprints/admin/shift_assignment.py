@@ -122,16 +122,29 @@ def assign_shifts_bulk():
         employee_shifts = {}
         for emp in employees:
             try:
+                from datetime import date as date_type
+                from sqlalchemy import or_
+                today = date_type.today()
+                
+                # Find active assignment: either no end date OR end date is in the future
                 assignment = (
                     EmployeeShiftAssignment.query
                     .options(joinedload(EmployeeShiftAssignment.shift))
                     .filter(
                         EmployeeShiftAssignment.employee_id == emp.id,
-                        EmployeeShiftAssignment.effective_until.is_(None)
+                        # Active assignment = either no end date (effective_until IS NULL)
+                        # OR end date is today or in the future
+                        or_(
+                            EmployeeShiftAssignment.effective_until.is_(None),
+                            EmployeeShiftAssignment.effective_until >= today
+                        )
                     )
+                    .order_by(EmployeeShiftAssignment.effective_from.desc())  # Most recent first
                     .first()
                 )
+                
                 employee_shifts[emp.id] = assignment.shift if assignment and assignment.shift else None
+                    
             except Exception as e:
                 logger.warning(f"Shift assignment query failed for emp {emp.id}: {e}")
                 employee_shifts[emp.id] = None
@@ -140,12 +153,20 @@ def assign_shifts_bulk():
         employee_hospitals = {}
         for emp in employees:
             try:
+                from datetime import date as date_type
+                from sqlalchemy import or_
+                today = date_type.today()
+                
                 assignment = (
                     EmployeeHospitalAssignment.query
                     .filter(
                         EmployeeHospitalAssignment.employee_id == emp.id,
-                        EmployeeHospitalAssignment.effective_until.is_(None)
+                        or_(
+                            EmployeeHospitalAssignment.effective_until.is_(None),
+                            EmployeeHospitalAssignment.effective_until >= today
+                        )
                     )
+                    .order_by(EmployeeHospitalAssignment.effective_from.desc())
                     .first()
                 )
                 employee_hospitals[emp.id] = assignment.hospital_name if assignment else None
