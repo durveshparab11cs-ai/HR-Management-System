@@ -25,7 +25,10 @@ class EmployeeRepository:
         return emp
 
     def get_by_user_id(self, user_id: int) -> Optional[Employee]:
-        return Employee.query.filter_by(user_id=user_id, is_deleted=False).first()
+        from sqlalchemy.orm import joinedload  # noqa: PLC0415
+        return Employee.query.options(
+            joinedload(Employee.office)
+        ).filter_by(user_id=user_id, is_deleted=False).first()
 
     def get_by_employee_code(self, code: str) -> Optional[Employee]:
         return Employee.query.filter_by(employee_code=code.upper(), is_deleted=False).first()

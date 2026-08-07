@@ -143,14 +143,19 @@ class GPSService:
             logger.warning("GPS_REFERENCE | emp=%s | hospital_lookup_failed: %s", employee.id, str(hosp_err))
         
         # Priority 2: Fall back to employee's assigned office if exists
-        if not reference_office and employee.office_settings_id and employee.office:
-            reference_office = employee.office
-            location_name = employee.office.name if hasattr(employee.office, 'name') else "Employee Office"
-            location_type = "office"
-            logger.info(
-                "GPS_REFERENCE | emp=%s | using_employee_office=%s | office_id=%d",
-                employee.id, location_name, employee.office_settings_id
-            )
+        if not reference_office and employee.office_settings_id:
+            try:
+                emp_office = employee.office
+                if emp_office:
+                    reference_office = emp_office
+                    location_name = emp_office.name if hasattr(emp_office, 'name') else "Employee Office"
+                    location_type = "office"
+                    logger.info(
+                        "GPS_REFERENCE | emp=%s | using_employee_office=%s | office_id=%d",
+                        employee.id, location_name, employee.office_settings_id
+                    )
+            except Exception as office_err:  # noqa: BLE001
+                logger.warning("GPS_REFERENCE | emp=%s | office_relationship_failed: %s", employee.id, str(office_err))
         
         # Priority 3: Use provided office parameter (fallback)
         if not reference_office and office:
