@@ -108,22 +108,47 @@ class GPSService:
         Returns:
             GPSVerificationResult with full details.
         """
-        # Determine GPS reference point: Employee's office or provided office (fallback)
+        # Determine GPS reference point: Employee's hospital OR office
         reference_office = None
         location_name = "Office"
+        location_type = "office"
         
-        # Priority 1: Use employee's assigned office if exists
-        if employee.office_settings_id and employee.office:
+        # Priority 1: Use employee's assigned HOSPITAL if exists
+        from app.models.employee_hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
+        from app.models.hospital import Hospital  # noqa: PLC0415
+        
+        current_hospital_assign = EmployeeHospitalAssignment.query.filter(
+            EmployeeHospitalAssignment.employee_id == employee.id,
+            EmployeeHospitalAssignment.effective_until.is_(None),
+            EmployeeHospitalAssignment.is_deleted == False
+        ).first()
+        
+        if current_hospital_assign and current_hospital_assign.hospital_id:
+            hospital = Hospital.query.filter_by(id=current_hospital_assign.hospital_id).first()
+            if hospital and hospital.latitude and hospital.longitude:
+                reference_office = hospital
+                location_name = hospital.hospital_name
+                location_type = "hospital"
+                logger.info(
+                    "GPS_REFERENCE | emp=%s | using_assigned_hospital=%s | lat=%.7f | lon=%.7f",
+                    employee.id, hospital.hospital_name, hospital.latitude, hospital.longitude
+                )
+        
+        # Priority 2: Fall back to employee's assigned office if exists
+        if not reference_office and employee.office_settings_id and employee.office:
             reference_office = employee.office
             location_name = employee.office.name if hasattr(employee.office, 'name') else "Employee Office"
+            location_type = "office"
             logger.info(
                 "GPS_REFERENCE | emp=%s | using_employee_office=%s | office_id=%d",
                 employee.id, location_name, employee.office_settings_id
             )
-        # Priority 2: Use provided office parameter (fallback)
-        elif office:
+        
+        # Priority 3: Use provided office parameter (fallback)
+        if not reference_office and office:
             reference_office = office
             location_name = office.name if hasattr(office, 'name') else "Office"
+            location_type = "office"
             logger.info(
                 "GPS_REFERENCE | emp=%s | using_provided_office=%s",
                 employee.id, location_name
