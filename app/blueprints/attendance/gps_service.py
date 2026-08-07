@@ -169,9 +169,20 @@ class GPSService:
             self._log(employee, None, None, None, None, action, reason)
             return GPSVerificationResult(success=False, error=reason)
         
-        reference_lat = reference_office.latitude
-        reference_lon = reference_office.longitude
-        allowed_radius = reference_office.radius_metres
+        # Extract coordinates with safety checks
+        reference_lat = getattr(reference_office, 'latitude', None)
+        reference_lon = getattr(reference_office, 'longitude', None)
+        allowed_radius = getattr(reference_office, 'radius_metres', None)
+        
+        # Validate required coordinates exist
+        if reference_lat is None or reference_lon is None or allowed_radius is None:
+            reason = f"Office location incomplete: lat={reference_lat}, lon={reference_lon}, radius={allowed_radius}. Contact HR."
+            logger.error(
+                "GPS_INVALID_COORDS | emp=%s | location=%s | lat=%s | lon=%s | radius=%s",
+                employee.id, location_name, reference_lat, reference_lon, allowed_radius
+            )
+            self._log(employee, None, None, None, None, action, reason)
+            return GPSVerificationResult(success=False, error=reason)
         
         logger.info(
             "GPS_REFERENCE_FINAL | emp=%s | location=%s | lat=%.7f | lon=%.7f | radius=%dm",

@@ -72,7 +72,9 @@ class AttendanceService:
                 logger.error("SERVICE CHECK_IN FAILED: No office config for emp=%s", employee.id)
                 return False, "Office configuration not found. Contact HR.", None, None
             
-            logger.info("Office found: %s (radius=%sm)", office.name, office.radius_metres)
+            logger.info("Office found: %s (radius=%sm)", 
+                       getattr(office, 'name', 'Unknown'), 
+                       getattr(office, 'radius_metres', 'Unknown'))
 
             # GPS verification
             gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_IN)
@@ -197,7 +199,7 @@ class AttendanceService:
                 logger.error("SERVICE CHECK_OUT FAILED: No office config")
                 return False, "Office configuration not found.", None, None
             
-            logger.info("Office found: %s", office.name)
+            logger.info("Office found: %s", getattr(office, 'name', 'Unknown'))
 
             gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_OUT)
             logger.info("GPS verification result: success=%s, distance=%.1fm", 
@@ -468,9 +470,9 @@ class AttendanceService:
             "employee_lon":         gps.lon,
             "accuracy":             gps.accuracy,
             "distance_metres":      gps.distance_metres,
-            "office_lat":           office.latitude if office else None,
-            "office_lon":           office.longitude if office else None,
-            "allowed_radius":       office.radius_metres if office else None,
+            "office_lat":           getattr(office, 'latitude', None) if office else None,
+            "office_lon":           getattr(office, 'longitude', None) if office else None,
+            "allowed_radius":       getattr(office, 'radius_metres', None) if office else None,
             "min_gps_accuracy":     getattr(office, "min_gps_accuracy_metres", 50) if office else 50,
             "within_radius":        gps.within_radius,
         }
