@@ -115,7 +115,7 @@ class GPSService:
             location_type = "office"
             
             # Priority 1: Use employee's assigned HOSPITAL if exists
-            from app.models.employee_hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
+            from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
             from app.models.hospital import Hospital  # noqa: PLC0415
             
             try:
