@@ -172,6 +172,7 @@ class AttendanceService:
             logger.error("SERVICE CHECK_IN EXCEPTION | emp=%s | %s", employee.id, str(exc))
             import traceback
             logger.error("Service traceback:\n%s", traceback.format_exc())
+            logger.error("Exception type: %s", type(exc).__name__)
             raise
 
     # ── Check Out ────────────────────────────────────────────────────

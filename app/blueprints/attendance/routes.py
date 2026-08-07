@@ -156,11 +156,15 @@ def checkin():
         logger.error("Exception Type: %s", type(exc).__name__)
         logger.error("Exception Message: %s", str(exc))
         import traceback
-        logger.error("Traceback:\n%s", traceback.format_exc())
+        logger.error("Full Traceback:\n%s", traceback.format_exc())
+        # Log exception details for debugging
+        import sys
+        exc_info = sys.exc_info()
+        logger.error("Exception Details: %s", exc_info)
         logger.error("===== CHECK IN END (EXCEPTION) =====")
         return jsonify(
             success=False,
-            message=f"Check-in failed: System error occurred."
+            message=f"Check-in failed: System error occurred. [{type(exc).__name__}: {str(exc)}]"
         ), 500
 
 
