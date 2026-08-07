@@ -117,22 +117,30 @@ class GPSService:
         from app.models.employee_hospital_assignment import EmployeeHospitalAssignment  # noqa: PLC0415
         from app.models.hospital import Hospital  # noqa: PLC0415
         
-        current_hospital_assign = EmployeeHospitalAssignment.query.filter(
-            EmployeeHospitalAssignment.employee_id == employee.id,
-            EmployeeHospitalAssignment.effective_until.is_(None),
-            EmployeeHospitalAssignment.is_deleted == False
-        ).first()
-        
-        if current_hospital_assign and current_hospital_assign.hospital_id:
-            hospital = Hospital.query.filter_by(id=current_hospital_assign.hospital_id).first()
-            if hospital and hospital.latitude and hospital.longitude:
-                reference_office = hospital
-                location_name = hospital.hospital_name
-                location_type = "hospital"
-                logger.info(
-                    "GPS_REFERENCE | emp=%s | using_assigned_hospital=%s | lat=%.7f | lon=%.7f",
-                    employee.id, hospital.hospital_name, hospital.latitude, hospital.longitude
-                )
+        try:
+            current_hospital_assign = EmployeeHospitalAssignment.query.filter(
+                EmployeeHospitalAssignment.employee_id == employee.id,
+                EmployeeHospitalAssignment.effective_until.is_(None),
+                EmployeeHospitalAssignment.is_deleted == False
+            ).first()
+            
+            if current_hospital_assign and current_hospital_assign.hospital_id:
+                hospital = Hospital.query.filter_by(id=current_hospital_assign.hospital_id).first()
+                if hospital and hospital.latitude and hospital.longitude:
+                    reference_office = hospital
+                    location_name = hospital.hospital_name
+                    location_type = "hospital"
+                    logger.info(
+                        "GPS_REFERENCE | emp=%s | using_assigned_hospital=%s | lat=%.7f | lon=%.7f",
+                        employee.id, hospital.hospital_name, hospital.latitude, hospital.longitude
+                    )
+                elif hospital:
+                    logger.info(
+                        "GPS_REFERENCE | emp=%s | hospital_assigned_but_no_coords | hospital_id=%d",
+                        employee.id, hospital.id
+                    )
+        except Exception as hosp_err:
+            logger.warning("GPS_REFERENCE | emp=%s | hospital_lookup_failed: %s", employee.id, str(hosp_err))
         
         # Priority 2: Fall back to employee's assigned office if exists
         if not reference_office and employee.office_settings_id and employee.office:
