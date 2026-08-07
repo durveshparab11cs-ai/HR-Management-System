@@ -200,7 +200,8 @@ class AttendanceService:
                 logger.error("SERVICE CHECK_OUT FAILED: No office config")
                 return False, "Office configuration not found.", None, None
             
-            logger.info("Office found: %s", getattr(office, 'name', 'Unknown'))
+            logger.info("Office found: %s", 
+                       getattr(office, 'name', 'Unknown') if office and not isinstance(office, dict) else 'Unknown')
 
             gps = _gps.verify(employee, office, lat_str, lon_str, accuracy_str, LogAction.CHECK_OUT)
             logger.info("GPS verification result: success=%s, distance=%.1fm", 

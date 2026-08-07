@@ -160,13 +160,18 @@ class GPSService:
             
             # Priority 3: Use provided office parameter (fallback)
             if not reference_office and office:
-                reference_office = office
-                location_name = office.name if hasattr(office, 'name') else "Office"
-                location_type = "office"
-                logger.info(
-                    "GPS_REFERENCE | emp=%s | using_provided_office=%s",
-                    employee.id, location_name
-                )
+                # Handle both dict and object types
+                if isinstance(office, dict):
+                    reference_office = None  # Skip dicts
+                    logger.warning("GPS_REFERENCE | emp=%s | provided_office_is_dict_not_object", employee.id)
+                else:
+                    reference_office = office
+                    location_name = getattr(office, 'name', 'Office')
+                    location_type = "office"
+                    logger.info(
+                        "GPS_REFERENCE | emp=%s | using_provided_office=%s",
+                        employee.id, location_name
+                    )
             
             # Safety check - if no office found, return error
             if not reference_office:
