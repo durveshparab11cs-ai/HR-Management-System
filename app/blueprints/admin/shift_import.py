@@ -110,6 +110,15 @@ class ShiftImportService:
         logger.info(f"[IMPORT_START] Parsed sheet headers: {headers}")
         logger.info(f"[IMPORT_START] Total rows to process: {len(rows)}")
 
+        # PRE-LOAD all hospitals and shifts to avoid N+1 queries
+        logger.info("[PRELOAD] Caching hospitals and shifts...")
+        all_hospitals = Hospital.query.filter(
+            Hospital.is_active == True,
+            Hospital.is_deleted == False
+        ).all()
+        hospital_map = {h.hospital_name.lower(): h for h in all_hospitals}
+        logger.info(f"[PRELOAD] Cached {len(all_hospitals)} hospitals")
+
         assigned       = 0
         hospitals_assigned = 0
         skipped        = 0
@@ -211,68 +220,54 @@ class ShiftImportService:
                     logger.warning(f"Shift not found: {shift_input}")
                     shift = None
 
-            # Find hospital if provided
+            # Find hospital if provided - USE CACHED HOSPITAL MAP
             if hospital_input:
                 logger.info(f"[HOSPITAL_LOOKUP] Looking for: '{hospital_input}'")
+                hospital_name = None
+                hospital_normalized = hospital_input.strip().lower()
                 
-                # Normalize hospital name for comparison
-                hospital_normalized = hospital_input.strip()
-                
-                # Try exact match first (case-insensitive)
-                hospital = Hospital.query.filter(
-                    Hospital.hospital_name.ilike(hospital_normalized),
-                    Hospital.is_active == True,
-                    Hospital.is_deleted == False
-                ).first()
-                
-                if hospital:
-                    logger.info(f"[HOSPITAL_LOOKUP] Exact match: '{hospital.hospital_name}'")
-                    hospital_name = hospital.hospital_name
+                # Strategy 1: Direct lookup in cache
+                if hospital_normalized in hospital_map:
+                    hospital_name = hospital_map[hospital_normalized].hospital_name
+                    logger.info(f"[HOSPITAL_LOOKUP] Exact match: '{hospital_name}'")
                 else:
-                    # If exact match fails, try partial match (contains)
-                    hospital = Hospital.query.filter(
-                        Hospital.hospital_name.ilike(f"%{hospital_normalized}%"),
-                        Hospital.is_active == True,
-                        Hospital.is_deleted == False
-                    ).first()
+                    # Strategy 2: Partial match
+                    for h_name, h_obj in hospital_map.items():
+                        if hospital_normalized in h_name or h_name in hospital_normalized:
+                            hospital_name = h_obj.hospital_name
+                            logger.info(f"[HOSPITAL_LOOKUP] Partial match: '{hospital_name}'")
+                            break
                     
-                    if hospital:
-                        logger.info(f"[HOSPITAL_LOOKUP] Partial match: '{hospital.hospital_name}'")
-                        hospital_name = hospital.hospital_name
-                    else:
-                        # Try keyword matching
-                        all_hospitals = Hospital.query.filter(
-                            Hospital.is_active == True,
-                            Hospital.is_deleted == False
-                        ).all()
-                        keywords = [k.strip().lower() for k in hospital_normalized.split() if k.strip()]
-                        
-                        for h in all_hospitals:
-                            if all(kw in h.hospital_name.lower() for kw in keywords):
-                                logger.info(f"[HOSPITAL_LOOKUP] Keyword match: '{h.hospital_name}'")
-                                hospital_name = h.hospital_name
+                    if not hospital_name:
+                        # Strategy 3: Keyword matching
+                        keywords = [k.strip().lower() for k in hospital_input.split() if k.strip()]
+                        for h_name, h_obj in hospital_map.items():
+                            if all(kw in h_name for kw in keywords):
+                                hospital_name = h_obj.hospital_name
+                                logger.info(f"[HOSPITAL_LOOKUP] Keyword match: '{hospital_name}'")
                                 break
                         
                         if not hospital_name:
-                            # Try special name mapping for known variations
+                            # Strategy 4: Name mapping
                             name_mapping = {
-                                'DR. RN COOPER HOSPITAL': 'Dr R.N. Cooper Muncipial General Hospital',
-                                'RN COOPER': 'Dr R.N. Cooper Muncipial General Hospital',
-                                'SHANTILAL SANGHAVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
-                                'SHANTILAL SHANGHVI EYE HOSPITAL': 'Shantitol Shanghvi Eye Hospital',
-                                'Shantilol Shanghvi Eye Hospital': 'Shantitol Shanghvi Eye Hospital',
-                                'WALAWALKAR': 'Walawatkar Hospital',
-                                'WALAWALKER': 'Walawatkar Hospital',
-                                'WALAWATKAR': 'Walawatkar Hospital',
+                                'dr. rn cooper hospital': 'Dr R.N. Cooper Muncipial General Hospital',
+                                'rn cooper': 'Dr R.N. Cooper Muncipial General Hospital',
+                                'shantilal sanghavi eye hospital': 'Shantitol Shanghvi Eye Hospital',
+                                'shantilal shanghvi eye hospital': 'Shantitol Shanghvi Eye Hospital',
+                                'walawalkar': 'Walawatkar Hospital',
+                                'walawalker': 'Walawatkar Hospital',
+                                'walawatkar': 'Walawatkar Hospital',
                             }
                             
-                            normalized_input = hospital_normalized.upper()
+                            norm_input = hospital_input.strip().lower()
                             for key, mapped_name in name_mapping.items():
-                                if key.upper() in normalized_input or normalized_input in key.upper():
-                                    hospital = Hospital.query.filter_by(hospital_name=mapped_name).first()
-                                    if hospital:
-                                        logger.info(f"[HOSPITAL_LOOKUP] Name mapping match: '{hospital.hospital_name}'")
-                                        hospital_name = hospital.hospital_name
+                                if key in norm_input or norm_input in key:
+                                    for h_name, h_obj in hospital_map.items():
+                                        if h_obj.hospital_name.lower() == mapped_name.lower():
+                                            hospital_name = h_obj.hospital_name
+                                            logger.info(f"[HOSPITAL_LOOKUP] Name mapping match: '{hospital_name}'")
+                                            break
+                                    if hospital_name:
                                         break
                             
                             if not hospital_name:
