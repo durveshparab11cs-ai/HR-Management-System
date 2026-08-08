@@ -88,9 +88,47 @@ def index():
         pending_early     = 0
     try:
         today_records     = _att.get_all_today(today)
+        # Add display_status attribute based on photos and hours
+        from app.models.attendance_photo import AttendancePhoto
+        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+        from datetime import datetime as _dt_now
+        import logging
+        
+        for att in today_records:
+            # Get photo
+            photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+            
+            # Check if both photos are uploaded
+            has_checkin_photo = photo and getattr(photo, 'image_data', None)
+            has_checkout_photo = photo and getattr(photo, 'checkout_image_data', None)
+            
+            if not has_checkin_photo or not has_checkout_photo:
+                # Missing one or both photos → PENDING
+                att.display_status = "pending"
+                logging.info(f"Att {att.id} ({att.employee.full_name}): Missing photos → PENDING")
+            elif att.check_in_time:
+                # Both photos uploaded - recalculate status based on working hours
+                try:
+                    office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
+                    if office:
+                        calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
+                        meta = compute_check_out_meta(att, calc_time, office, att.employee_id)
+                        status = meta.get("status", att.status)
+                        working_mins = meta.get("working_minutes", 0)
+                        att.display_status = status
+                        logging.info(f"Att {att.id} ({att.employee.full_name}): {working_mins} mins → {status}")
+                    else:
+                        att.display_status = att.status
+                        logging.warning(f"Att {att.id}: No office found")
+                except Exception as e:
+                    logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
+                    att.display_status = att.status
+            else:
+                att.display_status = att.status
+                logging.info(f"Att {att.id}: No check-in time")
     except Exception as e:
         import logging
-        logging.error(f"Error fetching today records: {e}")
+        logging.error(f"Error fetching today records: {e}", exc_info=True)
         today_records     = []
     try:
         recent_requests   = _leave.get_pending(page=1, per_page=5).items
