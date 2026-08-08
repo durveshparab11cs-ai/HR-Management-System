@@ -172,11 +172,18 @@ def view_all_attendance():
         check_in_ist = to_ist(att.check_in_time)
         check_out_ist = to_ist(att.check_out_time)
         
-        # ALWAYS recalculate status based on working hours
-        # This ensures consistency with the new attendance rules
+        # Determine status based on photo uploads
         status_display = att.status
-        if att.check_in_time:
-            # Has checked in - recalculate status
+        
+        # Check if both check-in and check-out photos are uploaded
+        has_checkin_photo = photo and photo.image_data
+        has_checkout_photo = photo and photo.checkout_image_data
+        
+        if not has_checkin_photo or not has_checkout_photo:
+            # Missing one or both photos → PENDING
+            status_display = "pending"
+        elif att.check_in_time:
+            # Both photos uploaded - recalculate status based on working hours
             from datetime import datetime as _dt_now
             _att_repo = AttendanceRepository()
             office = _att_repo.get_office_for_employee(emp)
