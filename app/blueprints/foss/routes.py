@@ -85,6 +85,7 @@ def search():
         if not office:
             office = OfficeSettings.query.filter_by(is_default=True, is_deleted=False).first()
         seen_codes.add(emp.employee_code)
+        office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown') if office else "—"
         results.append({
             "id":           emp.id,
             "code":         emp.employee_code,
@@ -92,7 +93,7 @@ def search():
             "department":   emp.department or "—",
             "designation":  emp.designation or "—",
             "shift_name":   emp.shift_name or "—",
-            "office_name":  office.name if office else "—",
+            "office_name":  office_name,
             "office_lat":   office.latitude if office else None,
             "office_lon":   office.longitude if office else None,
             "radius":       office.radius_metres if office else None,
@@ -121,6 +122,7 @@ def search():
     for master in unregistered:
         if master.employee_code in seen_codes:
             continue  # already in results from registered set
+        default_office_name = default_office.get('name') if isinstance(default_office, dict) else (getattr(default_office, 'name', None) or 'Unknown') if default_office else "—"
         results.append({
             "id":           None,   # no Employee record yet
             "code":         master.employee_code,
@@ -128,7 +130,7 @@ def search():
             "department":   master.department or "—",
             "designation":  master.designation or "—",
             "shift_name":   "—",
-            "office_name":  default_office.name if default_office else "—",
+            "office_name":  default_office_name,
             "office_lat":   default_office.latitude if default_office else None,
             "office_lon":   default_office.longitude if default_office else None,
             "radius":       default_office.radius_metres if default_office else None,
@@ -301,7 +303,7 @@ def save_location(emp_id: int):
         employee_id=emp_id,
         changed_by_user_id=current_user.id,
         change_type="location",
-        old_office_name=office.name if office else (default_office.name if default_office else ""),
+        old_office_name=(office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')) if office else (default_office.get('name') if isinstance(default_office, dict) else (getattr(default_office, 'name', None) or 'Unknown')) if default_office else "",
         new_office_name=office_name,
         old_latitude=str(office.latitude) if office else (str(default_office.latitude) if default_office else ""),
         new_latitude=str(new_lat),

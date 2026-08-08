@@ -108,7 +108,8 @@ class AuthService:
                         ).first()
                         if office:
                             office_settings_id = office.id
-                            logger.info("Found office %s for employee %s", office.name, code)
+                            office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
+                            logger.info("Found office %s for employee %s", office_name, code)
                     
                     # Create Employee profile with data from EmployeeMaster
                     employee = Employee(
@@ -159,7 +160,8 @@ class AuthService:
                             ).first()
                             if office:
                                 office_settings_id = office.id
-                                logger.info("Found office %s for employee %s", office.name, code)
+                                office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
+                                logger.info("Found office %s for employee %s", office_name, code)
                         
                         employee = Employee(
                             user_id=user.id,
@@ -373,7 +375,8 @@ class AuthService:
                 ).first()
                 if office:
                     office_settings_id = office.id
-                    logger.info("Found office %s for employee %s", office.name, code)
+                    office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
+                    logger.info("Found office %s for employee %s", office_name, code)
                 else:
                     logger.warning("No office found for working_location=%s, using default", 
                                  master.working_location)

@@ -167,7 +167,7 @@ def dashboard():
             "can_check_in": can_check_in,
             "can_check_out": can_check_out,
             "office": {
-                "name": office.name if office else None,
+                "name": office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or None) if office else None,
                 "radius_metres": office.radius_metres if office else None,
                 "latitude": float(office.latitude) if office and office.latitude else None,
                 "longitude": float(office.longitude) if office and office.longitude else None,
@@ -215,7 +215,7 @@ def dashboard_attendance():
         "can_check_in": not today_att or (today_att and not today_att.check_in_time),
         "can_check_out": bool(today_att and today_att.check_in_time and not today_att.check_out_time),
         "office": {
-            "name": office.name if office else None,
+            "name": office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or None) if office else None,
             "latitude": float(office.latitude) if office and office.latitude else None,
             "longitude": float(office.longitude) if office and office.longitude else None,
             "radius_metres": office.radius_metres if office else 200,
