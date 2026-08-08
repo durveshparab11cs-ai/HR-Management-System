@@ -160,6 +160,8 @@ def view_all_attendance():
     attendance_data = []
     for att, emp, usr, photo in pagination.items:
         from datetime import timedelta
+        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+        from app.blueprints.attendance.repository import AttendanceRepository
 
         # Convert times to IST
         def to_ist(dt):
@@ -169,6 +171,17 @@ def view_all_attendance():
 
         check_in_ist = to_ist(att.check_in_time)
         check_out_ist = to_ist(att.check_out_time)
+        
+        # Recalculate status if employee hasn't checked out yet
+        status_display = att.status
+        if att.check_in_time and not att.check_out_time:
+            # Not checked out yet - recalculate status based on current time
+            from datetime import datetime as _dt_now
+            _att_repo = AttendanceRepository()
+            office = _att_repo.get_office_for_employee(emp)
+            if office:
+                meta = compute_check_out_meta(att, _dt_now.utcnow(), office, emp.id)
+                status_display = meta["status"]
 
         attendance_data.append({
             'attendance': att,
@@ -181,7 +194,7 @@ def view_all_attendance():
             'employee_code': emp.employee_code,
             'employee_name': usr.full_name,
             'department': emp.department or '—',
-            'status_display': att.status.replace('_', ' ').title(),
+            'status_display': status_display.replace('_', ' ').title(),
         })
 
     return render_template(
