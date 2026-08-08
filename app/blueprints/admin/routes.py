@@ -88,6 +88,18 @@ def index():
         pending_early     = 0
     try:
         today_records     = _att.get_all_today(today)
+        # Add computed status based on working hours
+        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+        from datetime import datetime as dt_now
+        for att in today_records:
+            try:
+                if att.check_in_time and att.check_out_time:
+                    office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
+                    if office:
+                        meta = compute_check_out_meta(att, att.check_out_time, office, att.employee_id)
+                        att.status = meta.get("status", att.status)
+            except:
+                pass
     except Exception as e:
         import logging
         logging.error(f"Error fetching today records: {e}")
