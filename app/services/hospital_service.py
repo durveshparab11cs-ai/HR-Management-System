@@ -114,11 +114,19 @@ class HospitalService:
             # Check duplicate name/code if changed
             new_name = kwargs.get('hospital_name')
             new_code = kwargs.get('hospital_code')
-            if new_name or new_code:
-                check_name = new_name if new_name else hospital.hospital_name
-                check_code = new_code if new_code else hospital.hospital_code
-                if self.repo.check_duplicate(check_name, check_code, exclude_id=hospital_id):
-                    return False, "Hospital with this name or code already exists", None
+            
+            # Only check duplicates if values actually changed
+            if new_name and new_name != hospital.hospital_name:
+                if self.repo.check_duplicate(new_name, None, exclude_id=hospital_id):
+                    return False, "Hospital with this name already exists", None
+            
+            if new_code and new_code != hospital.hospital_code:
+                if self.repo.check_duplicate(None, new_code, exclude_id=hospital_id):
+                    return False, "Hospital with this code already exists", None
+            
+            # Don't update hospital_code if it hasn't changed (avoid UNIQUE constraint violation)
+            if 'hospital_code' in kwargs and kwargs['hospital_code'] == hospital.hospital_code:
+                del kwargs['hospital_code']
             
             # Update
             updated = self.repo.update(hospital_id, **kwargs)

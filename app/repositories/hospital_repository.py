@@ -179,7 +179,7 @@ class HospitalRepository:
         
         Args:
             hospital_name: Hospital name to check
-            hospital_code: Hospital code to check
+            hospital_code: Hospital code to check (optional)
             exclude_id: Hospital ID to exclude (for updates)
             
         Returns:
@@ -190,13 +190,14 @@ class HospitalRepository:
         if exclude_id:
             query = query.filter(Hospital.id != exclude_id)
         
-        # Check name
-        if query.filter(Hospital.hospital_name.ilike(hospital_name)).first():
-            return True
+        # Check name if provided and not empty
+        if hospital_name and hospital_name.strip():
+            if query.filter(Hospital.hospital_name.ilike(hospital_name.strip())).first():
+                return True
         
-        # Check code if provided
-        if hospital_code:
-            if query.filter(Hospital.hospital_code == hospital_code).first():
+        # Check code if provided and not empty
+        if hospital_code and hospital_code.strip():
+            if query.filter(Hospital.hospital_code == hospital_code.strip()).first():
                 return True
         
         return False
