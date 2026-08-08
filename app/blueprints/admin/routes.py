@@ -97,12 +97,15 @@ def index():
                     office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
                     if office:
                         meta = compute_check_out_meta(att, att.check_out_time, office, att.employee_id)
-                        att.status = meta.get("status", att.status)
-            except:
-                pass
+                        new_status = meta.get("status")
+                        if new_status:
+                            att.status = new_status
+            except Exception as e:
+                import logging
+                logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
     except Exception as e:
         import logging
-        logging.error(f"Error fetching today records: {e}")
+        logging.error(f"Error fetching today records: {e}", exc_info=True)
         today_records     = []
     try:
         recent_requests   = _leave.get_pending(page=1, per_page=5).items
