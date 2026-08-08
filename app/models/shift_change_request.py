@@ -71,6 +71,19 @@ class ShiftChangeRequest(BaseModel):
     rejected_by_user = relationship("User", foreign_keys=[rejected_by], lazy="select")
     
     @property
+    def submitted_date_ist(self) -> datetime.datetime:
+        """Convert submitted_date from UTC to IST (UTC+5:30)."""
+        if self.submitted_date:
+            ist_offset = datetime.timedelta(hours=5, minutes=30)
+            if self.submitted_date.tzinfo:
+                # If aware datetime, convert to IST
+                return self.submitted_date.astimezone(datetime.timezone(ist_offset))
+            else:
+                # If naive datetime (already UTC), add IST offset
+                return self.submitted_date + ist_offset
+        return self.submitted_date
+    
+    @property
     def is_pending(self) -> bool:
         return self.status == "pending"
     

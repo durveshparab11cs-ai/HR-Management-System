@@ -105,7 +105,7 @@
                     <strong>{{ req.effective_date.strftime('%d %b %Y') }}</strong>
                 </td>
                 <td class="small text-muted">
-                    {{ req.submitted_date.strftime('%d %b %Y') }}
+                    {{ req.submitted_date_ist.strftime('%d %b %Y') }}
                 </td>
                 <td>
                     <span class="badge bg-{{ status_badge.get(req.status, 'secondary') }}-subtle text-{{ status_badge.get(req.status, 'secondary') }}">
