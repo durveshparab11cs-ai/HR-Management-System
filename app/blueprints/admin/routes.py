@@ -87,8 +87,8 @@ def index():
     except Exception:
         pending_early     = 0
     try:
-        today_records     = _att.get_all_today(today)
-        print(f"\n[DEBUG] Found {len(today_records)} attendance records for {today}\n")
+        today_records_raw = _att.get_all_today(today)
+        print(f"\n[DEBUG] Found {len(today_records_raw)} attendance records for {today}\n")
         
         # Add display_status attribute based on photos and hours
         from app.models.attendance_photo import AttendancePhoto
@@ -96,7 +96,9 @@ def index():
         from datetime import datetime as _dt_now
         import logging
         
-        for att in today_records:
+        # Convert to list and add display_status
+        today_records = []
+        for att in today_records_raw:
             print(f"[DEBUG] Processing attendance ID={att.id}, emp={att.employee.full_name}")
             # Get photo
             photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
@@ -107,9 +109,11 @@ def index():
             
             print(f"[DEBUG]   Photos: checkin={bool(has_checkin_photo)}, checkout={bool(has_checkout_photo)}")
             
+            display_status = att.status  # Default to DB status
+            
             if not has_checkin_photo or not has_checkout_photo:
                 # Missing one or both photos → PENDING
-                att.display_status = "pending"
+                display_status = "pending"
                 print(f"[DEBUG]   → Missing photos: display_status=PENDING")
                 logging.info(f"Att {att.id} ({att.employee.full_name}): Missing photos → PENDING")
             elif att.check_in_time:
@@ -119,25 +123,40 @@ def index():
                     if office:
                         calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
                         meta = compute_check_out_meta(att, calc_time, office, att.employee_id)
-                        status = meta.get("status", "present")
+                        display_status = meta.get("status", "present")
                         working_mins = meta.get("working_minutes", 0)
-                        att.display_status = status
-                        print(f"[DEBUG]   → {working_mins} mins: display_status={status}")
-                        logging.info(f"Att {att.id} ({att.employee.full_name}): {working_mins} mins → {status}")
+                        print(f"[DEBUG]   → {working_mins} mins: display_status={display_status}")
+                        logging.info(f"Att {att.id} ({att.employee.full_name}): {working_mins} mins → {display_status}")
                     else:
                         # No office - use status based on working minutes fallback logic
-                        att.display_status = "present"
+                        display_status = "present"
                         print(f"[DEBUG]   → No office: display_status=PRESENT")
                         logging.warning(f"Att {att.id}: No office found, defaulting to present")
                 except Exception as e:
                     print(f"[DEBUG]   → ERROR: {e}")
                     logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
-                    att.display_status = "present"
+                    display_status = "present"
             else:
                 # No check-in time - assume not started
-                att.display_status = "pending"
+                display_status = "pending"
                 print(f"[DEBUG]   → No check-in: display_status=PENDING")
                 logging.info(f"Att {att.id}: No check-in time → PENDING")
+            
+            # Wrap in a simple object to carry both att and display_status
+            class AttendanceWithStatus:
+                def __init__(self, att_obj, disp_status):
+                    self.att = att_obj
+                    self.display_status = disp_status
+                
+                def __getattr__(self, name):
+                    # Proxy all other attributes to the wrapped attendance object
+                    return getattr(self.att, name)
+            
+            wrapped = AttendanceWithStatus(att, display_status)
+            today_records.append(wrapped)
+        
+        print(f"\n[DEBUG] Prepared {len(today_records)} records with display_status\n")
+        
     except Exception as e:
         import logging
         print(f"[DEBUG] ERROR fetching records: {e}")

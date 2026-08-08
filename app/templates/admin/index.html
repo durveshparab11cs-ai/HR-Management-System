@@ -233,8 +233,8 @@
                 </td>
                 <td class="fw-semibold">{{ att.working_hours_display }}</td>
                 <td>
-                    <span class="status-badge status-{{ att.display_status if att.display_status is defined else att.status }}">
-                        {{ (att.display_status if att.display_status is defined else att.status).replace('_',' ').title() }}
+                    <span class="status-badge status-{{ att.display_status }}">
+                        {{ att.display_status.replace('_',' ').title() }}
                     </span>
                     {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late {{ att.late_minutes | fmt_minutes }}</span>{% endif %}
                 </td>
