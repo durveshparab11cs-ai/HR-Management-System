@@ -74,7 +74,11 @@ class CameraManager {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Flip horizontally to undo the mirror effect from the video display
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.scale(-1, 1);
+      
       const jpeg = canvas.toDataURL('image/jpeg', 0.95);
       
       console.log('[CAM-' + this.prefix.toUpperCase() + '] Captured:', jpeg.length, 'bytes');
