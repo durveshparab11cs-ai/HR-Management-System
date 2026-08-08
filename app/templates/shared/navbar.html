@@ -71,7 +71,7 @@
             <div class="dropdown-menu dropdown-menu-end hrms-notification-dropdown shadow" aria-labelledby="notification-btn">
                 <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
                     <h6 class="mb-0 fw-semibold">Notifications</h6>
-                    <a href="{{ url_for('notifications.mark_all_read') }}" class="small text-primary hrms-mark-all-read" data-method="post">Mark all read</a>
+                    <a href="#" class="small text-primary hrms-mark-all-read" onclick="markAllRead(event)">Mark all read</a>
                 </div>
                 <div class="hrms-notification-list" id="notification-list">
                     <div class="text-center text-muted small py-4">No new notifications</div>
@@ -144,3 +144,23 @@
 
     </div>
 </header>
+
+<script>
+function markAllRead(event) {
+  event.preventDefault();
+  fetch('/notifications/mark-all-read', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    }
+  })
+  .catch(err => console.error('Error marking notifications as read:', err));
+}
+</script>
