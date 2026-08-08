@@ -656,9 +656,15 @@ def generate_proof_image():
             office_address = "Office Address"
             allowed_radius = 100
         else:
-            office_name = office.name or "Head Office"
-            office_address = office.address or "Office Address"
-            allowed_radius = office.radius_metres or 100
+            # Handle both dict and object types
+            if isinstance(office, dict):
+                office_name = office.get('name', 'Head Office')
+                office_address = office.get('address', 'Office Address')
+                allowed_radius = office.get('radius_metres', 100)
+            else:
+                office_name = getattr(office, 'name', None) or "Head Office"
+                office_address = getattr(office, 'address', None) or "Office Address"
+                allowed_radius = getattr(office, 'radius_metres', 100) or 100
             logger.info("Office: %s, Radius: %d", office_name, allowed_radius)
         
         # Get device info from user agent
