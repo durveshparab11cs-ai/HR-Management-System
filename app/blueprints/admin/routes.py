@@ -58,19 +58,9 @@ def index():
     import logging
     logger = logging.getLogger(__name__)
     
-    class AttendanceWithStatus:
-        """Wrapper to carry display_status alongside attendance record."""
-        def __init__(self, att_obj, disp_status):
-            self.att = att_obj
-            self.display_status = disp_status
-        
-        def __getattr__(self, name):
-            # Proxy all other attributes to the wrapped attendance object
-            try:
-                return getattr(self.att, name)
-            except AttributeError as e:
-                logger.error(f"AttributeError accessing {name} on wrapped attendance: {e}")
-                raise
+    # Simple wrapper class
+    class AttWrapper:
+        pass
     
     try:
         today = date.today()
@@ -161,14 +151,28 @@ def index():
                         display_status = "pending"
                         logger.info(f"Att {att.id}: No check-in time")
                     
-                    # Wrap in wrapper object to carry both att and display_status
-                    wrapped = AttendanceWithStatus(att, display_status)
-                    today_records.append(wrapped)
+                    # Create wrapper with all att attributes plus display_status
+                    wrapper = AttWrapper()
+                    wrapper.display_status = display_status
+                    for attr in dir(att):
+                        if not attr.startswith('_'):
+                            try:
+                                setattr(wrapper, attr, getattr(att, attr))
+                            except:
+                                pass
+                    today_records.append(wrapper)
                 except Exception as e:
                     logger.error(f"Error processing attendance {att.id}: {e}", exc_info=True)
                     # Still add to list but with default status
-                    wrapped = AttendanceWithStatus(att, "present")
-                    today_records.append(wrapped)
+                    wrapper = AttWrapper()
+                    wrapper.display_status = "present"
+                    for attr in dir(att):
+                        if not attr.startswith('_'):
+                            try:
+                                setattr(wrapper, attr, getattr(att, attr))
+                            except:
+                                pass
+                    today_records.append(wrapper)
             
             logger.info(f"Successfully prepared {len(today_records)} wrapped records")
             
