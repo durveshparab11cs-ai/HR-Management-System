@@ -54,6 +54,18 @@ _svc   = AdminService()
 @login_required
 @admin_required
 def index():
+    """Admin dashboard - shows today's attendance with computed display_status."""
+    
+    class AttendanceWithStatus:
+        """Wrapper to carry display_status alongside attendance record."""
+        def __init__(self, att_obj, disp_status):
+            self.att = att_obj
+            self.display_status = disp_status
+        
+        def __getattr__(self, name):
+            # Proxy all other attributes to the wrapped attendance object
+            return getattr(self.att, name)
+    
     today = date.today()
     from datetime import datetime
     now = datetime.now()
@@ -142,16 +154,7 @@ def index():
                 print(f"[DEBUG]   → No check-in: display_status=PENDING")
                 logging.info(f"Att {att.id}: No check-in time → PENDING")
             
-            # Wrap in a simple object to carry both att and display_status
-            class AttendanceWithStatus:
-                def __init__(self, att_obj, disp_status):
-                    self.att = att_obj
-                    self.display_status = disp_status
-                
-                def __getattr__(self, name):
-                    # Proxy all other attributes to the wrapped attendance object
-                    return getattr(self.att, name)
-            
+            # Wrap in wrapper object to carry both att and display_status
             wrapped = AttendanceWithStatus(att, display_status)
             today_records.append(wrapped)
         
