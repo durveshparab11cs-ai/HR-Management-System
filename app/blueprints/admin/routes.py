@@ -88,12 +88,22 @@ def index():
         pending_early     = 0
     try:
         today_records     = _att.get_all_today(today)
-        # Add computed status based on working hours
+        # Add computed status based on working hours and photo uploads
         from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+        from app.models.attendance_photo import AttendancePhoto
         from datetime import datetime as dt_now
         for att in today_records:
             try:
-                if att.check_in_time and att.check_out_time:
+                # Check if both check-in and check-out photos are uploaded
+                photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+                has_checkin_photo = photo and photo.image_data
+                has_checkout_photo = photo and photo.checkout_image_data
+                
+                if not has_checkin_photo or not has_checkout_photo:
+                    # Missing one or both photos → PENDING
+                    att.status = "pending"
+                elif att.check_in_time and att.check_out_time:
+                    # Both photos uploaded - compute status based on working hours
                     office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
                     if office:
                         meta = compute_check_out_meta(att, att.check_out_time, office, att.employee_id)
