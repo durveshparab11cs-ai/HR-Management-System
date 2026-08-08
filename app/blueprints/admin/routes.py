@@ -57,27 +57,32 @@ def _compute_display_status(attendance, photo, employee):
     
     Returns display status as string.
     """
-    from app.blueprints.attendance.attendance_engine import compute_check_out_meta
-    from datetime import datetime as _dt_now
-    
-    # Check if both check-in and check-out photos are uploaded
-    has_checkin_photo = photo and photo.image_data
-    has_checkout_photo = photo and photo.checkout_image_data
-    
-    if not has_checkin_photo or not has_checkout_photo:
-        # Missing one or both photos → PENDING
-        return "pending"
-    
-    if attendance.check_in_time:
-        # Both photos uploaded - recalculate status based on working hours
-        office = _att.get_office_for_employee(employee)
-        if office:
-            # Use check-out time if available, otherwise use current time
-            calc_time = attendance.check_out_time if attendance.check_out_time else _dt_now.utcnow()
-            meta = compute_check_out_meta(attendance, calc_time, office, employee.id)
-            return meta["status"]
-    
-    return attendance.status
+    try:
+        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+        from datetime import datetime as _dt_now
+        
+        # Check if both check-in and check-out photos are uploaded
+        has_checkin_photo = photo and getattr(photo, 'image_data', None)
+        has_checkout_photo = photo and getattr(photo, 'checkout_image_data', None)
+        
+        if not has_checkin_photo or not has_checkout_photo:
+            # Missing one or both photos → PENDING
+            return "pending"
+        
+        if attendance.check_in_time:
+            # Both photos uploaded - recalculate status based on working hours
+            office = _att.get_office_for_employee(employee)
+            if office:
+                # Use check-out time if available, otherwise use current time
+                calc_time = attendance.check_out_time if attendance.check_out_time else _dt_now.utcnow()
+                meta = compute_check_out_meta(attendance, calc_time, office, employee.id)
+                return meta.get("status", attendance.status)
+        
+        return attendance.status
+    except Exception as e:
+        import logging
+        logging.error(f"Error in _compute_display_status: {e}")
+        return attendance.status
 
 
 @admin_bp.route("/")
@@ -122,19 +127,27 @@ def index():
         # Compute display status for each record
         formatted_records = []
         for att in today_records:
-            emp = _emp.get_by_id(att.employee_id)
-            if emp:
-                # Get photo
-                from app.models.attendance_photo import AttendancePhoto
-                photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
-                display_status = _compute_display_status(att, photo, emp)
-                formatted_records.append({
-                    'attendance': att,
-                    'employee': emp,
-                    'display_status': display_status,
-                })
+            try:
+                emp = _emp.get_by_id(att.employee_id)
+                if emp:
+                    # Get photo
+                    from app.models.attendance_photo import AttendancePhoto
+                    photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+                    display_status = _compute_display_status(att, photo, emp)
+                    formatted_records.append({
+                        'attendance': att,
+                        'employee': emp,
+                        'display_status': display_status,
+                    })
+            except Exception as e:
+                # Log error but continue processing other records
+                import logging
+                logging.error(f"Error computing status for attendance {att.id}: {e}")
+                continue
         today_records = formatted_records
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.error(f"Error fetching today records: {e}")
         today_records     = []
     try:
         recent_requests   = _leave.get_pending(page=1, per_page=5).items
