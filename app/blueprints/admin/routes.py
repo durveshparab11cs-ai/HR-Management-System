@@ -172,15 +172,18 @@ def view_all_attendance():
         check_in_ist = to_ist(att.check_in_time)
         check_out_ist = to_ist(att.check_out_time)
         
-        # Recalculate status if employee hasn't checked out yet
+        # ALWAYS recalculate status based on working hours
+        # This ensures consistency with the new attendance rules
         status_display = att.status
-        if att.check_in_time and not att.check_out_time:
-            # Not checked out yet - recalculate status based on current time
+        if att.check_in_time:
+            # Has checked in - recalculate status
             from datetime import datetime as _dt_now
             _att_repo = AttendanceRepository()
             office = _att_repo.get_office_for_employee(emp)
             if office:
-                meta = compute_check_out_meta(att, _dt_now.utcnow(), office, emp.id)
+                # Use check-out time if available, otherwise use current time
+                calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
+                meta = compute_check_out_meta(att, calc_time, office, emp.id)
                 status_display = meta["status"]
 
         attendance_data.append({
