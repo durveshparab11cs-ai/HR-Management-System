@@ -7,9 +7,10 @@
 .photo-container { display: flex; gap: 8px; align-items: center; }
 .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
 .status-present { background-color: #d4edda; color: #155724; }
-.status-absent { background-color: #f8d7da; color: #721c24; }
+.status-absent { background-color: #dc3545; color: white; }
 .status-half_day { background-color: #fff3cd; color: #856404; }
 .status-on_leave { background-color: #d1ecf1; color: #0c5460; }
+.status-pending { display: inline-block; padding: 0; border-radius: 0; font-size: 0.75rem; font-weight: 400; text-transform: none; color: #6c757d; background-color: transparent; }
 .time-display { font-family: 'Monaco', 'Courier New', monospace; font-size: 0.9rem; }
 .modal-img { max-width: 100%; max-height: 60vh; border-radius: 8px; }
 .filter-section { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px; }
@@ -166,7 +167,7 @@ tbody tr:hover { background-color: #f8f9fa; }
                 
                 <!-- Status -->
                 <td>
-                    <span class="status-badge status-{{ item.attendance.status }}">
+                    <span class="status-badge status-{{ item.status_display | lower | replace(' ', '_') }}">
                         {{ item.status_display }}
                     </span>
                 </td>
