@@ -15,6 +15,14 @@
 .sc-teal   { background:linear-gradient(135deg,#0891b2,#06b6d4); }
 .sc-pink   { background:linear-gradient(135deg,#db2777,#ec4899); }
 .sc-slate  { background:linear-gradient(135deg,#475569,#64748b); }
+
+/* Status badge styles */
+.status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+.status-present { background-color: #d4edda; color: #155724; }
+.status-absent { background-color: #dc3545; color: white; }
+.status-half_day { background-color: #fff3cd; color: #856404; }
+.status-on_leave { background-color: #d1ecf1; color: #0c5460; }
+.status-pending { display: inline-block; padding: 0; border-radius: 0; font-size: 0.75rem; font-weight: 400; text-transform: none; color: #6c757d; background-color: transparent; }
 </style>
 {% endblock %}
 {% block breadcrumbs %}{% set breadcrumbs=[('Admin Dashboard',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
@@ -225,8 +233,8 @@
                 </td>
                 <td class="fw-semibold">{{ att.working_hours_display }}</td>
                 <td>
-                    <span class="badge bg-{{ bm.get(att.status,'secondary') }}-subtle text-{{ bm.get(att.status,'secondary') }}">
-                        {{ att.status.replace('_',' ').title() }}
+                    <span class="status-badge status-{{ att.display_status if att.display_status is defined else att.status }}">
+                        {{ (att.display_status if att.display_status is defined else att.status).replace('_',' ').title() }}
                     </span>
                     {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late {{ att.late_minutes | fmt_minutes }}</span>{% endif %}
                 </td>
