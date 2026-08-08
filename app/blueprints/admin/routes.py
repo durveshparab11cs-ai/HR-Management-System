@@ -113,19 +113,21 @@ def index():
                     if office:
                         calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
                         meta = compute_check_out_meta(att, calc_time, office, att.employee_id)
-                        status = meta.get("status", att.status)
+                        status = meta.get("status", "present")
                         working_mins = meta.get("working_minutes", 0)
                         att.display_status = status
                         logging.info(f"Att {att.id} ({att.employee.full_name}): {working_mins} mins → {status}")
                     else:
-                        att.display_status = att.status
-                        logging.warning(f"Att {att.id}: No office found")
+                        # No office - use status based on working minutes fallback logic
+                        att.display_status = "present"
+                        logging.warning(f"Att {att.id}: No office found, defaulting to present")
                 except Exception as e:
                     logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
-                    att.display_status = att.status
+                    att.display_status = "present"
             else:
-                att.display_status = att.status
-                logging.info(f"Att {att.id}: No check-in time")
+                # No check-in time - assume not started
+                att.display_status = "pending"
+                logging.info(f"Att {att.id}: No check-in time → PENDING")
     except Exception as e:
         import logging
         logging.error(f"Error fetching today records: {e}", exc_info=True)
