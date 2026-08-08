@@ -149,7 +149,10 @@ def compute_check_out_meta(
         required_minutes = required_hours * 60
         half_day_threshold = office.half_day_threshold_minutes
         
-        # For flexible: Present if >= required hours, else check half-day threshold
+        # For flexible:
+        # - Present if >= 9 hours
+        # - Half-day if >= 5 hours and < 9 hours
+        # - Absent if < 5 hours
         if working_minutes >= required_minutes:
             status = AttendanceStatus.PRESENT
             is_half_day = False
@@ -157,8 +160,9 @@ def compute_check_out_meta(
             status = AttendanceStatus.HALF_DAY
             is_half_day = True
         else:
-            status = AttendanceStatus.HALF_DAY
-            is_half_day = True
+            # Less than 5 hours → ABSENT
+            status = AttendanceStatus.ABSENT
+            is_half_day = False
         
         return {
             "working_minutes": working_minutes,
@@ -188,19 +192,26 @@ def compute_check_out_meta(
     overtime_minutes = max(0, int((co - shift_end_utc).total_seconds() / 60)) \
                        if co > shift_end_utc else 0
 
-    # Half-day: worked at least half-day threshold but less than full day (9 hours)
-    # Examples:
-    # - 39 minutes → NOT half-day, should be ABSENT (below threshold)
-    # - 300 minutes (5 hours) → HALF_DAY (at/above threshold, below full day)
-    # - 540 minutes (9 hours) → PRESENT (full day)
+    # Half-day logic:
+    # - ABSENT if < 5 hours (< 300 minutes)
+    # - HALF_DAY if >= 5 hours and < 9 hours
+    # - PRESENT if >= 9 hours
+    HALF_DAY_THRESHOLD = 5 * 60  # 300 minutes
     FULL_DAY_THRESHOLD = 9 * 60  # 540 minutes
-    is_half_day = (half_day_threshold <= working_minutes < FULL_DAY_THRESHOLD)
+    
+    if working_minutes < HALF_DAY_THRESHOLD:
+        status = AttendanceStatus.ABSENT
+        is_half_day = False
+    elif working_minutes < FULL_DAY_THRESHOLD:
+        status = AttendanceStatus.HALF_DAY
+        is_half_day = True
+    else:
+        status = AttendanceStatus.PRESENT
+        is_half_day = False
 
     # Early leave: checked out before shift end (minus grace)
     early_leave_threshold = shift_end_utc - timedelta(minutes=grace_period)
     is_early_leave = co < early_leave_threshold
-
-    status = AttendanceStatus.HALF_DAY if is_half_day else AttendanceStatus.PRESENT
 
     return {
         "working_minutes": working_minutes,
