@@ -50,6 +50,12 @@ class Hospital(BaseModel):
     # employees relationship disabled until Employee foreign key is restored
     # employees = relationship("Employee", back_populates="hospital", lazy="select")
     
+    def __setattr__(self, name, value):
+        """Convert empty strings to NULL for hospital_code to avoid UNIQUE constraint violations."""
+        if name == 'hospital_code' and value == '':
+            value = None
+        super().__setattr__(name, value)
+    
     @property
     def employee_count(self) -> int:
         """Get count of employees assigned to this hospital."""
