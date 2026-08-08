@@ -54,114 +54,38 @@ _svc   = AdminService()
 @login_required
 @admin_required
 def index():
-    """Admin dashboard - shows today's attendance with computed display_status."""
-    import logging
-    logger = logging.getLogger(__name__)
-    
+    """Admin dashboard"""
     try:
         today = date.today()
         from datetime import datetime
         now = datetime.now()
         
-        # Get basic stats with defensive defaults
-        total_employees = 0
-        checked_in_today = 0
-        checked_out_today = 0
-        late_today = 0
-        pending_leaves = 0
-        pending_halfdays = 0
-        pending_early = 0
-        absent_today = 0
-        today_records = []
-        recent_requests = []
-        
-        try:
-            total_employees = _emp.count_total()
-        except Exception as e:
-            logger.error(f"count_total failed: {e}")
-        
-        try:
-            checked_in_today = _att.count_checked_in_today(today)
-        except Exception as e:
-            logger.error(f"count_checked_in_today failed: {e}")
-        
-        try:
-            checked_out_today = _att.count_checked_out_today(today)
-        except Exception as e:
-            logger.error(f"count_checked_out_today failed: {e}")
-        
-        try:
-            late_today = _att.count_late_today(today)
-        except Exception as e:
-            logger.error(f"count_late_today failed: {e}")
-        
+        total_employees = _emp.count_total() if _emp else 0
+        checked_in_today = _att.count_checked_in_today(today) if _att else 0
+        checked_out_today = _att.count_checked_out_today(today) if _att else 0
+        late_today = _att.count_late_today(today) if _att else 0
         absent_today = max(0, total_employees - checked_in_today)
+        pending_leaves = _leave.count_pending() if _leave else 0
+        pending_halfdays = _leave.count_pending_halfdays() if _leave else 0
+        pending_early = _leave.count_pending_earlyleaves() if _leave else 0
         
+        today_records = []
         try:
-            pending_leaves = _leave.count_pending()
+            records = _att.get_all_today(today) if _att else []
+            for att in records:
+                att.display_status = "present"  # Simple default
+                today_records.append(att)
         except Exception as e:
-            logger.error(f"count_pending failed: {e}")
+            import logging
+            logging.error(f"Error getting today records: {e}")
         
+        recent_requests = []
         try:
-            pending_halfdays = _leave.count_pending_halfdays()
+            result = _leave.get_pending(page=1, per_page=5) if _leave else None
+            recent_requests = result.items if result else []
         except Exception as e:
-            logger.error(f"count_pending_halfdays failed: {e}")
-        
-        try:
-            pending_early = _leave.count_pending_earlyleaves()
-        except Exception as e:
-            logger.error(f"count_pending_earlyleaves failed: {e}")
-        
-        # Process attendance records
-        try:
-            today_records_raw = _att.get_all_today(today)
-            logger.info(f"Processing {len(today_records_raw)} attendance records")
-            
-            from app.models.attendance_photo import AttendancePhoto
-            from app.blueprints.attendance.attendance_engine import compute_check_out_meta
-            from datetime import datetime as _dt_now
-            
-            for att in today_records_raw:
-                try:
-                    # Get photo and check both uploads
-                    photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
-                    has_checkin = photo and bool(getattr(photo, 'image_data', None))
-                    has_checkout = photo and bool(getattr(photo, 'checkout_image_data', None))
-                    
-                    # Compute display_status
-                    if not has_checkin or not has_checkout:
-                        display_status = "pending"
-                    elif att.check_in_time:
-                        try:
-                            office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
-                            if office:
-                                calc_time = att.check_out_time or _dt_now.utcnow()
-                                meta = compute_check_out_meta(att, calc_time, office, att.employee_id)
-                                display_status = str(meta.get("status", "present"))
-                            else:
-                                display_status = "present"
-                        except Exception as e:
-                            logger.error(f"compute_check_out_meta failed for att {att.id}: {e}")
-                            display_status = "present"
-                    else:
-                        display_status = "pending"
-                    
-                    # Set as direct attribute
-                    object.__setattr__(att, 'display_status', display_status)
-                    today_records.append(att)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing att {att.id}: {e}")
-                    object.__setattr__(att, 'display_status', 'present')
-                    today_records.append(att)
-        
-        except Exception as e:
-            logger.error(f"Error fetching today records: {e}")
-        
-        try:
-            recent_requests = _leave.get_pending(page=1, per_page=5).items
-        except Exception as e:
-            logger.error(f"Error fetching recent requests: {e}")
+            import logging
+            logging.error(f"Error getting recent requests: {e}")
         
         return render_template(
             "admin/index.html",
@@ -179,10 +103,10 @@ def index():
             today_records=today_records,
             recent_requests=recent_requests,
         )
-    
     except Exception as e:
-        logger.error(f"FATAL in admin index: {e}", exc_info=True)
-        flash("Error loading dashboard", "danger")
+        import logging
+        logging.error(f"Admin index error: {e}", exc_info=True)
+        flash("Dashboard error", "danger")
         return redirect(url_for("authentication.login"))
 
 
