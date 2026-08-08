@@ -58,134 +58,111 @@ def index():
     import logging
     logger = logging.getLogger(__name__)
     
-    # Simple wrapper class
-    class AttWrapper:
-        pass
-    
     try:
         today = date.today()
         from datetime import datetime
         now = datetime.now()
+        
+        # Get basic stats with defensive defaults
+        total_employees = 0
+        checked_in_today = 0
+        checked_out_today = 0
+        late_today = 0
+        pending_leaves = 0
+        pending_halfdays = 0
+        pending_early = 0
+        absent_today = 0
+        today_records = []
+        recent_requests = []
+        
         try:
-            total_employees   = _emp.count_total()
+            total_employees = _emp.count_total()
         except Exception as e:
-            logger.error(f"Error counting total employees: {e}")
-            total_employees   = 0
+            logger.error(f"count_total failed: {e}")
+        
         try:
-            checked_in_today  = _att.count_checked_in_today(today)
+            checked_in_today = _att.count_checked_in_today(today)
         except Exception as e:
-            logger.error(f"Error counting checked-in: {e}")
-            checked_in_today  = 0
+            logger.error(f"count_checked_in_today failed: {e}")
+        
         try:
             checked_out_today = _att.count_checked_out_today(today)
         except Exception as e:
-            logger.error(f"Error counting checked-out: {e}")
-            checked_out_today = 0
-        try:
-            late_today        = _att.count_late_today(today)
-        except Exception as e:
-            logger.error(f"Error counting late: {e}")
-            late_today        = 0
-        absent_today = max(0, total_employees - checked_in_today)
-        try:
-            pending_leaves    = _leave.count_pending()
-        except Exception as e:
-            logger.error(f"Error counting pending leaves: {e}")
-            pending_leaves    = 0
-        try:
-            pending_halfdays  = _leave.count_pending_halfdays()
-        except Exception as e:
-            logger.error(f"Error counting pending halfdays: {e}")
-            pending_halfdays  = 0
-        try:
-            pending_early     = _leave.count_pending_earlyleaves()
-        except Exception as e:
-            logger.error(f"Error counting pending early leaves: {e}")
-            pending_early     = 0
+            logger.error(f"count_checked_out_today failed: {e}")
         
-        today_records = []
+        try:
+            late_today = _att.count_late_today(today)
+        except Exception as e:
+            logger.error(f"count_late_today failed: {e}")
+        
+        absent_today = max(0, total_employees - checked_in_today)
+        
+        try:
+            pending_leaves = _leave.count_pending()
+        except Exception as e:
+            logger.error(f"count_pending failed: {e}")
+        
+        try:
+            pending_halfdays = _leave.count_pending_halfdays()
+        except Exception as e:
+            logger.error(f"count_pending_halfdays failed: {e}")
+        
+        try:
+            pending_early = _leave.count_pending_earlyleaves()
+        except Exception as e:
+            logger.error(f"count_pending_earlyleaves failed: {e}")
+        
+        # Process attendance records
         try:
             today_records_raw = _att.get_all_today(today)
-            logger.info(f"Found {len(today_records_raw)} attendance records for {today}")
+            logger.info(f"Processing {len(today_records_raw)} attendance records")
             
-            # Add display_status attribute based on photos and hours
             from app.models.attendance_photo import AttendancePhoto
             from app.blueprints.attendance.attendance_engine import compute_check_out_meta
             from datetime import datetime as _dt_now
             
-            # Convert to list and add display_status
             for att in today_records_raw:
                 try:
-                    # Get photo
+                    # Get photo and check both uploads
                     photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+                    has_checkin = photo and bool(getattr(photo, 'image_data', None))
+                    has_checkout = photo and bool(getattr(photo, 'checkout_image_data', None))
                     
-                    # Check if both photos are uploaded
-                    has_checkin_photo = photo and getattr(photo, 'image_data', None)
-                    has_checkout_photo = photo and getattr(photo, 'checkout_image_data', None)
-                    
-                    display_status = att.status  # Default to DB status
-                    
-                    if not has_checkin_photo or not has_checkout_photo:
-                        # Missing one or both photos → PENDING
+                    # Compute display_status
+                    if not has_checkin or not has_checkout:
                         display_status = "pending"
-                        logger.info(f"Att {att.id}: Missing photos → PENDING")
                     elif att.check_in_time:
-                        # Both photos uploaded - recalculate status based on working hours
                         try:
                             office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
                             if office:
-                                calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
+                                calc_time = att.check_out_time or _dt_now.utcnow()
                                 meta = compute_check_out_meta(att, calc_time, office, att.employee_id)
-                                display_status = meta.get("status", "present")
-                                working_mins = meta.get("working_minutes", 0)
-                                logger.debug(f"Att {att.id}: {working_mins} mins → {display_status}")
+                                display_status = str(meta.get("status", "present"))
                             else:
-                                # No office - default to present
                                 display_status = "present"
-                                logger.warning(f"Att {att.id}: No office found")
                         except Exception as e:
-                            logger.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
+                            logger.error(f"compute_check_out_meta failed for att {att.id}: {e}")
                             display_status = "present"
                     else:
-                        # No check-in time - assume not started
                         display_status = "pending"
-                        logger.info(f"Att {att.id}: No check-in time")
                     
-                    # Create wrapper with all att attributes plus display_status
-                    wrapper = AttWrapper()
-                    wrapper.display_status = display_status
-                    for attr in dir(att):
-                        if not attr.startswith('_'):
-                            try:
-                                setattr(wrapper, attr, getattr(att, attr))
-                            except:
-                                pass
-                    today_records.append(wrapper)
+                    # Set as direct attribute
+                    object.__setattr__(att, 'display_status', display_status)
+                    today_records.append(att)
+                    
                 except Exception as e:
-                    logger.error(f"Error processing attendance {att.id}: {e}", exc_info=True)
-                    # Still add to list but with default status
-                    wrapper = AttWrapper()
-                    wrapper.display_status = "present"
-                    for attr in dir(att):
-                        if not attr.startswith('_'):
-                            try:
-                                setattr(wrapper, attr, getattr(att, attr))
-                            except:
-                                pass
-                    today_records.append(wrapper)
-            
-            logger.info(f"Successfully prepared {len(today_records)} wrapped records")
-            
+                    logger.error(f"Error processing att {att.id}: {e}")
+                    object.__setattr__(att, 'display_status', 'present')
+                    today_records.append(att)
+        
         except Exception as e:
-            logger.error(f"Error fetching today records: {e}", exc_info=True)
-            today_records = []
+            logger.error(f"Error fetching today records: {e}")
         
         try:
             recent_requests = _leave.get_pending(page=1, per_page=5).items
         except Exception as e:
             logger.error(f"Error fetching recent requests: {e}")
-            recent_requests = []
-
+        
         return render_template(
             "admin/index.html",
             title="Admin Dashboard",
@@ -202,9 +179,10 @@ def index():
             today_records=today_records,
             recent_requests=recent_requests,
         )
+    
     except Exception as e:
-        logger.error(f"FATAL ERROR in admin index route: {e}", exc_info=True)
-        flash(f"Error loading dashboard: {str(e)}", "danger")
+        logger.error(f"FATAL in admin index: {e}", exc_info=True)
+        flash("Error loading dashboard", "danger")
         return redirect(url_for("authentication.login"))
 
 
