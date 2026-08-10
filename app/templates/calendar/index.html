@@ -33,7 +33,7 @@
             </button>
             <div style="min-width: 200px; text-align: center;">
               <h5 class="fw-bold mb-0" id="calendar-month-year">
-                {{ '%B %Y' | strftime(year, month) }}
+                <!-- Filled by JavaScript -->
               </h5>
             </div>
             <button class="btn btn-outline-secondary btn-sm" id="btn-next-month">
@@ -58,7 +58,8 @@
             <select class="form-select form-select-sm" id="month-selector">
               {% for m in range(1, 13) %}
               <option value="{{ m }}" {% if m == month %}selected{% endif %}>
-                {{ '%B' | strftime(m) }}
+                {% set month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+                {{ month_names[m] }}
               </option>
               {% endfor %}
             </select>
