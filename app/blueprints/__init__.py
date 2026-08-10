@@ -23,6 +23,7 @@ from app.blueprints.shift_change.routes import bp as shift_change_bp
 from app.blueprints.payroll import payroll_bp
 from app.blueprints.reports import reports_bp
 from app.blueprints.notifications import notifications_bp
+from app.blueprints.calendar import calendar_bp
 from app.blueprints.settings import settings_bp
 from app.blueprints.admin import admin_bp
 from app.blueprints.api import api_bp
@@ -39,6 +40,7 @@ _blueprints = [
     (payroll_bp, None),
     (reports_bp, None),
     (notifications_bp, None),
+    (calendar_bp, None),
     (settings_bp, None),
     (admin_bp, None),
     (api_bp, None),

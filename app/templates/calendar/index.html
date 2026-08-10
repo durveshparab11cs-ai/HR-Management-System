@@ -1,0 +1,348 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Holiday Calendar — {{ app_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Calendar', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Company Holiday Calendar</h1>
+    <p class="text-muted small mb-0">View and manage company holidays</p>
+  </div>
+  {% if is_admin %}
+  <a href="{{ url_for('calendar.import_holidays') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-upload me-1"></i>Import Holidays
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <!-- Calendar Card -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <!-- Calendar Header with Navigation -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" id="btn-prev-month">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <div style="min-width: 200px; text-align: center;">
+              <h5 class="fw-bold mb-0" id="calendar-month-year">
+                {{ '%B %Y' | strftime(year, month) }}
+              </h5>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" id="btn-next-month">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" id="btn-today">Today</button>
+        </div>
+
+        <!-- Year/Month Selector -->
+        <div class="row mb-4 g-2">
+          <div class="col-auto">
+            <label class="form-label small fw-semibold mb-1">Year</label>
+            <select class="form-select form-select-sm" id="year-selector">
+              {% for y in available_years %}
+              <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small fw-semibold mb-1">Month</label>
+            <select class="form-select form-select-sm" id="month-selector">
+              {% for m in range(1, 13) %}
+              <option value="{{ m }}" {% if m == month %}selected{% endif %}>
+                {{ '%B' | strftime(m) }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div class="table-responsive">
+          <table class="table table-sm" style="margin-bottom: 0;">
+            <thead>
+              <tr class="border-bottom">
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Mon</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Tue</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Wed</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Thu</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Fri</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sat</th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sun</th>
+              </tr>
+            </thead>
+            <tbody id="calendar-grid">
+              <!-- Filled by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holiday List Sidebar -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 py-3 px-4">
+        <h6 class="fw-semibold mb-0">Holidays for <span id="list-year">{{ year }}</span></h6>
+      </div>
+      <div class="card-body p-4" style="max-height: 600px; overflow-y: auto;">
+        <div id="holidays-list" class="list-group list-group-flush">
+          <!-- Filled by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Holiday Details Modal -->
+<div class="modal fade" id="holidayModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="holiday-modal-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="holiday-modal-details"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const holidays = {{ holidays | tojson }};
+  const currentYear = {{ year }};
+  const currentMonth = {{ month }};
+  const availableYears = {{ available_years | tojson }};
+
+  // Convert holidays to a map for easy lookup
+  const holidayMap = {};
+  holidays.forEach(h => {
+    const dateStr = h.holiday_date;
+    if (!holidayMap[dateStr]) {
+      holidayMap[dateStr] = [];
+    }
+    holidayMap[dateStr].push(h);
+  });
+
+  function renderCalendar(year, month) {
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const prevLastDay = new Date(year, month - 1, 0);
+
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday
+    const daysInMonth = lastDay.getDate();
+    const daysInPrevMonth = prevLastDay.getDate();
+
+    let html = '';
+    let dayCounter = 1;
+
+    // Calculate starting Monday (convert Sunday=0 to Monday=0)
+    const startDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+
+    // Generate calendar cells
+    for (let week = 0; week < 6; week++) {
+      html += '<tr>';
+      for (let day = 0; day < 7; day++) {
+        const cellIndex = week * 7 + day;
+
+        let dateStr = '';
+        let isCurrentMonth = false;
+        let dateObj = null;
+
+        if (cellIndex < startDay) {
+          // Previous month
+          const d = daysInPrevMonth - startDay + cellIndex + 1;
+          dateObj = new Date(year, month - 2, d);
+          html += '<td class="text-center text-muted bg-light py-3 small">' + d + '</td>';
+        } else if (dayCounter <= daysInMonth) {
+          // Current month
+          dateObj = new Date(year, month - 1, dayCounter);
+          isCurrentMonth = true;
+          const dateNum = dayCounter;
+          dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(dateNum).padStart(2, '0');
+
+          const hasHoliday = holidayMap[dateStr];
+          const cellClass = hasHoliday ? 'bg-warning bg-opacity-10 border border-warning rounded' : '';
+          const dateClass = hasHoliday ? 'fw-bold text-warning' : '';
+
+          html += `<td class="text-center py-3 small cursor-pointer ${cellClass}" onclick="handleDateClick('${dateStr}')">
+            <span class="${dateClass}">${dateNum}</span>`;
+
+          if (hasHoliday) {
+            html += `<div class="small text-warning fw-semibold" style="font-size: 0.7rem; margin-top: 2px;">`;
+            hasHoliday.forEach((h, idx) => {
+              if (idx < 1) {
+                html += h.holiday_name.substring(0, 10);
+              }
+            });
+            html += '</div>';
+          }
+
+          html += '</td>';
+          dayCounter++;
+        } else {
+          // Next month
+          const d = cellIndex - startDay - daysInMonth + 1;
+          dateObj = new Date(year, month, d);
+          html += '<td class="text-center text-muted bg-light py-3 small">' + d + '</td>';
+        }
+      }
+      html += '</tr>';
+    }
+
+    document.getElementById('calendar-grid').innerHTML = html;
+    updateMonthYearDisplay(year, month);
+    updateHolidaysList(year);
+  }
+
+  function updateMonthYearDisplay(year, month) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    document.getElementById('calendar-month-year').textContent = monthNames[month - 1] + ' ' + year;
+    document.getElementById('list-year').textContent = year;
+  }
+
+  function updateHolidaysList(year) {
+    const yearHolidays = holidays.filter(h => h.holiday_date.startsWith(year + '-')).sort((a, b) => a.holiday_date.localeCompare(b.holiday_date));
+    let html = '';
+
+    if (yearHolidays.length === 0) {
+      html = '<div class="text-muted text-center py-4"><p class="small mb-0">No holidays for this year</p></div>';
+    } else {
+      yearHolidays.forEach(h => {
+        const dateObj = new Date(h.holiday_date + 'T00:00:00');
+        const dateStr = dateObj.toLocaleDateString('en-IN', { day: 'short', month: 'short', year: 'numeric' });
+        html += `
+          <a href="javascript:void(0)" onclick="showHolidayDetail(${h.id})" class="list-group-item list-group-item-action py-2 px-0 border-0 border-bottom">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold small">${h.holiday_name}</div>
+                <div class="text-muted" style="font-size: 0.85rem;">${dateStr}</div>
+              </div>
+              <i class="bi bi-chevron-right text-muted"></i>
+            </div>
+          </a>
+        `;
+      });
+    }
+
+    document.getElementById('holidays-list').innerHTML = html;
+  }
+
+  function handleDateClick(dateStr) {
+    const dayHolidays = holidayMap[dateStr];
+    if (dayHolidays && dayHolidays.length > 0) {
+      showHolidayDetail(dayHolidays[0].id);
+    }
+  }
+
+  function showHolidayDetail(holidayId) {
+    const holiday = holidays.find(h => h.id === holidayId);
+    if (!holiday) return;
+
+    const dateObj = new Date(holiday.holiday_date + 'T00:00:00');
+    const dateStr = dateObj.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    let details = `
+      <div class="mb-3">
+        <label class="form-label text-muted small mb-1">Date</label>
+        <div class="fw-semibold">${dateStr}</div>
+      </div>
+    `;
+
+    if (holiday.holiday_type) {
+      details += `
+        <div class="mb-3">
+          <label class="form-label text-muted small mb-1">Type</label>
+          <div class="fw-semibold">${holiday.holiday_type}</div>
+        </div>
+      `;
+    }
+
+    if (holiday.description) {
+      details += `
+        <div class="mb-3">
+          <label class="form-label text-muted small mb-1">Description</label>
+          <div>${holiday.description}</div>
+        </div>
+      `;
+    }
+
+    document.getElementById('holiday-modal-title').textContent = holiday.holiday_name;
+    document.getElementById('holiday-modal-details').innerHTML = details;
+
+    const modal = new bootstrap.Modal(document.getElementById('holidayModal'));
+    modal.show();
+  }
+
+  // Event listeners
+  document.getElementById('btn-prev-month').addEventListener('click', () => {
+    let month = currentMonth - 1;
+    let year = currentYear;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+    window.location.href = `{{ url_for('calendar.index') }}?year=${year}&month=${month}`;
+  });
+
+  document.getElementById('btn-next-month').addEventListener('click', () => {
+    let month = currentMonth + 1;
+    let year = currentYear;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    window.location.href = `{{ url_for('calendar.index') }}?year=${year}&month=${month}`;
+  });
+
+  document.getElementById('btn-today').addEventListener('click', () => {
+    const today = new Date();
+    window.location.href = `{{ url_for('calendar.index') }}?year=${today.getFullYear()}&month=${today.getMonth() + 1}`;
+  });
+
+  document.getElementById('year-selector').addEventListener('change', (e) => {
+    const year = e.target.value;
+    window.location.href = `{{ url_for('calendar.index') }}?year=${year}&month=${currentMonth}`;
+  });
+
+  document.getElementById('month-selector').addEventListener('change', (e) => {
+    const month = e.target.value;
+    window.location.href = `{{ url_for('calendar.index') }}?year=${currentYear}&month=${month}`;
+  });
+
+  // Initialize calendar on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    renderCalendar(currentYear, currentMonth);
+  });
+</script>
+
+<style>
+  #calendar-grid td {
+    min-height: 80px;
+    vertical-align: top;
+    position: relative;
+  }
+
+  #calendar-grid td.cursor-pointer {
+    cursor: pointer;
+  }
+
+  #calendar-grid td:hover:not(.bg-light) {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+</style>
+{% endblock %}

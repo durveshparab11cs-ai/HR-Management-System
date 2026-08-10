@@ -1,0 +1,101 @@
+{% extends 'layouts/base.html' %}
+{% block title %}{{ holiday.holiday_name }} — {{ app_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Calendar', 'calendar.index'), ('Holiday Details', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="mb-4">
+          <a href="{{ url_for('calendar.index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back to Calendar
+          </a>
+        </div>
+
+        <h3 class="h3 fw-bold mb-1">{{ holiday.holiday_name }}</h3>
+        <p class="text-muted mb-4">Holiday Details</p>
+
+        <div class="row g-4">
+          <!-- Date -->
+          <div class="col-md-6">
+            <label class="form-label text-muted fw-semibold small mb-2">Date</label>
+            <div class="p-3 bg-light rounded">
+              <div class="h5 fw-bold mb-1">
+                {{ holiday.holiday_date | strftime('%A') }}
+              </div>
+              <div class="text-muted">
+                {{ holiday.holiday_date | strftime('%B %d, %Y') }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Holiday Type -->
+          {% if holiday.holiday_type %}
+          <div class="col-md-6">
+            <label class="form-label text-muted fw-semibold small mb-2">Type</label>
+            <div class="p-3 bg-light rounded">
+              <span class="badge bg-primary">{{ holiday.holiday_type }}</span>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Description -->
+          {% if holiday.description %}
+          <div class="col-12">
+            <label class="form-label text-muted fw-semibold small mb-2">Description</label>
+            <div class="p-3 bg-light rounded">
+              <p class="mb-0">{{ holiday.description }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Audit Info -->
+          <div class="col-12">
+            <hr class="my-4"/>
+            <label class="form-label text-muted fw-semibold small mb-2">System Information</label>
+            <div class="row g-3 text-muted small">
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between">
+                  <span>Created:</span>
+                  <span>{{ holiday.created_at | strftime('%d %b %Y, %I:%M %p') }}</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between">
+                  <span>Last Updated:</span>
+                  <span>{{ holiday.updated_at | strftime('%d %b %Y, %I:%M %p') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 py-3 px-4">
+        <h6 class="fw-semibold mb-0">Quick Info</h6>
+      </div>
+      <div class="card-body p-4">
+        <p class="small mb-2"><strong>Holiday ID:</strong></p>
+        <p class="small text-muted font-monospace mb-3">{{ holiday.id }}</p>
+
+        <p class="small mb-2"><strong>Status:</strong></p>
+        <p class="small mb-0">
+          <span class="badge bg-success">Active</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
