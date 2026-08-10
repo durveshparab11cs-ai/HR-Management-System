@@ -45,16 +45,12 @@ class AuthService:
         """
         Authenticate using Employee Code + Password + Department.
 
-        1. Look up User via Employee.employee_code (or create Employee if missing)
-        2. Check account status / lock
-        3. Verify password
-        4. Validate department matches employee's assigned department
-        5. Store department in session
-        6. Record login history
-        7. Call Flask-Login login_user()
+        CRITICAL: All employees in EmployeeMaster MUST be able to login.
+        - If employee is in master but not registered: auto-register them
+        - If password is wrong first time: still allow retry (no auto-registration on wrong password)
+        - Every employee in master should succeed eventually
         """
         from flask import session  # noqa: PLC0415
-        from app.constants.enums import GLOBAL_ACCESS_DEPARTMENTS  # noqa: PLC0415
         from app.models.employee import Employee  # noqa: PLC0415
         from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
 
@@ -62,135 +58,159 @@ class AuthService:
         ua = request.user_agent.string if request.user_agent else None
         code = employee_code.strip().upper()
 
+        # ── FIRST: Check if employee exists in EmployeeMaster ────────
+        # This is the SOURCE OF TRUTH - every employee should be here
+        master = EmployeeMaster.query.filter_by(employee_code=code).first()
+        
+        if not master:
+            # Code doesn't exist in master at all
+            auth_repo.record_login(None, code, False, ip, ua, "employee_code_not_found")
+            logger.warning("LOGIN_FAILED | code=%s | reason=not_in_master | ip=%s", code, ip)
+            return False, "Employee Code not found in system. Please contact HR.", None
+
+        # ── SECOND: Look up User (existing or to-be-created) ─────────
         user = auth_repo.get_by_employee_code(code)
 
-        # ── Auto-create User + Employee if code found in EmployeeMaster ────
-        # This is the main auto-registration on first login
-        if not user:
+        # ── Auto-create User + Employee if first login (code in master but no User) ────
+        if not user and master and not master.is_registered:
             try:
-                master = EmployeeMaster.query.filter_by(employee_code=code).first()
-                if master and not master.is_registered:
-                    # Create User from EmployeeMaster
-                    name_parts = master.employee_name.strip().split(" ", 1)
-                    first_name = name_parts[0]
-                    last_name = name_parts[1] if len(name_parts) > 1 else "."
-                    
-                    email = f"{code.lower().replace('-', '')}@hrms.internal"
-                    username = code.lower().replace("-", "")
-                    
-                    # Generate unique email if collision
-                    if User.query.filter_by(email=email).first():
-                        email = f"{email}.{datetime.utcnow().strftime('%s')}"
-                    if User.query.filter_by(username=username).first():
-                        username = f"{username}_{datetime.utcnow().strftime('%f')}"
-                    
-                    # Create User with temp password (user will set real one on first login)
-                    user = User(
-                        email=email,
-                        username=username,
-                        first_name=first_name,
-                        last_name=last_name,
-                        role=UserRole.EMPLOYEE.value,
-                        status=UserStatus.ACTIVE.value,
-                        email_verified=True,
-                    )
-                    user.set_password(password)
-                    db.session.add(user)
-                    db.session.flush()  # Get user.id
-                    
-                    # Find office by working_location
-                    office_settings_id = None
-                    if master.working_location:
-                        from app.models.office_settings import OfficeSettings  # noqa: PLC0415
-                        office = OfficeSettings.query.filter(
-                            OfficeSettings.is_deleted == False,
-                            OfficeSettings.name.ilike(master.working_location)
-                        ).first()
-                        if office:
-                            office_settings_id = office.id
-                            office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
-                            logger.info("Found office %s for employee %s", office_name, code)
-                    
-                    # Create Employee profile with data from EmployeeMaster
-                    employee = Employee(
-                        user_id=user.id,
-                        employee_code=code,
-                        department=master.department or None,
-                        designation=master.designation or None,
-                        office_settings_id=office_settings_id,
-                        created_by=user.id,
-                    )
-                    db.session.add(employee)
-                    db.session.flush()
-                    
-                    # Mark master as registered
-                    master.is_registered = True
-                    master.registered_on = datetime.utcnow()
-                    db.session.add(master)
-                    
-                    # Commit everything
-                    db.session.commit()
-                    logger.info(
-                        "AUTO_REGISTER_ON_LOGIN | user_id=%s | code=%s | dept=%s | office=%s",
-                        user.id, code, master.department, office_settings_id
-                    )
+                # Create User from EmployeeMaster
+                name_parts = master.employee_name.strip().split(" ", 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else "."
+                
+                email = f"{code.lower().replace('-', '')}@hrms.internal"
+                username = code.lower().replace("-", "")
+                
+                # Generate unique email if collision
+                if User.query.filter_by(email=email).first():
+                    email = f"{email}.{datetime.utcnow().strftime('%s')}"
+                if User.query.filter_by(username=username).first():
+                    username = f"{username}_{datetime.utcnow().strftime('%f')}"
+                
+                # Create User with provided password
+                user = User(
+                    email=email,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role=UserRole.EMPLOYEE.value,
+                    status=UserStatus.ACTIVE.value,
+                    email_verified=True,
+                )
+                user.set_password(password)
+                db.session.add(user)
+                db.session.flush()  # Get user.id
+                
+                # Find office by working_location
+                office_settings_id = None
+                if master.working_location:
+                    from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+                    office = OfficeSettings.query.filter(
+                        OfficeSettings.is_deleted == False,
+                        OfficeSettings.name.ilike(master.working_location)
+                    ).first()
+                    if office:
+                        office_settings_id = office.id
+                
+                # Create Employee profile with data from EmployeeMaster
+                employee = Employee(
+                    user_id=user.id,
+                    employee_code=code,
+                    department=master.department or None,
+                    designation=master.designation or None,
+                    office_settings_id=office_settings_id,
+                    created_by=user.id,
+                )
+                db.session.add(employee)
+                db.session.flush()
+                
+                # Mark master as registered
+                master.is_registered = True
+                master.user_id = user.id
+                master.registered_at = datetime.utcnow()
+                db.session.add(master)
+                
+                # Commit everything
+                db.session.commit()
+                logger.info(
+                    "AUTO_REGISTER_ON_LOGIN | user_id=%s | code=%s | dept=%s | office=%s",
+                    user.id, code, master.department, office_settings_id
+                )
             except Exception as exc:
                 db.session.rollback()
                 logger.error("Failed to auto-register on login: %s", exc, exc_info=True)
-                user = None
+                # Don't fail here - try to find existing user
+                user = auth_repo.get_by_employee_code(code)
+                if not user:
+                    return False, "System error during registration. Please try again.", None
 
-        # ── Auto-create Employee record if User exists but Employee missing ────
-        # This handles backward compatibility
+        # ── If still no user, create one now ─────────────────────────
         if not user:
-            user = User.query.filter_by(username=code.lower().replace("-", "")).first()
-            if user and not user.is_deleted:
-                # User exists but no Employee record → create one from EmployeeMaster
-                try:
-                    master = EmployeeMaster.query.filter_by(
-                        employee_code=code
+            try:
+                name_parts = master.employee_name.strip().split(" ", 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else "."
+                
+                email = f"{code.lower().replace('-', '')}@hrms.internal"
+                username = code.lower().replace("-", "")
+                
+                if User.query.filter_by(email=email).first():
+                    email = f"{email}.{datetime.utcnow().strftime('%s')}"
+                if User.query.filter_by(username=username).first():
+                    username = f"{username}_{datetime.utcnow().strftime('%f')}"
+                
+                user = User(
+                    email=email,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role=UserRole.EMPLOYEE.value,
+                    status=UserStatus.ACTIVE.value,
+                    email_verified=True,
+                )
+                user.set_password(password)
+                db.session.add(user)
+                db.session.flush()
+                
+                office_settings_id = None
+                if master.working_location:
+                    from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+                    office = OfficeSettings.query.filter(
+                        OfficeSettings.is_deleted == False,
+                        OfficeSettings.name.ilike(master.working_location)
                     ).first()
-                    if master:
-                        # Find office by working_location
-                        office_settings_id = None
-                        if master.working_location:
-                            from app.models.office_settings import OfficeSettings  # noqa: PLC0415
-                            office = OfficeSettings.query.filter(
-                                OfficeSettings.is_deleted == False,
-                                OfficeSettings.name.ilike(master.working_location)
-                            ).first()
-                            if office:
-                                office_settings_id = office.id
-                                office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
-                                logger.info("Found office %s for employee %s", office_name, code)
-                        
-                        employee = Employee(
-                            user_id=user.id,
-                            employee_code=code,
-                            department=master.department or None,
-                            designation=master.designation or None,
-                            office_settings_id=office_settings_id,  # ✅ SET FROM MASTER
-                            created_by=user.id,
-                        )
-                        db.session.add(employee)
-                        db.session.commit()
-                        logger.info(
-                            "AUTO_CREATE_EMPLOYEE | user_id=%s | code=%s | dept=%s | office=%s",
-                            user.id, code, master.department, office_settings_id
-                        )
-                        # Refetch user with new employee relation
-                        db.session.refresh(user)
-                except Exception as exc:
-                    db.session.rollback()
-                    logger.warning("Failed to auto-create employee record: %s", exc)
+                    if office:
+                        office_settings_id = office.id
+                
+                employee = Employee(
+                    user_id=user.id,
+                    employee_code=code,
+                    department=master.department or None,
+                    designation=master.designation or None,
+                    office_settings_id=office_settings_id,
+                    created_by=user.id,
+                )
+                db.session.add(employee)
+                db.session.flush()
+                
+                if not master.is_registered:
+                    master.is_registered = True
+                    master.user_id = user.id
+                    master.registered_at = datetime.utcnow()
+                    db.session.add(master)
+                
+                db.session.commit()
+                logger.info("AUTO_CREATE_USER_FROM_MASTER | user_id=%s | code=%s", user.id, code)
+            except Exception as exc:
+                db.session.rollback()
+                logger.error("Failed to create user from master: %s", exc, exc_info=True)
+                return False, "System error. Please contact HR.", None
 
-        if not user:
-            auth_repo.record_login(None, code, False, ip, ua, "employee_code_not_found")
-            logger.warning("LOGIN_FAILED | code=%s | reason=not_found | ip=%s", code, ip)
-            return False, "Employee Code not found. Contact HR if you need assistance.", None
-
+        # ── Now we have a user - verify account status ─────────────────
         if user.is_deleted:
             auth_repo.record_login(user.id, code, False, ip, ua, "account_deleted")
-            return False, "Account not found.", None
+            return False, "Account has been deleted. Contact HR.", None
 
         if user.status == UserStatus.SUSPENDED.value:
             auth_repo.record_login(user.id, code, False, ip, ua, "account_suspended")
@@ -204,6 +224,7 @@ class AuthService:
             auth_repo.record_login(user.id, code, False, ip, ua, "account_locked")
             return False, f"Account locked. Try again after {Limits.Password.LOCKOUT_DURATION_MINUTES} minutes.", None
 
+        # ── Verify password ───────────────────────────────────────────
         if not user.check_password(password):
             user.record_failed_login()
             auth_repo.update_user(user)
@@ -214,34 +235,29 @@ class AuthService:
                 return False, "Account locked due to too many failed attempts. Contact HR.", None
             return False, f"Incorrect password. {remaining} attempt(s) remaining.", None
 
-        # ── Department validation ─────────────────────────────────────
-        # SIMPLIFIED: Allow login for all employees
-        # - If no department selected, use their assigned department
-        # - If department selected, allow it (no strict validation)
-        # - Admins bypass all checks
+        # ── Department handling ───────────────────────────────────────
         emp = getattr(user, "employee", None)
         emp_dept = (emp.department or "").strip() if emp else ""
         selected_dept = (department or "").strip()
         
-        # Store the department in session for access control
-        # Priority: selected > assigned > empty
+        # Store the department in session
         session_dept = selected_dept or emp_dept
         session["login_department"] = session_dept
 
-        # ── Success ───────────────────────────────────────────────────
+        # ── SUCCESS ───────────────────────────────────────────────────
         user.record_successful_login(ip_address=ip)
         auth_repo.update_user(user)
         auth_repo.record_login(user.id, code, True, ip, ua)
         login_user(user, remember=remember)
 
-        # ── Auto-sync: if employee profile has no department, save the selected one ────
+        # Auto-sync department if not set
         if emp and not emp.department and selected_dept:
             try:
                 emp.department = selected_dept
                 db.session.add(emp)
                 db.session.commit()
                 logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, selected_dept)
-            except Exception as _exc:  # noqa: BLE001
+            except Exception as _exc:
                 db.session.rollback()
                 logger.warning("Could not auto-set dept: %s", _exc)
 
