@@ -21,7 +21,6 @@ class AuthRepository:
         """Find an EmployeeMaster record by employee code (case-insensitive)."""
         return EmployeeMaster.query.filter_by(
             employee_code=employee_code.strip().upper(),
-            is_active=True,
         ).first()
 
     def mark_registered(self, master: EmployeeMaster, user_id: int) -> EmployeeMaster:
