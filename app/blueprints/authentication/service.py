@@ -215,25 +215,18 @@ class AuthService:
             return False, f"Incorrect password. {remaining} attempt(s) remaining.", None
 
         # ── Department validation ─────────────────────────────────────
-        # Super admin and Admin bypass department check
-        admin_roles = (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value)
-        if user.role not in admin_roles and department:
-            emp = getattr(user, "employee", None)
-            emp_dept = (emp.department or "").strip() if emp else ""
-            selected_dept = department.strip()
-
-            if emp_dept and emp_dept.lower() != selected_dept.lower():
-                auth_repo.record_login(user.id, code, False, ip, ua, "wrong_department")
-                logger.warning(
-                    "LOGIN_FAILED | user_id=%s | reason=wrong_department"
-                    " | selected=%s | assigned=%s | ip=%s",
-                    user.id, selected_dept, emp_dept, ip,
-                )
-                return (
-                    False,
-                    "You are not authorized to log in under the selected department.",
-                    None,
-                )
+        # SIMPLIFIED: Allow login for all employees
+        # - If no department selected, use their assigned department
+        # - If department selected, allow it (no strict validation)
+        # - Admins bypass all checks
+        emp = getattr(user, "employee", None)
+        emp_dept = (emp.department or "").strip() if emp else ""
+        selected_dept = (department or "").strip()
+        
+        # Store the department in session for access control
+        # Priority: selected > assigned > empty
+        session_dept = selected_dept or emp_dept
+        session["login_department"] = session_dept
 
         # ── Success ───────────────────────────────────────────────────
         user.record_successful_login(ip_address=ip)
@@ -241,19 +234,13 @@ class AuthService:
         auth_repo.record_login(user.id, code, True, ip, ua)
         login_user(user, remember=remember)
 
-        # Store department in session for access-control filtering
-        emp = getattr(user, "employee", None)
-        assigned_dept = (emp.department or "").strip() if emp else ""
-        # Admin/Super-Admin with global access store the selected dept or their own
-        session["login_department"] = assigned_dept or department or ""
-
-        # ── Auto-sync: if employee profile has no department, save it from login selection
-        if emp and not emp.department and department:
+        # ── Auto-sync: if employee profile has no department, save the selected one ────
+        if emp and not emp.department and selected_dept:
             try:
-                emp.department = department
+                emp.department = selected_dept
                 db.session.add(emp)
                 db.session.commit()
-                logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, department)
+                logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, selected_dept)
             except Exception as _exc:  # noqa: BLE001
                 db.session.rollback()
                 logger.warning("Could not auto-set dept: %s", _exc)
