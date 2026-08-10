@@ -120,7 +120,6 @@ def api_holiday_detail(holiday_id: int):
 
 @calendar_bp.route("/download-template")
 @login_required
-@admin_required
 def download_template():
     """Download a template Excel file for holiday imports."""
     try:
@@ -133,4 +132,4 @@ def download_template():
         )
     except Exception as e:
         flash(f"Error generating template: {str(e)}", "danger")
-        return redirect(url_for("calendar.import_holidays"))
+        return redirect(url_for("calendar.index"))

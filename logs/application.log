@@ -138,3 +138,4 @@
 2026-08-10 15:07:08 | INFO     | application | RESPONSE | id=90f031e67dc1 | GET /calendar/ | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
 2026-08-10 15:12:14 | DEBUG    | application | Request logger middleware registered.
 2026-08-10 15:16:24 | DEBUG    | application | Request logger middleware registered.
+2026-08-10 15:24:12 | DEBUG    | application | Request logger middleware registered.
