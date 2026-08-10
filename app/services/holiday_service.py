@@ -8,13 +8,16 @@ Handles:
     - Validating holiday data
     - Detecting and handling duplicates
     - Importing into database
+    - Generating template Excel files
 """
 
 import logging
 from datetime import date, datetime
+from io import BytesIO
 from typing import Optional
 
 import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from werkzeug.datastructures import FileStorage
 
 from app.extensions.database import db
@@ -353,3 +356,69 @@ class HolidayService:
         except Exception as e:
             logger.error(f"Error parsing row {row_idx}: {e}")
             return {"error": f"Row {row_idx}: {str(e)[:50]}"}
+
+    def generate_template_excel(self) -> BytesIO:
+        """
+        Generate a template Excel file for holiday imports.
+
+        Returns:
+            BytesIO object containing the Excel file
+        """
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Holidays"
+
+        # Define styles
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+
+        # Set column widths
+        worksheet.column_dimensions["A"].width = 15
+        worksheet.column_dimensions["B"].width = 30
+        worksheet.column_dimensions["C"].width = 25
+        worksheet.column_dimensions["D"].width = 40
+
+        # Create header row
+        headers = ["holiday_date", "holiday_name", "holiday_type", "description"]
+        for col_idx, header in enumerate(headers, start=1):
+            cell = worksheet.cell(row=1, column=col_idx)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+            cell.border = border
+
+        # Add example data rows
+        example_data = [
+            ["2026-01-26", "Republic Day", "National Holiday", "National holiday of India"],
+            ["2026-03-25", "Holi", "National Holiday", "Festival of colors"],
+            ["2026-08-15", "Independence Day", "National Holiday", "Independence day of India"],
+            ["2026-10-02", "Gandhi Jayanti", "National Holiday", "Birth anniversary of Mahatma Gandhi"],
+            ["2026-12-25", "Christmas", "National Holiday", "Christmas celebration"],
+        ]
+
+        for row_idx, row_data in enumerate(example_data, start=2):
+            for col_idx, value in enumerate(row_data, start=1):
+                cell = worksheet.cell(row=row_idx, column=col_idx)
+                cell.value = value
+                cell.border = border
+                if col_idx == 1:  # Date column
+                    cell.alignment = Alignment(horizontal="left")
+                else:
+                    cell.alignment = Alignment(horizontal="left", wrap_text=True)
+
+        # Freeze header row
+        worksheet.freeze_panes = "A2"
+
+        # Save to BytesIO
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        return output

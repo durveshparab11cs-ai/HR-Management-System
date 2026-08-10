@@ -5,7 +5,7 @@ Calendar blueprint routes for holiday display and management.
 """
 
 from datetime import datetime
-from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for, send_file
 from flask_login import current_user, login_required
 
 from app.core.security import admin_required
@@ -116,3 +116,21 @@ def api_holiday_detail(holiday_id: int):
         "success": True,
         "holiday": holiday.to_dict(),
     })
+
+
+@calendar_bp.route("/download-template")
+@login_required
+@admin_required
+def download_template():
+    """Download a template Excel file for holiday imports."""
+    try:
+        excel_file = _svc.generate_template_excel()
+        return send_file(
+            excel_file,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="holiday_template.xlsx",
+        )
+    except Exception as e:
+        flash(f"Error generating template: {str(e)}", "danger")
+        return redirect(url_for("calendar.import_holidays"))

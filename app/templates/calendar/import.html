@@ -22,7 +22,12 @@
             <label class="form-label fw-semibold">
               <i class="bi bi-file-earmark-spreadsheet me-1"></i>Select Excel File
             </label>
-            {{ form.file(class="form-control form-control-lg" + (" is-invalid" if form.file.errors else "")) }}
+            <div class="input-group mb-2">
+              {{ form.file(class="form-control form-control-lg" + (" is-invalid" if form.file.errors else "")) }}
+              <a href="{{ url_for('calendar.download_template') }}" class="btn btn-outline-secondary" title="Download template">
+                <i class="bi bi-download me-1"></i>Template
+              </a>
+            </div>
             {% if form.file.errors %}
             <div class="invalid-feedback d-block">
               {% for error in form.file.errors %}

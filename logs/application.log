@@ -130,3 +130,10 @@
 2026-08-10 14:55:49 | DEBUG    | application | Request logger middleware registered.
 2026-08-10 14:56:12 | DEBUG    | application | Request logger middleware registered.
 2026-08-10 14:56:42 | DEBUG    | application | Request logger middleware registered.
+2026-08-10 15:06:09 | DEBUG    | application | Request logger middleware registered.
+2026-08-10 15:06:10 | DEBUG    | application | REQUEST | id=6bcb43af1f3b | GET /calendar/ | ip=127.0.0.1 | ua=unknown
+2026-08-10 15:06:10 | INFO     | application | RESPONSE | id=6bcb43af1f3b | GET /calendar/ | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-10 15:07:08 | DEBUG    | application | Request logger middleware registered.
+2026-08-10 15:07:08 | DEBUG    | application | REQUEST | id=90f031e67dc1 | GET /calendar/ | ip=127.0.0.1 | ua=unknown
+2026-08-10 15:07:08 | INFO     | application | RESPONSE | id=90f031e67dc1 | GET /calendar/ | status=302 | user=anonymous | ip=127.0.0.1 | duration=0.0ms
+2026-08-10 15:12:14 | DEBUG    | application | Request logger middleware registered.
