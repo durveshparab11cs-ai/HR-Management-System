@@ -16,6 +16,38 @@
     <a href="{{ url_for('calendar.download_template') }}" class="btn btn-outline-secondary btn-sm" title="Download Excel template">
       <i class="bi bi-download me-1"></i>Template
     </a>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadHolidayModal" title="Upload holidays from Excel">
+      <i class="bi bi-upload me-1"></i>Upload Holidays
+    </button>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadHolidayModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Upload Holiday Excel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="holidayUploadForm" enctype="multipart/form-data">
+          {{ csrf_token_field() }}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Select Excel File</label>
+            <input type="file" class="form-control" id="holidayFile" name="file" accept=".xlsx" required>
+            <small class="form-text text-muted d-block mt-2">
+              Upload .xlsx file with columns: holiday_date, holiday_name, holiday_type (optional), description (optional)
+            </small>
+          </div>
+          <div id="uploadStatus"></div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="uploadBtn">Upload</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -322,6 +354,51 @@
   document.getElementById('month-selector').addEventListener('change', (e) => {
     const month = e.target.value;
     window.location.href = `{{ url_for('calendar.index') }}?year=${currentYear}&month=${month}`;
+  });
+
+  // Handle holiday upload
+  document.getElementById('uploadBtn').addEventListener('click', () => {
+    const fileInput = document.getElementById('holidayFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+      alert('Please select a file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    const statusDiv = document.getElementById('uploadStatus');
+    
+    uploadBtn.disabled = true;
+    statusDiv.innerHTML = '<div class="alert alert-info">Uploading...</div>';
+
+    fetch('{{ url_for("calendar.upload_holidays_api") }}', {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        statusDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        fileInput.value = '';
+        
+        // Reload calendar after 1.5 seconds
+        setTimeout(() => {
+          location.reload();
+        }, 1500);
+      } else {
+        statusDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+      }
+      uploadBtn.disabled = false;
+    })
+    .catch(error => {
+      statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+      uploadBtn.disabled = false;
+    });
   });
 
   // Initialize calendar on page load

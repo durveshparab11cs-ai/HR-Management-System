@@ -118,6 +118,23 @@ def api_holiday_detail(holiday_id: int):
     })
 
 
+@calendar_bp.route("/api/upload-holidays", methods=["POST"])
+@login_required
+@admin_required
+def upload_holidays_api():
+    """API endpoint to upload and import holidays from Excel."""
+    try:
+        file = request.files.get("file")
+        if not file or file.filename == "":
+            return jsonify({"success": False, "message": "No file selected"}), 400
+
+        result = _svc.import_from_excel(file)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Holiday upload error: {e}")
+        return jsonify({"success": False, "message": f"Upload error: {str(e)[:100]}"}), 500
+
+
 @calendar_bp.route("/download-template")
 @login_required
 def download_template():
