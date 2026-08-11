@@ -111,6 +111,8 @@ def create_app(env: str = "development") -> Flask:
     # Run table creation immediately but don't let it crash the app
     try:
         _auto_create_tables(app)
+        # CRITICAL: Ensure Comp Off leave type exists (must run after tables created)
+        _ensure_comp_off_leavetype(app)
     except Exception as exc:
         app.logger.error("Table creation failed (non-fatal): %s", exc)
 
@@ -1544,3 +1546,47 @@ def _ensure_super_admin_roles(app: Flask) -> None:
             app.logger.warning(f"ENSURE_ADMIN: Rollback also failed: {rollback_err}")
         
         app.logger.warning("ENSURE_ADMIN: ⚠️  Continuing app startup despite routine failure")
+
+
+def _ensure_comp_off_leavetype(app: Flask) -> None:
+    """
+    CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
+    
+    This function runs at app startup to guarantee the CO leave type is created.
+    Without this, the Comp Off card won't appear on the Leave Portal.
+    
+    Called from _auto_create_tables() during app initialization.
+    """
+    try:
+        with app.app_context():
+            from app.extensions.database import db  # noqa: PLC0415
+            from app.models.leave import LeaveType  # noqa: PLC0415
+            
+            # Check if CO leave type exists
+            co_type = LeaveType.query.filter_by(code='CO').first()
+            
+            if not co_type:
+                app.logger.warning("⚠️  CRITICAL: Comp Off leave type (CO) not found. Creating...")
+                
+                co = LeaveType(
+                    code='CO',
+                    name='Comp Off',
+                    max_days_per_year=6,
+                    is_paid=True,
+                    requires_document=False,
+                    color='#8b5cf6',  # Purple
+                    is_active=True,
+                )
+                db.session.add(co)
+                db.session.commit()
+                app.logger.info("✅ Created Comp Off leave type (CO)")
+            else:
+                app.logger.info(f"✅ Comp Off leave type (CO) exists: id={co_type.id}, active={co_type.is_active}")
+    
+    except Exception as e:
+        app.logger.error(f"❌ Failed to ensure Comp Off leave type: {e}")
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
