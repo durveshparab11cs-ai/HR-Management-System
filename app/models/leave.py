@@ -2,6 +2,12 @@
 app/models/leave.py
 =====================
 LeaveType, LeaveRequest, HalfDayRequest, EarlyLeaveRequest models.
+
+Leave Types (Fixed):
+- Casual Leave (CL): No limit, Paid
+- Sick Leave (SL): No limit, Paid
+- Paid Leave (PL): 12 days/year, Paid
+- Compensatory Off (CO): Special rules, Paid, 90-day expiry
 """
 
 import datetime
@@ -13,19 +19,20 @@ from app.extensions.database import db
 
 
 class LeaveType(db.Model):
-    """Configurable leave types (Casual, Sick, Paid, LOP, CompOff…)"""
+    """Configurable leave types (Casual, Sick, Paid, CompOff only)"""
     __tablename__ = "leave_types"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     code: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
-    max_days_per_year: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
+    max_days_per_year: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 = unlimited
     carry_forward: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     requires_document: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#1a3c6e")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    leave_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Display order in UI
 
     def __repr__(self) -> str:
         return f"<LeaveType {self.code!r}>"
@@ -59,6 +66,12 @@ class LeaveRequest(BaseModel):
     # Reporting Manager
     reporting_manager_code: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
     reporting_manager_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    # Comp Off specific fields
+    comp_off_work_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)  # Date employee worked on holiday
+    comp_off_expiry_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)  # 90 days from work_date
+    comp_off_used_on: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # When comp off was used
+    comp_off_notified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # HR notified when used
 
     # Relationships
     employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")

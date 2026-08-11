@@ -33,11 +33,30 @@
     </div>
 </div>
 
-<!-- Leave Balance Cards -->
+<!-- Leave Type Navigation Bar -->
+<div class="mb-4">
+    <div class="btn-group d-flex gap-2 flex-wrap" role="group" style="width:100%">
+    {% for b in balances %}
+        <button type="button" class="btn btn-outline-secondary btn-sm leave-type-btn flex-grow-1" data-leave-type="{{ b.type.code }}" style="border-color:{{ b.type.color }};color:{{ b.type.color }};min-width:120px;">
+            <i class="bi bi-calendar-check"></i>
+            <span class="fw-semibold">{{ b.type.code }}</span>
+            {% if b.is_unlimited %}
+            <span class="badge bg-success ms-1">∞</span>
+            {% elif b.type.code == 'CO' %}
+            <span class="badge ms-1" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/1</span>
+            {% else %}
+            <span class="badge ms-1" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/{{ b.max }}</span>
+            {% endif %}
+        </button>
+    {% endfor %}
+    </div>
+</div>
+
+<!-- Leave Balance - 4 Types Only (Casual, Sick, Paid, Comp Off) -->
 <div class="row g-3 mb-4">
 {% for b in balances %}
 <div class="col-sm-6 col-lg-3">
-    <div class="card border-0 shadow-sm h-100" style="border-top:3px solid {{ b.type.color }} !important;">
+    <div class="card border-0 shadow-sm h-100" style="border-top:4px solid {{ b.type.color }} !important;">
         <div class="card-body p-4">
             <div class="d-flex align-items-start justify-content-between mb-3">
                 <div>
@@ -54,7 +73,25 @@
                 <div class="fw-bold text-success mt-1">Unlimited</div>
                 <div class="text-muted" style="font-size:0.75rem">No annual limit</div>
             </div>
+            {% elif b.type.code == 'CO' %}
+            <!-- Comp Off Special Display -->
+            <div class="d-flex justify-content-between align-items-end mb-2">
+                <div>
+                    <span class="h3 fw-bold mb-0">{{ b.available | int }}</span>
+                    <span class="text-muted small"> / 1</span>
+                </div>
+                <span class="text-muted small">{% if b.taken == 1 %}Used{% else %}Available{% endif %}</span>
+            </div>
+            <div class="progress" style="height:5px;border-radius:10px">
+                <div class="progress-bar" role="progressbar" style="width:{{ (b.taken * 100) | int }}%;background:{{ b.type.color }}"></div>
+            </div>
+            {% if b.comp_off_expiry %}
+            <div class="alert alert-warning alert-sm mt-2 py-1 px-2" style="font-size:0.75rem">
+                <i class="bi bi-exclamation-triangle"></i> Expires: {{ b.comp_off_expiry.strftime('%d %b %Y') }}
+            </div>
+            {% endif %}
             {% else %}
+            <!-- Standard Leave Display -->
             <div class="d-flex justify-content-between align-items-end mb-2">
                 <div>
                     <span class="h3 fw-bold mb-0">{{ b.available | int }}</span>
@@ -171,3 +208,32 @@
 </div>
 </div>
 {% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Leave Type Navigation Bar Interaction
+    const leaveTypeBtns = document.querySelectorAll('.leave-type-btn');
+    leaveTypeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const leaveType = this.dataset.leaveType;
+            // Update button styling
+            leaveTypeBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.backgroundColor = 'transparent';
+                b.style.color = this.style.borderColor;
+            });
+            this.classList.add('active');
+            this.style.backgroundColor = this.style.borderColor;
+            this.style.color = 'white';
+            
+            // Optional: Could filter leave history by type here
+            console.log('Leave Type Selected:', leaveType);
+        });
+    });
+    
+    // Set first button as active by default
+    if (leaveTypeBtns.length > 0) {
+        leaveTypeBtns[0].click();
+    }
+});
+</script>

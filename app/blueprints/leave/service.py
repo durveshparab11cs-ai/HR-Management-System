@@ -13,6 +13,7 @@ from app.models.leave import EarlyLeaveRequest, HalfDayRequest, LeaveRequest, Le
 from app.models.attendance import Attendance
 from app.blueprints.attendance.repository import AttendanceRepository
 from .repository import LeaveRepository
+from sqlalchemy import and_  # noqa: PLC0415
 
 logger = logging.getLogger(__name__)
 leave_repo = LeaveRepository()
@@ -24,13 +25,58 @@ class LeaveService:
     # ── Leave Balance ─────────────────────────────────────────────────
 
     def get_balance(self, employee_id: int) -> list:
-        """Return balance for all active leave types for this employee."""
+        """Return balance for all 4 active leave types: Casual, Sick, Paid, Comp Off."""
+        from app.models.leave import LeaveType  # noqa: PLC0415
+        from datetime import datetime, timedelta  # noqa: PLC0415
+        
         year = date.today().year
-        types = leave_repo.get_all_types()
+        today = date.today()
         balances = []
+        
+        # Get only the 4 leave types (filter by codes)
+        leave_type_codes = ['CL', 'SL', 'PL', 'CO']  # Casual, Sick, Paid, Comp Off
+        types = LeaveType.query.filter(LeaveType.code.in_(leave_type_codes), LeaveType.is_active == True).all()
+        
         for lt in types:
-            # For unlimited leave types (CL, SL, COMP) show as unlimited
-            if lt.max_days_per_year >= 999:
+            if lt.code == 'CO':
+                # COMP OFF Special Logic (90-day expiry, can use once)
+                # Find the latest comp off earned (when employee worked on holiday)
+                comp_off_earned = LeaveRequest.query.filter(
+                    and_(
+                        LeaveRequest.employee_id == employee_id,
+                        LeaveRequest.leave_type_id == lt.id,
+                        LeaveRequest.status == "approved",
+                        LeaveRequest.comp_off_work_date != None,  # Only comp offs earned
+                        LeaveRequest.comp_off_expiry_date >= today,  # Not expired
+                        LeaveRequest.comp_off_used_on == None,  # Not used yet
+                    )
+                ).first()
+                
+                if comp_off_earned:
+                    # Comp off available
+                    balances.append({
+                        "type": lt,
+                        "max": 1,
+                        "taken": 0,
+                        "available": 1,
+                        "pct": 0,
+                        "is_unlimited": False,
+                        "comp_off_expiry": comp_off_earned.comp_off_expiry_date,
+                    })
+                else:
+                    # No comp off or all used/expired
+                    balances.append({
+                        "type": lt,
+                        "max": 1,
+                        "taken": 1,
+                        "available": 0,
+                        "pct": 100,
+                        "is_unlimited": False,
+                        "comp_off_expiry": None,
+                    })
+            
+            elif lt.code in ['CL', 'SL']:
+                # CASUAL & SICK LEAVE - Unlimited
                 balances.append({
                     "type": lt,
                     "max": "Unlimited",
@@ -39,18 +85,20 @@ class LeaveService:
                     "pct": 0,
                     "is_unlimited": True,
                 })
-            else:
-                # For Paid Leave (PL) — show actual balance
+            
+            elif lt.code == 'PL':
+                # PAID LEAVE - 12 days per year
                 taken = leave_repo.count_days_taken(employee_id, lt.id, year)
-                available = max(0, lt.max_days_per_year - taken)
+                available = max(0, 12 - taken)  # Fixed 12 days for Paid Leave
                 balances.append({
                     "type": lt,
-                    "max": lt.max_days_per_year,
+                    "max": 12,
                     "taken": taken,
                     "available": available,
-                    "pct": int((taken / lt.max_days_per_year * 100)) if lt.max_days_per_year else 0,
+                    "pct": int((taken / 12 * 100)) if taken > 0 else 0,
                     "is_unlimited": False,
                 })
+        
         return balances
 
     # ── Apply Leave ───────────────────────────────────────────────────
@@ -86,37 +134,14 @@ class LeaveService:
 
         # ── PAID LEAVE (PL) VALIDATION ───────────────────────────────────
         if lt.code.upper() == "PL":
-            # Rule 1: Maximum 6 Paid Leaves per calendar year
+            # Rule 1: Maximum 12 Paid Leaves per calendar year
             year = start.year
             taken_this_year = leave_repo.count_days_taken(employee_id, lt.id, year)
-            if taken_this_year + total_days > 6:
-                available = max(0, 6 - taken_this_year)
+            if taken_this_year + total_days > 12:
+                available = max(0, 12 - taken_this_year)
                 return False, f"Paid Leave limit exceeded. You have {available} Paid Leave(s) remaining for {year}.", None
             
-            # Rule 2: Only ONE Paid Leave per 2-month period
-            # Find the most recent APPROVED Paid Leave
-            from sqlalchemy import and_, extract  # noqa: PLC0415
-            last_pl = LeaveRequest.query.filter(
-                and_(
-                    LeaveRequest.employee_id == employee_id,
-                    LeaveRequest.leave_type_id == lt.id,
-                    LeaveRequest.status == "approved",
-                    LeaveRequest.is_deleted == False,
-                    extract("year", LeaveRequest.start_date) == year
-                )
-            ).order_by(LeaveRequest.start_date.desc()).first()
-            
-            if last_pl:
-                # Calculate 2 months from the last PL start date
-                from dateutil.relativedelta import relativedelta  # noqa: PLC0415
-                next_eligible_date = last_pl.start_date + relativedelta(months=2)
-                
-                if start < next_eligible_date:
-                    return False, (
-                        f"You can take only one Paid Leave every 2 months. "
-                        f"Your last Paid Leave was on {last_pl.start_date.strftime('%d %B %Y')}. "
-                        f"Your next eligible Paid Leave date is {next_eligible_date.strftime('%d %B %Y')}."
-                    ), None
+            # Note: 2-month rule removed as per new requirement
         
         # ── UNLIMITED LEAVE TYPES (CL, SL, COMP) ─────────────────────────
         # No balance validation required for unlimited types
@@ -155,10 +180,22 @@ class LeaveService:
             applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
+        
+        # ── COMP OFF USAGE TRACKING ───────────────────────────────────────
+        # When comp off leave is applied, mark when it's being used
+        if lt.code.upper() == "CO":
+            lr.comp_off_used_on = datetime.utcnow()
+            logger.info("COMP_OFF_USAGE_MARKED | emp=%s | comp_off_used_on=%s", employee_id, lr.comp_off_used_on)
+        
         leave_repo.create(lr)
 
         # Notify the reporting manager
         self._notify_manager(employee_id, mgr_code, "leave", start, lr.id)
+        
+        # ── NOTIFY HR WHEN COMP OFF IS USED ───────────────────────────────
+        # Trigger HR notification immediately when comp off is applied
+        if lt.code.upper() == "CO":
+            self._notify_hr_compoff_used(employee_id, lr.id)
 
         logger.info("LEAVE_APPLIED | emp=%s | type=%s | days=%s | from=%s to=%s | mgr=%s",
                     employee_id, lt.code, total_days, start, end, mgr_code)
@@ -174,8 +211,8 @@ class LeaveService:
         # ── RE-VALIDATE PAID LEAVE BEFORE APPROVAL ───────────────────────
         if lr.leave_type.code.upper() == "PL":
             year = lr.start_date.year
-            # Rule 1: Check yearly limit (exclude this request from count)
-            from sqlalchemy import and_, extract  # noqa: PLC0415
+            # Rule 1: Check yearly limit (exclude this request from count) - 12 days max
+            from sqlalchemy import extract  # noqa: PLC0415
             taken_this_year = db.session.query(db.func.sum(LeaveRequest.total_days)).filter(
                 and_(
                     LeaveRequest.employee_id == lr.employee_id,
@@ -187,29 +224,15 @@ class LeaveService:
                 )
             ).scalar() or 0
             
-            if taken_this_year + lr.total_days > 6:
-                return False, f"Cannot approve. Employee would exceed 6 Paid Leaves for {year}."
-            
-            # Rule 2: Check 2-month gap
-            last_pl = LeaveRequest.query.filter(
-                and_(
-                    LeaveRequest.employee_id == lr.employee_id,
-                    LeaveRequest.leave_type_id == lr.leave_type_id,
-                    LeaveRequest.status == "approved",
-                    LeaveRequest.is_deleted == False,
-                    LeaveRequest.id != lr.id,  # exclude current request
-                    extract("year", LeaveRequest.start_date) == year
-                )
-            ).order_by(LeaveRequest.start_date.desc()).first()
-            
-            if last_pl:
-                from dateutil.relativedelta import relativedelta  # noqa: PLC0415
-                next_eligible_date = last_pl.start_date + relativedelta(months=2)
-                if lr.start_date < next_eligible_date:
-                    return False, (
-                        f"Cannot approve. Employee's last Paid Leave was on {last_pl.start_date.strftime('%d %B %Y')}. "
-                        f"Next eligible date is {next_eligible_date.strftime('%d %B %Y')}."
-                    )
+            if taken_this_year + lr.total_days > 12:
+                return False, f"Cannot approve. Employee would exceed 12 Paid Leaves for {year}."
+        
+        # ── COMP OFF SPECIAL LOGIC ───────────────────────────────────────
+        # When comp off is approved, set expiry date to 90 days from today
+        if lr.leave_type.code.upper() == "CO":
+            from datetime import timedelta  # noqa: PLC0415
+            lr.comp_off_expiry_date = date.today() + timedelta(days=90)
+            logger.info("COMP_OFF_APPROVED | lr_id=%s | expiry_date=%s", lr_id, lr.comp_off_expiry_date)
         
         lr.status = "approved"
         lr.reviewed_by = reviewer_id
@@ -464,6 +487,41 @@ class LeaveService:
             db.session.commit()
         except Exception as exc:  # noqa: BLE001
             logger.warning("Employee notification failed: %s", exc)
+
+    def _notify_hr_compoff_used(self, employee_id: int, lr_id: int) -> None:
+        """Notify HR admins when a comp off is used by an employee."""
+        try:
+            from app.models.employee import Employee  # noqa: PLC0415
+            from app.models.notification import Notification  # noqa: PLC0415
+            from app.models.user import User  # noqa: PLC0415
+            
+            emp = Employee.query.filter_by(id=employee_id, is_deleted=False).first()
+            if not emp:
+                return
+            
+            emp_name = emp.full_name or f"Employee #{employee_id}"
+            
+            # Find all HR/Admin users and notify them
+            # Get users with role = "admin" or "hr" (adjust based on your role system)
+            hr_users = User.query.filter(
+                User.role.in_(["admin", "hr"]),
+                User.is_active == True,
+                User.is_deleted == False
+            ).all()
+            
+            for hr_user in hr_users:
+                notif = Notification(
+                    user_id=hr_user.id,
+                    title="Compensatory Off Used",
+                    message=f"{emp_name} (ID: {emp.employee_code}) has used their compensatory off. Leave Request ID: {lr_id}",
+                    category="warning",
+                )
+                db.session.add(notif)
+            
+            db.session.commit()
+            logger.info("HR_NOTIFIED_COMPOFF_USED | emp=%s | lr_id=%s", employee_id, lr_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("HR comp off notification failed: %s", exc)
 
     def _count_working_days(self, start: date, end: date) -> int:
         from datetime import timedelta
