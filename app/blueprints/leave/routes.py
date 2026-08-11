@@ -5,8 +5,9 @@ Leave, half-day, and early-leave routes — thin layer only.
 """
 
 from datetime import date
-from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for, send_file
 from flask_login import current_user, login_required
+import logging
 
 from app.blueprints.employees.repository import EmployeeRepository
 from .forms import ApplyEarlyLeaveForm, ApplyHalfDayForm, ApplyLeaveForm, ReviewLeaveForm
@@ -14,6 +15,7 @@ from .repository import LeaveRepository
 from .service import LeaveService
 from . import leave_bp
 
+logger = logging.getLogger(__name__)
 _svc  = LeaveService()
 _repo = LeaveRepository()
 _emp  = EmployeeRepository()
@@ -384,6 +386,143 @@ def reject_earlyleave(el_id: int):
 
 
 # ─── Comp Off Management ─────────────────────────────────────────────
+
+# ─── Export Leave Requests to Excel ──────────────────────────────────
+
+@leave_bp.route("/export")
+@login_required
+def export_leave_requests():
+    """Export all leave requests (for current employee or all if admin) to Excel."""
+    from io import BytesIO  # noqa: PLC0415
+    from openpyxl import Workbook  # noqa: PLC0415
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # noqa: PLC0415
+    from openpyxl.utils import get_column_letter  # noqa: PLC0415
+    
+    emp = _emp.get_by_user_id(current_user.id)
+    if not emp:
+        flash("Employee profile not found.", "warning")
+        return redirect(url_for("leave.index"))
+    
+    # Get leave requests - all for admin, only own for employee
+    if current_user.role in ("super_admin", "admin", "hr_manager", "hr_staff"):
+        # Admin/HR can export all leave requests
+        leave_requests = _repo.get_all_requests_no_pagination()
+    else:
+        # Regular employee - only their own
+        leave_requests = _repo.get_employee_requests_all(emp.id)
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Leave Requests"
+    
+    # Define styles
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    
+    # Define headers
+    headers = [
+        "Emp Code", "Employee Name", "Leave Type", "From Date", "To Date", 
+        "Total Days", "Reason", "Status", "Applied On", "Reviewed By", 
+        "Reviewed On", "Reviewer Comment", "Manager Code", "Manager Name"
+    ]
+    
+    # Write headers
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = border
+    
+    # Write data rows
+    row_num = 2
+    for lr in leave_requests:
+        try:
+            # Get employee info
+            emp_code = lr.employee.employee_code if lr.employee else "N/A"
+            emp_name = lr.employee.full_name if lr.employee else "N/A"
+            leave_type_name = lr.leave_type.name if lr.leave_type else "N/A"
+            
+            # Get reviewer name
+            reviewer_name = lr.reviewer.full_name if lr.reviewer else "—"
+            
+            # Prepare row data
+            row_data = [
+                emp_code,
+                emp_name,
+                leave_type_name,
+                lr.start_date.strftime("%d-%m-%Y") if lr.start_date else "",
+                lr.end_date.strftime("%d-%m-%Y") if lr.end_date else "",
+                lr.total_days,
+                lr.reason or "—",
+                lr.status.upper(),
+                lr.applied_on.strftime("%d-%m-%Y %H:%M") if lr.applied_on else "",
+                reviewer_name,
+                lr.reviewed_on.strftime("%d-%m-%Y %H:%M") if lr.reviewed_on else "—",
+                lr.reviewer_comment or "—",
+                lr.reporting_manager_code or "—",
+                lr.reporting_manager_name or "—",
+            ]
+            
+            # Write row
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num)
+                cell.value = value
+                cell.border = border
+                
+                # Apply alignment based on column type
+                if col_num in (1, 6, 8):  # Numbers and status
+                    cell.alignment = center_align
+                else:
+                    cell.alignment = left_align
+                
+                # Color code status
+                if col_num == 8:  # Status column
+                    if value == "APPROVED":
+                        cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+                    elif value == "REJECTED":
+                        cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+                    elif value == "PENDING":
+                        cell.fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+            
+            row_num += 1
+        except Exception as e:
+            logger.warning(f"Error processing leave request {lr.id}: {e}")
+            continue
+    
+    # Adjust column widths
+    column_widths = [12, 20, 18, 12, 12, 11, 25, 12, 18, 18, 18, 20, 12, 20]
+    for col_num, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(col_num)].width = width
+    
+    # Freeze header row
+    ws.freeze_panes = "A2"
+    
+    # Create response
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    from datetime import datetime  # noqa: PLC0415
+    filename = f"Leave_Requests_{datetime.now().strftime('%d-%m-%Y_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename,
+    )
+
 
 @leave_bp.route("/comp-off/status")
 @login_required

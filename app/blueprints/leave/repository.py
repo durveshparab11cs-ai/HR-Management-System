@@ -51,6 +51,15 @@ class LeaveRepository:
             .paginate(page=page, per_page=per_page, error_out=False)
         )
 
+    def get_employee_requests_all(self, employee_id: int) -> list:
+        """Get all leave requests for an employee without pagination (for export)."""
+        return (
+            LeaveRequest.query
+            .filter_by(employee_id=employee_id, is_deleted=False)
+            .order_by(LeaveRequest.applied_on.desc())
+            .all()
+        )
+
     def get_pending(self, page: int = 1, per_page: int = 30):
         return (
             LeaveRequest.query
@@ -64,6 +73,13 @@ class LeaveRepository:
         if status:
             q = q.filter_by(status=status)
         return q.order_by(LeaveRequest.applied_on.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    def get_all_requests_no_pagination(self, status: str = "") -> list:
+        """Get all leave requests without pagination (for export)."""
+        q = LeaveRequest.query.filter_by(is_deleted=False)
+        if status:
+            q = q.filter_by(status=status)
+        return q.order_by(LeaveRequest.applied_on.desc()).all()
 
     def create(self, lr: LeaveRequest) -> LeaveRequest:
         db.session.add(lr); db.session.commit(); return lr
