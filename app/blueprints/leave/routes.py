@@ -178,7 +178,14 @@ def apply():
     emp = _get_employee_or_redirect()
     if not emp: return redirect(url_for("dashboard.index"))
     form = ApplyLeaveForm()
-    form.leave_type_id.choices = [(lt.id, lt.name) for lt in _repo.get_all_types()]
+    
+    # Filter to only show the 4 approved leave types (CL, SL, PL, CO)
+    allowed_codes = ['CL', 'SL', 'PL', 'CO']
+    all_types = _repo.get_all_types()
+    filtered_types = [lt for lt in all_types if lt.code in allowed_codes]
+    # Sort by leave_order or id for consistent display
+    filtered_types.sort(key=lambda x: (x.leave_order or 0, x.id))
+    form.leave_type_id.choices = [(lt.id, lt.name) for lt in filtered_types]
     form.reporting_manager.choices = get_manager_choices()
     
     if form.validate_on_submit():
