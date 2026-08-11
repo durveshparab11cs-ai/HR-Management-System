@@ -857,45 +857,48 @@ def _migrate_add_columns(db) -> None:
             return True  # assume exists if we can't check
 
     new_cols = [
-        ('attendance',           'check_in_accuracy',          'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
-        ('attendance',           'check_out_accuracy',         'DOUBLE PRECISION' if dialect == 'postgresql' else 'FLOAT'),
-        ('office_settings',      'min_gps_accuracy_metres',    'INTEGER'),
-        ('attendance_photos',    'image_data',                 'TEXT'),
-        ('attendance_photos',    'checkout_image_data',        'TEXT'),
+        ('attendance',           'check_in_accuracy',          'check_in_accuracy FLOAT'),
+        ('attendance',           'check_out_accuracy',         'check_out_accuracy FLOAT'),
+        ('office_settings',      'min_gps_accuracy_metres',    'min_gps_accuracy_metres INTEGER'),
+        ('attendance_photos',    'image_data',                 'image_data TEXT'),
+        ('attendance_photos',    'checkout_image_data',        'checkout_image_data TEXT'),
         # Reporting manager fields for all leave request types
-        ('leave_requests',       'reporting_manager_code',     'VARCHAR(30)'),
-        ('leave_requests',       'reporting_manager_name',     'VARCHAR(200)'),
-        ('half_day_requests',    'reporting_manager_code',     'VARCHAR(30)'),
-        ('half_day_requests',    'reporting_manager_name',     'VARCHAR(200)'),
-        ('early_leave_requests', 'reporting_manager_code',     'VARCHAR(30)'),
-        ('early_leave_requests', 'reporting_manager_name',     'VARCHAR(200)'),
+        ('leave_requests',       'reporting_manager_code',     'reporting_manager_code VARCHAR(30)'),
+        ('leave_requests',       'reporting_manager_name',     'reporting_manager_name VARCHAR(200)'),
+        ('half_day_requests',    'reporting_manager_code',     'reporting_manager_code VARCHAR(30)'),
+        ('half_day_requests',    'reporting_manager_name',     'reporting_manager_name VARCHAR(200)'),
+        ('early_leave_requests', 'reporting_manager_code',     'reporting_manager_code VARCHAR(30)'),
+        ('early_leave_requests', 'reporting_manager_name',     'reporting_manager_name VARCHAR(200)'),
         # Reporting manager fields for shift change requests
-        ('shift_change_requests', 'reporting_manager_code',    'VARCHAR(50)'),
-        ('shift_change_requests', 'reporting_manager_name',    'VARCHAR(200)'),
+        ('shift_change_requests', 'reporting_manager_code',    'reporting_manager_code VARCHAR(50)'),
+        ('shift_change_requests', 'reporting_manager_name',    'reporting_manager_name VARCHAR(200)'),
         # Hospital allocation fields for employees
-        ('employee', 'hospital_id', 'INTEGER'),
-        ('employee', 'current_shift', 'VARCHAR(50)'),
-        ('employee', 'shift_start_time', 'VARCHAR(20)'),
-        ('employee', 'shift_end_time', 'VARCHAR(20)'),
-        ('employee', 'is_flexible_shift', 'INTEGER'),
-        ('employee', 'required_working_hours', 'INTEGER'),
+        ('employee', 'hospital_id', 'hospital_id INTEGER'),
+        ('employee', 'current_shift', 'current_shift VARCHAR(50)'),
+        ('employee', 'shift_start_time', 'shift_start_time VARCHAR(20)'),
+        ('employee', 'shift_end_time', 'shift_end_time VARCHAR(20)'),
+        ('employee', 'is_flexible_shift', 'is_flexible_shift INTEGER'),
+        ('employee', 'required_working_hours', 'required_working_hours INTEGER'),
         # Hospital allocation fields for employee_master
-        ('employee_master', 'working_location', 'VARCHAR(200)'),
-        ('employee_master', 'shift_timing', 'VARCHAR(100)'),
-        ('employee_master', 'working_status', 'VARCHAR(50)'),
-        # Comp Off feature fields for leave_requests
-        ('leave_requests',       'comp_off_work_date',         'DATE'),
-        ('leave_requests',       'comp_off_expiry_date',       'DATE'),
-        ('leave_requests',       'comp_off_used_on',           'DATETIME' if dialect == 'postgresql' else 'TIMESTAMP'),
-        ('leave_requests',       'comp_off_notified',          'BOOLEAN'),
-        # Leave type ordering for UI
-        ('leave_types',          'leave_order',                'INTEGER'),
+        ('employee_master', 'working_location', 'working_location VARCHAR(200)'),
+        ('employee_master', 'shift_timing', 'shift_timing VARCHAR(100)'),
+        ('employee_master', 'working_status', 'working_status VARCHAR(50)'),
+        # Comp Off feature fields for leave_requests - NO DEFAULT CLAUSES, NO TYPE ISSUES
+        ('leave_requests',       'comp_off_work_date',         'comp_off_work_date DATE'),
+        ('leave_requests',       'comp_off_expiry_date',       'comp_off_expiry_date DATE'),
+        ('leave_requests',       'comp_off_used_on',           'comp_off_used_on TIMESTAMP'),
+        ('leave_requests',       'comp_off_notified',          'comp_off_notified BOOLEAN'),
+        # Leave type ordering for UI - NO DEFAULT CLAUSE
+        ('leave_types',          'leave_order',                'leave_order INTEGER'),
     ]
 
     for table, col, col_type in new_cols:
         if not col_exists(table, col):
             try:
-                db.session.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}'))
+                # Format: "ALTER TABLE table_name ADD COLUMN col_name TYPE"
+                # The col_type already includes the column name, e.g., "comp_off_work_date DATE"
+                sql = f'ALTER TABLE {table} ADD COLUMN {col_type}'
+                db.session.execute(text(sql))
                 db.session.commit()
                 logger.info("Added column %s.%s", table, col)
             except Exception as e:
