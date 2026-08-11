@@ -883,6 +883,13 @@ def _migrate_add_columns(db) -> None:
         ('employee_master', 'working_location', 'VARCHAR(200)'),
         ('employee_master', 'shift_timing', 'VARCHAR(100)'),
         ('employee_master', 'working_status', 'VARCHAR(50)'),
+        # Comp Off feature fields for leave_requests
+        ('leave_requests',       'comp_off_work_date',         'DATE'),
+        ('leave_requests',       'comp_off_expiry_date',       'DATE'),
+        ('leave_requests',       'comp_off_used_on',           'DATETIME' if dialect == 'postgresql' else 'TIMESTAMP'),
+        ('leave_requests',       'comp_off_notified',          'BOOLEAN DEFAULT 0'),
+        # Leave type ordering for UI
+        ('leave_types',          'leave_order',                'INTEGER DEFAULT 0'),
     ]
 
     for table, col, col_type in new_cols:
@@ -1077,7 +1084,17 @@ def _auto_seed_employees(app: Flask) -> None:
     try:
         from app.models.leave import LeaveType  # noqa: PLC0415
         from app.extensions.database import db as _ltdb  # noqa: PLC0415
-        if LeaveType.query.count() == 0:
+        
+        # Try to count leave types
+        try:
+            count = LeaveType.query.count()
+        except Exception as count_err:
+            # If we get a column error, the migration hasn't run yet
+            app.logger.warning("⚠️  Could not count leave types (column missing?): %s", count_err)
+            app.logger.info("✓ Skipping leave type seeding — database not fully migrated yet")
+            count = -1  # Force skip
+        
+        if count == 0:
             leave_defaults = [
                 {"name": "Casual Leave",      "code": "CL",   "max_days_per_year": 12, "is_paid": True,  "color": "#3b82f6"},
                 {"name": "Sick Leave",        "code": "SL",   "max_days_per_year": 12, "is_paid": True,  "color": "#ef4444", "requires_document": True},
@@ -1089,12 +1106,21 @@ def _auto_seed_employees(app: Flask) -> None:
                 {"name": "Bereavement Leave", "code": "BL",   "max_days_per_year": 5,  "is_paid": True,  "color": "#6b7280"},
             ]
             for lt_data in leave_defaults:
-                if not LeaveType.query.filter_by(code=lt_data["code"]).first():
-                    _ltdb.session.add(LeaveType(**lt_data))
-            _ltdb.session.commit()
-            app.logger.info("Auto-seeded 8 leave types.")
+                try:
+                    if not LeaveType.query.filter_by(code=lt_data["code"]).first():
+                        _ltdb.session.add(LeaveType(**lt_data))
+                except Exception as add_err:
+                    app.logger.warning("⚠️  Could not add leave type %s: %s", lt_data.get("code"), add_err)
+                    continue
+            
+            try:
+                _ltdb.session.commit()
+                app.logger.info("Auto-seeded 8 leave types.")
+            except Exception as commit_err:
+                app.logger.warning("⚠️  Could not commit leave types: %s", commit_err)
+                _ltdb.session.rollback()
     except Exception as exc:
-        app.logger.error("Auto-seed leave types failed: %s", exc)
+        app.logger.warning("⚠️  Auto-seed leave types failed: %s", exc)
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
