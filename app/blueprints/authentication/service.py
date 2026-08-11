@@ -241,7 +241,7 @@ class AuthService:
         selected_dept = (department or "").strip()
         
         # Store the department in session
-        session_dept = selected_dept or emp_dept
+        session_dept = selected_dept or emp_dept or "General"
         session["login_department"] = session_dept
 
         # ── SUCCESS ───────────────────────────────────────────────────
@@ -251,15 +251,27 @@ class AuthService:
         login_user(user, remember=remember)
 
         # Auto-sync department if not set
-        if emp and not emp.department and selected_dept:
-            try:
-                emp.department = selected_dept
-                db.session.add(emp)
-                db.session.commit()
-                logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, selected_dept)
-            except Exception as _exc:
-                db.session.rollback()
-                logger.warning("Could not auto-set dept: %s", _exc)
+        if emp:
+            if not emp.department and selected_dept:
+                try:
+                    emp.department = selected_dept
+                    db.session.add(emp)
+                    db.session.commit()
+                    logger.info("AUTO_SET_DEPT | user=%s | dept=%s", user.id, selected_dept)
+                except Exception as _exc:
+                    db.session.rollback()
+                    logger.warning("Could not auto-set dept: %s", _exc)
+            
+            # CRITICAL FIX: If employee still has no department, set from master or default
+            if not emp.department:
+                try:
+                    emp.department = master.department if master else "General"
+                    db.session.add(emp)
+                    db.session.commit()
+                    logger.info("AUTO_SET_DEFAULT_DEPT | user=%s | dept=%s", user.id, emp.department)
+                except Exception as _exc:
+                    db.session.rollback()
+                    logger.warning("Could not set default dept: %s", _exc)
 
         logger.info(
             "LOGIN_SUCCESS | user_id=%s | code=%s | role=%s | dept=%s | ip=%s",
