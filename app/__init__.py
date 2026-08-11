@@ -820,6 +820,13 @@ def _auto_create_tables(app: Flask) -> None:
                 app.logger.info("✓ Step 4.5: _auto_seed_shifts()")
             except Exception as exc:
                 app.logger.warning("⚠️  Step 4.5: _auto_seed_shifts() failed: %s", exc)
+            
+            # STEP 4.6: Seed holidays
+            try:
+                _auto_seed_holidays(app)
+                app.logger.info("✓ Step 4.6: _auto_seed_holidays()")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 4.6: _auto_seed_holidays() failed: %s", exc)
 
             # STEP 5: Ensure admin roles (only if columns exist)
             try:
@@ -1076,6 +1083,65 @@ def _auto_seed_shifts(app: Flask) -> None:
         app.logger.info(f"✓ Shift seeding complete: {seeded_count} new + {updated_count} updated = {total} total shifts")
     except Exception as exc:
         app.logger.error("Auto-seed shifts failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+def _auto_seed_holidays(app: Flask) -> None:
+    """Seed India/Maharashtra holidays for 2026."""
+    try:
+        from app.models.company_holiday import CompanyHoliday  # noqa: PLC0415
+        from app.extensions.database import db as _hdb  # noqa: PLC0415
+        from datetime import date  # noqa: PLC0415
+        
+        # Check if holidays already exist
+        if CompanyHoliday.query.count() > 0:
+            app.logger.info("✓ Holidays already seeded — skipping.")
+            return
+        
+        holidays_data = [
+            ("2026-01-26", "Republic Day", "National Holiday"),
+            ("2026-02-19", "Chhatrapati Shivaji Maharaj Jayanti", "Regional Holiday"),
+            ("2026-03-03", "Holi", "National Holiday"),
+            ("2026-03-19", "Chaitra Sukladi", "Regional Holiday"),
+            ("2026-05-01", "Maharashtra Day / Labour Day", "National Holiday"),
+            ("2026-08-15", "Independence Day", "National Holiday"),
+            ("2026-08-28", "Raksha Bandhan", "National Holiday"),
+            ("2026-09-05", "Dahihandi", "Regional Holiday"),
+            ("2026-09-14", "Ganesh Chaturthi", "Regional Holiday"),
+            ("2026-10-02", "Mahatma Gandhi Jayanti", "National Holiday"),
+            ("2026-10-20", "Dussehra / Vijayadashmi", "National Holiday"),
+            ("2026-11-10", "Diwali-Padwa", "National Holiday"),
+            ("2026-11-11", "Diwali-Bhaubij", "National Holiday"),
+            ("2026-11-24", "Guru Nanak Jayanti", "National Holiday"),
+            ("2026-12-25", "Christmas Day", "National Holiday"),
+        ]
+        
+        count = 0
+        for date_str, name, holiday_type in holidays_data:
+            # Check if already exists
+            existing = CompanyHoliday.query.filter_by(
+                holiday_date=date_str,
+                holiday_name=name
+            ).first()
+            
+            if not existing:
+                holiday = CompanyHoliday(
+                    holiday_date=date.fromisoformat(date_str),
+                    holiday_name=name,
+                    holiday_type=holiday_type,
+                )
+                _hdb.session.add(holiday)
+                count += 1
+        
+        _hdb.session.commit()
+        total = CompanyHoliday.query.count()
+        app.logger.info(f"✓ Auto-seeded {count} new holidays = {total} total")
+    except Exception as exc:
+        app.logger.error("Auto-seed holidays failed: %s", exc)
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
