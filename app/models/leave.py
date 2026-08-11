@@ -32,7 +32,7 @@ class LeaveType(db.Model):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#1a3c6e")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    leave_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Display order in UI
+    leave_order: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Display order in UI
 
     def __repr__(self) -> str:
         return f"<LeaveType {self.code!r}>"
@@ -71,7 +71,7 @@ class LeaveRequest(BaseModel):
     comp_off_work_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)  # Date employee worked on holiday
     comp_off_expiry_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)  # 90 days from work_date
     comp_off_used_on: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # When comp off was used
-    comp_off_notified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # HR notified when used
+    comp_off_notified: Mapped[bool] = mapped_column(Boolean, nullable=True)  # HR notified when used
 
     # Relationships
     employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")
