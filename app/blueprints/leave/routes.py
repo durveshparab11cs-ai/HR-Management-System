@@ -4,6 +4,7 @@ blueprints/leave/routes.py
 Leave, half-day, and early-leave routes — thin layer only.
 """
 
+from datetime import date
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -380,3 +381,140 @@ def reject_earlyleave(el_id: int):
     ok, msg = _svc.reject_earlyleave(el_id, current_user.id)
     flash(msg, "success" if ok else "danger")
     return redirect(request.referrer or url_for("leave.pending"))
+
+
+# ─── Comp Off Management ─────────────────────────────────────────────
+
+@leave_bp.route("/comp-off/status")
+@login_required
+def comp_off_status():
+    """
+    Employee view: Check available comp offs and expiry information.
+    AJAX endpoint returning JSON.
+    """
+    emp = _get_employee_or_redirect()
+    if not emp:
+        return jsonify(error="Employee not found"), 404
+    
+    from .comp_off_service import CompOffService  # noqa: PLC0415
+    comp_svc = CompOffService()
+    
+    available = comp_svc.get_available_comp_offs(emp.id)
+    expiry_info = comp_svc.check_expired_comp_offs(emp.id)
+    
+    return jsonify({
+        "available_count": len(available),
+        "available_comp_offs": [
+            {
+                "id": co.id,
+                "work_date": co.comp_off_work_date.isoformat() if co.comp_off_work_date else None,
+                "expiry_date": co.comp_off_expiry_date.isoformat() if co.comp_off_expiry_date else None,
+                "days_left": (co.comp_off_expiry_date - date.today()).days if co.comp_off_expiry_date else 0,
+            }
+            for co in available
+        ],
+        "expiry_info": expiry_info,
+    })
+
+
+@leave_bp.route("/admin/comp-off/earn", methods=["POST"])
+@login_required
+def admin_earn_comp_off():
+    """
+    Admin endpoint: Mark that an employee worked on holiday and earned comp off.
+    POST: {employee_id, work_date, holiday_name}
+    """
+    from flask import current_user  # noqa: PLC0415
+    from app.models.user import User  # noqa: PLC0415
+    from .comp_off_service import CompOffService  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
+    
+    # Check authorization - only admin/HR can do this
+    user = User.query.get(current_user.id)
+    if user.role not in ["admin", "hr_manager", "hr_staff"]:
+        return jsonify(error="Unauthorized"), 403
+    
+    data = request.get_json() or {}
+    emp_id = data.get("employee_id")
+    work_date_str = data.get("work_date")
+    holiday_name = data.get("holiday_name", "")
+    
+    if not emp_id or not work_date_str:
+        return jsonify(error="Missing required fields"), 400
+    
+    try:
+        work_date = datetime.fromisoformat(work_date_str).date()
+    except (ValueError, TypeError):
+        return jsonify(error="Invalid work_date format"), 400
+    
+    comp_svc = CompOffService()
+    ok, msg = comp_svc.earn_comp_off(emp_id, work_date, holiday_name)
+    
+    return jsonify(success=ok, message=msg), (200 if ok else 400)
+
+
+@leave_bp.route("/admin/comp-off/list")
+@login_required
+def admin_comp_off_list():
+    """
+    Admin endpoint: List all comp offs (earned, used, expired).
+    Query params: status (earned|used|expired), employee_id (optional)
+    """
+    from flask import current_user  # noqa: PLC0415
+    from app.models.user import User  # noqa: PLC0415
+    from app.models.leave import LeaveRequest  # noqa: PLC0415
+    from datetime import timedelta  # noqa: PLC0415
+    
+    # Check authorization
+    user = User.query.get(current_user.id)
+    if user.role not in ["admin", "hr_manager", "hr_staff"]:
+        return jsonify(error="Unauthorized"), 403
+    
+    status_filter = request.args.get("status", "earned")  # earned|used|expired
+    emp_id = request.args.get("employee_id", type=int)
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+    
+    today = date.today()
+    query = LeaveRequest.query.filter(
+        LeaveRequest.leave_type.has(code='CO'),
+        LeaveRequest.is_deleted == False,
+    )
+    
+    if emp_id:
+        query = query.filter(LeaveRequest.employee_id == emp_id)
+    
+    if status_filter == "earned":
+        query = query.filter(
+            LeaveRequest.comp_off_expiry_date >= today,
+            LeaveRequest.comp_off_used_on == None,
+        )
+    elif status_filter == "used":
+        query = query.filter(LeaveRequest.comp_off_used_on != None)
+    elif status_filter == "expired":
+        query = query.filter(
+            LeaveRequest.comp_off_expiry_date < today,
+            LeaveRequest.comp_off_used_on == None,
+        )
+    
+    pagination = query.paginate(page=page, per_page=per_page)
+    
+    return jsonify({
+        "total": pagination.total,
+        "page": page,
+        "pages": pagination.pages,
+        "comp_offs": [
+            {
+                "id": co.id,
+                "employee_id": co.employee_id,
+                "employee_code": co.employee.employee_code if co.employee else "N/A",
+                "employee_name": co.employee.full_name if co.employee else "N/A",
+                "work_date": co.comp_off_work_date.isoformat() if co.comp_off_work_date else None,
+                "expiry_date": co.comp_off_expiry_date.isoformat() if co.comp_off_expiry_date else None,
+                "used_on": co.comp_off_used_on.isoformat() if co.comp_off_used_on else None,
+                "status": "used" if co.comp_off_used_on else ("expired" if co.comp_off_expiry_date < today else "available"),
+            }
+            for co in pagination.items
+        ]
+    })
+

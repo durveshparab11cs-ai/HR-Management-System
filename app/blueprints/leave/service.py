@@ -500,11 +500,11 @@ class LeaveService:
                 return
             
             emp_name = emp.full_name or f"Employee #{employee_id}"
+            emp_code = emp.employee_code if emp else "N/A"
             
-            # Find all HR/Admin users and notify them
-            # Get users with role = "admin" or "hr" (adjust based on your role system)
+            # Find all HR/Admin/HR Manager/HR Staff users and notify them
             hr_users = User.query.filter(
-                User.role.in_(["admin", "hr"]),
+                User.role.in_(["admin", "hr_manager", "hr_staff"]),
                 User.is_active == True,
                 User.is_deleted == False
             ).all()
@@ -512,14 +512,15 @@ class LeaveService:
             for hr_user in hr_users:
                 notif = Notification(
                     user_id=hr_user.id,
-                    title="Compensatory Off Used",
-                    message=f"{emp_name} (ID: {emp.employee_code}) has used their compensatory off. Leave Request ID: {lr_id}",
+                    title="⏰ Compensatory Off Used",
+                    message=f"{emp_name} ({emp_code}) has used their compensatory off.",
                     category="warning",
                 )
                 db.session.add(notif)
             
             db.session.commit()
-            logger.info("HR_NOTIFIED_COMPOFF_USED | emp=%s | lr_id=%s", employee_id, lr_id)
+            logger.info("HR_NOTIFIED_COMPOFF_USED | emp=%s | emp_code=%s | lr_id=%s | hr_users=%d", 
+                       employee_id, emp_code, lr_id, len(hr_users))
         except Exception as exc:  # noqa: BLE001
             logger.warning("HR comp off notification failed: %s", exc)
 
