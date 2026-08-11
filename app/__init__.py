@@ -1563,23 +1563,36 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
             from app.models.leave import LeaveType  # noqa: PLC0415
             
             # Check if CO leave type exists
-            co_type = LeaveType.query.filter_by(code='CO').first()
+            try:
+                co_type = LeaveType.query.filter_by(code='CO').first()
+            except Exception as query_err:
+                app.logger.warning(f"⚠️  Could not query LeaveType table: {query_err}")
+                return
             
             if not co_type:
                 app.logger.warning("⚠️  CRITICAL: Comp Off leave type (CO) not found. Creating...")
                 
-                co = LeaveType(
-                    code='CO',
-                    name='Comp Off',
-                    max_days_per_year=6,
-                    is_paid=True,
-                    requires_document=False,
-                    color='#8b5cf6',  # Purple
-                    is_active=True,
-                )
-                db.session.add(co)
-                db.session.commit()
-                app.logger.info("✅ Created Comp Off leave type (CO)")
+                try:
+                    co = LeaveType(
+                        code='CO',
+                        name='Comp Off',
+                        max_days_per_year=6,
+                        is_paid=True,
+                        requires_document=False,
+                        color='#8b5cf6',  # Purple
+                        is_active=True,
+                    )
+                    db.session.add(co)
+                    db.session.commit()
+                    app.logger.info("✅ Created Comp Off leave type (CO)")
+                except Exception as create_err:
+                    app.logger.warning(f"⚠️  Could not create CO leave type: {create_err}")
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    # Don't crash - maybe it already exists via other mechanism
+                    return
             else:
                 app.logger.info(f"✅ Comp Off leave type (CO) exists: id={co_type.id}, active={co_type.is_active}")
     
@@ -1590,3 +1603,4 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
             db.session.rollback()
         except Exception:
             pass
+        # Don't crash app - this is non-critical for startup
