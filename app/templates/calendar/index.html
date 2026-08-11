@@ -170,14 +170,14 @@
           dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(dateNum).padStart(2, '0');
 
           const hasHoliday = holidayMap[dateStr];
-          const cellClass = hasHoliday ? 'bg-warning bg-opacity-10 border border-warning rounded' : '';
-          const dateClass = hasHoliday ? 'fw-bold text-warning' : '';
+          const cellClass = hasHoliday ? 'bg-danger bg-opacity-10 border-2 border-danger rounded' : '';
+          const dateClass = hasHoliday ? 'fw-bold text-danger' : '';
 
           html += `<td class="text-center py-3 small cursor-pointer ${cellClass}" onclick="handleDateClick('${dateStr}')">
             <span class="${dateClass}">${dateNum}</span>`;
 
           if (hasHoliday) {
-            html += `<div class="small text-warning fw-semibold" style="font-size: 0.7rem; margin-top: 2px;">`;
+            html += `<div class="small text-danger fw-semibold" style="font-size: 0.7rem; margin-top: 2px;">`;
             hasHoliday.forEach((h, idx) => {
               if (idx < 1) {
                 html += h.holiday_name.substring(0, 10);
