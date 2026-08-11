@@ -192,10 +192,10 @@ def hospitals_import():
 @admin_required
 def employee_allocation():
     """Employee allocation dashboard with employee list."""
-    from app.models.employee import Employee
-    from app.models.hospital import Hospital
-    
     try:
+        from app.models.employee import Employee
+        from app.models.hospital import Hospital
+        
         # Get filters from request
         search_query = request.args.get('search', '').strip()
         hospital_filter = request.args.get('hospital', '', type=int)
@@ -222,7 +222,10 @@ def employee_allocation():
         all_hospitals = []
         try:
             all_hospitals = Hospital.query.filter_by(is_deleted=False).order_by(Hospital.hospital_name).all()
-        except Exception:
+        except Exception as hospital_err:
+            import logging
+            logger = logging.getLogger('admin')
+            logger.debug(f'Hospital query failed (expected if table not created): {str(hospital_err)}')
             all_hospitals = []
         
         return render_template(
@@ -237,10 +240,21 @@ def employee_allocation():
         )
     except Exception as e:
         import logging
+        import traceback
         logger = logging.getLogger('admin')
-        logger.error('employee_allocation error: %s', str(e))
-        flash('Error loading employee allocations. Please try again.', 'danger')
-        return redirect(url_for('admin.index'))
+        logger.error('employee_allocation error: %s | type: %s | traceback: %s', str(e), type(e).__name__, traceback.format_exc())
+        # Don't flash - just return simple page
+        return render_template(
+            'admin/employee_allocation.html',
+            pagination=None,
+            employees_with_hospitals=[],
+            all_hospitals=[],
+            search_query='',
+            hospital_filter=0,
+            shift_filter='',
+            stats={'total_allocated': 0, 'pending': 0, 'conflicts': 0},
+            error_message=f"Error loading data: {str(e)}"
+        )
 
 
 @admin_bp.route("/employee-allocation/import", methods=['GET', 'POST'])
