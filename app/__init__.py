@@ -1553,68 +1553,58 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
     
     Handles UNIQUE constraints on BOTH code AND name columns.
+    ALWAYS checks for "Comp Off" by name first, before trying to insert.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
             from app.models.leave import LeaveType  # noqa: PLC0415
             
-            # First: Check if CO exists
+            # STEP 1: Check if "Comp Off" exists (by name) - this is the UPSERT key
             try:
-                co_type = LeaveType.query.filter_by(code='CO').first()
+                comp_off = LeaveType.query.filter_by(name='Comp Off').first()
             except Exception as query_err:
-                app.logger.warning(f"⚠️  Query failed: {query_err}")
+                app.logger.warning(f"⚠️  Query for 'Comp Off' by name failed: {query_err}")
                 return
             
-            # If CO exists and is active - we're done
-            if co_type and co_type.is_active:
-                app.logger.info(f"✅ CO exists and active: id={co_type.id}")
-                return
-            
-            # If CO exists but inactive - activate it
-            if co_type and not co_type.is_active:
-                try:
-                    co_type.is_active = True
-                    db.session.commit()
-                    app.logger.info(f"✅ Activated CO: id={co_type.id}")
-                    return
-                except Exception as activate_err:
-                    app.logger.warning(f"⚠️  Could not activate CO: {activate_err}")
+            # STEP 2: If "Comp Off" exists, ensure code is 'CO' and is_active=True
+            if comp_off:
+                app.logger.info(f"✓ Found 'Comp Off' record (id={comp_off.id}, current code='{comp_off.code}')")
+                
+                need_update = False
+                if comp_off.code != 'CO':
+                    app.logger.info(f"  → Updating code from '{comp_off.code}' to 'CO'")
+                    comp_off.code = 'CO'
+                    need_update = True
+                
+                if not comp_off.is_active:
+                    app.logger.info(f"  → Activating (is_active was False)")
+                    comp_off.is_active = True
+                    need_update = True
+                
+                if need_update:
                     try:
-                        db.session.rollback()
-                    except Exception:
-                        pass
-                    return
+                        db.session.add(comp_off)
+                        db.session.commit()
+                        app.logger.info(f"✅ Updated 'Comp Off' record: code='CO', is_active=True")
+                    except Exception as update_err:
+                        app.logger.error(f"❌ Failed to update 'Comp Off': {update_err}")
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                else:
+                    app.logger.info(f"✓ 'Comp Off' record already correct (code='CO', is_active=True)")
+                
+                return  # DONE - we have Comp Off with code CO
             
-            # CO doesn't exist - check if "Comp Off" exists with different code
-            try:
-                comp_off_by_name = LeaveType.query.filter_by(name='Comp Off').first()
-            except Exception:
-                comp_off_by_name = None
-            
-            if comp_off_by_name:
-                # UPDATE existing "Comp Off" record to code='CO'
-                app.logger.info(f"ℹ️  Found 'Comp Off' with code='{comp_off_by_name.code}'. Updating to code='CO'...")
-                try:
-                    comp_off_by_name.code = 'CO'
-                    comp_off_by_name.is_active = True
-                    db.session.commit()
-                    app.logger.info(f"✅ Updated 'Comp Off' to code='CO': id={comp_off_by_name.id}")
-                    return
-                except Exception as update_err:
-                    app.logger.warning(f"⚠️  Could not update code to CO: {update_err}")
-                    try:
-                        db.session.rollback()
-                    except Exception:
-                        pass
-                    return
-            
-            # Neither CO nor "Comp Off" exists - try to create
-            app.logger.info("ℹ️  Creating new 'Comp Off' with code='CO'...")
+            # STEP 3: "Comp Off" doesn't exist - try to create it
+            # This should be rare (only on fresh databases), but is the fallback
+            app.logger.info("ℹ️  'Comp Off' record not found. Creating new one...")
             try:
                 co = LeaveType(
-                    code='CO',
                     name='Comp Off',
+                    code='CO',
                     max_days_per_year=6,
                     is_paid=True,
                     requires_document=False,
@@ -1623,16 +1613,16 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
                 )
                 db.session.add(co)
                 db.session.commit()
-                app.logger.info(f"✅ Created CO: id={co.id}")
+                app.logger.info(f"✅ Created 'Comp Off' (CO) record: id={co.id}")
             except Exception as create_err:
-                app.logger.warning(f"⚠️  Could not create CO: {create_err}")
+                app.logger.error(f"❌ Failed to create 'Comp Off': {create_err}")
                 try:
                     db.session.rollback()
                 except Exception:
                     pass
     
     except Exception as e:
-        app.logger.warning(f"⚠️  _ensure_comp_off_leavetype exception: {e}")
+        app.logger.error(f"❌ _ensure_comp_off_leavetype exception: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
