@@ -33,3 +33,13 @@ class CompanyHoliday(BaseModel):
 
     def __repr__(self) -> str:
         return f"<CompanyHoliday id={self.id} date={self.holiday_date} name={self.holiday_name!r}>"
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "holiday_date": self.holiday_date.isoformat() if self.holiday_date else None,
+            "holiday_name": self.holiday_name,
+            "holiday_type": self.holiday_type,
+            "description": self.description,
+        }
