@@ -1552,9 +1552,7 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     """
     CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
     
-    This function runs at app startup to guarantee the CO leave type is created.
-    Without this, the Comp Off card won't appear on the Leave Portal.
-    
+    Handles UNIQUE constraint on code column - will update if exists.
     Called from _auto_create_tables() during app initialization.
     """
     try:
@@ -1562,16 +1560,13 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
             from app.extensions.database import db  # noqa: PLC0415
             from app.models.leave import LeaveType  # noqa: PLC0415
             
-            # Check if CO leave type exists
             try:
                 co_type = LeaveType.query.filter_by(code='CO').first()
             except Exception as query_err:
-                app.logger.warning(f"⚠️  Could not query LeaveType table: {query_err}")
+                app.logger.warning(f"⚠️  Could not query LeaveType: {query_err}")
                 return
             
             if not co_type:
-                app.logger.warning("⚠️  CRITICAL: Comp Off leave type (CO) not found. Creating...")
-                
                 try:
                     co = LeaveType(
                         code='CO',
@@ -1579,28 +1574,36 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
                         max_days_per_year=6,
                         is_paid=True,
                         requires_document=False,
-                        color='#8b5cf6',  # Purple
+                        color='#8b5cf6',
                         is_active=True,
                     )
                     db.session.add(co)
                     db.session.commit()
                     app.logger.info("✅ Created Comp Off leave type (CO)")
                 except Exception as create_err:
-                    app.logger.warning(f"⚠️  Could not create CO leave type: {create_err}")
+                    app.logger.warning(f"⚠️  Could not create CO: {create_err}")
                     try:
                         db.session.rollback()
                     except Exception:
                         pass
-                    # Don't crash - maybe it already exists via other mechanism
-                    return
+            elif not co_type.is_active:
+                try:
+                    co_type.is_active = True
+                    db.session.commit()
+                    app.logger.info("✅ Activated Comp Off leave type (CO)")
+                except Exception as activate_err:
+                    app.logger.warning(f"⚠️  Could not activate CO: {activate_err}")
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
             else:
-                app.logger.info(f"✅ Comp Off leave type (CO) exists: id={co_type.id}, active={co_type.is_active}")
+                app.logger.info(f"✅ CO exists: id={co_type.id}, active={co_type.is_active}")
     
     except Exception as e:
-        app.logger.error(f"❌ Failed to ensure Comp Off leave type: {e}")
+        app.logger.warning(f"⚠️  _ensure_comp_off_leavetype: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
         except Exception:
             pass
-        # Don't crash app - this is non-critical for startup
