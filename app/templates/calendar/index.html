@@ -71,7 +71,7 @@
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Thu</th>
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Fri</th>
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sat</th>
-                <th class="text-center fw-semibold small text-danger" style="width: 14.28%;"><strong>Sun</strong></th>
+                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sun</th>
               </tr>
             </thead>
             <tbody id="calendar-grid">
@@ -175,22 +175,26 @@
           let cellClass = '';
           let dateClass = '';
           
-          if (hasHoliday) {
-            cellClass = 'bg-danger bg-opacity-10 border-2 border-danger rounded';
-            dateClass = 'fw-bold text-danger';
-          } else if (isSunday) {
-            cellClass = 'bg-danger bg-opacity-5 border-1 border-danger rounded';
-            dateClass = 'text-danger fw-semibold';
+          if (isSunday) {
+            cellClass = 'bg-light';
+            dateClass = 'text-muted';
           }
 
           html += `<td class="text-center py-3 small cursor-pointer ${cellClass}" onclick="handleDateClick('${dateStr}')">
-            <span class="${dateClass}">${dateNum}</span>`;
+            <div style="position: relative; display: inline-block;">
+              <span class="${dateClass} fw-semibold">${dateNum}</span>`;
 
           if (hasHoliday) {
-            html += `<div class="small text-danger fw-semibold" style="font-size: 0.7rem; margin-top: 2px;">`;
+            html += `<span class="position-absolute" style="width: 6px; height: 6px; background-color: #dc3545; border-radius: 50%; top: -4px; right: -6px;"></span>`;
+          }
+
+          html += `</div>`;
+
+          if (hasHoliday) {
+            html += `<div class="small text-danger fw-semibold" style="font-size: 0.65rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">`;
             hasHoliday.forEach((h, idx) => {
               if (idx < 1) {
-                html += h.holiday_name.substring(0, 10);
+                html += h.holiday_name.substring(0, 12);
               }
             });
             html += '</div>';
