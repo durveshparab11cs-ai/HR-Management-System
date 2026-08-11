@@ -1552,39 +1552,77 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     """
     CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
     
-    This function runs at app startup to guarantee the CO leave type is created.
-    Without this, the Comp Off card won't appear on the Leave Portal.
-    
-    Called from _auto_create_tables() during app initialization.
+    Handles UNIQUE constraints on BOTH code AND name columns.
+    ALWAYS checks for "Comp Off" by name first, before trying to insert.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
             from app.models.leave import LeaveType  # noqa: PLC0415
             
-            # Check if CO leave type exists
-            co_type = LeaveType.query.filter_by(code='CO').first()
+            # STEP 1: Check if "Comp Off" exists (by name) - this is the UPSERT key
+            try:
+                comp_off = LeaveType.query.filter_by(name='Comp Off').first()
+            except Exception as query_err:
+                app.logger.warning(f"⚠️  Query for 'Comp Off' by name failed: {query_err}")
+                return
             
-            if not co_type:
-                app.logger.warning("⚠️  CRITICAL: Comp Off leave type (CO) not found. Creating...")
+            # STEP 2: If "Comp Off" exists, ensure code is 'CO' and is_active=True
+            if comp_off:
+                app.logger.info(f"✓ Found 'Comp Off' record (id={comp_off.id}, current code='{comp_off.code}')")
                 
+                need_update = False
+                if comp_off.code != 'CO':
+                    app.logger.info(f"  → Updating code from '{comp_off.code}' to 'CO'")
+                    comp_off.code = 'CO'
+                    need_update = True
+                
+                if not comp_off.is_active:
+                    app.logger.info(f"  → Activating (is_active was False)")
+                    comp_off.is_active = True
+                    need_update = True
+                
+                if need_update:
+                    try:
+                        db.session.add(comp_off)
+                        db.session.commit()
+                        app.logger.info(f"✅ Updated 'Comp Off' record: code='CO', is_active=True")
+                    except Exception as update_err:
+                        app.logger.error(f"❌ Failed to update 'Comp Off': {update_err}")
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                else:
+                    app.logger.info(f"✓ 'Comp Off' record already correct (code='CO', is_active=True)")
+                
+                return  # DONE - we have Comp Off with code CO
+            
+            # STEP 3: "Comp Off" doesn't exist - try to create it
+            # This should be rare (only on fresh databases), but is the fallback
+            app.logger.info("ℹ️  'Comp Off' record not found. Creating new one...")
+            try:
                 co = LeaveType(
-                    code='CO',
                     name='Comp Off',
+                    code='CO',
                     max_days_per_year=6,
                     is_paid=True,
                     requires_document=False,
-                    color='#8b5cf6',  # Purple
+                    color='#8b5cf6',
                     is_active=True,
                 )
                 db.session.add(co)
                 db.session.commit()
-                app.logger.info("✅ Created Comp Off leave type (CO)")
-            else:
-                app.logger.info(f"✅ Comp Off leave type (CO) exists: id={co_type.id}, active={co_type.is_active}")
+                app.logger.info(f"✅ Created 'Comp Off' (CO) record: id={co.id}")
+            except Exception as create_err:
+                app.logger.error(f"❌ Failed to create 'Comp Off': {create_err}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
     
     except Exception as e:
-        app.logger.error(f"❌ Failed to ensure Comp Off leave type: {e}")
+        app.logger.error(f"❌ _ensure_comp_off_leavetype exception: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()

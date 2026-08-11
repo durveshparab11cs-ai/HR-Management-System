@@ -1,7 +1,7 @@
 # ==============================================================================
 # Smart HRMS — Production Dockerfile
 # Multi-stage build for minimal production image size.
-# FORCE REBUILD: 2026-08-10 URGENT CO CARD FIX DEPLOYMENT
+# FORCE REBUILD: 2026-08-10 14:30 IST - URGENT CO CARD DEPLOYMENT
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
