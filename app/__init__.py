@@ -1552,56 +1552,87 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     """
     CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
     
-    Handles UNIQUE constraint on code column - will update if exists.
-    Called from _auto_create_tables() during app initialization.
+    Handles UNIQUE constraints on BOTH code AND name columns.
     """
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
             from app.models.leave import LeaveType  # noqa: PLC0415
             
+            # First: Check if CO exists
             try:
                 co_type = LeaveType.query.filter_by(code='CO').first()
             except Exception as query_err:
-                app.logger.warning(f"⚠️  Could not query LeaveType: {query_err}")
+                app.logger.warning(f"⚠️  Query failed: {query_err}")
                 return
             
-            if not co_type:
-                try:
-                    co = LeaveType(
-                        code='CO',
-                        name='Comp Off',
-                        max_days_per_year=6,
-                        is_paid=True,
-                        requires_document=False,
-                        color='#8b5cf6',
-                        is_active=True,
-                    )
-                    db.session.add(co)
-                    db.session.commit()
-                    app.logger.info("✅ Created Comp Off leave type (CO)")
-                except Exception as create_err:
-                    app.logger.warning(f"⚠️  Could not create CO: {create_err}")
-                    try:
-                        db.session.rollback()
-                    except Exception:
-                        pass
-            elif not co_type.is_active:
+            # If CO exists and is active - we're done
+            if co_type and co_type.is_active:
+                app.logger.info(f"✅ CO exists and active: id={co_type.id}")
+                return
+            
+            # If CO exists but inactive - activate it
+            if co_type and not co_type.is_active:
                 try:
                     co_type.is_active = True
                     db.session.commit()
-                    app.logger.info("✅ Activated Comp Off leave type (CO)")
+                    app.logger.info(f"✅ Activated CO: id={co_type.id}")
+                    return
                 except Exception as activate_err:
                     app.logger.warning(f"⚠️  Could not activate CO: {activate_err}")
                     try:
                         db.session.rollback()
                     except Exception:
                         pass
-            else:
-                app.logger.info(f"✅ CO exists: id={co_type.id}, active={co_type.is_active}")
+                    return
+            
+            # CO doesn't exist - check if "Comp Off" exists with different code
+            try:
+                comp_off_by_name = LeaveType.query.filter_by(name='Comp Off').first()
+            except Exception:
+                comp_off_by_name = None
+            
+            if comp_off_by_name:
+                # UPDATE existing "Comp Off" record to code='CO'
+                app.logger.info(f"ℹ️  Found 'Comp Off' with code='{comp_off_by_name.code}'. Updating to code='CO'...")
+                try:
+                    comp_off_by_name.code = 'CO'
+                    comp_off_by_name.is_active = True
+                    db.session.commit()
+                    app.logger.info(f"✅ Updated 'Comp Off' to code='CO': id={comp_off_by_name.id}")
+                    return
+                except Exception as update_err:
+                    app.logger.warning(f"⚠️  Could not update code to CO: {update_err}")
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    return
+            
+            # Neither CO nor "Comp Off" exists - try to create
+            app.logger.info("ℹ️  Creating new 'Comp Off' with code='CO'...")
+            try:
+                co = LeaveType(
+                    code='CO',
+                    name='Comp Off',
+                    max_days_per_year=6,
+                    is_paid=True,
+                    requires_document=False,
+                    color='#8b5cf6',
+                    is_active=True,
+                )
+                db.session.add(co)
+                db.session.commit()
+                app.logger.info(f"✅ Created CO: id={co.id}")
+            except Exception as create_err:
+                app.logger.warning(f"⚠️  Could not create CO: {create_err}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
     
     except Exception as e:
-        app.logger.warning(f"⚠️  _ensure_comp_off_leavetype: {e}")
+        app.logger.warning(f"⚠️  _ensure_comp_off_leavetype exception: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
