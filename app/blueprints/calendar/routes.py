@@ -34,6 +34,9 @@ def index():
     # Get holidays for the year
     holidays = _svc.get_holidays_by_year(year)
 
+    # Convert holidays to dicts for JSON serialization in template
+    holidays_data = [h.to_dict() for h in holidays] if holidays else []
+
     # Get available years for the selector
     years = _svc.get_available_years()
 
@@ -42,7 +45,7 @@ def index():
         title="Holiday Calendar",
         year=year,
         month=month,
-        holidays=holidays,
+        holidays=holidays_data,
         available_years=years,
     )
 
