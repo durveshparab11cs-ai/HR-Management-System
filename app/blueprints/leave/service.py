@@ -276,6 +276,10 @@ class LeaveService:
         # Mark attendance as on_leave for each day
         self._mark_attendance_on_leave(lr)
         logger.info("LEAVE_APPROVED | lr_id=%s | by=%s", lr_id, reviewer_id)
+        
+        # ── SEND APPROVAL NOTIFICATION TO EMPLOYEE ──────────────────────
+        self._notify_leave_employee(lr.employee_id, reviewer_id, lr.leave_type.name, "approved", comment)
+        
         return True, "Leave request approved."
 
     def reject_leave(self, lr_id: int, reviewer_id: int, comment: str = "") -> Tuple[bool, str]:
@@ -289,6 +293,11 @@ class LeaveService:
         lr.reviewed_on = datetime.utcnow()
         lr.reviewer_comment = comment
         leave_repo.update(lr)
+        logger.info("LEAVE_REJECTED | lr_id=%s | by=%s", lr_id, reviewer_id)
+        
+        # ── SEND REJECTION NOTIFICATION TO EMPLOYEE ────────────────────
+        self._notify_leave_employee(lr.employee_id, reviewer_id, lr.leave_type.name, "rejected", comment)
+        
         return True, "Leave request rejected."
 
     def cancel_leave(self, lr_id: int, employee_id: int) -> Tuple[bool, str]:
@@ -557,6 +566,45 @@ class LeaveService:
                        employee_id, emp_code, lr_id, len(hr_users))
         except Exception as exc:  # noqa: BLE001
             logger.warning("HR comp off notification failed: %s", exc)
+
+    def _notify_leave_employee(self, employee_id: int, reviewer_user_id: int, leave_type_name: str, action: str, comment: str = "") -> None:
+        """Send approval/rejection notification for leave requests to employee."""
+        try:
+            from app.models.employee import Employee  # noqa: PLC0415
+            from app.models.notification import Notification  # noqa: PLC0415
+            from app.models.user import User  # noqa: PLC0415
+            
+            emp = Employee.query.filter_by(id=employee_id, is_deleted=False).first()
+            if not emp:
+                return
+            
+            reviewer = User.query.get(reviewer_user_id)
+            reviewer_name = reviewer.full_name if reviewer else "Your Manager"
+            
+            if action == "approved":
+                msg = f"Your {leave_type_name} request has been approved by {reviewer_name}."
+                category = "success"
+            else:
+                msg = f"Your {leave_type_name} request has been rejected by {reviewer_name}."
+                if comment:
+                    msg += f" Reason: {comment}"
+                category = "danger"
+            
+            notif = Notification(
+                user_id=emp.user_id,
+                title=f"{leave_type_name} {action.title()}",
+                message=msg,
+                category="leave",
+                action_url="/leave/",
+                action_label="View Request",
+                triggered_by=reviewer_user_id,
+            )
+            db.session.add(notif)
+            db.session.commit()
+            logger.info("LEAVE_NOTIFICATION | emp=%s | leave_type=%s | action=%s | reviewer=%s", 
+                       employee_id, leave_type_name, action, reviewer_user_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Leave notification failed: %s", exc)
 
     def _count_working_days(self, start: date, end: date) -> int:
         from datetime import timedelta
