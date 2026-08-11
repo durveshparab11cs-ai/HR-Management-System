@@ -877,8 +877,8 @@ def _migrate_add_columns(db) -> None:
         ('employee', 'current_shift', 'VARCHAR(50)'),
         ('employee', 'shift_start_time', 'VARCHAR(20)'),
         ('employee', 'shift_end_time', 'VARCHAR(20)'),
-        ('employee', 'is_flexible_shift', 'INTEGER DEFAULT 0'),
-        ('employee', 'required_working_hours', 'INTEGER DEFAULT 9'),
+        ('employee', 'is_flexible_shift', 'INTEGER'),
+        ('employee', 'required_working_hours', 'INTEGER'),
         # Hospital allocation fields for employee_master
         ('employee_master', 'working_location', 'VARCHAR(200)'),
         ('employee_master', 'shift_timing', 'VARCHAR(100)'),
@@ -887,9 +887,9 @@ def _migrate_add_columns(db) -> None:
         ('leave_requests',       'comp_off_work_date',         'DATE'),
         ('leave_requests',       'comp_off_expiry_date',       'DATE'),
         ('leave_requests',       'comp_off_used_on',           'DATETIME' if dialect == 'postgresql' else 'TIMESTAMP'),
-        ('leave_requests',       'comp_off_notified',          'BOOLEAN DEFAULT 0'),
+        ('leave_requests',       'comp_off_notified',          'BOOLEAN'),
         # Leave type ordering for UI
-        ('leave_types',          'leave_order',                'INTEGER DEFAULT 0'),
+        ('leave_types',          'leave_order',                'INTEGER'),
     ]
 
     for table, col, col_type in new_cols:
