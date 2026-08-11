@@ -71,7 +71,7 @@
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Thu</th>
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Fri</th>
                 <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sat</th>
-                <th class="text-center text-muted fw-semibold small" style="width: 14.28%;">Sun</th>
+                <th class="text-center fw-semibold small text-danger" style="width: 14.28%;"><strong>Sun</strong></th>
               </tr>
             </thead>
             <tbody id="calendar-grid">
@@ -170,8 +170,18 @@
           dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(dateNum).padStart(2, '0');
 
           const hasHoliday = holidayMap[dateStr];
-          const cellClass = hasHoliday ? 'bg-danger bg-opacity-10 border-2 border-danger rounded' : '';
-          const dateClass = hasHoliday ? 'fw-bold text-danger' : '';
+          const isSunday = day === 6; // 6 = Sunday (0=Mon, 6=Sun)
+          
+          let cellClass = '';
+          let dateClass = '';
+          
+          if (hasHoliday) {
+            cellClass = 'bg-danger bg-opacity-10 border-2 border-danger rounded';
+            dateClass = 'fw-bold text-danger';
+          } else if (isSunday) {
+            cellClass = 'bg-danger bg-opacity-5 border-1 border-danger rounded';
+            dateClass = 'text-danger fw-semibold';
+          }
 
           html += `<td class="text-center py-3 small cursor-pointer ${cellClass}" onclick="handleDateClick('${dateStr}')">
             <span class="${dateClass}">${dateNum}</span>`;
