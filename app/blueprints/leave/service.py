@@ -34,8 +34,42 @@ class LeaveService:
         balances = []
         
         # Get only the 4 leave types (filter by codes)
-        leave_type_codes = ['CL', 'SL', 'PL', 'CO']  # Casual, Sick, Paid, Comp Off
+        # CRITICAL: Accept both 'CO' and 'COMP' for backward compatibility with legacy production databases
+        leave_type_codes = ['CL', 'SL', 'PL', 'CO', 'COMP']  # Casual, Sick, Paid, Comp Off (both codes)
         types = LeaveType.query.filter(LeaveType.code.in_(leave_type_codes), LeaveType.is_active == True).all()
+        
+        # DEDUP: If both CO and COMP exist, only use CO (newer code)
+        type_map = {}  # code -> LeaveType
+        for lt in types:
+            if lt.code == 'COMP':
+                # Only add COMP if CO doesn't already exist
+                if 'CO' not in type_map:
+                    # Treat COMP as CO internally
+                    type_map['CO'] = lt
+            elif lt.code == 'CO':
+                # CO takes precedence over COMP
+                type_map['CO'] = lt
+            else:
+                # CL, SL, PL - add as-is
+                type_map[lt.code] = lt
+        
+        types = list(type_map.values())  # Convert back to list
+        
+        # CRITICAL FALLBACK: If no CO/COMP type found at all, create a synthetic one
+        # This ensures the CO card ALWAYS shows, even if DB is misconfigured
+        if not any(lt.code in ('CO', 'COMP') for lt in types):
+            logger.warning("CRITICAL: No Comp Off leave type found in database. Creating synthetic CO type.")
+            # Create a temporary LeaveType object (not saved to DB, just for display)
+            synthetic_co = LeaveType(
+                id=9999,  # Synthetic ID
+                code='CO',
+                name='Comp Off',
+                max_days_per_year=6,
+                is_paid=True,
+                is_active=True,
+                color='#8b5cf6',
+            )
+            types.append(synthetic_co)
         
         for lt in types:
             if lt.code == 'CO':
