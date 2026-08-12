@@ -992,7 +992,9 @@ def _auto_seed_hospitals(app: Flask) -> None:
                 hospital_name=h_data["name"],
                 latitude=h_data["lat"],
                 longitude=h_data["lng"],
-                is_active=True
+                is_active=True,
+                # Set larger radius for Head office to account for GPS accuracy
+                allowed_radius_metres=150 if h_data["name"] == "Head office" else 100
             )
             _db.session.add(hospital)
         
