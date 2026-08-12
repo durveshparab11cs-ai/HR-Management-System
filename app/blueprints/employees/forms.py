@@ -13,11 +13,12 @@ from wtforms.validators import DataRequired, Email, Length, Optional as Opt
 
 
 ROLE_CHOICES = [
-    ("employee", "Employee"),
-    ("manager", "Manager"),
-    ("hr_staff", "HR Staff"),
-    ("hr_manager", "HR Manager"),
+    ("super_admin", "Super Admin"),
     ("admin", "Admin"),
+    ("hr_manager", "HR Manager"),
+    ("hr_staff", "HR Staff"),
+    ("manager", "Manager"),
+    ("employee", "Employee"),
 ]
 
 STATUS_CHOICES = [
