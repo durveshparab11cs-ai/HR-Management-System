@@ -24,5 +24,6 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=5000,
         debug=False,
-        use_reloader=False
+        use_reloader=False,
+        threaded=True
     )
