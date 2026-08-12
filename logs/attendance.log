@@ -1,0 +1,850 @@
+2026-08-12 15:09:41 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:09:41 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:09:41 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:09:41 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:09:41 | INFO     | attendance | Attendance ID: 136
+2026-08-12 15:09:41 | INFO     | attendance | Attendance status: present
+2026-08-12 15:09:41 | INFO     | attendance | Check-in time: 2026-08-12 04:48:46.131630+00:00
+2026-08-12 15:09:41 | INFO     | attendance | Check-out time: None
+2026-08-12 15:09:42 | INFO     | attendance | Photo record found: True
+2026-08-12 15:09:42 | INFO     | attendance | Photo ID: 107
+2026-08-12 15:09:42 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:09:42 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:09:42 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:09:42 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 15:09:42 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:09:42 | INFO     | attendance | can_check_in: False
+2026-08-12 15:09:42 | INFO     | attendance | can_check_out: True
+2026-08-12 15:09:42 | INFO     | attendance | has_photo: True
+2026-08-12 15:09:42 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 15:09:42 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:10:13 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:10:13 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:10:13 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:10:13 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:10:13 | INFO     | attendance | Attendance ID: 136
+2026-08-12 15:10:13 | INFO     | attendance | Attendance status: present
+2026-08-12 15:10:13 | INFO     | attendance | Check-in time: 2026-08-12 04:48:46.131630+00:00
+2026-08-12 15:10:13 | INFO     | attendance | Check-out time: None
+2026-08-12 15:10:13 | INFO     | attendance | Photo record found: True
+2026-08-12 15:10:13 | INFO     | attendance | Photo ID: 107
+2026-08-12 15:10:13 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:10:13 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:10:13 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:10:13 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 15:10:13 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:10:13 | INFO     | attendance | can_check_in: False
+2026-08-12 15:10:13 | INFO     | attendance | can_check_out: True
+2026-08-12 15:10:13 | INFO     | attendance | has_photo: True
+2026-08-12 15:10:13 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 15:10:13 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:10:20 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:10:20 | INFO     | attendance | User ID: 1
+2026-08-12 15:10:20 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:10:20 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:10:20 | INFO     | attendance | Selfie data length: 145491 bytes
+2026-08-12 15:10:21 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:10:21 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:10:22 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=107, has_photo=True, has_checkout_photo=True
+2026-08-12 15:10:22 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:10:26 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:10:26 | INFO     | attendance | User ID: 1
+2026-08-12 15:10:26 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:10:26 | INFO     | attendance | Employee Name: Durvesh Parab
+2026-08-12 15:10:26 | INFO     | attendance | Existing attendance today: <Attendance id=136 emp=1 date=2026-08-12 status='present'>
+2026-08-12 15:10:26 | INFO     | attendance | Photo record found: <AttendancePhoto id=107 att=136>
+2026-08-12 15:10:26 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:10:26 | INFO     | attendance | GPS Data - Lat: 19.014721096923672, Lon: 72.84530359191646, Accuracy: 90
+2026-08-12 15:10:26 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=1 | lat=19.014721096923672 | lon=72.84530359191646
+2026-08-12 15:10:26 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:10:26 | INFO     | attendance | GPS_VERIFY_START | emp=1 | lat=19.014721096923672 | lon=72.84530359191646
+2026-08-12 15:10:26 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:10:26 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0147211 | emp_lon=72.8453036 | accuracy=90.0
+2026-08-12 15:10:26 | INFO     | attendance | GPS_DISTANCE | distance=18.3m | allowed=25m | within=True
+2026-08-12 15:10:26 | INFO     | attendance | GPS_OK | distance=18.3m
+2026-08-12 15:10:26 | INFO     | attendance | GPS verification result: success=True, distance=18.3m
+2026-08-12 15:10:27 | INFO     | attendance | Attendance record for today: <Attendance id=136 emp=1 date=2026-08-12 status='present'>
+2026-08-12 15:10:27 | INFO     | attendance | Check-out meta: working=291m, overtime=0m
+2026-08-12 15:10:27 | INFO     | attendance | Updating attendance in database...
+2026-08-12 15:10:27 | INFO     | attendance | Database commit SUCCESS: attendance_id=136
+2026-08-12 15:10:27 | INFO     | attendance | Creating audit log...
+2026-08-12 15:10:28 | INFO     | attendance | CHECK_OUT SUCCESS | emp=1 | att_id=136 | worked=4h51m
+2026-08-12 15:10:28 | INFO     | attendance | Service check_out result: ok=True, message=Checked out. You worked 4h 51m today.
+2026-08-12 15:10:28 | INFO     | attendance | CHECK OUT SUCCESS: attendance_id=136, time=2026-08-12 09:40:27.031448+00:00
+2026-08-12 15:10:28 | INFO     | attendance | ===== CHECK OUT END (SUCCESS) =====
+2026-08-12 15:10:34 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:10:34 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:10:34 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:10:34 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:10:34 | INFO     | attendance | Attendance ID: 136
+2026-08-12 15:10:34 | INFO     | attendance | Attendance status: absent
+2026-08-12 15:10:34 | INFO     | attendance | Check-in time: 2026-08-12 04:48:46.131630+00:00
+2026-08-12 15:10:34 | INFO     | attendance | Check-out time: 2026-08-12 09:40:27.031448+00:00
+2026-08-12 15:10:35 | INFO     | attendance | Photo record found: True
+2026-08-12 15:10:35 | INFO     | attendance | Photo ID: 107
+2026-08-12 15:10:35 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:10:35 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:10:35 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:10:35 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:10:35 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:10:35 | INFO     | attendance | can_check_in: False
+2026-08-12 15:10:35 | INFO     | attendance | can_check_out: False
+2026-08-12 15:10:35 | INFO     | attendance | has_photo: True
+2026-08-12 15:10:35 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:10:35 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:29:16 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:29:16 | INFO     | attendance | Employee ID: 4
+2026-08-12 15:29:16 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:29:16 | INFO     | attendance | Attendance record exists: False
+2026-08-12 15:29:16 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:29:16 | INFO     | attendance | can_check_in: True
+2026-08-12 15:29:16 | INFO     | attendance | can_check_out: False
+2026-08-12 15:29:16 | INFO     | attendance | has_photo: False
+2026-08-12 15:29:16 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 15:29:16 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:29:48 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:29:48 | INFO     | attendance | User ID: 9
+2026-08-12 15:29:48 | INFO     | attendance | Employee ID: 4
+2026-08-12 15:29:48 | INFO     | attendance | Capture type: checkin
+2026-08-12 15:29:48 | INFO     | attendance | Selfie data length: 111955 bytes
+2026-08-12 15:29:48 | INFO     | attendance | Creating new attendance record for today
+2026-08-12 15:29:48 | INFO     | attendance | Attendance created: 142
+2026-08-12 15:29:48 | INFO     | attendance | Creating new photo record
+2026-08-12 15:29:48 | INFO     | attendance | Photo record created (pending commit): 113
+2026-08-12 15:29:48 | INFO     | attendance | Stored check-in selfie
+2026-08-12 15:29:49 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:29:49 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=113, has_photo=True, has_checkout_photo=False
+2026-08-12 15:29:49 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:29:51 | INFO     | attendance | ===== CHECK IN START =====
+2026-08-12 15:29:51 | INFO     | attendance | User ID: 9
+2026-08-12 15:29:51 | INFO     | attendance | User Email: e2506010@hrms.internal
+2026-08-12 15:29:52 | INFO     | attendance | Employee ID: 4
+2026-08-12 15:29:52 | INFO     | attendance | Employee Code: E-2506010
+2026-08-12 15:29:52 | INFO     | attendance | Employee Name: Srushti Mahesh Ghadi
+2026-08-12 15:29:52 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:29:52 | INFO     | attendance | Existing attendance today: <Attendance id=142 emp=4 date=2026-08-12 status='pending'>
+2026-08-12 15:29:52 | INFO     | attendance | Photo record found: <AttendancePhoto id=113 att=142>
+2026-08-12 15:29:52 | INFO     | attendance | Photo validation PASSED - image_data exists: True, file_path: 
+2026-08-12 15:29:52 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:29:52 | INFO     | attendance | SERVICE CHECK_IN START | emp_id=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:29:52 | INFO     | attendance | Office found: Head Office (radius=25m)
+2026-08-12 15:29:52 | INFO     | attendance | GPS_VERIFY_START | emp=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:29:52 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:29:52 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:29:52 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:29:52 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:29:52 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:29:52 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:29:52 | INFO     | attendance | Service check_in result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:29:52 | INFO     | attendance | GPS Detail: {'employee_lat': 19.014486, 'employee_lon': 72.845765, 'accuracy': 100.0, 'distance_metres': 72.5, 'office_lat': 19.014846, 'office_lon': 72.84519, 'allowed_radius': 25, 'min_gps_accuracy': 50, 'within_radius': False}
+2026-08-12 15:29:52 | ERROR    | attendance | CHECK IN FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:29:52 | INFO     | attendance | ===== CHECK IN END (FAILED) =====
+2026-08-12 15:33:09 | INFO     | attendance | ===== CHECK IN START =====
+2026-08-12 15:33:09 | INFO     | attendance | User ID: 9
+2026-08-12 15:33:09 | INFO     | attendance | User Email: e2506010@hrms.internal
+2026-08-12 15:33:09 | INFO     | attendance | Employee ID: 4
+2026-08-12 15:33:09 | INFO     | attendance | Employee Code: E-2506010
+2026-08-12 15:33:09 | INFO     | attendance | Employee Name: Srushti Mahesh Ghadi
+2026-08-12 15:33:09 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:33:09 | INFO     | attendance | Existing attendance today: <Attendance id=142 emp=4 date=2026-08-12 status='pending'>
+2026-08-12 15:33:09 | INFO     | attendance | Photo record found: <AttendancePhoto id=113 att=142>
+2026-08-12 15:33:09 | INFO     | attendance | Photo validation PASSED - image_data exists: True, file_path: 
+2026-08-12 15:33:09 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:33:09 | INFO     | attendance | SERVICE CHECK_IN START | emp_id=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:33:10 | INFO     | attendance | Office found: Head Office (radius=25m)
+2026-08-12 15:33:10 | INFO     | attendance | GPS_VERIFY_START | emp=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:33:10 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:33:10 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:33:10 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:33:10 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:10 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:33:10 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:11 | INFO     | attendance | Service check_in result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:11 | INFO     | attendance | GPS Detail: {'employee_lat': 19.014486, 'employee_lon': 72.845765, 'accuracy': 100.0, 'distance_metres': 72.5, 'office_lat': 19.014846, 'office_lon': 72.84519, 'allowed_radius': 25, 'min_gps_accuracy': 50, 'within_radius': False}
+2026-08-12 15:33:11 | ERROR    | attendance | CHECK IN FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:11 | INFO     | attendance | ===== CHECK IN END (FAILED) =====
+2026-08-12 15:33:46 | INFO     | attendance | ===== CHECK IN START =====
+2026-08-12 15:33:46 | INFO     | attendance | User ID: 9
+2026-08-12 15:33:46 | INFO     | attendance | User Email: e2506010@hrms.internal
+2026-08-12 15:33:46 | INFO     | attendance | Employee ID: 4
+2026-08-12 15:33:46 | INFO     | attendance | Employee Code: E-2506010
+2026-08-12 15:33:46 | INFO     | attendance | Employee Name: Srushti Mahesh Ghadi
+2026-08-12 15:33:46 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:33:46 | INFO     | attendance | Existing attendance today: <Attendance id=142 emp=4 date=2026-08-12 status='pending'>
+2026-08-12 15:33:46 | INFO     | attendance | Photo record found: <AttendancePhoto id=113 att=142>
+2026-08-12 15:33:46 | INFO     | attendance | Photo validation PASSED - image_data exists: True, file_path: 
+2026-08-12 15:33:46 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:33:46 | INFO     | attendance | SERVICE CHECK_IN START | emp_id=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:33:47 | INFO     | attendance | Office found: Head Office (radius=25m)
+2026-08-12 15:33:47 | INFO     | attendance | GPS_VERIFY_START | emp=4 | lat=19.014486 | lon=72.845765
+2026-08-12 15:33:47 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:33:47 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:33:47 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:33:47 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:47 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:33:47 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:48 | INFO     | attendance | Service check_in result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:48 | INFO     | attendance | GPS Detail: {'employee_lat': 19.014486, 'employee_lon': 72.845765, 'accuracy': 100.0, 'distance_metres': 72.5, 'office_lat': 19.014846, 'office_lon': 72.84519, 'allowed_radius': 25, 'min_gps_accuracy': 50, 'within_radius': False}
+2026-08-12 15:33:48 | ERROR    | attendance | CHECK IN FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:33:48 | INFO     | attendance | ===== CHECK IN END (FAILED) =====
+2026-08-12 15:40:45 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:40:45 | INFO     | attendance | Employee ID: 1
+2026-08-12 15:40:45 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:40:45 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:40:45 | INFO     | attendance | Attendance ID: 136
+2026-08-12 15:40:45 | INFO     | attendance | Attendance status: absent
+2026-08-12 15:40:45 | INFO     | attendance | Check-in time: 2026-08-12 04:48:46.131630+00:00
+2026-08-12 15:40:45 | INFO     | attendance | Check-out time: 2026-08-12 09:40:27.031448+00:00
+2026-08-12 15:40:46 | INFO     | attendance | Photo record found: True
+2026-08-12 15:40:46 | INFO     | attendance | Photo ID: 107
+2026-08-12 15:40:46 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:40:46 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:40:46 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:40:46 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:40:46 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:40:46 | INFO     | attendance | can_check_in: False
+2026-08-12 15:40:46 | INFO     | attendance | can_check_out: False
+2026-08-12 15:40:46 | INFO     | attendance | has_photo: True
+2026-08-12 15:40:46 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:40:46 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:41:55 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:41:55 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:41:55 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:41:55 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:41:55 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:41:55 | INFO     | attendance | Attendance status: present
+2026-08-12 15:41:55 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:41:55 | INFO     | attendance | Check-out time: None
+2026-08-12 15:41:56 | INFO     | attendance | Photo record found: True
+2026-08-12 15:41:56 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:41:56 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:41:56 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:41:56 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:41:56 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 15:41:56 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:41:56 | INFO     | attendance | can_check_in: False
+2026-08-12 15:41:56 | INFO     | attendance | can_check_out: True
+2026-08-12 15:41:56 | INFO     | attendance | has_photo: True
+2026-08-12 15:41:56 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 15:41:56 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:42:09 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:42:09 | INFO     | attendance | User ID: 4
+2026-08-12 15:42:09 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:42:09 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:42:09 | INFO     | attendance | Selfie data length: 135135 bytes
+2026-08-12 15:42:10 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:42:10 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:42:10 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 15:42:10 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:42:14 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:42:14 | INFO     | attendance | User ID: 4
+2026-08-12 15:42:14 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:42:14 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:42:14 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:42:14 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:42:14 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:42:14 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:42:14 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:42:14 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:42:14 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:42:14 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:42:14 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:42:14 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:42:14 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:42:14 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:42:14 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:42:15 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:42:15 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:42:15 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:47:40 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:47:40 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:47:40 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:47:40 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:47:40 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:47:40 | INFO     | attendance | Attendance status: present
+2026-08-12 15:47:40 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:47:40 | INFO     | attendance | Check-out time: None
+2026-08-12 15:47:41 | INFO     | attendance | Photo record found: True
+2026-08-12 15:47:41 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:47:41 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:47:41 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:47:41 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:47:41 | INFO     | attendance | can_check_in: False
+2026-08-12 15:47:41 | INFO     | attendance | can_check_out: True
+2026-08-12 15:47:41 | INFO     | attendance | has_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:47:41 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:47:41 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:47:41 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:47:41 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:47:41 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:47:41 | INFO     | attendance | Attendance status: present
+2026-08-12 15:47:41 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:47:41 | INFO     | attendance | Check-out time: None
+2026-08-12 15:47:41 | INFO     | attendance | Photo record found: True
+2026-08-12 15:47:41 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:47:41 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:47:41 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:47:41 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:47:41 | INFO     | attendance | can_check_in: False
+2026-08-12 15:47:41 | INFO     | attendance | can_check_out: True
+2026-08-12 15:47:41 | INFO     | attendance | has_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:47:41 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:47:49 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:47:49 | INFO     | attendance | User ID: 4
+2026-08-12 15:47:49 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:47:49 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:47:49 | INFO     | attendance | Selfie data length: 153015 bytes
+2026-08-12 15:47:49 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:47:50 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:47:50 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 15:47:50 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:47:53 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:47:53 | INFO     | attendance | User ID: 4
+2026-08-12 15:47:53 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:47:53 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:47:53 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:47:53 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:47:53 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:47:53 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:47:53 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:47:53 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:47:53 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:47:53 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:47:53 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:47:53 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:47:53 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:47:53 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:47:53 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:47:54 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:47:54 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:47:54 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:48:04 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:48:04 | INFO     | attendance | User ID: 4
+2026-08-12 15:48:04 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:48:04 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:48:04 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:48:04 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:48:04 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:48:04 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:48:04 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:48:05 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:48:05 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:48:05 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:48:05 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:48:05 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:48:05 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:48:05 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:48:05 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:48:05 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:48:05 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:48:05 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:50:11 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:50:11 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:50:11 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:50:11 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:50:11 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:50:11 | INFO     | attendance | Attendance status: present
+2026-08-12 15:50:11 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:50:11 | INFO     | attendance | Check-out time: None
+2026-08-12 15:50:12 | INFO     | attendance | Photo record found: True
+2026-08-12 15:50:12 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:50:12 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:50:12 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:50:12 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:50:12 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:50:12 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:50:12 | INFO     | attendance | can_check_in: False
+2026-08-12 15:50:12 | INFO     | attendance | can_check_out: True
+2026-08-12 15:50:12 | INFO     | attendance | has_photo: True
+2026-08-12 15:50:12 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:50:12 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:52:44 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:52:44 | INFO     | attendance | User ID: 4
+2026-08-12 15:52:44 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:52:44 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:52:44 | INFO     | attendance | Selfie data length: 143211 bytes
+2026-08-12 15:52:44 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:52:44 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:52:45 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 15:52:45 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:52:47 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:52:47 | INFO     | attendance | User ID: 4
+2026-08-12 15:52:47 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:52:47 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:52:47 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:52:48 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:52:48 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:52:48 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:52:48 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:52:48 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:52:48 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:52:48 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:52:48 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:52:48 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:52:48 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:52:48 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:52:48 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:52:48 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:52:48 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:52:48 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:53:17 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:53:17 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:53:17 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:53:17 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:53:17 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:53:17 | INFO     | attendance | Attendance status: present
+2026-08-12 15:53:17 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:53:17 | INFO     | attendance | Check-out time: None
+2026-08-12 15:53:17 | INFO     | attendance | Photo record found: True
+2026-08-12 15:53:17 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:53:17 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:53:17 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:53:17 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:53:17 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:53:17 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:53:17 | INFO     | attendance | can_check_in: False
+2026-08-12 15:53:17 | INFO     | attendance | can_check_out: True
+2026-08-12 15:53:17 | INFO     | attendance | has_photo: True
+2026-08-12 15:53:17 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:53:17 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:53:25 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:53:25 | INFO     | attendance | User ID: 4
+2026-08-12 15:53:25 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:53:25 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:53:25 | INFO     | attendance | Selfie data length: 110171 bytes
+2026-08-12 15:53:26 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:53:26 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:53:26 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 15:53:26 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:53:26 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:53:26 | INFO     | attendance | User ID: 4
+2026-08-12 15:53:26 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:53:26 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:53:26 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:53:27 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:53:27 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:53:27 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:53:27 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:53:27 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:53:27 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:53:27 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:53:27 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:53:27 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:53:27 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:27 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:53:27 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:27 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:27 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:27 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:53:31 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:53:31 | INFO     | attendance | User ID: 4
+2026-08-12 15:53:31 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:53:31 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:53:31 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:53:31 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:53:31 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:53:31 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:53:31 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:53:31 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:53:31 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:53:31 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:53:31 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:53:31 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:53:31 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:31 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:53:31 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:32 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:32 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:53:32 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:55:42 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 15:55:42 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:55:42 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 15:55:42 | INFO     | attendance | Attendance record exists: True
+2026-08-12 15:55:42 | INFO     | attendance | Attendance ID: 138
+2026-08-12 15:55:42 | INFO     | attendance | Attendance status: present
+2026-08-12 15:55:42 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 15:55:42 | INFO     | attendance | Check-out time: None
+2026-08-12 15:55:42 | INFO     | attendance | Photo record found: True
+2026-08-12 15:55:42 | INFO     | attendance | Photo ID: 109
+2026-08-12 15:55:42 | INFO     | attendance | Photo has image_data: True
+2026-08-12 15:55:42 | INFO     | attendance | Photo has file_path: 
+2026-08-12 15:55:42 | INFO     | attendance | Computed has_photo: True
+2026-08-12 15:55:42 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 15:55:42 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 15:55:42 | INFO     | attendance | can_check_in: False
+2026-08-12 15:55:42 | INFO     | attendance | can_check_out: True
+2026-08-12 15:55:42 | INFO     | attendance | has_photo: True
+2026-08-12 15:55:42 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 15:55:42 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 15:55:48 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 15:55:48 | INFO     | attendance | User ID: 4
+2026-08-12 15:55:48 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:55:48 | INFO     | attendance | Capture type: checkout
+2026-08-12 15:55:48 | INFO     | attendance | Selfie data length: 117359 bytes
+2026-08-12 15:55:49 | INFO     | attendance | Stored check-out selfie
+2026-08-12 15:55:49 | INFO     | attendance | Selfie saved successfully
+2026-08-12 15:55:49 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:55:49 | INFO     | attendance | User ID: 4
+2026-08-12 15:55:49 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:55:49 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:55:49 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 15:55:49 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 15:55:49 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:55:50 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:55:50 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:55:50 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:55:50 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:55:50 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:55:50 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:55:50 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:55:50 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:55:50 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:55:50 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:50 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:55:50 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:50 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:50 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:50 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 15:55:53 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 15:55:53 | INFO     | attendance | User ID: 4
+2026-08-12 15:55:53 | INFO     | attendance | Employee ID: 18
+2026-08-12 15:55:53 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 15:55:53 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 15:55:54 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 15:55:54 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 15:55:54 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 15:55:54 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:55:54 | INFO     | attendance | Office found: Head Office
+2026-08-12 15:55:54 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 15:55:54 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 15:55:54 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 15:55:54 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 15:55:54 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:54 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 15:55:54 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:54 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:54 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 15:55:54 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 16:03:22 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:03:22 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:03:22 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:03:22 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:03:22 | INFO     | attendance | Attendance ID: 138
+2026-08-12 16:03:22 | INFO     | attendance | Attendance status: present
+2026-08-12 16:03:22 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 16:03:22 | INFO     | attendance | Check-out time: None
+2026-08-12 16:03:23 | INFO     | attendance | Photo record found: True
+2026-08-12 16:03:23 | INFO     | attendance | Photo ID: 109
+2026-08-12 16:03:23 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:03:23 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:03:23 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:03:23 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:03:23 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:03:23 | INFO     | attendance | can_check_in: False
+2026-08-12 16:03:23 | INFO     | attendance | can_check_out: True
+2026-08-12 16:03:23 | INFO     | attendance | has_photo: True
+2026-08-12 16:03:23 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:03:23 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:03:30 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 16:03:30 | INFO     | attendance | User ID: 4
+2026-08-12 16:03:30 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:03:30 | INFO     | attendance | Capture type: checkout
+2026-08-12 16:03:30 | INFO     | attendance | Selfie data length: 65851 bytes
+2026-08-12 16:03:31 | INFO     | attendance | Stored check-out selfie
+2026-08-12 16:03:31 | INFO     | attendance | Selfie saved successfully
+2026-08-12 16:03:31 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 16:03:31 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 16:03:35 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 16:03:35 | INFO     | attendance | User ID: 4
+2026-08-12 16:03:35 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:03:35 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 16:03:36 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 16:03:36 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 16:03:36 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 16:03:36 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 16:03:36 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 16:03:36 | INFO     | attendance | Office found: Head Office
+2026-08-12 16:03:36 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 16:03:36 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=25
+2026-08-12 16:03:36 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 16:03:36 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=25m | within=False
+2026-08-12 16:03:36 | WARNING  | attendance | GPS_REJECTED | You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 16:03:36 | INFO     | attendance | GPS verification result: success=False, distance=72.5m
+2026-08-12 16:03:36 | WARNING  | attendance | GPS verification FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 16:03:36 | INFO     | attendance | Service check_out result: ok=False, message=You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 16:03:36 | ERROR    | attendance | CHECK OUT FAILED: You are 72m from Head Office. Allowed radius: 25m.
+2026-08-12 16:03:36 | INFO     | attendance | ===== CHECK OUT END (FAILED) =====
+2026-08-12 16:07:26 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:07:26 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:07:26 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:07:26 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:07:26 | INFO     | attendance | Attendance ID: 138
+2026-08-12 16:07:26 | INFO     | attendance | Attendance status: present
+2026-08-12 16:07:26 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 16:07:26 | INFO     | attendance | Check-out time: None
+2026-08-12 16:07:27 | INFO     | attendance | Photo record found: True
+2026-08-12 16:07:27 | INFO     | attendance | Photo ID: 109
+2026-08-12 16:07:27 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:07:27 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:07:27 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:07:27 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:07:27 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:07:27 | INFO     | attendance | can_check_in: False
+2026-08-12 16:07:27 | INFO     | attendance | can_check_out: True
+2026-08-12 16:07:27 | INFO     | attendance | has_photo: True
+2026-08-12 16:07:27 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:07:27 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:07:28 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:07:28 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:07:28 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:07:28 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:07:28 | INFO     | attendance | Attendance ID: 138
+2026-08-12 16:07:28 | INFO     | attendance | Attendance status: present
+2026-08-12 16:07:28 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 16:07:28 | INFO     | attendance | Check-out time: None
+2026-08-12 16:07:28 | INFO     | attendance | Photo record found: True
+2026-08-12 16:07:28 | INFO     | attendance | Photo ID: 109
+2026-08-12 16:07:28 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:07:28 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:07:28 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:07:28 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:07:28 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:07:28 | INFO     | attendance | can_check_in: False
+2026-08-12 16:07:28 | INFO     | attendance | can_check_out: True
+2026-08-12 16:07:28 | INFO     | attendance | has_photo: True
+2026-08-12 16:07:28 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:07:28 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:07:42 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 16:07:42 | INFO     | attendance | User ID: 4
+2026-08-12 16:07:42 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:07:42 | INFO     | attendance | Capture type: checkout
+2026-08-12 16:07:42 | INFO     | attendance | Selfie data length: 113431 bytes
+2026-08-12 16:07:42 | INFO     | attendance | Stored check-out selfie
+2026-08-12 16:07:43 | INFO     | attendance | Selfie saved successfully
+2026-08-12 16:07:43 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=109, has_photo=True, has_checkout_photo=True
+2026-08-12 16:07:43 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 16:07:46 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 16:07:46 | INFO     | attendance | User ID: 4
+2026-08-12 16:07:46 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:07:46 | INFO     | attendance | Employee Name: Tejas Ashok Jadhav
+2026-08-12 16:07:46 | INFO     | attendance | Existing attendance today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 16:07:46 | INFO     | attendance | Photo record found: <AttendancePhoto id=109 att=138>
+2026-08-12 16:07:46 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 16:07:46 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 16:07:46 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=18 | lat=19.014486 | lon=72.845765
+2026-08-12 16:07:46 | INFO     | attendance | Office found: Head Office
+2026-08-12 16:07:46 | INFO     | attendance | GPS_VERIFY_START | emp=18 | lat=19.014486 | lon=72.845765
+2026-08-12 16:07:46 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=150
+2026-08-12 16:07:46 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 16:07:46 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=150m | within=True
+2026-08-12 16:07:46 | INFO     | attendance | GPS_OK | distance=72.5m
+2026-08-12 16:07:46 | INFO     | attendance | GPS verification result: success=True, distance=72.5m
+2026-08-12 16:07:46 | INFO     | attendance | Attendance record for today: <Attendance id=138 emp=18 date=2026-08-12 status='present'>
+2026-08-12 16:07:46 | INFO     | attendance | Check-out meta: working=226m, overtime=0m
+2026-08-12 16:07:46 | INFO     | attendance | Updating attendance in database...
+2026-08-12 16:07:47 | INFO     | attendance | Database commit SUCCESS: attendance_id=138
+2026-08-12 16:07:47 | INFO     | attendance | Creating audit log...
+2026-08-12 16:07:47 | INFO     | attendance | CHECK_OUT SUCCESS | emp=18 | att_id=138 | worked=3h46m
+2026-08-12 16:07:47 | INFO     | attendance | Service check_out result: ok=True, message=Checked out. You worked 3h 46m today.
+2026-08-12 16:07:47 | INFO     | attendance | CHECK OUT SUCCESS: attendance_id=138, time=2026-08-12 10:37:46.842339+00:00
+2026-08-12 16:07:47 | INFO     | attendance | ===== CHECK OUT END (SUCCESS) =====
+2026-08-12 16:07:51 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:07:51 | INFO     | attendance | Employee ID: 18
+2026-08-12 16:07:51 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:07:51 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:07:51 | INFO     | attendance | Attendance ID: 138
+2026-08-12 16:07:51 | INFO     | attendance | Attendance status: absent
+2026-08-12 16:07:51 | INFO     | attendance | Check-in time: 2026-08-12 06:50:49.710814+00:00
+2026-08-12 16:07:51 | INFO     | attendance | Check-out time: 2026-08-12 10:37:46.842339+00:00
+2026-08-12 16:07:52 | INFO     | attendance | Photo record found: True
+2026-08-12 16:07:52 | INFO     | attendance | Photo ID: 109
+2026-08-12 16:07:52 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:07:52 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:07:52 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:07:52 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:07:52 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:07:52 | INFO     | attendance | can_check_in: False
+2026-08-12 16:07:52 | INFO     | attendance | can_check_out: False
+2026-08-12 16:07:52 | INFO     | attendance | has_photo: True
+2026-08-12 16:07:52 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:07:52 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:10:07 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:10:07 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:10:07 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:10:07 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:10:07 | INFO     | attendance | Attendance ID: 142
+2026-08-12 16:10:07 | INFO     | attendance | Attendance status: pending
+2026-08-12 16:10:07 | INFO     | attendance | Check-in time: None
+2026-08-12 16:10:07 | INFO     | attendance | Check-out time: None
+2026-08-12 16:10:07 | INFO     | attendance | Photo record found: True
+2026-08-12 16:10:07 | INFO     | attendance | Photo ID: 113
+2026-08-12 16:10:07 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:10:07 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:10:07 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:10:07 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:10:07 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:10:07 | INFO     | attendance | can_check_in: True
+2026-08-12 16:10:07 | INFO     | attendance | can_check_out: False
+2026-08-12 16:10:07 | INFO     | attendance | has_photo: True
+2026-08-12 16:10:07 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:10:07 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:10:22 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 16:10:22 | INFO     | attendance | User ID: 9
+2026-08-12 16:10:22 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:10:22 | INFO     | attendance | Capture type: checkin
+2026-08-12 16:10:22 | INFO     | attendance | Selfie data length: 78643 bytes
+2026-08-12 16:10:23 | INFO     | attendance | Stored check-in selfie
+2026-08-12 16:10:23 | INFO     | attendance | Selfie saved successfully
+2026-08-12 16:10:23 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=113, has_photo=True, has_checkout_photo=False
+2026-08-12 16:10:23 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 16:10:23 | INFO     | attendance | ===== CHECK IN START =====
+2026-08-12 16:10:23 | INFO     | attendance | User ID: 9
+2026-08-12 16:10:23 | INFO     | attendance | User Email: e2506010@hrms.internal
+2026-08-12 16:10:23 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:10:23 | INFO     | attendance | Employee Code: E-2506010
+2026-08-12 16:10:23 | INFO     | attendance | Employee Name: Srushti Mahesh Ghadi
+2026-08-12 16:10:24 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:10:24 | INFO     | attendance | Existing attendance today: <Attendance id=142 emp=4 date=2026-08-12 status='pending'>
+2026-08-12 16:10:24 | INFO     | attendance | Photo record found: <AttendancePhoto id=113 att=142>
+2026-08-12 16:10:24 | INFO     | attendance | Photo validation PASSED - image_data exists: True, file_path: 
+2026-08-12 16:10:24 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 16:10:24 | INFO     | attendance | SERVICE CHECK_IN START | emp_id=4 | lat=19.014486 | lon=72.845765
+2026-08-12 16:10:24 | INFO     | attendance | Office found: Head Office (radius=150m)
+2026-08-12 16:10:24 | INFO     | attendance | GPS_VERIFY_START | emp=4 | lat=19.014486 | lon=72.845765
+2026-08-12 16:10:24 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=150
+2026-08-12 16:10:24 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 16:10:24 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=150m | within=True
+2026-08-12 16:10:24 | INFO     | attendance | GPS_OK | distance=72.5m
+2026-08-12 16:10:24 | INFO     | attendance | GPS verification result: success=True, distance=72.5m
+2026-08-12 16:10:24 | INFO     | attendance | Existing attendance for today: <Attendance id=142 emp=4 date=2026-08-12 status='pending'>
+2026-08-12 16:10:24 | INFO     | attendance | Check-in meta: is_late=True, late_minutes=350
+2026-08-12 16:10:24 | INFO     | attendance | Updating existing attendance record: id=142
+2026-08-12 16:10:24 | INFO     | attendance | Saving attendance to database...
+2026-08-12 16:10:24 | INFO     | attendance | Database commit SUCCESS: attendance_id=142
+2026-08-12 16:10:24 | INFO     | attendance | Creating audit log...
+2026-08-12 16:10:25 | INFO     | attendance | CHECK_IN SUCCESS | emp=4 | att_id=142 | dist=72m | late=True
+2026-08-12 16:10:25 | INFO     | attendance | Service check_in result: ok=True, message=Check-in recorded at 16:10 IST. You are late by 350 min.
+2026-08-12 16:10:25 | INFO     | attendance | GPS Detail: {'employee_lat': 19.014486, 'employee_lon': 72.845765, 'accuracy': 100.0, 'distance_metres': 72.5, 'office_lat': 19.014846, 'office_lon': 72.84519, 'allowed_radius': 150, 'min_gps_accuracy': 50, 'within_radius': True}
+2026-08-12 16:10:25 | INFO     | attendance | CHECK IN SUCCESS: attendance_id=142, time=2026-08-12 10:40:24.485725+00:00
+2026-08-12 16:10:25 | INFO     | attendance | ===== CHECK IN END (SUCCESS) =====
+2026-08-12 16:10:28 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:10:28 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:10:28 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:10:28 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:10:28 | INFO     | attendance | Attendance ID: 142
+2026-08-12 16:10:28 | INFO     | attendance | Attendance status: present
+2026-08-12 16:10:28 | INFO     | attendance | Check-in time: 2026-08-12 10:40:24.485725+00:00
+2026-08-12 16:10:28 | INFO     | attendance | Check-out time: None
+2026-08-12 16:10:28 | INFO     | attendance | Photo record found: True
+2026-08-12 16:10:28 | INFO     | attendance | Photo ID: 113
+2026-08-12 16:10:28 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:10:28 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:10:28 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:10:28 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:10:28 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:10:28 | INFO     | attendance | can_check_in: False
+2026-08-12 16:10:28 | INFO     | attendance | can_check_out: True
+2026-08-12 16:10:28 | INFO     | attendance | has_photo: True
+2026-08-12 16:10:28 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:10:28 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:12:32 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:12:32 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:12:32 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:12:32 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:12:32 | INFO     | attendance | Attendance ID: 142
+2026-08-12 16:12:32 | INFO     | attendance | Attendance status: present
+2026-08-12 16:12:32 | INFO     | attendance | Check-in time: 2026-08-12 10:40:24.485725+00:00
+2026-08-12 16:12:32 | INFO     | attendance | Check-out time: None
+2026-08-12 16:12:32 | INFO     | attendance | Photo record found: True
+2026-08-12 16:12:32 | INFO     | attendance | Photo ID: 113
+2026-08-12 16:12:32 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:12:32 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:12:32 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:12:32 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:12:32 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:12:32 | INFO     | attendance | can_check_in: False
+2026-08-12 16:12:32 | INFO     | attendance | can_check_out: True
+2026-08-12 16:12:32 | INFO     | attendance | has_photo: True
+2026-08-12 16:12:32 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:12:32 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:12:42 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 16:12:42 | INFO     | attendance | User ID: 9
+2026-08-12 16:12:42 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:12:42 | INFO     | attendance | Capture type: checkout
+2026-08-12 16:12:42 | INFO     | attendance | Selfie data length: 113803 bytes
+2026-08-12 16:12:42 | INFO     | attendance | Stored check-out selfie
+2026-08-12 16:12:42 | INFO     | attendance | Selfie saved successfully
+2026-08-12 16:12:42 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=113, has_photo=True, has_checkout_photo=True
+2026-08-12 16:12:42 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 16:12:45 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 16:12:45 | INFO     | attendance | User ID: 9
+2026-08-12 16:12:45 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:12:45 | INFO     | attendance | Employee Name: Srushti Mahesh Ghadi
+2026-08-12 16:12:45 | INFO     | attendance | Existing attendance today: <Attendance id=142 emp=4 date=2026-08-12 status='present'>
+2026-08-12 16:12:46 | INFO     | attendance | Photo record found: <AttendancePhoto id=113 att=142>
+2026-08-12 16:12:46 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 16:12:46 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 16:12:46 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=4 | lat=19.014486 | lon=72.845765
+2026-08-12 16:12:46 | INFO     | attendance | Office found: Head Office
+2026-08-12 16:12:46 | INFO     | attendance | GPS_VERIFY_START | emp=4 | lat=19.014486 | lon=72.845765
+2026-08-12 16:12:46 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=150
+2026-08-12 16:12:46 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 16:12:46 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=150m | within=True
+2026-08-12 16:12:46 | INFO     | attendance | GPS_OK | distance=72.5m
+2026-08-12 16:12:46 | INFO     | attendance | GPS verification result: success=True, distance=72.5m
+2026-08-12 16:12:46 | INFO     | attendance | Attendance record for today: <Attendance id=142 emp=4 date=2026-08-12 status='present'>
+2026-08-12 16:12:46 | INFO     | attendance | Check-out meta: working=2m, overtime=0m
+2026-08-12 16:12:46 | INFO     | attendance | Updating attendance in database...
+2026-08-12 16:12:46 | INFO     | attendance | Database commit SUCCESS: attendance_id=142
+2026-08-12 16:12:46 | INFO     | attendance | Creating audit log...
+2026-08-12 16:12:47 | INFO     | attendance | CHECK_OUT SUCCESS | emp=4 | att_id=142 | worked=0h2m
+2026-08-12 16:12:47 | INFO     | attendance | Service check_out result: ok=True, message=Checked out. You worked 0h 2m today.
+2026-08-12 16:12:47 | INFO     | attendance | CHECK OUT SUCCESS: attendance_id=142, time=2026-08-12 10:42:46.300656+00:00
+2026-08-12 16:12:47 | INFO     | attendance | ===== CHECK OUT END (SUCCESS) =====
+2026-08-12 16:12:50 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:12:50 | INFO     | attendance | Employee ID: 4
+2026-08-12 16:12:50 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:12:50 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:12:50 | INFO     | attendance | Attendance ID: 142
+2026-08-12 16:12:50 | INFO     | attendance | Attendance status: absent
+2026-08-12 16:12:50 | INFO     | attendance | Check-in time: 2026-08-12 10:40:24.485725+00:00
+2026-08-12 16:12:50 | INFO     | attendance | Check-out time: 2026-08-12 10:42:46.300656+00:00
+2026-08-12 16:12:50 | INFO     | attendance | Photo record found: True
+2026-08-12 16:12:50 | INFO     | attendance | Photo ID: 113
+2026-08-12 16:12:50 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:12:50 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:12:50 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:12:50 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:12:50 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:12:50 | INFO     | attendance | can_check_in: False
+2026-08-12 16:12:50 | INFO     | attendance | can_check_out: False
+2026-08-12 16:12:50 | INFO     | attendance | has_photo: True
+2026-08-12 16:12:50 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:12:50 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:16:14 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:16:14 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:16:14 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:16:14 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:16:14 | INFO     | attendance | Attendance ID: 137
+2026-08-12 16:16:14 | INFO     | attendance | Attendance status: present
+2026-08-12 16:16:14 | INFO     | attendance | Check-in time: 2026-08-12 04:49:24.665422+00:00
+2026-08-12 16:16:14 | INFO     | attendance | Check-out time: None
+2026-08-12 16:16:14 | INFO     | attendance | Photo record found: True
+2026-08-12 16:16:14 | INFO     | attendance | Photo ID: 108
+2026-08-12 16:16:14 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:16:14 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:16:14 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:16:14 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:16:14 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:16:14 | INFO     | attendance | can_check_in: False
+2026-08-12 16:16:14 | INFO     | attendance | can_check_out: True
+2026-08-12 16:16:14 | INFO     | attendance | has_photo: True
+2026-08-12 16:16:14 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:16:14 | INFO     | attendance | ===== GET_TODAY_STATUS END =====

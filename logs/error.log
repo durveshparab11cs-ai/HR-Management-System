@@ -2,3 +2,5 @@
 2026/08/12 13:53:54 [emerg] 1188#27800: CreateFile() "C:\Users\durve\Downloads\HR management system/conf/nginx.conf" failed (3: The system cannot find the path specified)
 2026/08/12 13:53:54 [emerg] 31300#23136: CreateFile() "C:\Users\durve\Downloads\HR management system/conf/nginx.conf" failed (3: The system cannot find the path specified)
 2026/08/12 13:54:06 [emerg] 21484#22140: CreateFile() "C:\Users\durve\Downloads\HR management system/conf/nginx.conf" failed (3: The system cannot find the path specified)
+2026/08/12 14:49:07 [emerg] 13496#17592: CreateFile() "C:\Users\durve\Downloads\HR management system/conf/nginx.conf" failed (3: The system cannot find the path specified)
+2026/08/12 14:49:36 [emerg] 13980#18120: CreateFile() "C:\Users\durve\Downloads\HR management system/conf/nginx.conf" failed (3: The system cannot find the path specified)

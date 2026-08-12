@@ -250,16 +250,16 @@
                 <!-- In Time -->
                 <td class="small">
                     {% if att.check_in_time %}
-                    {% set ist_time = att.check_in_time + timedelta(hours=5, minutes=30) %}
-                    <span class="fw-semibold">{{ ist_time.strftime('%H:%M') }}</span>
+                    {% set ist_time = att.check_in_time + timedelta(hours=5, minutes=30) if att.check_in_time else None %}
+                    <span class="fw-semibold">{% if ist_time %}{{ ist_time.strftime('%H:%M') }}{% else %}—{% endif %}</span>
                     {% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
 
                 <!-- Out Time -->
                 <td class="small">
                     {% if att.check_out_time %}
-                    {% set ist_time = att.check_out_time + timedelta(hours=5, minutes=30) %}
-                    <span class="fw-semibold">{{ ist_time.strftime('%H:%M') }}</span>
+                    {% set ist_time = att.check_out_time + timedelta(hours=5, minutes=30) if att.check_out_time else None %}
+                    <span class="fw-semibold">{% if ist_time %}{{ ist_time.strftime('%H:%M') }}{% else %}—{% endif %}</span>
                     {% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
 

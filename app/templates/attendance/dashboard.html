@@ -233,8 +233,8 @@
       <div class="att-tile-label">Check Out (IST)</div>
       <div class="att-tile-value">
         {% if status.attendance and status.attendance.check_out_time %}
-          {% set ist_time = status.attendance.check_out_time + timedelta(hours=5, minutes=30) %}
-          <span>{{ ist_time.strftime('%H:%M') }}</span>
+          {% set ist_time = status.attendance.check_out_time + timedelta(hours=5, minutes=30) if status.attendance.check_out_time else None %}
+          <span>{% if ist_time %}{{ ist_time.strftime('%H:%M') }}{% else %}—{% endif %}</span>
         {% else %}—{% endif %}
       </div>
     </div>
