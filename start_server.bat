@@ -1,37 +1,41 @@
 @echo off
-REM Smart HRMS Production Server - Windows Batch Launcher
-REM Run this file to start the server with HTTPS on port 443
+REM Smart HRMS HTTPS Server Startup
+REM Simple direct HTTPS on port 443
 
-setlocal enabledelayedexpansion
+title Smart HRMS Server
+color 0A
+
+echo.
+echo ============================================================
+echo           Smart HRMS HTTPS Server Starting
+echo ============================================================
+echo.
 
 cd /d "%~dp0"
 
-echo.
-echo ════════════════════════════════════════════════════════════
-echo   Smart HRMS Production Server - HTTPS
-echo ════════════════════════════════════════════════════════════
-echo.
-echo Starting Flask with SSL on port 443...
-echo URL: https://192.168.0.5
-echo.
+REM Kill any existing Python processes running Flask
+taskkill /F /IM python.exe /FI "WINDOWTITLE eq Smart HRMS*" 2>nul
+timeout /t 2 /nobreak > nul
 
-REM Check if certificates exist
+REM Check requirements
+if not exist .env (
+    color 0C
+    echo ERROR: .env file not found
+    pause
+    exit /b 1
+)
+
 if not exist "C:\Smart_HRMS\certs\smart-hrms.crt" (
-    echo ERROR: Certificate not found at C:\Smart_HRMS\certs\smart-hrms.crt
+    color 0C
+    echo ERROR: SSL certificate not found
     pause
     exit /b 1
 )
 
-if not exist "C:\Smart_HRMS\certs\smart-hrms.key" (
-    echo ERROR: Private key not found at C:\Smart_HRMS\certs\smart-hrms.key
-    pause
-    exit /b 1
-)
-
-echo ✓ Certificates verified
+REM Start Flask
 echo.
-
-REM Run production server
-python wsgi.py
+echo Starting Flask on HTTPS port 443...
+echo.
+python run_https.py
 
 pause
