@@ -130,6 +130,7 @@ def inject_navigation() -> dict:
         {"label": "Reports",        "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
         {"label": "Notifications",  "icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
         {"label": "Calendar",       "icon": "bi-calendar-event", "url_endpoint": "calendar.index",      "roles": None},
+        {"label": "Hospitals",      "icon": "bi-hospital",       "url_endpoint": "admin.hospitals_list", "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
         {"label": "Company",        "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
         {"label": "Settings",       "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
         {"label": "Admin Panel",    "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},

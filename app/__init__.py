@@ -947,6 +947,7 @@ def _auto_seed_hospitals(app: Flask) -> None:
             {"name": "Despande Hospital", "lat": 0.0, "lng": 0.0},
             {"name": "Dr. M L Dhavale Hospital", "lat": 18.9220, "lng": 72.8347},
             {"name": "Dr R.N. Cooper Muncipial General Hospital", "lat": 19.0176, "lng": 72.8479},
+            {"name": "Head office", "lat": 19.014835, "lng": 72.845173},
             {"name": "Hyderabad Omega Hospital (Jabalpur)", "lat": 23.1815, "lng": 79.9864},
             {"name": "Jijamata Hospital", "lat": 19.0576, "lng": 72.8295},
             {"name": "Jupiter Hospital (THANE)", "lat": 19.2183, "lng": 72.9781},
