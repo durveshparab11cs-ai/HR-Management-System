@@ -33,6 +33,9 @@ def index():
 
     # Get holidays for the year
     holidays = _svc.get_holidays_by_year(year)
+    
+    # Convert to dictionaries for JSON serialization in template
+    holidays_data = [h.to_dict() for h in holidays] if holidays else []
 
     # Convert holidays to dicts for JSON serialization in template
     holidays_data = [h.to_dict() for h in holidays] if holidays else []
