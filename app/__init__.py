@@ -593,6 +593,12 @@ def _register_root_redirect(app: Flask) -> None:
         if current_user.is_authenticated:
             from app.blueprints.authentication.service import AuthService
             return redirect(AuthService().get_dashboard_url(current_user))
+        # Redirect to auth/login blueprint
+        return redirect(url_for("authentication.login"))
+    
+    @app.route("/login")
+    def login_redirect():
+        """Convenience redirect to authentication.login"""
         return redirect(url_for("authentication.login"))
 
 
