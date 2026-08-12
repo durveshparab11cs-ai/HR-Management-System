@@ -811,3 +811,64 @@ class CameraManager {
     initMap();
   }
 })();
+
+
+// ============================================================================
+// DEVICE IP RETRIEVAL - Get device IP for admin registration
+// ============================================================================
+
+(function() {
+  console.log('[DEVICE-IP] Initializing device IP retrieval');
+  
+  const getDeviceIpBtn = document.getElementById('btn-get-device-ip');
+  const deviceIpResult = document.getElementById('device-ip-result');
+  const deviceIpValue = document.getElementById('device-ip-value');
+  
+  if (!getDeviceIpBtn) {
+    console.warn('[DEVICE-IP] btn-get-device-ip element not found');
+    return;
+  }
+  
+  getDeviceIpBtn.addEventListener('click', async () => {
+    console.log('[DEVICE-IP] Button clicked');
+    getDeviceIpBtn.disabled = true;
+    getDeviceIpBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Loading...';
+    
+    try {
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      
+      const res = await fetch('/attendance/api/current-device-ip', {
+        method: 'GET',
+        headers: { 'X-CSRFToken': csrf }
+      });
+      
+      console.log('[DEVICE-IP] Response status:', res.status);
+      
+      if (!res.ok) {
+        throw new Error('Failed to retrieve device IP');
+      }
+      
+      const data = await res.json();
+      console.log('[DEVICE-IP] Data received:', data);
+      
+      if (deviceIpValue) {
+        deviceIpValue.textContent = data.ip_address;
+      }
+      
+      if (deviceIpResult) {
+        deviceIpResult.style.display = 'block';
+      }
+      
+      console.log('[DEVICE-IP] Success - IP shown:', data.ip_address);
+      
+    } catch (e) {
+      console.error('[DEVICE-IP] Error:', e.message);
+      alert('❌ Could not retrieve device IP: ' + e.message);
+    } finally {
+      getDeviceIpBtn.disabled = false;
+      getDeviceIpBtn.innerHTML = '<i class="bi bi-info-circle me-1"></i> Get My Device IP';
+    }
+  });
+  
+  console.log('[DEVICE-IP] Initialization complete');
+})();

@@ -1,0 +1,94 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Office Devices — {{ app_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Attendance', url_for('attendance.index')), ('Office Devices', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Office Devices</h1>
+    <p class="text-muted small mb-0">Manage IP addresses of computers allowed for check-in/out</p>
+  </div>
+  <a href="{{ url_for('attendance.add_device') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Add Device
+  </a>
+</div>
+
+{% if devices %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 20%;">Device Name</th>
+          <th style="width: 20%;">IP Address</th>
+          <th style="width: 35%;">Description</th>
+          <th style="width: 10%;">Status</th>
+          <th style="width: 15%;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+        <tr>
+          <td>
+            <strong>{{ device.device_name }}</strong>
+          </td>
+          <td>
+            <code class="bg-light px-2 py-1 rounded">{{ device.ip_address }}</code>
+          </td>
+          <td>
+            {% if device.description %}
+              {{ device.description }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if device.is_active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('attendance.edit_device', device_id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="POST" action="{{ url_for('attendance.delete_device', device_id=device.id) }}" style="display: inline;" onsubmit="return confirm('Delete this device?');">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info d-flex align-items-center" role="alert">
+  <i class="bi bi-info-circle me-2"></i>
+  <div>
+    <strong>No devices configured yet.</strong> Employees can check-in/out from any IP address.
+    <a href="{{ url_for('attendance.add_device') }}" class="alert-link">Add your first device</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="alert alert-warning mt-4">
+  <h6 class="fw-semibold mb-2"><i class="bi bi-exclamation-triangle"></i> How to Add Devices</h6>
+  <ol class="small mb-0">
+    <li>Open attendance check-in page from an office computer</li>
+    <li>Click <strong>"Get My Device IP"</strong> button</li>
+    <li>Copy the IP address shown</li>
+    <li>Come back here and add the device with that IP</li>
+    <li>Only devices with registered IPs will be able to check-in/out</li>
+  </ol>
+</div>
+
+{% endblock %}

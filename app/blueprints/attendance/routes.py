@@ -13,6 +13,8 @@ from flask_login import current_user, login_required
 
 from app.blueprints.employees.repository import EmployeeRepository
 from app.core.security import hr_required
+from app.repositories.office_device_repo import OfficeDeviceRepository
+from .device_service import DeviceService
 from .forms import OfficeSettingsForm
 from .office_settings_service import OfficeSettingsService
 from .repository import AttendanceRepository
@@ -21,10 +23,12 @@ from . import attendance_bp
 
 logger = logging.getLogger("attendance")
 
-_svc      = AttendanceService()
-_repo     = AttendanceRepository()
-_emp_repo = EmployeeRepository()
+_svc       = AttendanceService()
+_repo      = AttendanceRepository()
+_emp_repo  = EmployeeRepository()
 _office_svc = OfficeSettingsService()
+_device_repo = OfficeDeviceRepository()
+_device_svc = DeviceService(_device_repo)
 
 
 # ── Employee attendance dashboard ────────────────────────────────────
@@ -80,6 +84,14 @@ def checkin():
         logger.info("Employee ID: %s", employee.id)
         logger.info("Employee Code: %s", employee.employee_code)
         logger.info("Employee Name: %s", employee.full_name)
+
+        # DEVICE VALIDATION — check if request is from allowed office computer
+        if _device_svc.is_device_check_enabled():
+            is_allowed, device_msg = _device_svc.is_allowed_device()
+            logger.info("Device validation: allowed=%s, ip=%s", is_allowed, _device_svc.get_client_ip())
+            if not is_allowed:
+                logger.error("CHECK IN FAILED: %s", device_msg)
+                return jsonify(success=False, message=device_msg), 403  # 403 Forbidden
 
         # MANDATORY PHOTO VALIDATION — check if photo was uploaded
         from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
@@ -187,6 +199,14 @@ def checkout():
         
         logger.info("Employee ID: %s", employee.id)
         logger.info("Employee Name: %s", employee.full_name)
+
+        # DEVICE VALIDATION — check if request is from allowed office computer
+        if _device_svc.is_device_check_enabled():
+            is_allowed, device_msg = _device_svc.is_allowed_device()
+            logger.info("Device validation: allowed=%s, ip=%s", is_allowed, _device_svc.get_client_ip())
+            if not is_allowed:
+                logger.error("CHECK OUT FAILED: %s", device_msg)
+                return jsonify(success=False, message=device_msg), 403  # 403 Forbidden
 
         # MANDATORY PHOTO VALIDATION — check if checkout photo was uploaded
         from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
