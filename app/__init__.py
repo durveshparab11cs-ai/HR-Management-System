@@ -113,6 +113,8 @@ def create_app(env: str = "development") -> Flask:
         _auto_create_tables(app)
         # CRITICAL: Ensure Comp Off leave type exists (must run after tables created)
         _ensure_comp_off_leavetype(app)
+        # CRITICAL: Ensure default OfficeSettings exists (required for attendance)
+        _ensure_office_settings(app)
     except Exception as exc:
         app.logger.error("Table creation failed (non-fatal): %s", exc)
 
@@ -190,9 +192,37 @@ def _init_extensions(app: Flask) -> None:
     server_session.init_app(app)
 
     # Import all models so Alembic discovers them for migrations
-    from app.models import User  # noqa: F401, PLC0415
+    # CRITICAL: ALL models must be imported here so db.create_all() sees them!
+    from app.models import (  # noqa: F401, PLC0415
+        User,
+        OfficeSettings,
+        OfficeDevice,
+        Employee,
+        EmployeeMaster,
+        LoginHistory,
+        Attendance,
+        AttendanceLog,
+        AttendancePhoto,
+        GPSLog,
+        LeaveType,
+        LeaveRequest,
+        HalfDayRequest,
+        EarlyLeaveRequest,
+        Notification,
+        CompanyProfile,
+        Department,
+        Position,
+        Shift,
+        SalaryStructure,
+        SalaryComponent,
+        PayrollRun,
+        Payslip,
+        EmployeeShiftAssignment,
+        ShiftChangeRequest,
+        Hospital,
+        EmployeeHospitalAssignment,
+    )
     from app.models.shift_change_log import ShiftChangeLog  # noqa: F401, PLC0415
-    # v2 — force redeploy 2026-07-22
 
     app.logger.debug("Extensions initialized.")
 
@@ -744,7 +774,7 @@ def _auto_create_tables(app: Flask) -> None:
                 insp = inspect(db.engine)
                 required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
                 emp_cols = insp.get_columns('employees')
-                existing_cols = [c.name for c in emp_cols]
+                existing_cols = [c.get('name') if isinstance(c, dict) else c.name for c in emp_cols]
                 
                 missing_cols = [col for col in required_cols if col not in existing_cols]
                 if missing_cols:
@@ -772,7 +802,7 @@ def _auto_create_tables(app: Flask) -> None:
                 # Also check attendance_photos for checkout_image_data
                 try:
                     photo_cols_list = insp.get_columns('attendance_photos')
-                    photo_cols = [c.name for c in photo_cols_list]
+                    photo_cols = [c.get('name') if isinstance(c, dict) else c.name for c in photo_cols_list]
                     if 'checkout_image_data' not in photo_cols:
                         app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
                         app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
@@ -1698,6 +1728,72 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     
     except Exception as e:
         app.logger.error(f"❌ _ensure_comp_off_leavetype exception: {e}")
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+def _ensure_office_settings(app: Flask) -> None:
+    """
+    CRITICAL: Ensure default OfficeSettings record exists in production database.
+    
+    This is required for attendance operations to work. If missing, Render 500 errors
+    occur when checking office location/timezone.
+    """
+    try:
+        with app.app_context():
+            from app.extensions.database import db  # noqa: PLC0415
+            from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+            import datetime  # noqa: PLC0415
+            
+            # Check if any office settings exist
+            try:
+                default_office = OfficeSettings.query.filter_by(is_default=True).first()
+                if default_office:
+                    app.logger.info(f"✓ Default OfficeSettings found: {default_office.name}")
+                    return
+                
+                # Try to get any office settings
+                any_office = OfficeSettings.query.first()
+                if any_office:
+                    app.logger.info(f"✓ OfficeSettings exists: {any_office.name}")
+                    if not any_office.is_default:
+                        any_office.is_default = True
+                        db.session.add(any_office)
+                        db.session.commit()
+                        app.logger.info(f"✓ Marked {any_office.name} as default")
+                    return
+            except Exception as query_err:
+                app.logger.warning(f"⚠️  Query for OfficeSettings failed: {query_err}")
+            
+            # No office settings exist - create default
+            app.logger.info("ℹ️  Creating default OfficeSettings...")
+            try:
+                office = OfficeSettings(
+                    name="Head Office",
+                    is_default=True,
+                    latitude=18.520430,
+                    longitude=73.856743,
+                    radius_metres=100,
+                    office_start_time=datetime.time(9, 0),
+                    office_end_time=datetime.time(18, 0),
+                    grace_period_minutes=10,
+                    half_day_threshold_minutes=300,  # < 5h = half day
+                )
+                db.session.add(office)
+                db.session.commit()
+                app.logger.info(f"✅ Created default OfficeSettings: {office.name}")
+            except Exception as create_err:
+                app.logger.error(f"❌ Failed to create OfficeSettings: {create_err}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+    
+    except Exception as e:
+        app.logger.error(f"❌ _ensure_office_settings exception: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
