@@ -32,6 +32,15 @@ logger.info("=" * 80)
 logger.info("DATABASE INITIALIZATION - RENDER DEPLOYMENT")
 logger.info("=" * 80)
 
+# Check DATABASE_URL
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url:
+    # Mask password for logging
+    masked_url = db_url.split("@")[0] + "@***@" + db_url.split("@")[-1] if "@" in db_url else "***"
+    logger.info(f"DATABASE_URL set: {masked_url}")
+else:
+    logger.warning("DATABASE_URL not set - will use default SQLite")
+
 try:
     # Import app factory
     logger.info("[1/5] Importing app factory...")
@@ -53,6 +62,32 @@ except ImportError as e:
     logger.info("[2/5] Creating Flask application...")
     app = create_app('production')
     logger.info("[2/5] SUCCESS - Flask app created")
+    
+    # Wait for database to be ready
+    logger.info("[2.5/5] Waiting for database to be ready...")
+    with app.app_context():
+        from app.extensions.database import db
+        import time
+        
+        max_attempts = 30
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                # Try a simple connection
+                db.engine.connect()
+                logger.info("[2.5/5] Database connection successful")
+                break
+            except Exception as e:
+                attempt += 1
+                if attempt < max_attempts:
+                    logger.info(f"[2.5/5] Database not ready (attempt {attempt}/{max_attempts}), waiting 2 seconds... Error: {str(e)[:100]}")
+                    time.sleep(2)
+                else:
+                    logger.error(f"[2.5/5] Database did not become ready after {max_attempts * 2} seconds")
+                    logger.error(f"       Final error: {e}")
+                    raise
+    
+    logger.info("[2/5] SUCCESS - Flask app fully initialized")
     
     # Initialize database
     logger.info("[3/5] Creating database tables...")
