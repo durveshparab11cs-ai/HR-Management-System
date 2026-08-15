@@ -98,16 +98,26 @@ def lookup_employee():
     AJAX endpoint called by the registration form to fetch employee name.
     GET /auth/lookup-employee?code=E-2603028
     Returns JSON {found, name, department, message}
+    
+    Always returns JSON, even on error (never HTML error pages).
     """
-    code = request.args.get("code", "").strip().upper()
-    if not code:
-        return jsonify(found=False, message="Enter an Employee Code.")
+    try:
+        code = request.args.get("code", "").strip().upper()
+        if not code:
+            return jsonify(found=False, message="Enter an Employee Code.")
 
-    found, message, data = _svc.lookup_employee(code)
-    if found:
-        return jsonify(found=True, name=data["name"],
-                       department=data["department"], message=message)
-    return jsonify(found=False, message=message)
+        found, message, data = _svc.lookup_employee(code)
+        if found:
+            return jsonify(found=True, name=data["name"],
+                           department=data["department"], message=message)
+        return jsonify(found=False, message=message)
+    
+    except Exception as e:
+        # Always return JSON, never let exceptions bubble up to error handler
+        # which would return HTML
+        import traceback
+        traceback.print_exc()
+        return jsonify(found=False, message=f"Error: {str(e)}"), 200
 
 
 # ── Logout ────────────────────────────────────────────────────────────
