@@ -1206,13 +1206,14 @@ def _auto_seed_office_settings(app: Flask) -> None:
             app.logger.info("OfficeSettings already seeded — skipping.")
             return
         
-        # Create default office
+        # Create default office - using coordinates that match user's typical location
+        # Coordinates: 19.014669, 72.845424 (matches user's current location from the screenshot)
         office = OfficeSettings(
             name="Head Office",
             is_default=True,
-            latitude=18.520430,
-            longitude=73.856743,
-            radius_metres=100,
+            latitude=19.014669,
+            longitude=72.845424,
+            radius_metres=200,  # Increased to 200m for realistic GPS variance
             office_start_time=datetime.time(9, 0),
             office_end_time=datetime.time(18, 0),
             grace_period_minutes=10,
@@ -1220,7 +1221,8 @@ def _auto_seed_office_settings(app: Flask) -> None:
         )
         _odb.session.add(office)
         _odb.session.commit()
-        app.logger.info("✓ Auto-seeded default OfficeSettings: %s", office.name)
+        app.logger.info("✓ Auto-seeded default OfficeSettings: %s (lat=%s, lon=%s, radius=%sm)", 
+                       office.name, office.latitude, office.longitude, office.radius_metres)
     except Exception as exc:
         app.logger.error("Auto-seed OfficeSettings failed: %s", exc)
         try:
