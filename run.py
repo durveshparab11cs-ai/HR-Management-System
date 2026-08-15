@@ -9,8 +9,6 @@ Usage:
 
 The 'app' object is exposed at module level so that WSGI servers
 (Gunicorn, uWSGI) can discover it without executing the dev server code.
-
-FORCE REDEPLOY: 2026-08-15 10:30 UTC - Fix Render 500 error
 """
 
 import os
@@ -21,10 +19,9 @@ from dotenv import load_dotenv
 # configuration classes pick them up during module initialization.
 load_dotenv()
 
-# Render.com provides DATABASE_URL as postgres:// — SQLAlchemy 2.x requires postgresql://
-_db_url = os.environ.get("DATABASE_URL", "")
-if _db_url.startswith("postgres://"):
-    os.environ["DATABASE_URL"] = _db_url.replace("postgres://", "postgresql://", 1)
+# CLEAR any PostgreSQL DATABASE_URL from Render to force SQLite
+if os.environ.get("DATABASE_URL", "").startswith("postgresql://"):
+    del os.environ["DATABASE_URL"]
 
 from app import create_app  # noqa: E402 — must come after load_dotenv
 
