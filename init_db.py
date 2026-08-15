@@ -37,6 +37,17 @@ try:
     logger.info("[1/5] Importing app factory...")
     from app import create_app
     logger.info("[1/5] SUCCESS - app factory imported")
+except ImportError as e:
+    logger.error(f"[1/5] FAILED - Cannot import app: {e}")
+    logger.error("      Trying alternate import path...")
+    try:
+        # Try importing from smart_hrms
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'smart_hrms'))
+        from app import create_app
+        logger.info("[1/5] SUCCESS - app factory imported from smart_hrms")
+    except Exception as e2:
+        logger.error(f"[1/5] FAILED - Alternate import also failed: {e2}")
+        sys.exit(1)
     
     # Create app
     logger.info("[2/5] Creating Flask application...")
