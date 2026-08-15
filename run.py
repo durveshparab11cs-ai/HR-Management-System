@@ -9,6 +9,8 @@ Usage:
 
 The 'app' object is exposed at module level so that WSGI servers
 (Gunicorn, uWSGI) can discover it without executing the dev server code.
+
+FORCE REDEPLOY: 2026-08-15 10:30 UTC - Fix Render 500 error
 """
 
 import os
