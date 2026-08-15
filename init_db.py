@@ -15,6 +15,9 @@ import os
 import sys
 import logging
 
+# Add current directory to Python path so imports work from any location
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
