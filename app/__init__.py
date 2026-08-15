@@ -835,12 +835,19 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
-            # STEP 4: Seed employees
+            # STEP 4: Seed office settings (CRITICAL - needed for attendance to work)
+            try:
+                _auto_seed_office_settings(app)
+                app.logger.info("✓ Step 4: _auto_seed_office_settings()")
+            except Exception as exc:
+                app.logger.warning("⚠️  Step 4: _auto_seed_office_settings() failed: %s", exc)
+            
+            # STEP 4.1: Seed employees
             try:
                 _auto_seed_employees(app)
-                app.logger.info("✓ Step 4: _auto_seed_employees()")
+                app.logger.info("✓ Step 4.1: _auto_seed_employees()")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
+                app.logger.warning("⚠️  Step 4.1: _auto_seed_employees() failed: %s", exc)
             
             # STEP 4.3: Seed hospitals
             try:
@@ -1180,6 +1187,42 @@ def _auto_seed_holidays(app: Flask) -> None:
         app.logger.info(f"✓ Auto-seeded {count} new holidays = {total} total")
     except Exception as exc:
         app.logger.error("Auto-seed holidays failed: %s", exc)
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+def _auto_seed_office_settings(app: Flask) -> None:
+    """Seed default OfficeSettings if not already present."""
+    try:
+        from app.models.office_settings import OfficeSettings  # noqa: PLC0415
+        from app.extensions.database import db as _odb  # noqa: PLC0415
+        import datetime  # noqa: PLC0415
+        
+        # Check if any office settings exist
+        if OfficeSettings.query.count() > 0:
+            app.logger.info("OfficeSettings already seeded — skipping.")
+            return
+        
+        # Create default office
+        office = OfficeSettings(
+            name="Head Office",
+            is_default=True,
+            latitude=18.520430,
+            longitude=73.856743,
+            radius_metres=100,
+            office_start_time=datetime.time(9, 0),
+            office_end_time=datetime.time(18, 0),
+            grace_period_minutes=10,
+            half_day_threshold_minutes=300,  # < 5h = half day
+        )
+        _odb.session.add(office)
+        _odb.session.commit()
+        app.logger.info("✓ Auto-seeded default OfficeSettings: %s", office.name)
+    except Exception as exc:
+        app.logger.error("Auto-seed OfficeSettings failed: %s", exc)
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
