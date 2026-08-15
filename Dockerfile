@@ -80,11 +80,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command — Initialize database THEN start Gunicorn WSGI server
-# The init_db.py script:
-#   1. Creates all database tables
-#   2. Seeds OfficeSettings and LeaveTypes
-#   3. Verifies health check
-#   4. THEN gunicorn starts
-# Note: --keep-alive (hyphenated), --max-requests, log to stdout for Render
-CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && python init_db.py && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level warning --access-logfile - --error-logfile - run:app"]
+# Default command — Start Gunicorn WSGI server
+# The app's automatic table creation runs on startup
+CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level warning --access-logfile - --error-logfile - run:app"]

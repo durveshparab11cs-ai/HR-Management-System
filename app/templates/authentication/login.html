@@ -424,14 +424,61 @@ function onCodeInput(value) {
 function wireLoading(formId, btnId, spinId, txtId, loadTxt) {
   const form = document.getElementById(formId);
   if (!form) return;
-  form.addEventListener('submit', function() {
-    if (!form.checkValidity()) return;
+  
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault(); // Don't use default form submission
+    
     const btn  = document.getElementById(btnId);
     const spin = document.getElementById(spinId);
     const txt  = document.getElementById(txtId);
-    if (btn)  btn.disabled = true;
-    if (spin) spin.style.display = 'block';
-    if (txt)  txt.textContent = loadTxt;
+    
+    if (formId === 'login-form') {
+      // Handle login via AJAX
+      const empCode = document.querySelector('#l-code').value.trim().toUpperCase();
+      const password = document.querySelector('#l-pw').value;
+      
+      if (!empCode || !password) {
+        alert('Please enter Employee Code and Password');
+        return;
+      }
+      
+      if (btn)  btn.disabled = true;
+      if (spin) spin.style.display = 'block';
+      if (txt)  txt.textContent = loadTxt;
+      
+      try {
+        const response = await fetch('/auth/api/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            employee_code: empCode,
+            password: password,
+            remember_me: document.querySelector('#l-rem').checked
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          window.location.href = result.redirect;
+        } else {
+          alert('Login failed: ' + result.error);
+          if (btn)  btn.disabled = false;
+          if (spin) spin.style.display = 'none';
+          if (txt)  txt.textContent = 'Sign In';
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+        if (btn)  btn.disabled = false;
+        if (spin) spin.style.display = 'none';
+        if (txt)  txt.textContent = 'Sign In';
+      }
+    } else {
+      // For register and forgot forms, allow normal submission
+      if (btn)  btn.disabled = true;
+      if (spin) spin.style.display = 'block';
+      if (txt)  txt.textContent = loadTxt;
+    }
   });
 }
 wireLoading('login-form', 'l-btn', 'l-spin', 'l-txt', 'Signing in…');

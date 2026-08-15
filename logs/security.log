@@ -1,0 +1,2 @@
+2026-08-12 16:15:41 | WARNING  | security | LOGIN_FAILED | user_id=5 | reason=wrong_password | ip=192.168.0.146
+2026-08-12 16:15:53 | WARNING  | security | LOGIN_FAILED | user_id=5 | reason=wrong_password | ip=192.168.0.146

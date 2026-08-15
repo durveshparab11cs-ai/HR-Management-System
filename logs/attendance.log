@@ -848,3 +848,137 @@
 2026-08-12 16:16:14 | INFO     | attendance | has_photo: True
 2026-08-12 16:16:14 | INFO     | attendance | has_checkout_photo: False
 2026-08-12 16:16:14 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:16:32 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:16:32 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:16:32 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:16:32 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:16:32 | INFO     | attendance | Attendance ID: 137
+2026-08-12 16:16:32 | INFO     | attendance | Attendance status: present
+2026-08-12 16:16:32 | INFO     | attendance | Check-in time: 2026-08-12 04:49:24.665422+00:00
+2026-08-12 16:16:32 | INFO     | attendance | Check-out time: None
+2026-08-12 16:16:32 | INFO     | attendance | Photo record found: True
+2026-08-12 16:16:32 | INFO     | attendance | Photo ID: 108
+2026-08-12 16:16:32 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:16:32 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:16:32 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:16:32 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:16:32 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:16:32 | INFO     | attendance | can_check_in: False
+2026-08-12 16:16:32 | INFO     | attendance | can_check_out: True
+2026-08-12 16:16:32 | INFO     | attendance | has_photo: True
+2026-08-12 16:16:32 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:16:32 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:18:50 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:18:50 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:18:50 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:18:50 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:18:50 | INFO     | attendance | Attendance ID: 137
+2026-08-12 16:18:50 | INFO     | attendance | Attendance status: present
+2026-08-12 16:18:50 | INFO     | attendance | Check-in time: 2026-08-12 04:49:24.665422+00:00
+2026-08-12 16:18:50 | INFO     | attendance | Check-out time: None
+2026-08-12 16:18:50 | INFO     | attendance | Photo record found: True
+2026-08-12 16:18:50 | INFO     | attendance | Photo ID: 108
+2026-08-12 16:18:50 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:18:50 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:18:50 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:18:50 | INFO     | attendance | Computed has_checkout_photo: False
+2026-08-12 16:18:50 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:18:50 | INFO     | attendance | can_check_in: False
+2026-08-12 16:18:50 | INFO     | attendance | can_check_out: True
+2026-08-12 16:18:50 | INFO     | attendance | has_photo: True
+2026-08-12 16:18:50 | INFO     | attendance | has_checkout_photo: False
+2026-08-12 16:18:50 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:18:57 | INFO     | attendance | ===== CAPTURE SELFIE START =====
+2026-08-12 16:18:57 | INFO     | attendance | User ID: 5
+2026-08-12 16:18:57 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:18:57 | INFO     | attendance | Capture type: checkout
+2026-08-12 16:18:57 | INFO     | attendance | Selfie data length: 120459 bytes
+2026-08-12 16:18:58 | INFO     | attendance | Stored check-out selfie
+2026-08-12 16:18:58 | INFO     | attendance | Selfie saved successfully
+2026-08-12 16:18:58 | INFO     | attendance | CAPTURE SELFIE SUCCESS: photo_id=108, has_photo=True, has_checkout_photo=True
+2026-08-12 16:18:58 | INFO     | attendance | ===== CAPTURE SELFIE END (SUCCESS) =====
+2026-08-12 16:19:01 | INFO     | attendance | ===== CHECK OUT START =====
+2026-08-12 16:19:01 | INFO     | attendance | User ID: 5
+2026-08-12 16:19:01 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:19:01 | INFO     | attendance | Employee Name: Pratik Prakash Sagvekar
+2026-08-12 16:19:01 | INFO     | attendance | Existing attendance today: <Attendance id=137 emp=3 date=2026-08-12 status='present'>
+2026-08-12 16:19:01 | INFO     | attendance | Photo record found: <AttendancePhoto id=108 att=137>
+2026-08-12 16:19:01 | INFO     | attendance | Checkout photo validation PASSED
+2026-08-12 16:19:01 | INFO     | attendance | GPS Data - Lat: 19.014486, Lon: 72.845765, Accuracy: 100
+2026-08-12 16:19:01 | INFO     | attendance | SERVICE CHECK_OUT START | emp_id=3 | lat=19.014486 | lon=72.845765
+2026-08-12 16:19:02 | INFO     | attendance | Office found: Head Office
+2026-08-12 16:19:02 | INFO     | attendance | GPS_VERIFY_START | emp=3 | lat=19.014486 | lon=72.845765
+2026-08-12 16:19:02 | INFO     | attendance | GPS_OFFICE_OK | ref_lat=19.0148460 | ref_lon=72.8451900 | radius=150
+2026-08-12 16:19:02 | INFO     | attendance | GPS_PARSE_OK | emp_lat=19.0144860 | emp_lon=72.8457650 | accuracy=100.0
+2026-08-12 16:19:02 | INFO     | attendance | GPS_DISTANCE | distance=72.5m | allowed=150m | within=True
+2026-08-12 16:19:02 | INFO     | attendance | GPS_OK | distance=72.5m
+2026-08-12 16:19:02 | INFO     | attendance | GPS verification result: success=True, distance=72.5m
+2026-08-12 16:19:02 | INFO     | attendance | Attendance record for today: <Attendance id=137 emp=3 date=2026-08-12 status='present'>
+2026-08-12 16:19:02 | INFO     | attendance | Check-out meta: working=359m, overtime=0m
+2026-08-12 16:19:02 | INFO     | attendance | Updating attendance in database...
+2026-08-12 16:19:02 | INFO     | attendance | Database commit SUCCESS: attendance_id=137
+2026-08-12 16:19:02 | INFO     | attendance | Creating audit log...
+2026-08-12 16:19:03 | INFO     | attendance | CHECK_OUT SUCCESS | emp=3 | att_id=137 | worked=5h59m
+2026-08-12 16:19:03 | INFO     | attendance | Service check_out result: ok=True, message=Checked out. You worked 5h 59m today.
+2026-08-12 16:19:03 | INFO     | attendance | CHECK OUT SUCCESS: attendance_id=137, time=2026-08-12 10:49:02.123974+00:00
+2026-08-12 16:19:03 | INFO     | attendance | ===== CHECK OUT END (SUCCESS) =====
+2026-08-12 16:19:07 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:19:07 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:19:07 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:19:07 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:19:07 | INFO     | attendance | Attendance ID: 137
+2026-08-12 16:19:07 | INFO     | attendance | Attendance status: half_day
+2026-08-12 16:19:07 | INFO     | attendance | Check-in time: 2026-08-12 04:49:24.665422+00:00
+2026-08-12 16:19:07 | INFO     | attendance | Check-out time: 2026-08-12 10:49:02.123974+00:00
+2026-08-12 16:19:07 | INFO     | attendance | Photo record found: True
+2026-08-12 16:19:07 | INFO     | attendance | Photo ID: 108
+2026-08-12 16:19:07 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:19:07 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:19:07 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:19:07 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:19:07 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:19:07 | INFO     | attendance | can_check_in: False
+2026-08-12 16:19:07 | INFO     | attendance | can_check_out: False
+2026-08-12 16:19:07 | INFO     | attendance | has_photo: True
+2026-08-12 16:19:07 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:19:07 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 16:37:27 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 16:37:27 | INFO     | attendance | Employee ID: 3
+2026-08-12 16:37:27 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 16:37:27 | INFO     | attendance | Attendance record exists: True
+2026-08-12 16:37:27 | INFO     | attendance | Attendance ID: 137
+2026-08-12 16:37:27 | INFO     | attendance | Attendance status: half_day
+2026-08-12 16:37:27 | INFO     | attendance | Check-in time: 2026-08-12 04:49:24.665422+00:00
+2026-08-12 16:37:27 | INFO     | attendance | Check-out time: 2026-08-12 10:49:02.123974+00:00
+2026-08-12 16:37:28 | INFO     | attendance | Photo record found: True
+2026-08-12 16:37:28 | INFO     | attendance | Photo ID: 108
+2026-08-12 16:37:28 | INFO     | attendance | Photo has image_data: True
+2026-08-12 16:37:28 | INFO     | attendance | Photo has file_path: 
+2026-08-12 16:37:28 | INFO     | attendance | Computed has_photo: True
+2026-08-12 16:37:28 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 16:37:28 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 16:37:28 | INFO     | attendance | can_check_in: False
+2026-08-12 16:37:28 | INFO     | attendance | can_check_out: False
+2026-08-12 16:37:28 | INFO     | attendance | has_photo: True
+2026-08-12 16:37:28 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 16:37:28 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
+2026-08-12 18:00:54 | INFO     | attendance | ===== GET_TODAY_STATUS START =====
+2026-08-12 18:00:54 | INFO     | attendance | Employee ID: 1
+2026-08-12 18:00:54 | INFO     | attendance | Today's date: 2026-08-12
+2026-08-12 18:00:54 | INFO     | attendance | Attendance record exists: True
+2026-08-12 18:00:54 | INFO     | attendance | Attendance ID: 136
+2026-08-12 18:00:54 | INFO     | attendance | Attendance status: absent
+2026-08-12 18:00:54 | INFO     | attendance | Check-in time: 2026-08-12 04:48:46.131630+00:00
+2026-08-12 18:00:54 | INFO     | attendance | Check-out time: 2026-08-12 09:40:27.031448+00:00
+2026-08-12 18:00:54 | INFO     | attendance | Photo record found: True
+2026-08-12 18:00:54 | INFO     | attendance | Photo ID: 107
+2026-08-12 18:00:54 | INFO     | attendance | Photo has image_data: True
+2026-08-12 18:00:54 | INFO     | attendance | Photo has file_path: 
+2026-08-12 18:00:54 | INFO     | attendance | Computed has_photo: True
+2026-08-12 18:00:54 | INFO     | attendance | Computed has_checkout_photo: True
+2026-08-12 18:00:54 | INFO     | attendance | ===== GET_TODAY_STATUS RESULT =====
+2026-08-12 18:00:54 | INFO     | attendance | can_check_in: False
+2026-08-12 18:00:54 | INFO     | attendance | can_check_out: False
+2026-08-12 18:00:54 | INFO     | attendance | has_photo: True
+2026-08-12 18:00:54 | INFO     | attendance | has_checkout_photo: True
+2026-08-12 18:00:54 | INFO     | attendance | ===== GET_TODAY_STATUS END =====
