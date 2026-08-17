@@ -70,5 +70,39 @@ class Attendance(BaseModel):
         h, m = divmod(self.working_minutes, 60)
         return f"{h}h {m}m"
 
+    @property
+    def check_in_time_ist(self) -> str:
+        """Return check-in time in IST (UTC+5:30) formatted as HH:MM"""
+        if not self.check_in_time:
+            return "—"
+        try:
+            import pytz  # noqa: PLC0415
+            IST = pytz.timezone("Asia/Kolkata")
+            if self.check_in_time.tzinfo is None:
+                # Assume UTC if naive
+                dt_ist = pytz.UTC.localize(self.check_in_time).astimezone(IST)
+            else:
+                dt_ist = self.check_in_time.astimezone(IST)
+            return dt_ist.strftime("%H:%M")
+        except Exception:
+            return "—"
+
+    @property
+    def check_out_time_ist(self) -> str:
+        """Return check-out time in IST (UTC+5:30) formatted as HH:MM"""
+        if not self.check_out_time:
+            return "—"
+        try:
+            import pytz  # noqa: PLC0415
+            IST = pytz.timezone("Asia/Kolkata")
+            if self.check_out_time.tzinfo is None:
+                # Assume UTC if naive
+                dt_ist = pytz.UTC.localize(self.check_out_time).astimezone(IST)
+            else:
+                dt_ist = self.check_out_time.astimezone(IST)
+            return dt_ist.strftime("%H:%M")
+        except Exception:
+            return "—"
+
     def __repr__(self) -> str:
         return f"<Attendance id={self.id} emp={self.employee_id} date={self.date} status={self.status!r}>"

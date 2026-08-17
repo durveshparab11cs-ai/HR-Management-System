@@ -140,10 +140,24 @@ def checkin():
             logger.info("CHECK IN SUCCESS: attendance_id=%s, time=%s", 
                        attendance.id, attendance.check_in_time)
             logger.info("===== CHECK IN END (SUCCESS) =====")
+            
+            # Ensure check_in_time is a datetime object before formatting
+            checkin_time_str = "—"
+            if attendance.check_in_time:
+                try:
+                    if hasattr(attendance.check_in_time, 'strftime'):
+                        checkin_time_str = attendance.check_in_time.strftime("%H:%M")
+                    else:
+                        # Fallback if somehow it's a string
+                        checkin_time_str = str(attendance.check_in_time)[-5:] if isinstance(attendance.check_in_time, str) else "—"
+                except Exception as fmt_err:
+                    logger.error("TIME FORMATTING ERROR: %s", str(fmt_err))
+                    checkin_time_str = "—"
+            
             return jsonify(
                 success=True,
                 message=message,
-                time=attendance.check_in_time.strftime("%H:%M"),
+                time=checkin_time_str,
                 is_late=attendance.is_late,
                 late_minutes=attendance.late_minutes or 0,
                 gps=gps_detail,
@@ -262,10 +276,24 @@ def checkout():
             logger.info("CHECK OUT SUCCESS: attendance_id=%s, time=%s", 
                        attendance.id, attendance.check_out_time)
             logger.info("===== CHECK OUT END (SUCCESS) =====")
+            
+            # Ensure check_out_time is a datetime object before formatting
+            checkout_time_str = "—"
+            if attendance.check_out_time:
+                try:
+                    if hasattr(attendance.check_out_time, 'strftime'):
+                        checkout_time_str = attendance.check_out_time.strftime("%H:%M")
+                    else:
+                        # Fallback if somehow it's a string
+                        checkout_time_str = str(attendance.check_out_time)[-5:] if isinstance(attendance.check_out_time, str) else "—"
+                except Exception as fmt_err:
+                    logger.error("TIME FORMATTING ERROR: %s", str(fmt_err))
+                    checkout_time_str = "—"
+            
             return jsonify(
                 success=True,
                 message=message,
-                time=attendance.check_out_time.strftime("%H:%M"),
+                time=checkout_time_str,
                 working=attendance.working_hours_display,
                 overtime_minutes=attendance.overtime_minutes or 0,
                 gps=gps_detail,
