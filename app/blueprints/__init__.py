@@ -28,6 +28,7 @@ from app.blueprints.settings import settings_bp
 from app.blueprints.admin import admin_bp
 from app.blueprints.api import api_bp
 from app.blueprints.foss import foss_bp
+from app.blueprints.coordinator import coordinator_bp
 
 _blueprints = [
     (authentication_bp, None),
@@ -45,6 +46,7 @@ _blueprints = [
     (admin_bp, None),
     (api_bp, None),
     (foss_bp, None),
+    (coordinator_bp, None),
 ]
 
 
