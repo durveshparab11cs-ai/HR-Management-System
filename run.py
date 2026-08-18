@@ -33,11 +33,11 @@ environment = os.environ.get("FLASK_ENV", "development")
 app = create_app(environment)
 
 if __name__ == "__main__":
-    # Bind to 'localhost' not '127.0.0.1'.
-    # Chrome treats 'localhost' as a secure context, so navigator.geolocation
-    # works without HTTPS — no certificate or Chrome flags needed.
+    # Bind to all interfaces (0.0.0.0) so it's accessible from network
+    # Listen on port 8000 as configured
     app.run(
-        host="localhost",
-        port=5000,
+        host="0.0.0.0",
+        port=8000,
         debug=app.config.get("DEBUG", False),
+        ssl_context="adhoc",
     )
