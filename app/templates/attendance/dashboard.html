@@ -184,6 +184,41 @@
 <!-- Toast container -->
 <div class="att-toast-wrap" id="att-toasts"></div>
 
+<!-- ── COORDINATOR PORTAL ACCESS (E-2606026 ONLY) ── -->
+{% if current_user.username == "e2606026" %}
+<div style="margin-bottom:24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:16px;padding:24px;color:#fff;box-shadow:0 8px 24px rgba(102,126,234,.4);position:relative;overflow:hidden">
+  <div style="position:absolute;top:-80px;right:-80px;width:200px;height:200px;background:rgba(255,255,255,.1);border-radius:50%;pointer-events:none"></div>
+  
+  <div style="position:relative;z-index:1">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="background:rgba(255,255,255,.2);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="bi bi-shield-check" style="font-size:1.4rem;color:#fff"></i>
+      </div>
+      <div>
+        <h5 style="margin:0;font-weight:700;font-size:1.1rem">Coordinator Portal</h5>
+        <p style="margin:2px 0 0 0;font-size:.85rem;opacity:.9">Employee Attendance Management System</p>
+      </div>
+    </div>
+    
+    <p style="margin:12px 0;font-size:.9rem;line-height:1.6;opacity:.95">
+      You have access to the Coordinator Portal. Use it to search for employees and record their attendance with GPS verification and photo proof.
+    </p>
+    
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <a href="{{ url_for('coordinator.dashboard') }}" style="background:#fff;color:#667eea;border:none;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem;display:inline-flex;align-items:center;gap:8px;transition:all .2s;cursor:pointer" onmouseover="this.style.transform='translateY(-2px);this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.2)\''" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <i class="bi bi-arrow-right-circle"></i>
+        <span>Go to Coordinator Portal</span>
+      </a>
+      
+      <a href="{{ url_for('coordinator.dashboard') }}" style="background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem;display:inline-flex;align-items:center;gap:6px;transition:all .2s;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,.3)';this.style.borderColor='rgba(255,255,255,.6)'" onmouseout="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)'">
+        <i class="bi bi-window-fullscreen"></i>
+        <span>New Tab</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── STATUS BANNER ── -->
 <div class="att-banner">
   <div class="att-date" id="att-date"></div>
@@ -295,68 +330,24 @@
     <div class="att-action-card">
       <h6 class="fw-semibold mb-3 small text-uppercase text-muted">Mark Attendance</h6>
 
-      <!-- ── Check-In Proof Photo (Live Camera) ── -->
+      <!-- ── Check-In Proof Photo (DISABLED FOR EMPLOYEES) ── -->
       {% if not (status.attendance and status.attendance.check_in_time) %}
-      <div id="checkin-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+      <div id="checkin-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9;opacity:0.6;pointer-events:none">
         <div class="d-flex align-items-center justify-content-between mb-1">
           <div class="small fw-bold" style="color:#0f172a">
-            <i class="bi bi-camera-fill me-1 text-danger"></i>Proof Photo <span class="text-danger">*</span>
+            <i class="bi bi-camera-fill me-1 text-muted"></i>Proof Photo <span class="text-muted">(Disabled)</span>
           </div>
-          <span id="ci-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
+          <span id="ci-photo-badge" class="badge bg-secondary-subtle text-secondary small">Not Available</span>
         </div>
-        <div class="small text-danger mb-2" style="font-size:.72rem">
-          <i class="bi bi-info-circle me-1"></i>Click below to open your device camera and capture a selfie.
-        </div>
-        
-        <!-- Photo zone - Click to open camera -->
-        <div id="photo-zone" style="border:2px solid #dc2626;border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fef2f2;transition:all .2s" 
-             onmouseover="this.style.borderColor='#991b1b';this.style.background='#fee2e2'" 
-             onmouseout="this.style.borderColor='#dc2626';this.style.background='#fef2f2'">
-          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-2" id="ci-photo-icon"></i>
-          <div class="small fw-semibold" style="color:#dc2626">Click to Open Camera</div>
-          <div style="font-size:.7rem;color:#94a3b8">Capture your selfie for check-in</div>
+        <div class="small text-muted mb-2" style="font-size:.72rem">
+          <i class="bi bi-info-circle me-1"></i>Photo capture is handled by the Coordinator Portal.
         </div>
         
-        <!-- Live camera preview -->
-        <div id="ci-video-container" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#000;border:2px solid #1a3c6e">
-          <video id="ci-video" style="width:100%;height:auto;display:block;transform:scaleX(-1)"></video>
-        </div>
-        
-        <!-- Canvas for frame capture (hidden) -->
-        <canvas id="ci-canvas" style="display:none"></canvas>
-        
-        <!-- Selfie preview after capture -->
-        <div id="ci-selfie-preview" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:2px solid #e2e8f0">
-          <img id="ci-selfie-img" style="width:100%;height:auto;display:block" alt="Your selfie">
-        </div>
-        
-        <!-- Camera status -->
-        <div id="ci-camera-status" style="display:none;font-size:.75rem;color:#0284c7;margin-top:12px;padding:8px 12px;background:#f0f9ff;border-radius:8px;border-left:3px solid #0284c7">
-          <i class="bi bi-check-circle me-1"></i><span id="ci-status-text">Camera ready - tap Capture Selfie below</span>
-        </div>
-        
-        <!-- Camera disabled message -->
-        <div id="ci-camera-disabled" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
-          <i class="bi bi-exclamation-circle me-1"></i><span>Enable camera in browser settings to capture selfie</span>
-        </div>
-        
-        <!-- Camera error message -->
-        <div id="ci-camera-error" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
-          <i class="bi bi-exclamation-triangle me-1"></i><span id="ci-error-text">Camera error</span>
-        </div>
-        
-        <!-- Buttons -->
-        <div class="d-flex gap-2" style="margin-top:12px">
-          <button id="ci-btn-capture" class="btn btn-sm btn-primary flex-grow-1" style="display:none">
-            <i class="bi bi-camera-fill me-1"></i>Capture Selfie
-          </button>
-          <button id="ci-btn-retake" class="btn btn-sm btn-outline-secondary flex-grow-1" style="display:none">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Retake
-          </button>
-        </div>
-        
-        <div id="ci-photo-error" style="display:none;color:#dc2626;font-size:.75rem;font-weight:600;margin-top:10px">
-          <i class="bi bi-exclamation-circle me-1"></i><span id="ci-error-msg">Proof photo is required</span>
+        <!-- Disabled photo zone -->
+        <div id="photo-zone" style="border:2px solid #d1d5db;border-radius:12px;padding:20px;text-align:center;background:#f9fafb;opacity:0.6;cursor:not-allowed" disabled>
+          <i class="bi bi-camera-fill fs-3 text-muted d-block mb-2" id="ci-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#6b7280">Camera Disabled</div>
+          <div style="font-size:.7rem;color:#9ca3af">Not available for employee portal</div>
         </div>
       </div>
       {% else %}
@@ -377,68 +368,24 @@
       </div>
       {% endif %}
 
-      <!-- ── Check-Out Proof Photo (Live Camera) ── -->
+      <!-- ── Check-Out Proof Photo (DISABLED FOR EMPLOYEES) ── -->
       {% if status.attendance and status.attendance.check_in_time and not status.attendance.check_out_time %}
-      <div id="checkout-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9">
+      <div id="checkout-photo-section" style="margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #f1f5f9;opacity:0.6;pointer-events:none">
         <div class="d-flex align-items-center justify-content-between mb-1">
           <div class="small fw-bold" style="color:#0f172a">
-            <i class="bi bi-camera-fill me-1 text-danger"></i>Check-Out Proof Photo <span class="text-danger">*</span>
+            <i class="bi bi-camera-fill me-1 text-muted"></i>Check-Out Proof Photo <span class="text-muted">(Disabled)</span>
           </div>
-          <span id="co-photo-badge" class="badge bg-danger-subtle text-danger small">Required</span>
+          <span id="co-photo-badge" class="badge bg-secondary-subtle text-secondary small">Not Available</span>
         </div>
-        <div class="small text-danger mb-2" style="font-size:.72rem">
-          <i class="bi bi-info-circle me-1"></i>Click below to open your device camera and capture a new selfie for check-out.
-        </div>
-        
-        <!-- Photo zone - Click to open camera -->
-        <div id="co-photo-zone" style="border:2px solid #dc2626;border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fef2f2;transition:all .2s"
-             onmouseover="this.style.borderColor='#991b1b';this.style.background='#fee2e2'" 
-             onmouseout="this.style.borderColor='#dc2626';this.style.background='#fef2f2'">
-          <i class="bi bi-camera-fill fs-3 text-danger d-block mb-2" id="co-photo-icon"></i>
-          <div class="small fw-semibold" style="color:#dc2626">Click to Open Camera</div>
-          <div style="font-size:.7rem;color:#94a3b8">Capture your selfie for check-out</div>
+        <div class="small text-muted mb-2" style="font-size:.72rem">
+          <i class="bi bi-info-circle me-1"></i>Photo capture is handled by the Coordinator Portal.
         </div>
         
-        <!-- Live camera preview -->
-        <div id="co-video-container" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#000;border:2px solid #dc2626">
-          <video id="co-video" style="width:100%;height:auto;display:block;transform:scaleX(-1)"></video>
-        </div>
-        
-        <!-- Canvas for frame capture (hidden) -->
-        <canvas id="co-canvas" style="display:none"></canvas>
-        
-        <!-- Selfie preview after capture -->
-        <div id="co-selfie-preview" style="display:none;margin-top:16px;border-radius:12px;overflow:hidden;background:#f1f5f9;border:2px solid #e2e8f0">
-          <img id="co-selfie-img" style="width:100%;height:auto;display:block" alt="Your selfie">
-        </div>
-        
-        <!-- Camera status -->
-        <div id="co-camera-status" style="display:none;font-size:.75rem;color:#dc2626;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
-          <i class="bi bi-check-circle me-1"></i><span id="co-status-text">Camera ready - tap Capture Selfie below</span>
-        </div>
-        
-        <!-- Camera disabled message -->
-        <div id="co-camera-disabled" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
-          <i class="bi bi-exclamation-circle me-1"></i><span>Enable camera in browser settings to capture selfie</span>
-        </div>
-        
-        <!-- Camera error message -->
-        <div id="co-camera-error" style="display:none;font-size:.75rem;color:#991b1b;margin-top:12px;padding:8px 12px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626">
-          <i class="bi bi-exclamation-triangle me-1"></i><span id="co-error-text">Camera error</span>
-        </div>
-        
-        <!-- Buttons -->
-        <div class="d-flex gap-2" style="margin-top:12px">
-          <button id="co-btn-capture" class="btn btn-sm btn-danger flex-grow-1" style="display:none">
-            <i class="bi bi-camera-fill me-1"></i>Capture Selfie
-          </button>
-          <button id="co-btn-retake" class="btn btn-sm btn-outline-secondary flex-grow-1" style="display:none">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Retake
-          </button>
-        </div>
-        
-        <div id="co-photo-error" style="display:none;color:#dc2626;font-size:.75rem;font-weight:600;margin-top:10px">
-          <i class="bi bi-exclamation-circle me-1"></i><span id="co-error-msg">Proof photo is required</span>
+        <!-- Disabled photo zone -->
+        <div id="co-photo-zone" style="border:2px solid #d1d5db;border-radius:12px;padding:20px;text-align:center;background:#f9fafb;opacity:0.6;cursor:not-allowed" disabled>
+          <i class="bi bi-camera-fill fs-3 text-muted d-block mb-2" id="co-photo-icon"></i>
+          <div class="small fw-semibold" style="color:#6b7280">Camera Disabled</div>
+          <div style="font-size:.7rem;color:#9ca3af">Not available for employee portal</div>
         </div>
       </div>
       {% elif status.attendance and status.attendance.check_out_time %}
@@ -459,33 +406,29 @@
       </div>
       {% endif %}
 
-      <!-- ── Check In / Check Out buttons ── -->
+      <!-- ── Check In / Check Out buttons - DISABLED FOR EMPLOYEES (Coordinator Only) ── -->
       <div class="d-grid gap-3">
-        <button class="btn-checkin" id="btn-checkin"
-          data-state="{% if status.attendance and status.attendance.check_in_time %}already_checked_in{% else %}pending{% endif %}"
-          {% if status.attendance and status.attendance.check_in_time %}disabled{% elif not status.has_photo %}disabled{% endif %}>
-          <div class="att-spinner" id="ci-spin"></div>
-          <i class="bi bi-box-arrow-in-right" id="ci-icon"></i>
-          <span id="ci-text">
-            {% if status.attendance and status.attendance.check_in_time %}Already Checked In
-            {% elif status.has_photo %}Check In Now
-            {% else %}Upload Photo + GPS to Enable{% endif %}
-          </span>
+        <!-- Attendance Marking Disabled Message -->
+        <div style="background:#fef3c7;border:2px solid #fbbf24;border-radius:12px;padding:16px;text-align:center">
+          <i class="bi bi-info-circle me-2" style="color:#d97706;font-size:1.2rem"></i>
+          <div style="color:#92400e;font-weight:600;font-size:1rem">Attendance Marking Disabled</div>
+          <div style="color:#b45309;font-size:0.9rem;margin-top:8px">
+            Your attendance is marked by the Coordinator Portal only.
+          </div>
+          <div style="color:#b45309;font-size:0.85rem;margin-top:6px">
+            Contact your HR coordinator to mark your attendance.
+          </div>
+        </div>
+
+        <!-- Disabled buttons (non-functional) -->
+        <button class="btn-checkin" disabled style="cursor:not-allowed;opacity:0.6">
+          <i class="bi bi-box-arrow-in-right"></i>
+          <span>Check In (Disabled)</span>
         </button>
 
-        <button class="btn-checkout" id="btn-checkout"
-          data-state="{% if not status.attendance or not status.attendance.check_in_time %}check_in_first{% elif status.attendance.check_out_time %}already_checked_out{% else %}pending{% endif %}"
-          {% if not status.attendance or not status.attendance.check_in_time %}disabled
-          {% elif status.attendance.check_out_time %}disabled
-          {% elif not status.has_checkout_photo %}disabled{% endif %}>
-          <div class="att-spinner" id="co-spin"></div>
-          <i class="bi bi-box-arrow-right" id="co-icon"></i>
-          <span id="co-text">
-            {% if not status.attendance or not status.attendance.check_in_time %}Check In First
-            {% elif status.attendance.check_out_time %}Already Checked Out
-            {% elif status.has_checkout_photo %}Check Out Now
-            {% else %}Upload Photo + GPS to Enable{% endif %}
-          </span>
+        <button class="btn-checkout" disabled style="cursor:not-allowed;opacity:0.6">
+          <i class="bi bi-box-arrow-right"></i>
+          <span>Check Out (Disabled)</span>
         </button>
       </div>
 

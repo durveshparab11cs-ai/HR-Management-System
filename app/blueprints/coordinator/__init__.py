@@ -13,4 +13,5 @@ coordinator_bp = Blueprint(
     url_prefix="/coordinator"
 )
 
-from app.blueprints.coordinator import routes  # noqa: F401, E402
+# Import routes to register them
+from . import routes  # noqa: F401

@@ -132,70 +132,14 @@ def attendance_today():
 @limiter.limit("30 per hour")
 def check_in():
     """
-    Mark check-in with GPS coordinates.
-    
-    Photo can be uploaded before or after check-in.
-    
-    Request Body:
-        {
-            "latitude": "19.0760",
-            "longitude": "72.8777",
-            "accuracy": "10.5"
-        }
-    
-    Response:
-        {
-            "success": true,
-            "data": {
-                "check_in_time": "09:15",
-                "is_late": false,
-                "late_minutes": 0,
-                "distance_metres": 45.2,
-                "message": "Check-in recorded at 09:15 IST."
-            }
-        }
+    Check-in API endpoint — DISABLED for employees.
+    Attendance must be marked through the Coordinator Portal only.
     """
     user = g.current_user
-    employee = _emp.get_by_user_id(user.id)
-    
-    if not employee:
-        return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
-    
-    data = request.get_json() or {}
-    
-    lat = str(data.get("latitude", "")).strip()
-    lon = str(data.get("longitude", "")).strip()
-    acc = str(data.get("accuracy", "")).strip()
-    
-    if not lat or not lon:
-        return validation_error_response({
-            "latitude": "Latitude is required" if not lat else None,
-            "longitude": "Longitude is required" if not lon else None,
-        })
-    
-    # Perform check-in (photo is optional at check-in time)
-    ok, message, attendance, gps_detail = _svc.check_in(employee, lat, lon, acc)
-    
-    if not ok:
-        return error_response(
-            message=message,
-            code="CHECKIN_FAILED",
-            details={"gps": gps_detail} if gps_detail else None
-        )
-    
-    import pytz  # noqa: PLC0415
-    IST = pytz.timezone("Asia/Kolkata")
-    ist_time = attendance.check_in_time.replace(tzinfo=pytz.UTC).astimezone(IST)
-    
-    return success_response(
-        data={
-            "check_in_time": ist_time.strftime("%H:%M"),
-            "is_late": attendance.is_late or False,
-            "late_minutes": attendance.late_minutes or 0,
-            "distance_metres": round(gps_detail.get("distance_metres", 0), 1) if gps_detail else 0,
-            "attendance_id": attendance.id,
-        },
-        message=message
+    return error_response(
+        message="❌ Direct API check-in is disabled. Your attendance is marked by the Coordinator Portal only. Contact your HR coordinator.",
+        code="COORDINATOR_ONLY",
+        status_code=403
     )
 
 
@@ -206,75 +150,14 @@ def check_in():
 @limiter.limit("30 per hour")
 def check_out():
     """
-    Mark check-out with GPS coordinates.
-    
-    Note: Checkout photo must be uploaded first via /attendance/upload-checkout-photo.
-    
-    Request Body:
-        {
-            "latitude": "19.0760",
-            "longitude": "72.8777",
-            "accuracy": "10.5"
-        }
+    Check-out API endpoint — DISABLED for employees.
+    Attendance must be marked through the Coordinator Portal only.
     """
     user = g.current_user
-    employee = _emp.get_by_user_id(user.id)
-    
-    if not employee:
-        return error_response(message="Employee profile not found", code="PROFILE_NOT_FOUND", status_code=404)
-    
-    data = request.get_json() or {}
-    
-    lat = str(data.get("latitude", "")).strip()
-    lon = str(data.get("longitude", "")).strip()
-    acc = str(data.get("accuracy", "")).strip()
-    
-    if not lat or not lon:
-        return validation_error_response({
-            "latitude": "Latitude is required" if not lat else None,
-            "longitude": "Longitude is required" if not lon else None,
-        })
-    
-    # Validate checkout photo
-    today = date.today()
-    attendance_today = _att.get_today(employee.id, today)
-    
-    if not attendance_today or not attendance_today.check_in_time:
-        return error_response(
-            message="No check-in found for today. Please check in first.",
-            code="NOT_CHECKED_IN"
-        )
-    
-    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    photo = AttendancePhoto.query.filter_by(attendance_id=attendance_today.id).first()
-    if not photo or not photo.checkout_image_data:
-        return error_response(
-            message="Checkout photo is required. Please upload a selfie first.",
-            code="PHOTO_REQUIRED"
-        )
-    
-    # Perform check-out
-    ok, message, attendance, gps_detail = _svc.check_out(employee, lat, lon, acc)
-    
-    if not ok:
-        return error_response(
-            message=message,
-            code="CHECKOUT_FAILED",
-            details={"gps": gps_detail} if gps_detail else None
-        )
-    
-    import pytz  # noqa: PLC0415
-    IST = pytz.timezone("Asia/Kolkata")
-    ist_time = attendance.check_out_time.replace(tzinfo=pytz.UTC).astimezone(IST)
-    
-    return success_response(
-        data={
-            "check_out_time": ist_time.strftime("%H:%M"),
-            "working_hours": attendance.working_hours_display,
-            "overtime_minutes": attendance.overtime_minutes or 0,
-            "distance_metres": round(gps_detail.get("distance_metres", 0), 1) if gps_detail else 0,
-        },
-        message=message
+    return error_response(
+        message="❌ Direct API check-out is disabled. Your attendance is marked by the Coordinator Portal only. Contact your HR coordinator.",
+        code="COORDINATOR_ONLY",
+        status_code=403
     )
 
 
@@ -285,60 +168,15 @@ def check_out():
 @limiter.limit("60 per hour")
 def upload_checkin_photo():
     """
-    Upload check-in proof photo.
-    
-    Accepts multipart/form-data with 'photo' field.
-    
-    Response:
-        {
-            "success": true,
-            "data": {
-                "has_photo": true,
-                "can_check_in": true
-            }
-        }
+    Upload check-in photo API endpoint — DISABLED for employees.
+    Photo handling is done through the Coordinator Portal only.
     """
-    try:
-        user = g.current_user
-        employee = _emp.get_by_user_id(user.id)
-        
-        if not employee:
-            return success_response(
-                data={"has_photo": False, "can_check_in": False},
-                message="Employee profile not found"
-            )
-        
-        file = request.files.get("photo")
-        if not file or not file.filename:
-            return success_response(
-                data={"has_photo": False, "can_check_in": False},
-                message="No photo provided"
-            )
-        
-        ok, message, photo = _svc.upload_photo(employee, file)
-        
-        # Always return 200 with success structure, even if upload failed
-        today = date.today()
-        attendance_today = _att.get_today(employee.id, today)
-        
-        return success_response(
-            data={
-                "has_photo": ok,
-                "can_check_in": bool(
-                    attendance_today and
-                    not attendance_today.check_in_time
-                ) if ok else False,
-            },
-            message=message if ok else f"Photo saved (status: {message})"
-        )
-    except Exception as e:
-        import logging
-        logging.error(f"PHOTO_UPLOAD_ERROR: {str(e)}", exc_info=True)
-        # Return success even on error - don't break mobile app
-        return success_response(
-            data={"has_photo": False, "can_check_in": False},
-            message="Photo upload processing completed"
-        )
+    user = g.current_user
+    return error_response(
+        message="❌ Direct API photo upload is disabled. Photos are handled by the Coordinator Portal only.",
+        code="COORDINATOR_ONLY",
+        status_code=403
+    )
 
 
 # ── Upload Check-out Photo ───────────────────────────────────────────
@@ -348,52 +186,15 @@ def upload_checkin_photo():
 @limiter.limit("60 per hour")
 def upload_checkout_photo():
     """
-    Upload check-out proof photo.
-    
-    Accepts multipart/form-data with 'photo' field.
+    Upload checkout photo API endpoint — DISABLED for employees.
+    Photo handling is done through the Coordinator Portal only.
     """
-    try:
-        user = g.current_user
-        employee = _emp.get_by_user_id(user.id)
-        
-        if not employee:
-            return success_response(
-                data={"has_photo": False, "can_check_out": False},
-                message="Employee profile not found"
-            )
-        
-        file = request.files.get("photo")
-        if not file or not file.filename:
-            return success_response(
-                data={"has_photo": False, "can_check_out": False},
-                message="No photo provided"
-            )
-        
-        ok, message, photo = _svc.upload_checkout_photo(employee, file)
-        
-        # Always return 200 with success structure, even if upload failed
-        today = date.today()
-        attendance_today = _att.get_today(employee.id, today)
-        
-        return success_response(
-            data={
-                "has_photo": ok,
-                "can_check_out": bool(
-                    ok and attendance_today and
-                    attendance_today.check_in_time and
-                    not attendance_today.check_out_time
-                ) if ok else False,
-            },
-            message=message if ok else f"Photo saved (status: {message})"
-        )
-    except Exception as e:
-        import logging
-        logging.error(f"CHECKOUT_PHOTO_UPLOAD_ERROR: {str(e)}", exc_info=True)
-        # Return success even on error - don't break mobile app
-        return success_response(
-            data={"has_photo": False, "can_check_out": False},
-            message="Checkout photo upload processing completed"
-        )
+    user = g.current_user
+    return error_response(
+        message="❌ Direct API checkout photo upload is disabled. Photos are handled by the Coordinator Portal only.",
+        code="COORDINATOR_ONLY",
+        status_code=403
+    )
 
 
 # ── Attendance History ───────────────────────────────────────────────

@@ -151,13 +151,24 @@ def inject_navigation() -> dict:
     except Exception:  # noqa: BLE001
         pass
 
-    # HARDCODED: E-2606026 (Durvesh) sees ALL navigation items
-    if current_user.username == 'e2606026':
-        # Remove role restrictions for all items
-        all_items_for_durvesh = [
+    # Coordinator Attendance Portal — visible only to E-2606026
+    # Check via username since it's readily available
+    import sys  # noqa: F401
+    if current_user.username == "e2606026":
+        print(f"[COORDINATOR] E-2606026 detected: {current_user.full_name}", file=sys.stderr)
+        all_items.insert(-1, {
+            "label": "Coordinator Portal",
+            "icon": "bi-kiosk",
+            "url_endpoint": "coordinator.dashboard",
+            "roles": None,
+        })
+        # Also remove role restrictions for E-2606026 — sees ALL navigation items
+        all_items_for_coordinator = [
             {**item, "roles": None} for item in all_items
         ]
-        return {"nav_items": all_items_for_durvesh}
+        return {"nav_items": all_items_for_coordinator}
+    else:
+        print(f"[COORDINATOR] Current user: {current_user.username}, not e2606026", file=sys.stderr)
 
     filtered = [
         item for item in all_items

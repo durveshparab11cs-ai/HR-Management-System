@@ -63,6 +63,16 @@
 
     <!-- Navigation items -->
     <ul class="hrms-sidebar-nav nav flex-column flex-grow-1 px-2 py-3" role="list">
+        <!-- DEBUG: Coordinator Portal hardcoded test -->
+        {% if current_user.username == "e2606026" %}
+            <li class="nav-item">
+                <a href="{{ url_for('coordinator.dashboard') }}" class="nav-link hrms-nav-link d-flex align-items-center gap-2 rounded">
+                    <i class="bi bi-kiosk hrms-nav-icon" aria-hidden="true"></i>
+                    <span>Coordinator Portal (DEBUG)</span>
+                </a>
+            </li>
+        {% endif %}
+        
         {% for item in nav_items %}
             {% set is_active = request.endpoint and request.endpoint.startswith(item.url_endpoint.split('.')[0]) %}
             <li class="nav-item">

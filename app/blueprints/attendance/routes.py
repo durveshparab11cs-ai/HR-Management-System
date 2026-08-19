@@ -64,557 +64,95 @@ def index():
 
 
 # ── Check In (AJAX) ──────────────────────────────────────────────────
+# DISABLED FOR REGULAR EMPLOYEES - Only coordinator can mark attendance
 
 @attendance_bp.route("/checkin", methods=["POST"])
 @login_required
 def checkin():
     """
-    Check-in endpoint — validates GPS + photo, creates attendance record.
+    Check-in endpoint — DISABLED for employees.
+    Attendance must be marked through the Coordinator Portal only.
     """
-    logger.info("===== CHECK IN START =====")
-    logger.info("User ID: %s", current_user.id)
-    logger.info("User Email: %s", current_user.email)
-    
-    try:
-        employee = _emp_repo.get_by_user_id(current_user.id)
-        if not employee:
-            logger.error("CHECK IN FAILED: Employee profile not found for user_id=%s", current_user.id)
-            return jsonify(success=False, message="Employee profile not found."), 400
-        
-        logger.info("Employee ID: %s", employee.id)
-        logger.info("Employee Code: %s", employee.employee_code)
-        logger.info("Employee Name: %s", employee.full_name)
-
-        # DEVICE VALIDATION — check if request is from allowed office computer
-        if _device_svc.is_device_check_enabled():
-            is_allowed, device_msg = _device_svc.is_allowed_device()
-            logger.info("Device validation: allowed=%s, ip=%s", is_allowed, _device_svc.get_client_ip())
-            if not is_allowed:
-                logger.error("CHECK IN FAILED: %s", device_msg)
-                return jsonify(success=False, message=device_msg), 403  # 403 Forbidden
-
-        # MANDATORY PHOTO VALIDATION — check if photo was uploaded
-        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-        today = date.today()
-        logger.info("Today's date: %s", today)
-        
-        # Get today's attendance to check for photo
-        attendance_today = _repo.get_today(employee.id, today)
-        logger.info("Existing attendance today: %s", attendance_today)
-        
-        if attendance_today and attendance_today.id:
-            # Check if photo exists for this attendance
-            photo = AttendancePhoto.query.filter_by(
-                attendance_id=attendance_today.id
-            ).first()
-            logger.info("Photo record found: %s", photo)
-            
-            if not photo or (not photo.image_data and not photo.file_path):
-                logger.error("CHECK IN FAILED: No photo found for attendance_id=%s", attendance_today.id)
-                return jsonify(
-                    success=False,
-                    message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
-                ), 400
-            
-            logger.info("Photo validation PASSED - image_data exists: %s, file_path: %s", 
-                       bool(photo.image_data), photo.file_path)
-        else:
-            logger.error("CHECK IN FAILED: No attendance record exists yet (photo should have created one)")
-            return jsonify(
-                success=False,
-                message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie first."
-            ), 400
-
-        lat = request.form.get("latitude", "")
-        lon = request.form.get("longitude", "")
-        acc = request.form.get("accuracy", "")
-        
-        logger.info("GPS Data - Lat: %s, Lon: %s, Accuracy: %s", lat, lon, acc)
-
-        ok, message, attendance, gps_detail = _svc.check_in(employee, lat, lon, acc)
-        
-        logger.info("Service check_in result: ok=%s, message=%s", ok, message)
-        logger.info("GPS Detail: %s", gps_detail)
-        
-        if ok:
-            logger.info("CHECK IN SUCCESS: attendance_id=%s, time=%s", 
-                       attendance.id, attendance.check_in_time)
-            logger.info("===== CHECK IN END (SUCCESS) =====")
-            
-            # Ensure check_in_time is a datetime object before formatting
-            checkin_time_str = "—"
-            if attendance.check_in_time:
-                try:
-                    if hasattr(attendance.check_in_time, 'strftime'):
-                        checkin_time_str = attendance.check_in_time.strftime("%H:%M")
-                    else:
-                        # Fallback if somehow it's a string
-                        checkin_time_str = str(attendance.check_in_time)[-5:] if isinstance(attendance.check_in_time, str) else "—"
-                except Exception as fmt_err:
-                    logger.error("TIME FORMATTING ERROR: %s", str(fmt_err))
-                    checkin_time_str = "—"
-            
-            return jsonify(
-                success=True,
-                message=message,
-                time=checkin_time_str,
-                is_late=attendance.is_late,
-                late_minutes=attendance.late_minutes or 0,
-                gps=gps_detail,
-            )
-        
-        logger.error("CHECK IN FAILED: %s", message)
-        logger.info("===== CHECK IN END (FAILED) =====")
-        return jsonify(success=False, message=message, gps=gps_detail), 400
-        
-    except AttributeError as ae:
-        logger.error("===== CHECK IN ATTRIBUTE ERROR =====")
-        logger.error("Missing attribute: %s", str(ae))
-        import traceback
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== CHECK IN END (ATTRIBUTE ERROR) =====")
-        return jsonify(
-            success=False,
-            message="System configuration error. Please contact support."
-        ), 500
-    except Exception as exc:
-        logger.error("===== CHECK IN EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        import traceback
-        logger.error("Full Traceback:\n%s", traceback.format_exc())
-        # Log exception details for debugging
-        import sys
-        exc_info = sys.exc_info()
-        logger.error("Exception Details: %s", exc_info)
-        logger.error("===== CHECK IN END (EXCEPTION) =====")
-        return jsonify(
-            success=False,
-            message=f"Check-in failed: System error occurred. [{type(exc).__name__}: {str(exc)}]"
-        ), 500
+    logger.warning("Blocked: Employee attempted self check-in | user=%s", current_user.username)
+    return jsonify(
+        success=False,
+        message="❌ Direct check-in is disabled. Your attendance is marked by the Coordinator Portal only. Contact your HR coordinator.",
+        status="coordinator_only"
+    ), 403
 
 
 # ── Check Out (AJAX) ─────────────────────────────────────────────────
+# DISABLED FOR REGULAR EMPLOYEES - Only coordinator can mark attendance
 
 @attendance_bp.route("/checkout", methods=["POST"])
 @login_required
 def checkout():
     """
-    Check-out endpoint — validates GPS + photo, updates attendance record.
+    Check-out endpoint — DISABLED for employees.
+    Attendance must be marked through the Coordinator Portal only.
     """
-    logger.info("===== CHECK OUT START =====")
-    logger.info("User ID: %s", current_user.id)
-    
-    try:
-        employee = _emp_repo.get_by_user_id(current_user.id)
-        if not employee:
-            logger.error("CHECK OUT FAILED: Employee profile not found")
-            return jsonify(success=False, message="Employee profile not found."), 400
-        
-        logger.info("Employee ID: %s", employee.id)
-        logger.info("Employee Name: %s", employee.full_name)
-
-        # DEVICE VALIDATION — check if request is from allowed office computer
-        if _device_svc.is_device_check_enabled():
-            is_allowed, device_msg = _device_svc.is_allowed_device()
-            logger.info("Device validation: allowed=%s, ip=%s", is_allowed, _device_svc.get_client_ip())
-            if not is_allowed:
-                logger.error("CHECK OUT FAILED: %s", device_msg)
-                return jsonify(success=False, message=device_msg), 403  # 403 Forbidden
-
-        # MANDATORY PHOTO VALIDATION — check if checkout photo was uploaded
-        from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-        today = date.today()
-        
-        # Get today's attendance
-        attendance_today = _repo.get_today(employee.id, today)
-        logger.info("Existing attendance today: %s", attendance_today)
-        
-        if not attendance_today:
-            logger.error("CHECK OUT FAILED: No attendance record for today")
-            return jsonify(
-                success=False,
-                message="No check-in found for today. Please check in first."
-            ), 400
-        
-        if not attendance_today.check_in_time:
-            logger.error("CHECK OUT FAILED: No check-in time")
-            return jsonify(
-                success=False,
-                message="No check-in found for today. Please check in first."
-            ), 400
-        
-        # Check if checkout photo exists
-        photo = AttendancePhoto.query.filter_by(
-            attendance_id=attendance_today.id
-        ).first()
-        logger.info("Photo record found: %s", photo)
-        
-        # Use getattr for safety - checkout_image_data might not exist on old Render DBs
-        has_checkout_photo = bool(photo and getattr(photo, 'checkout_image_data', None))
-        
-        if not has_checkout_photo:
-            logger.error("CHECK OUT FAILED: No checkout photo found")
-            return jsonify(
-                success=False,
-                message="⚠️ Proof Photo is required to mark attendance. Please upload your GPS Map Camera selfie for check-out first."
-            ), 400
-        
-        logger.info("Checkout photo validation PASSED")
-
-        lat = request.form.get("latitude", "")
-        lon = request.form.get("longitude", "")
-        acc = request.form.get("accuracy", "")
-        
-        logger.info("GPS Data - Lat: %s, Lon: %s, Accuracy: %s", lat, lon, acc)
-
-        ok, message, attendance, gps_detail = _svc.check_out(employee, lat, lon, acc)
-        
-        logger.info("Service check_out result: ok=%s, message=%s", ok, message)
-        
-        if ok:
-            logger.info("CHECK OUT SUCCESS: attendance_id=%s, time=%s", 
-                       attendance.id, attendance.check_out_time)
-            logger.info("===== CHECK OUT END (SUCCESS) =====")
-            
-            # Ensure check_out_time is a datetime object before formatting
-            checkout_time_str = "—"
-            if attendance.check_out_time:
-                try:
-                    if hasattr(attendance.check_out_time, 'strftime'):
-                        checkout_time_str = attendance.check_out_time.strftime("%H:%M")
-                    else:
-                        # Fallback if somehow it's a string
-                        checkout_time_str = str(attendance.check_out_time)[-5:] if isinstance(attendance.check_out_time, str) else "—"
-                except Exception as fmt_err:
-                    logger.error("TIME FORMATTING ERROR: %s", str(fmt_err))
-                    checkout_time_str = "—"
-            
-            return jsonify(
-                success=True,
-                message=message,
-                time=checkout_time_str,
-                working=attendance.working_hours_display,
-                overtime_minutes=attendance.overtime_minutes or 0,
-                gps=gps_detail,
-            )
-        
-        logger.error("CHECK OUT FAILED: %s", message)
-        logger.info("===== CHECK OUT END (FAILED) =====")
-        return jsonify(success=False, message=message, gps=gps_detail), 400
-        
-    except Exception as exc:
-        logger.error("===== CHECK OUT EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        import traceback
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== CHECK OUT END (EXCEPTION) =====")
-        return jsonify(
-            success=False,
-            message=f"Check-out failed: {str(exc)}",
-            error_type=type(exc).__name__
-        ), 500
+    logger.warning("Blocked: Employee attempted self check-out | user=%s", current_user.username)
+    return jsonify(
+        success=False,
+        message="❌ Direct check-out is disabled. Your attendance is marked by the Coordinator Portal only. Contact your HR coordinator.",
+        status="coordinator_only"
+    ), 403
 
 
 # ── Photo Upload (AJAX) ──────────────────────────────────────────────
+# DISABLED FOR REGULAR EMPLOYEES - Only coordinator can upload photos
 
 @attendance_bp.route("/upload-photo", methods=["POST"])
 @login_required
 def upload_photo():
     """
-    Upload check-in proof photo.
-    Returns updated state so frontend can sync button immediately.
-    ALWAYS returns JSON, never HTML error pages.
+    Photo upload endpoint — DISABLED for employees.
+    Photo handling is done through the Coordinator Portal only.
     """
-    logger.info("===== PHOTO UPLOAD START =====")
-    
-    try:
-        employee = _emp_repo.get_by_user_id(current_user.id)
-        if not employee:
-            logger.error("UPLOAD FAILED: Employee not found")
-            return jsonify(success=False, message="Employee profile not found."), 400
-        
-        logger.info("Employee ID: %s", employee.id)
-
-        file = request.files.get("photo")
-        if not file:
-            logger.error("UPLOAD FAILED: No file in request")
-            return jsonify(success=False, message="No file received."), 400
-        
-        logger.info("File received: %s", file.filename)
-        file.seek(0)  # Reset file pointer
-
-        try:
-            ok, message, photo_url = _svc.upload_photo(employee, file)
-        except Exception as svc_exc:
-            logger.error("Service exception: %s", str(svc_exc))
-            logger.error("Traceback: %s", traceback.format_exc())
-            return jsonify(success=False, message="Upload service error: " + str(svc_exc)), 500
-        
-        if ok:
-            # Get updated status to return to frontend
-            from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-            today = date.today()
-            attendance_today = _repo.get_today(employee.id, today)
-            
-            has_photo = False
-            if attendance_today and attendance_today.id:
-                photo_rec = AttendancePhoto.query.filter_by(
-                    attendance_id=attendance_today.id
-                ).first()
-                has_photo = bool(photo_rec and photo_rec.image_data)
-            
-            logger.info("UPLOAD SUCCESS: has_photo=%s", has_photo)
-            logger.info("===== PHOTO UPLOAD END (SUCCESS) =====")
-            
-            return jsonify(
-                success=True,
-                message=message,
-                photo_url=photo_url,
-                has_photo=has_photo,
-                can_check_in=bool(attendance_today and not attendance_today.check_in_time)
-            )
-        
-        logger.error("UPLOAD FAILED: %s", message)
-        logger.info("===== PHOTO UPLOAD END (FAILED) =====")
-        return jsonify(success=False, message=message), 400
-        
-    except Exception as exc:
-        logger.error("===== PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== PHOTO UPLOAD END (EXCEPTION) =====")
-        
-        return jsonify(
-            success=False,
-            message="Upload failed: " + str(exc)
-        ), 500
+    logger.warning("Blocked: Employee attempted to upload photo | user=%s", current_user.username)
+    return jsonify(
+        success=False,
+        message="❌ Direct photo upload is disabled. Photos are handled by the Coordinator Portal only.",
+        status="coordinator_only"
+    ), 403
 
 
 # ── Upload Checkout Photo (AJAX) ─────────────────────────────────────
+# DISABLED FOR REGULAR EMPLOYEES - Only coordinator can upload checkout photos
 
 @attendance_bp.route("/upload-checkout-photo", methods=["POST"])
 @login_required
 def upload_checkout_photo():
     """
-    Upload check-out proof photo.
-    Returns updated state so frontend can sync button immediately.
-    ALWAYS returns JSON, never HTML error pages.
-    WORKS EXACTLY LIKE CHECK-IN: photo uploaded first, then checkout time recorded.
+    Checkout photo upload endpoint — DISABLED for employees.
+    Photo handling is done through the Coordinator Portal only.
     """
-    logger.info("===== CHECKOUT PHOTO UPLOAD START =====")
-    
-    try:
-        employee = _emp_repo.get_by_user_id(current_user.id)
-        if not employee:
-            logger.error("CHECKOUT UPLOAD FAILED: Employee not found")
-            return jsonify(success=False, message="Employee profile not found."), 400
-        
-        logger.info("Employee ID: %s", employee.id)
-
-        file = request.files.get("photo")
-        if not file:
-            logger.error("CHECKOUT UPLOAD FAILED: No file in request")
-            return jsonify(success=False, message="No file received."), 400
-        
-        logger.info("Checkout file received: %s", file.filename)
-        file.seek(0)  # Reset file pointer
-
-        try:
-            ok, message, photo = _svc.upload_checkout_photo(employee, file)
-        except Exception as svc_exc:
-            logger.error("Service exception: %s", str(svc_exc))
-            logger.error("Traceback: %s", traceback.format_exc())
-            return jsonify(success=False, message="Checkout upload service error: " + str(svc_exc)), 500
-        
-        if ok:
-            # Get updated state to return to frontend
-            from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-            today = date.today()
-            attendance_today = _repo.get_today(employee.id, today)
-            
-            has_checkout_photo = False
-            if attendance_today and attendance_today.id:
-                photo_rec = AttendancePhoto.query.filter_by(
-                    attendance_id=attendance_today.id
-                ).first()
-                has_checkout_photo = bool(photo_rec and photo_rec.checkout_image_data)
-            
-            logger.info("CHECKOUT UPLOAD SUCCESS: has_checkout_photo=%s", has_checkout_photo)
-            logger.info("===== CHECKOUT PHOTO UPLOAD END (SUCCESS) =====")
-            
-            return jsonify(
-                success=True,
-                message=message,
-                has_checkout_photo=has_checkout_photo,
-                can_check_out=bool(
-                    attendance_today 
-                    and attendance_today.check_in_time 
-                    and not attendance_today.check_out_time
-                )
-            )
-        
-        logger.error("CHECKOUT UPLOAD FAILED: %s", message)
-        logger.info("===== CHECKOUT PHOTO UPLOAD END (FAILED) =====")
-        return jsonify(success=False, message=message), 400
-        
-    except Exception as exc:
-        logger.error("===== CHECKOUT PHOTO UPLOAD TOP-LEVEL EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== CHECKOUT PHOTO UPLOAD END (EXCEPTION) =====")
-        
-        return jsonify(
-            success=False,
-            message="Checkout upload failed: " + str(exc)
-        ), 500
+    logger.warning("Blocked: Employee attempted to upload checkout photo | user=%s", current_user.username)
+    return jsonify(
+        success=False,
+        message="❌ Direct checkout photo upload is disabled. Photos are handled by the Coordinator Portal only.",
+        status="coordinator_only"
+    ), 403
 
 
 # ── Capture Selfie (Live Camera) ────────────────────────────────────
+
+# ── Capture Selfie (Live Camera) ────────────────────────────────────
+# DISABLED FOR REGULAR EMPLOYEES - Only coordinator can capture selfies
 
 @attendance_bp.route("/capture-selfie", methods=["POST"])
 @login_required
 def capture_selfie():
     """
-    Receive base64 selfie from live camera capture.
-    Store in AttendancePhoto.image_data (check-in) or checkout_image_data (check-out).
-    
-    Expected JSON:
-    {
-        "selfie": "data:image/jpeg;base64,...",
-        "type": "checkin" | "checkout"
-    }
-    
-    Returns: {success, photo_id, has_photo, has_checkout_photo}
-    
-    ALWAYS returns JSON, never HTML errors.
+    Capture selfie endpoint — DISABLED for employees.
+    Photo capture is done through the Coordinator Portal only.
     """
-    from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-    from app.extensions.database import db  # noqa: PLC0415
-
-    logger.info("===== CAPTURE SELFIE START =====")
-    logger.info("User ID: %s", current_user.id)
-    
-    try:
-        # Ensure we always return JSON, never HTML
-        response_headers = {'Content-Type': 'application/json'}
-        
-        # Check authentication first
-        if not current_user or not current_user.is_authenticated:
-            logger.error("CAPTURE SELFIE FAILED: User not authenticated")
-            return jsonify(success=False, message="Authentication required. Please log in again."), 401
-        
-        employee = _emp_repo.get_by_user_id(current_user.id)
-        if not employee:
-            logger.error("CAPTURE SELFIE FAILED: Employee not found")
-            return jsonify(success=False, message="Employee profile not found."), 400
-        
-        logger.info("Employee ID: %s", employee.id)
-        
-        # Get JSON payload with safe parsing
-        try:
-            data = request.get_json(silent=True) or {}
-        except Exception as json_err:
-            logger.error("CAPTURE SELFIE FAILED: JSON parsing error: %s", str(json_err))
-            return jsonify(success=False, message="Invalid JSON format."), 400
-        
-        selfie_base64 = data.get("selfie", "").strip()
-        capture_type = data.get("type", "checkin").lower()
-        
-        if not selfie_base64:
-            logger.error("CAPTURE SELFIE FAILED: No selfie data")
-            return jsonify(success=False, message="No selfie data received."), 400
-        
-        if not selfie_base64.startswith("data:image"):
-            logger.error("CAPTURE SELFIE FAILED: Invalid data URL format")
-            return jsonify(success=False, message="Invalid image data format."), 400
-        
-        if capture_type not in ("checkin", "checkout"):
-            logger.error("CAPTURE SELFIE FAILED: Invalid type: %s", capture_type)
-            return jsonify(success=False, message="Invalid capture type."), 400
-        
-        logger.info("Capture type: %s", capture_type)
-        logger.info("Selfie data length: %d bytes", len(selfie_base64))
-        
-        # Get or create today's attendance
-        today = date.today()
-        attendance_today = _repo.get_today(employee.id, today)
-        
-        if not attendance_today:
-            logger.info("Creating new attendance record for today")
-            from app.models.attendance import Attendance  # noqa: PLC0415
-
-            attendance_today = Attendance(
-                employee_id=employee.id,
-                date=today,
-                status="pending",
-            )
-            db.session.add(attendance_today)
-            db.session.flush()
-            logger.info("Attendance created: %s", attendance_today.id)
-        
-        # Get or create photo record
-        photo = AttendancePhoto.query.filter_by(
-            attendance_id=attendance_today.id
-        ).first()
-        
-        if not photo:
-            logger.info("Creating new photo record")
-            photo = AttendancePhoto(
-                attendance_id=attendance_today.id,
-                employee_id=employee.id,
-                file_path="",
-            )
-            db.session.add(photo)
-            db.session.flush()  # get ID without committing yet
-            logger.info("Photo record created (pending commit): %s", photo.id)
-        
-        # Store selfie in appropriate field — always overwrite (retake support)
-        if capture_type == "checkin":
-            photo.image_data = selfie_base64
-            logger.info("Stored check-in selfie")
-        else:  # checkout
-            photo.checkout_image_data = selfie_base64
-            logger.info("Stored check-out selfie")
-        
-        db.session.commit()
-        logger.info("Selfie saved successfully")
-        
-        # Return state for frontend
-        has_photo = bool(photo.image_data)
-        has_checkout_photo = bool(photo.checkout_image_data)
-        
-        logger.info("CAPTURE SELFIE SUCCESS: photo_id=%s, has_photo=%s, has_checkout_photo=%s",
-                   photo.id, has_photo, has_checkout_photo)
-        logger.info("===== CAPTURE SELFIE END (SUCCESS) =====")
-        
-        return jsonify(
-            success=True,
-            photo_id=photo.id,
-            has_photo=has_photo,
-            has_checkout_photo=has_checkout_photo,
-            message="Selfie captured successfully."
-        )
-    
-    except Exception as exc:
-        logger.error("===== CAPTURE SELFIE EXCEPTION =====")
-        logger.error("Exception Type: %s", type(exc).__name__)
-        logger.error("Exception Message: %s", str(exc))
-        logger.error("Traceback:\n%s", traceback.format_exc())
-        logger.error("===== CAPTURE SELFIE END (EXCEPTION) =====")
-        
-        try:
-            db.session.rollback()
-        except Exception as rollback_err:
-            logger.error("Rollback failed: %s", str(rollback_err))
-        
-        return jsonify(
-            success=False,
-            message=f"Selfie capture failed: {str(exc)}"
-        ), 500
+    logger.warning("Blocked: Employee attempted to capture selfie | user=%s", current_user.username)
+    return jsonify(
+        success=False,
+        message="❌ Direct selfie capture is disabled. Photo capture is handled by the Coordinator Portal only.",
+        status="coordinator_only"
+    ), 403
 
 
 # ── Generate Proof Image ─────────────────────────────────────────────

@@ -538,6 +538,7 @@
             return true;
         }
 
+        // Update confirmation text when moving to step 6
         function updateUI() {
             // Update content sections
             document.querySelectorAll('.content-section').forEach(section => {
@@ -562,6 +563,10 @@
                 startCamera();
             } else if (currentStep === 5) {
                 capturePhotoFromCamera();
+            } else if (currentStep === 6 && selectedEmployee) {
+                const empName = selectedEmployee.full_name;
+                document.getElementById('attendanceConfirmation').textContent = 
+                    `Ready to mark attendance for ${empName}. Check-in or Check-out?`;
             }
         }
 
@@ -586,47 +591,43 @@
                 const response = await fetch(`${API_BASE}/coordinator/search`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: code })
+                    body: JSON.stringify({ search_term: code })
                 });
 
                 const data = await response.json();
                 searchLoading.classList.remove('active');
 
-                if (!data.success || !data.results || data.results.length === 0) {
-                    searchError.textContent = `❌ No employee found for "${code}"`;
+                if (!data.success || !data.employee) {
+                    searchError.textContent = `❌ ${data.error || 'No employee found'}`;
                     return;
                 }
 
-                // Display results
-                data.results.forEach(emp => {
-                    const card = document.createElement('div');
-                    card.className = 'employee-card';
-                    card.innerHTML = `
-                        <strong>${emp.code}</strong> — ${emp.name}<br>
-                        <small>${emp.department} | ${emp.branch}</small>
-                    `;
-                    card.onclick = () => selectEmployee(emp, card);
-                    searchResults.appendChild(card);
-                });
+                // Display single result as card
+                const emp = data.employee;
+                const card = document.createElement('div');
+                card.className = 'employee-card selected';
+                card.innerHTML = `
+                    <strong>${emp.employee_code}</strong> — ${emp.full_name}<br>
+                    <small>${emp.department} | ${emp.designation}</small>
+                `;
+                searchResults.appendChild(card);
 
-                // Auto-select if only one result
-                if (data.results.length === 1) {
-                    selectEmployee(data.results[0], searchResults.querySelector('.employee-card'));
-                }
+                // Auto-select
+                selectEmployee(emp);
             } catch (error) {
                 searchLoading.classList.remove('active');
                 searchError.textContent = `❌ Search failed: ${error.message}`;
             }
         }
 
-        function selectEmployee(emp, cardElement) {
+        function selectEmployee(emp) {
             selectedEmployee = emp;
 
-            // Update UI
+            // Mark card as selected
             document.querySelectorAll('.employee-card').forEach(card => {
                 card.classList.remove('selected');
+                card.classList.add('selected');
             });
-            cardElement.classList.add('selected');
 
             document.getElementById('nextFromSearch').style.display = 'block';
 
@@ -708,6 +709,11 @@
                 return;
             }
 
+            if (!capturedPhoto) {
+                alert('Please capture a photo first');
+                return;
+            }
+
             const attendanceLoading = document.getElementById('attendanceLoading');
             const attendanceMessage = document.getElementById('attendanceMessage');
 
@@ -716,13 +722,22 @@
             attendanceMessage.className = 'message';
 
             try {
-                const endpoint = action === 'checkin' ? '/coordinator/kiosk_checkin' : '/coordinator/kiosk_checkout';
+                const endpoint = action === 'checkin' ? '/coordinator/check-in' : '/coordinator/check-out';
+                
+                // Get GPS coordinates from browser
+                const geoPosition = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+
                 const response = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         employee_id: selectedEmployee.id,
-                        proof_photo: capturedPhoto
+                        latitude: geoPosition.coords.latitude,
+                        longitude: geoPosition.coords.longitude,
+                        accuracy: geoPosition.coords.accuracy,
+                        photo_base64: capturedPhoto
                     })
                 });
 
@@ -730,11 +745,11 @@
                 attendanceLoading.classList.remove('active');
 
                 if (data.success) {
-                    attendanceMessage.textContent = data.message;
+                    attendanceMessage.textContent = `✅ ${data.message}`;
                     attendanceMessage.className = 'message success';
                     setTimeout(() => resetKiosk(), 3000);
                 } else {
-                    attendanceMessage.textContent = `❌ ${data.message}`;
+                    attendanceMessage.textContent = `❌ ${data.error || data.message}`;
                     attendanceMessage.className = 'message error';
                 }
             } catch (error) {

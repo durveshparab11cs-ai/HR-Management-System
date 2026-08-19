@@ -18,6 +18,7 @@ from app.blueprints.dashboard import dashboard_bp
 from app.blueprints.company import company_bp
 from app.blueprints.employees import employees_bp
 from app.blueprints.attendance import attendance_bp
+from app.blueprints.coordinator import coordinator_bp
 from app.blueprints.leave import leave_bp
 from app.blueprints.shift_change.routes import bp as shift_change_bp
 from app.blueprints.payroll import payroll_bp
@@ -28,7 +29,6 @@ from app.blueprints.settings import settings_bp
 from app.blueprints.admin import admin_bp
 from app.blueprints.api import api_bp
 from app.blueprints.foss import foss_bp
-from app.blueprints.coordinator import coordinator_bp
 
 _blueprints = [
     (authentication_bp, None),
@@ -36,6 +36,7 @@ _blueprints = [
     (company_bp, None),
     (employees_bp, None),
     (attendance_bp, None),
+    (coordinator_bp, None),
     (leave_bp, None),
     (shift_change_bp, None),
     (payroll_bp, None),
@@ -46,7 +47,6 @@ _blueprints = [
     (admin_bp, None),
     (api_bp, None),
     (foss_bp, None),
-    (coordinator_bp, None),
 ]
 
 
