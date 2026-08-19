@@ -34,26 +34,32 @@ _gps_svc = GPSService()
 # ── Authorization Check ──────────────────────────────────────────────
 def _check_coordinator_authorization():
     """
-    Verify that current user is the authorized coordinator.
-    Only E-2606026 can access coordinator routes.
+    Verify that current user has coordinator access.
+    Coordinator can be:
+    1. The dedicated coordinator_kiosk user
+    2. Any Super Admin user
     
     Returns:
-        employee object if authorized, aborts 403 if not
+        current_user if authorized, aborts 403 if not
     """
     if not current_user.is_authenticated:
         abort(401)
     
-    # Get employee linked to current user
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee or employee.employee_code != "E-2606026":
-        logger.warning(
-            "Coordinator authorization denied | user=%s | employee_code=%s",
-            current_user.username,
-            employee.employee_code if employee else "N/A"
-        )
-        abort(403)
+    # Allow access if user is Super Admin (can mark attendance)
+    if current_user.role == "super_admin":
+        return current_user
     
-    return employee
+    # Also allow the old E-2606026 coordinator for backward compatibility
+    employee = _emp_repo.get_by_user_id(current_user.id)
+    if employee and employee.employee_code == "E-2606026":
+        return current_user
+    
+    logger.warning(
+        "Coordinator authorization denied | user=%s | role=%s",
+        current_user.username,
+        current_user.role
+    )
+    abort(403)
 
 
 # ── MAIN DASHBOARD ──────────────────────────────────────────────────
