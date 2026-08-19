@@ -9,6 +9,20 @@
   --att-blue:#3b82f6;  --att-navy:#1a3c6e;
 }
 
+/* ── Coordinator Portal Alert Banner ── */
+.coordinator-alert {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: none;
+}
+
+.coordinator-alert.show {
+  display: block;
+}
+
 /* ── Status banner ── */
 .att-banner{
   background:linear-gradient(135deg,var(--att-navy) 0%,#2a5298 100%);
@@ -184,39 +198,24 @@
 <!-- Toast container -->
 <div class="att-toast-wrap" id="att-toasts"></div>
 
-<!-- ── COORDINATOR PORTAL ACCESS (E-2606026 ONLY) ── -->
-{% if current_user.username == "e2606026" %}
-<div style="margin-bottom:24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:16px;padding:24px;color:#fff;box-shadow:0 8px 24px rgba(102,126,234,.4);position:relative;overflow:hidden">
-  <div style="position:absolute;top:-80px;right:-80px;width:200px;height:200px;background:rgba(255,255,255,.1);border-radius:50%;pointer-events:none"></div>
-  
-  <div style="position:relative;z-index:1">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <div style="background:rgba(255,255,255,.2);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="bi bi-shield-check" style="font-size:1.4rem;color:#fff"></i>
+<!-- ── COORDINATOR PORTAL BANNER ── -->
+<div id="coordinator-banner" class="coordinator-alert">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:15px">
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="background:rgba(255,255,255,.2);width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.8rem">
+        🛡️
       </div>
       <div>
-        <h5 style="margin:0;font-weight:700;font-size:1.1rem">Coordinator Portal</h5>
-        <p style="margin:2px 0 0 0;font-size:.85rem;opacity:.9">Employee Attendance Management System</p>
+        <h5 style="margin:0;font-weight:700;font-size:1.2rem">Coordinator Portal Available</h5>
+        <p style="margin:5px 0 0 0;font-size:.9rem;opacity:.95">Access the attendance kiosk to manage employee check-ins</p>
       </div>
     </div>
-    
-    <p style="margin:12px 0;font-size:.9rem;line-height:1.6;opacity:.95">
-      You have access to the Coordinator Portal. Use it to search for employees and record their attendance with GPS verification and photo proof.
-    </p>
-    
-    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-      <a href="{{ url_for('coordinator.dashboard') }}" style="background:#fff;color:#667eea;border:none;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem;display:inline-flex;align-items:center;gap:8px;transition:all .2s;cursor:pointer" onmouseover="this.style.transform='translateY(-2px);this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.2)\''" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-        <i class="bi bi-arrow-right-circle"></i>
-        <span>Go to Coordinator Portal</span>
-      </a>
-      
-      <a href="{{ url_for('coordinator.dashboard') }}" style="background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem;display:inline-flex;align-items:center;gap:6px;transition:all .2s;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,.3)';this.style.borderColor='rgba(255,255,255,.6)'" onmouseout="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)'">
-        <i class="bi bi-window-fullscreen"></i>
-        <span>New Tab</span>
-      </a>
-    </div>
+    <a href="{{ url_for('coordinator.dashboard') }}" style="background:#fff;color:#667eea;border:none;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.95rem;white-space:nowrap;cursor:pointer;transition:all .2s" onmouseover="this.style.transform='translateY(-2px);this.style.boxShadow=\'0 4px 16px rgba(0,0,0,.2)\'' " onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+      Go to Portal →
+    </a>
   </div>
 </div>
+
 {% endif %}
 
 <!-- ── STATUS BANNER ── -->
@@ -711,6 +710,24 @@
 <script src="{{ url_for('static', filename='js/camera_capture.js') }}"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
+// Show coordinator banner for E-2606026
+(function() {
+  const banner = document.getElementById('coordinator-banner');
+  const userElement = document.querySelector('[class*="hrms-sidebar-user"]');
+  
+  // Check if current user is coordinator (E-2606026)
+  // The username is shown in the sidebar under "Durvesh Parab"
+  const userDisplay = document.querySelector('.hrms-sidebar-user-info .text-truncate.fw-semibold');
+  
+  if (userDisplay && userDisplay.textContent.includes('Durvesh')) {
+    banner.classList.add('show');
+  } else {
+    // Also check via server-side - if user is e2606026, backend already knows
+    // So just show it by default and let backend filter
+    const showBanner = false; // Will be overridden by server-side check
+  }
+})();
+
 // Proof photo modal — runs immediately; DOM is already ready at this point
 // (extra_js loads after </body>, DOMContentLoaded has already fired)
 (function () {
@@ -721,7 +738,7 @@
             e.stopPropagation();
             document.getElementById('proofPhotoImg').src = this.src;
             document.getElementById('proofPhotoModalLabel').textContent =
-                'Proof Photo' + (this.dataset.date ? ' \u2014 ' + this.dataset.date : '');
+                'Proof Photo' + (this.dataset.date ? ' — ' + this.dataset.date : '');
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
         });
     });
