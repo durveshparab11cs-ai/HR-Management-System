@@ -51,6 +51,28 @@ def login():
             else:
                 active_tab = "login"
 
+        elif action == "coordinator":
+            # Coordinator portal login (uses username/password instead of employee code)
+            coordinator_user = request.form.get("employee_code")  # Username field repurposed
+            coordinator_pw = request.form.get("password")
+            
+            if not coordinator_user or not coordinator_pw:
+                error = "Please enter coordinator username and password."
+                active_tab = "coordinator"
+            else:
+                from app.models.user import User  # noqa: PLC0415
+                user = User.query.filter_by(username=coordinator_user).first()
+                
+                if user and user.check_password(coordinator_pw):
+                    from flask_login import login_user
+                    login_user(user, remember=False)
+                    user.record_successful_login(request.remote_addr)
+                    next_url = request.form.get("next") or url_for("coordinator.dashboard")
+                    return redirect(next_url)
+                else:
+                    error = "Invalid coordinator username or password."
+                    active_tab = "coordinator"
+
         elif action == "register":
             if register_form.validate_on_submit():
                 ok, msg, user = _svc.register_by_code(

@@ -119,6 +119,11 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
               id="tab-login" type="button" onclick="switchTab('login')">
         <i class="bi bi-box-arrow-in-right"></i> Sign In
       </button>
+      <button class="tab-btn {% if active_tab=='coordinator' %}active{% endif %}"
+              id="tab-coordinator" type="button" onclick="switchTab('coordinator')" 
+              style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700">
+        <i class="bi bi-shield-check"></i> <span style="font-size:1.1rem">⚡</span> Coordinator
+      </button>
       <button class="tab-btn {% if active_tab=='register' %}active{% endif %}"
               id="tab-register" type="button" onclick="switchTab('register')">
         <i class="bi bi-person-plus-fill"></i> Register
@@ -127,6 +132,62 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
               id="tab-forgot" type="button" onclick="switchTab('forgot')">
         <i class="bi bi-key"></i> Forgot Password
       </button>
+    </div>
+
+    <!-- ── COORDINATOR PORTAL ── -->
+    <div class="tab-panel {% if active_tab=='coordinator' %}active{% endif %}" id="panel-coordinator" style="background:linear-gradient(135deg,rgba(102,126,234,.05),rgba(118,75,162,.05))">
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px;border-radius:6px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:1.8rem">🛡️</div>
+        <div>
+          <div style="font-weight:700;font-size:1rem">Attendance Kiosk</div>
+          <div style="font-size:.8rem;opacity:.9">For marking employee attendance only</div>
+        </div>
+      </div>
+
+      <p class="panel-title">Coordinator Portal Login</p>
+      <p class="panel-sub">Access the kiosk to mark employee attendance</p>
+
+      {% if error and active_tab == 'coordinator' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="coordinator-form" novalidate>
+        {{ login_form.hidden_tag() }}
+        <input type="hidden" name="action" value="coordinator">
+        <input type="hidden" name="next" value="{{ url_for('coordinator.dashboard') }}">
+
+        <div class="f-group">
+          <label class="f-label" for="c-user">Coordinator Username</label>
+          <div class="f-row">
+            <span class="f-icon"><i class="bi bi-person-fill"></i></span>
+            <input type="text" id="c-user" name="employee_code" placeholder="coordinator_kiosk" 
+                   autocomplete="off" required>
+          </div>
+        </div>
+
+        <div class="f-group">
+          <label class="f-label" for="c-pw">Password</label>
+          <div class="f-row">
+            <span class="f-icon"><i class="bi bi-lock"></i></span>
+            <input type="password" id="c-pw" name="password" placeholder="Enter password" 
+                   autocomplete="current-password" required>
+            <button type="button" class="f-toggle" onclick="togglePw('c-pw',this)" tabindex="-1">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="c-btn" style="background:linear-gradient(180deg,#667eea,#764ba2);border-color:#5a6cd6">
+          <div class="btn-spin" id="c-spin"></div>
+          <span id="c-txt">Access Coordinator Portal</span>
+        </button>
+
+        <p style="font-size:.7rem;color:#667eea;margin-top:10px;line-height:1.6;background:#f0f4ff;padding:10px;border-radius:4px;border-left:3px solid #667eea">
+          <strong>Default Credentials:</strong><br>
+          Username: <code style="background:#fff;padding:2px 4px;border-radius:2px">coordinator_kiosk</code><br>
+          Password: <code style="background:#fff;padding:2px 4px;border-radius:2px">CoordinatorPortal@2026</code>
+        </p>
+      </form>
     </div>
 
     <!-- ── SIGN IN ── -->
@@ -435,6 +496,7 @@ function wireLoading(formId, btnId, spinId, txtId, loadTxt) {
   });
 }
 wireLoading('login-form', 'l-btn', 'l-spin', 'l-txt', 'Signing in…');
+wireLoading('coordinator-form', 'c-btn', 'c-spin', 'c-txt', 'Accessing kiosk…');
 wireLoading('reg-form',   'r-btn', 'r-spin', 'r-txt', 'Creating account…');
 wireLoading('forgot-form', 'f-btn', 'f-spin', 'f-txt', 'Sending reset token…');
 
