@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{{ title }} — {{ app_name }}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;background:#060e1f;display:flex;flex-direction:column}
+/* Top bar */
+.topbar{background:#131921;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;flex-shrink:0}
+.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.topbar-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#4f9cf9,#1a5fb4);display:flex;align-items:center;justify-content:center}
+.topbar-icon i{color:#fff;font-size:1.1rem}
+.topbar-name{color:#fff;font-weight:700;font-size:1.15rem}.topbar-name span{color:#febd69}
+.topbar-tagline{color:#ccc;font-size:.76rem;margin-top:1px}
+/* Page */
+.page-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}
+.app-logo{text-align:center;margin-bottom:16px}
+.app-logo .logo-icon{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4f9cf9,#1a5fb4);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(79,156,249,.35);margin-bottom:6px}
+.app-logo .logo-icon i{color:#fff;font-size:1.5rem}
+.app-logo h1{font-size:1.25rem;font-weight:700;color:#fff;margin-bottom:2px}
+.app-logo p{font-size:.78rem;color:#94a3b8}
+/* Auth box */
+.auth-box{width:100%;max-width:360px;background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.06),0 16px 48px rgba(0,0,0,.2);overflow:hidden}
+/* Tabs */
+.tab-bar{display:flex;background:#f3f3f3;border-bottom:1px solid #d5d9d9}
+.tab-btn{flex:1;padding:12px 4px;font-size:.875rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:#555;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;position:relative}
+.tab-btn.active{background:#fff;color:#0f1117;box-shadow:inset 0 -2px 0 #f90}
+.tab-btn:not(.active):hover{background:#e9e9e9;color:#111}
+/* Panel */
+.tab-panel{display:none;padding:24px}
+.tab-panel.active{display:block}
+.panel-title{font-size:1.15rem;font-weight:700;color:#0f1117;margin-bottom:3px}
+.panel-sub{font-size:.78rem;color:#555;margin-bottom:18px}
+/* Error */
+.auth-error{background:#fff5f5;border:1px solid #fed7d7;border-left:4px solid #c53030;border-radius:4px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px;margin-bottom:16px;font-size:.82rem;color:#c53030}
+.auth-success{background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:4px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px;margin-bottom:16px;font-size:.82rem;color:#166534}
+/* Fields */
+.f-group{margin-bottom:14px}
+.f-label{display:block;font-size:.8rem;font-weight:600;color:#0f1117;margin-bottom:5px}
+.f-row{display:flex;align-items:center;background:#f8fafc;border:1.5px solid #d5d9d9;border-radius:3px;overflow:hidden;transition:border-color .18s,box-shadow .18s}
+.f-row:focus-within{border-color:#e77600;box-shadow:0 0 0 3px rgba(231,118,0,.2)}
+.f-row.err{border-color:#c53030}
+.f-icon{padding:0 11px;color:#888;font-size:.9rem;flex-shrink:0}
+.f-row input,.f-row select{flex:1;border:none;outline:none;background:transparent;padding:10px 4px;font-size:.875rem;color:#0f1117;font-family:inherit;min-width:0}
+.f-row input::placeholder{color:#bbb}
+.f-toggle{background:none;border:none;padding:0 11px;cursor:pointer;color:#888;font-size:.9rem;transition:color .15s}
+.f-toggle:hover{color:#e77600}
+.f-err{font-size:.74rem;color:#c53030;margin-top:4px;display:flex;align-items:center;gap:4px}
+/* Employee name lookup */
+.emp-name-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:3px;padding:9px 12px;margin-bottom:14px;display:none}
+.emp-name-label{font-size:.72rem;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.emp-name-value{font-size:.93rem;font-weight:700;color:#0f1117;margin-top:1px}
+/* Strength bar */
+.strength-bar{height:3px;background:#e0e0e0;border-radius:2px;margin-top:6px;overflow:hidden}
+.strength-fill{height:100%;width:0;border-radius:2px;transition:width .3s,background .3s}
+.strength-lbl{font-size:.7rem;margin-top:3px;color:#777}
+/* Options */
+.options-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.remember{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#0f1117;cursor:pointer;user-select:none}
+.remember input{width:15px;height:15px;accent-color:#e77600;cursor:pointer}
+.forgot{font-size:.8rem;color:#0066c0;text-decoration:none;font-weight:500}
+.forgot:hover{text-decoration:underline;color:#c45500}
+/* Button */
+.btn-submit{width:100%;padding:10px;background:linear-gradient(180deg,#f7dfa5,#f0c14b);border:1px solid #a88734;border-radius:3px;font-size:.9rem;font-weight:600;color:#111;font-family:inherit;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 1px 0 rgba(255,255,255,.4) inset}
+.btn-submit:hover:not(:disabled){background:linear-gradient(180deg,#f5d78e,#eeb933)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed}
+.btn-spin{width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:#111;border-radius:50%;animation:spin .65s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* OR divider */
+.or-div{display:flex;align-items:center;gap:10px;margin:14px 0;color:#767676;font-size:.76rem}
+.or-div::before,.or-div::after{content:'';flex:1;border-top:1px solid #ddd}
+/* New account */
+.new-acct-box{width:100%;max-width:360px;border:1px solid #d5d9d9;border-radius:8px;padding:14px 18px;background:#fff;text-align:center;font-size:.82rem;color:#0f1117;margin-top:14px}
+.btn-create{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;width:100%;padding:8px;background:linear-gradient(180deg,#f7f8fa,#e7e9ec);border:1px solid #adb1b8;border-radius:3px;font-size:.85rem;font-weight:600;color:#0f1117;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-create:hover{background:linear-gradient(180deg,#e7e9ec,#d9dce1)}
+/* Footer */
+.page-footer{background:#e7e7e7;border-top:1px solid #ddd;text-align:center;padding:12px;font-size:.74rem;color:#555;flex-shrink:0}
+.page-footer a{color:#0066c0;text-decoration:none;margin:0 8px}
+.page-footer a:hover{text-decoration:underline}
+/* First-user notice */
+.first-notice{background:#fffbf0;border:1px solid #f0c040;border-radius:4px;padding:9px 12px;display:flex;gap:8px;align-items:flex-start;font-size:.78rem;color:#7a5000;margin-bottom:14px;line-height:1.5}
+.first-notice i{color:#f90;font-size:.95rem;flex-shrink:0;margin-top:1px}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <a class="topbar-brand" href="/">
+    <div class="topbar-icon"><i class="bi bi-grid-3x3-gap-fill"></i></div>
+    <div>
+      <div class="topbar-name">Smart <span>HRMS</span></div>
+      <div class="topbar-tagline">Human Resource Management System</div>
+    </div>
+  </a>
+</header>
+
+<main class="page-body">
+  <!-- Logo -->
+  <div class="app-logo">
+    <div class="logo-icon"><i class="bi bi-building-fill-check"></i></div>
+    <h1>Smart HRMS</h1>
+    <p>Your complete workforce platform</p>
+  </div>
+
+  <!-- Auth box -->
+  <div class="auth-box">
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn {% if active_tab=='login' %}active{% endif %}"
+              id="tab-login" type="button" onclick="switchTab('login')">
+        <i class="bi bi-box-arrow-in-right"></i> Sign In
+      </button>
+      <button class="tab-btn {% if active_tab=='coordinator' %}active{% endif %}"
+              id="tab-coordinator" type="button" onclick="switchTab('coordinator')" 
+              style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700">
+        <i class="bi bi-shield-check"></i> <span style="font-size:1.1rem">⚡</span> Coordinator
+      </button>
+      <button class="tab-btn {% if active_tab=='register' %}active{% endif %}"
+              id="tab-register" type="button" onclick="switchTab('register')">
+        <i class="bi bi-person-plus-fill"></i> Register
+      </button>
+      <button class="tab-btn {% if active_tab=='forgot' %}active{% endif %}"
+              id="tab-forgot" type="button" onclick="switchTab('forgot')">
+        <i class="bi bi-key"></i> Forgot Password
+      </button>
+    </div>
+
+    <!-- ── COORDINATOR PORTAL ── -->
+    <div class="tab-panel {% if active_tab=='coordinator' %}active{% endif %}" id="panel-coordinator" style="background:linear-gradient(135deg,rgba(102,126,234,.05),rgba(118,75,162,.05))">
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px;border-radius:6px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:1.8rem">🛡️</div>
+        <div>
+          <div style="font-weight:700;font-size:1rem">Attendance Kiosk</div>
+          <div style="font-size:.8rem;opacity:.9">For marking employee attendance only</div>
+        </div>
+      </div>
+
+      <p class="panel-title">Coordinator Portal Login</p>
+      <p class="panel-sub">Access the kiosk to mark employee attendance</p>
+
+      {% if error and active_tab == 'coordinator' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="coordinator-form" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="coordinator">
+        <input type="hidden" name="next" value="{{ url_for('coordinator_portal') }}">
+
+        <div class="f-group">
+          <label class="f-label" for="c-user">Coordinator Username</label>
+          <div class="f-row" style="background:#e8e8e8;opacity:0.8">
+            <span class="f-icon"><i class="bi bi-person-fill"></i></span>
+            <input type="text" id="c-user" name="employee_code" value="CS creative solution" 
+                   readonly style="cursor:not-allowed;color:#666">
+          </div>
+          <p style="font-size:.7rem;color:#667eea;margin-top:4px">
+            <i class="bi bi-info-circle-fill"></i> Fixed coordinator username
+          </p>
+        </div>
+
+        <div class="f-group">
+          <label class="f-label" for="c-pw">Password</label>
+          <div class="f-row">
+            <span class="f-icon"><i class="bi bi-lock"></i></span>
+            <input type="password" id="c-pw" name="password" placeholder="Enter password" 
+                   autocomplete="current-password" required>
+            <button type="button" class="f-toggle" onclick="togglePw('c-pw',this)" tabindex="-1">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="c-btn" style="background:linear-gradient(180deg,#667eea,#764ba2);border-color:#5a6cd6;color:#fff">
+          <div class="btn-spin" id="c-spin"></div>
+          <span id="c-txt">Access Coordinator Portal</span>
+        </button>
+
+        <p style="font-size:.7rem;color:#dc3545;margin-top:10px;line-height:1.6;background:#fff5f5;padding:10px;border-radius:4px;border-left:3px solid #dc3545">
+          <i class="bi bi-shield-lock-fill"></i> <strong>Restricted Access</strong><br>
+          This portal is for authorized coordinators only. Unauthorized access is prohibited.
+        </p>
+      </form>
+    </div>
+
+    <!-- ── SIGN IN ── -->
+    <div class="tab-panel {% if active_tab=='login' %}active{% endif %}" id="panel-login">
+      <p class="panel-title">Sign in</p>
+      <p class="panel-sub">Use your Employee Code to access the system</p>
+
+      {% if error and active_tab == 'login' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="login-form" novalidate>
+        {{ login_form.hidden_tag() }}
+        <input type="hidden" name="action" value="login">
+        <input type="hidden" name="next" value="{{ request.args.get('next','') }}">
+
+        <div class="f-group">
+          <label class="f-label" for="l-code">Employee Code</label>
+          <div class="f-row {% if login_form.employee_code.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
+            {{ login_form.employee_code(id="l-code", autocomplete="username",
+                oninput="this.value=this.value.toUpperCase()") }}
+          </div>
+          {% for e in login_form.employee_code.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="f-group">
+          <label class="f-label" for="l-dept">Department <span style="color:#c53030">*</span></label>
+          <div class="f-row {% if login_form.department.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-building"></i></span>
+            {{ login_form.department(id="l-dept", style="flex:1;border:none;outline:none;background:transparent;padding:10px 4px;font-size:.875rem;color:#0f1117;font-family:inherit") }}
+          </div>
+          {% for e in login_form.department.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <div class="f-group">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <label class="f-label" style="margin-bottom:0" for="l-pw">Password</label>
+            <a href="javascript:void(0)" onclick="switchTab('forgot')" class="forgot">Forgot password?</a>
+          </div>
+          <div class="f-row {% if login_form.password.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-lock"></i></span>
+            {{ login_form.password(id="l-pw", autocomplete="current-password") }}
+            <button type="button" class="f-toggle" onclick="togglePw('l-pw',this)" tabindex="-1">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="options-row">
+          <label class="remember">
+            {{ login_form.remember_me(id="l-rem") }} Stay signed in
+          </label>
+        </div>
+
+        <button type="submit" class="btn-submit" id="l-btn">
+          <div class="btn-spin" id="l-spin"></div>
+          <span id="l-txt">Sign In</span>
+        </button>
+
+        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5">
+          By continuing, you agree to Smart HRMS
+          <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
+        </p>
+      </form>
+    </div>
+
+    <!-- ── REGISTER ── -->
+    <div class="tab-panel {% if active_tab=='register' %}active{% endif %}" id="panel-register">
+      <p class="panel-title">Create account</p>
+      <p class="panel-sub">Enter your Employee Code to set up your account</p>
+
+      <div class="first-notice">
+        <i class="bi bi-star-fill"></i>
+        <div>The <strong>first person to register</strong> becomes <strong>Super Admin</strong> automatically. All others register as Employee.</div>
+      </div>
+
+      {% if error and active_tab == 'register' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="reg-form" novalidate>
+        {{ register_form.hidden_tag() }}
+        <input type="hidden" name="action" value="register">
+
+        <!-- Employee Code -->
+        <div class="f-group">
+          <label class="f-label" for="r-code">Employee Code <span style="color:#c53030">*</span></label>
+          <div class="f-row {% if register_form.employee_code.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
+            {{ register_form.employee_code(id="r-code", autocomplete="off",
+                oninput="this.value=this.value.toUpperCase();onCodeInput(this.value)") }}
+            <span id="lookup-spin" style="padding:0 10px;display:none">
+              <div class="btn-spin" style="display:block;border-top-color:#888"></div>
+            </span>
+          </div>
+          {% for e in register_form.employee_code.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <!-- Employee name (auto-populated via AJAX) -->
+        <div class="emp-name-box" id="emp-name-box">
+          <div class="emp-name-label">Employee Name</div>
+          <div class="emp-name-value" id="emp-name-value"></div>
+        </div>
+        <div id="code-error-msg" class="auth-error" style="display:none">
+          <i class="bi bi-exclamation-circle-fill"></i>
+          <div id="code-error-text"></div>
+        </div>
+
+        <!-- Password -->
+        <div class="f-group">
+          <label class="f-label" for="r-pw">Password <span style="color:#c53030">*</span></label>
+          <div class="f-row {% if register_form.password.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-lock"></i></span>
+            {{ register_form.password(id="r-pw", autocomplete="new-password") }}
+            <button type="button" class="f-toggle" onclick="togglePw('r-pw',this)" tabindex="-1">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" id="sw-bar"></div></div>
+          <div class="strength-lbl" id="sw-lbl"></div>
+          {% for e in register_form.password.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <!-- Confirm password -->
+        <div class="f-group">
+          <label class="f-label" for="r-cpw">Re-enter Password <span style="color:#c53030">*</span></label>
+          <div class="f-row {% if register_form.confirm_password.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-lock-fill"></i></span>
+            {{ register_form.confirm_password(id="r-cpw", autocomplete="new-password") }}
+          </div>
+          {% for e in register_form.confirm_password.errors %}
+          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+        </div>
+
+        <button type="submit" class="btn-submit" id="r-btn">
+          <div class="btn-spin" id="r-spin"></div>
+          <span id="r-txt">Create Account</span>
+        </button>
+
+        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5">
+          By creating an account, you agree to Smart HRMS
+          <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
+        </p>
+      </form>
+    </div>
+
+    <!-- ── FORGOT PASSWORD ── -->
+    <div class="tab-panel {% if active_tab=='forgot' %}active{% endif %}" id="panel-forgot">
+      <p class="panel-title">Reset password</p>
+      <p class="panel-sub">Enter your Employee Code to reset your password</p>
+
+      {% if error and active_tab == 'forgot' %}
+      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      {% endif %}
+
+      <form method="POST" id="forgot-form" novalidate>
+        {{ forgot_form.hidden_tag() if forgot_form else '' }}
+        <input type="hidden" name="action" value="forgot">
+
+        <div class="f-group">
+          <label class="f-label" for="f-code">Employee Code</label>
+          <div class="f-row {% if forgot_form and forgot_form.employee_code.errors %}err{% endif %}">
+            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
+            <input type="text" id="f-code" name="employee_code" placeholder="e.g. E-2603028" 
+                   autocomplete="off" oninput="this.value=this.value.toUpperCase()" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="f-btn">
+          <div class="btn-spin" id="f-spin"></div>
+          <span id="f-txt">Reset Password</span>
+        </button>
+
+        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5;text-align:center">
+          You'll be taken to the password reset page.
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- New account prompt (under sign-in) -->
+  <div class="new-acct-box" id="new-acct-prompt" {% if active_tab=='register' %}style="display:none"{% endif %}>
+    <span>New to Smart HRMS?</span>
+    <button class="btn-create" type="button" onclick="switchTab('register')">
+      <i class="bi bi-person-plus"></i> Create your HRMS account
+    </button>
+  </div>
+</main>
+
+<footer class="page-footer">
+  <div>&copy; {{ current_year }} Smart HRMS</div>
+  <div style="margin-top:5px">
+    <a href="#">Conditions of Use</a>
+    <a href="#">Privacy Notice</a>
+    <a href="#">Help</a>
+  </div>
+</footer>
+
+<script>
+// ── Tab switching ────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  const prompt = document.getElementById('new-acct-prompt');
+  if (prompt) prompt.style.display = tab === 'register' ? 'none' : '';
+  setTimeout(() => {
+    const first = document.querySelector('#panel-' + tab + ' input:not([type="hidden"])');
+    if (first) first.focus();
+  }, 30);
+}
+
+// ── Password visibility ──────────────────────────────────────────────
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+}
+
+// ── Password strength ─────────────────────────────────────────────────
+(function() {
+  const inp = document.getElementById('r-pw');
+  const bar = document.getElementById('sw-bar');
+  const lbl = document.getElementById('sw-lbl');
+  if (!inp || !bar) return;
+  inp.addEventListener('input', function() {
+    const v = inp.value;
+    if (!v) { bar.style.width='0'; lbl.textContent=''; return; }
+    let s = 0;
+    if (v.length >= 8)  s++;
+    if (v.length >= 12) s++;
+    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
+    if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) s++;
+    const L = [
+      {w:'20%', c:'#c0392b', t:'Too weak'},
+      {w:'40%', c:'#e67e22', t:'Weak'},
+      {w:'65%', c:'#f1c40f', t:'Fair'},
+      {w:'82%', c:'#27ae60', t:'Good'},
+      {w:'100%',c:'#16a085', t:'Strong ✓'},
+    ];
+    const l = L[Math.max(0, s)];
+    bar.style.width = l.w;
+    bar.style.background = l.c;
+    lbl.textContent = l.t;
+    lbl.style.color = l.c;
+  });
+})();
+
+// ── Employee code lookup (AJAX) ───────────────────────────────────────
+let lookupTimer = null;
+function onCodeInput(value) {
+  const nameBox  = document.getElementById('emp-name-box');
+  const nameVal  = document.getElementById('emp-name-value');
+  const errBox   = document.getElementById('code-error-msg');
+  const errTxt   = document.getElementById('code-error-text');
+  const spin     = document.getElementById('lookup-spin');
+
+  nameBox.style.display = 'none';
+  errBox.style.display  = 'none';
+  clearTimeout(lookupTimer);
+
+  if (!value || value.length < 3) return;
+
+  lookupTimer = setTimeout(async () => {
+    spin.style.display = 'block';
+    try {
+      const res  = await fetch('/auth/lookup-employee?code=' + encodeURIComponent(value));
+      const data = await res.json();
+      if (data.found) {
+        nameVal.textContent = data.name;
+        nameBox.style.display = '';
+        errBox.style.display  = 'none';
+      } else {
+        errTxt.textContent    = data.message;
+        errBox.style.display  = '';
+        nameBox.style.display = 'none';
+      }
+    } catch(e) {
+      // silently ignore network errors during lookup
+    } finally {
+      spin.style.display = 'none';
+    }
+  }, 600);
+}
+
+// ── Form submit loading state ─────────────────────────────────────────
+function wireLoading(formId, btnId, spinId, txtId, loadTxt) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.addEventListener('submit', function() {
+    if (!form.checkValidity()) return;
+    const btn  = document.getElementById(btnId);
+    const spin = document.getElementById(spinId);
+    const txt  = document.getElementById(txtId);
+    if (btn)  btn.disabled = true;
+    if (spin) spin.style.display = 'block';
+    if (txt)  txt.textContent = loadTxt;
+  });
+}
+wireLoading('login-form', 'l-btn', 'l-spin', 'l-txt', 'Signing in…');
+wireLoading('coordinator-form', 'c-btn', 'c-spin', 'c-txt', 'Accessing kiosk…');
+wireLoading('reg-form',   'r-btn', 'r-spin', 'r-txt', 'Creating account…');
+wireLoading('forgot-form', 'f-btn', 'f-spin', 'f-txt', 'Sending reset token…');
+
+// ── Auto-focus ────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  const active = document.querySelector('.tab-panel.active input:not([type="hidden"])');
+  if (active) active.focus();
+});
+</script>
+</body>
+</html>

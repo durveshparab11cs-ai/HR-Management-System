@@ -1,0 +1,254 @@
+"""
+blueprints/authentication/routes.py
+=====================================
+Authentication routes — Employee Code-based login and registration.
+"""
+
+from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user
+
+from app.constants.limits import Limits
+from app.extensions.limiter import limiter
+from .forms import ForgotPasswordForm, LoginForm, RegisterForm, ResetPasswordForm
+from .service import AuthService
+from . import authentication_bp
+
+_svc = AuthService()
+
+
+# ── Login / Register ──────────────────────────────────────────────────
+
+@authentication_bp.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(_svc.get_dashboard_url(current_user))
+
+    login_form    = LoginForm()
+    register_form = RegisterForm()
+    forgot_form   = ForgotPasswordForm()
+    error         = None
+    active_tab    = request.args.get("tab", "login")
+    success_msg   = None
+
+    if request.method == "POST":
+        action = request.form.get("action", "login")
+
+        if action == "login":
+            if login_form.validate_on_submit():
+                success, message, user = _svc.attempt_login(
+                    employee_code=login_form.employee_code.data,
+                    password=login_form.password.data,
+                    department=login_form.department.data,
+                    remember=login_form.remember_me.data,
+                )
+                if success:
+                    next_url = request.args.get("next")
+                    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+                        return redirect(next_url)
+                    return redirect(_svc.get_dashboard_url(user))
+                error      = message
+                active_tab = "login"
+            else:
+                active_tab = "login"
+
+        elif action == "coordinator":
+            # Coordinator portal login (uses username/password instead of employee code)
+            COORDINATOR_USERNAME = "CS creative solution"
+            COORDINATOR_PASSWORD = "CSCS@hr2013"
+            
+            coordinator_user = request.form.get("employee_code", "").strip()
+            coordinator_pw = request.form.get("password", "").strip()
+            
+            if not coordinator_user or not coordinator_pw:
+                error = "Please enter coordinator username and password."
+                active_tab = "coordinator"
+            elif coordinator_user != COORDINATOR_USERNAME:
+                error = "Invalid coordinator username."
+                active_tab = "coordinator"
+            elif coordinator_pw != COORDINATOR_PASSWORD:
+                error = "Invalid coordinator password."
+                active_tab = "coordinator"
+            else:
+                # Valid credentials - log in directly
+                from app.models.user import User
+                from flask_login import login_user
+                
+                # Find coordinator user (super_admin)
+                coord_user = User.query.filter_by(role="super_admin").first()
+                if not coord_user:
+                    # Fallback
+                    from app.blueprints.employees.repository import EmployeeRepository
+                    _emp_repo = EmployeeRepository()
+                    employee = _emp_repo.get_by_code("E-2606026")
+                    if employee:
+                        coord_user = User.query.filter_by(id=employee.user_id).first()
+                
+                if coord_user:
+                    login_user(coord_user, remember=False)
+                    coord_user.record_successful_login(request.remote_addr)
+                    flash("Welcome to Coordinator Portal!", "success")
+                    return redirect(url_for("coordinator_portal"))
+                else:
+                    error = "Coordinator account not found. Please contact administrator."
+                    active_tab = "coordinator"
+
+        elif action == "register":
+            if register_form.validate_on_submit():
+                ok, msg, user = _svc.register_by_code(
+                    employee_code=register_form.employee_code.data,
+                    password=register_form.password.data,
+                )
+                if ok:
+                    flash(msg, "success")
+                    return redirect(url_for("authentication.login") + "?tab=login")
+                error      = msg
+                active_tab = "register"
+            else:
+                active_tab = "register"
+
+        elif action == "forgot":
+            if forgot_form.validate_on_submit():
+                ok, payload = _svc.initiate_password_reset(forgot_form.employee_code.data)
+                if ok:
+                    # Redirect directly to reset password page with token
+                    return redirect(url_for("authentication.reset_password", token=payload))
+                else:
+                    error = payload
+                    active_tab = "forgot"
+            else:
+                error = "Please enter a valid Employee Code."
+                active_tab = "forgot"
+
+    return render_template(
+        "authentication/login.html",
+        title="Sign In",
+        login_form=login_form,
+        register_form=register_form,
+        forgot_form=forgot_form,
+        error=error,
+        success_msg=success_msg,
+        active_tab=active_tab,
+    )
+
+
+# ── AJAX: look up employee name from master ────────────────────────────
+
+@authentication_bp.route("/lookup-employee")
+def lookup_employee():
+    """
+    AJAX endpoint called by the registration form to fetch employee name.
+    GET /auth/lookup-employee?code=E-2603028
+    Returns JSON {found, name, department, message}
+    
+    Always returns JSON, even on error (never HTML error pages).
+    """
+    try:
+        code = request.args.get("code", "").strip().upper()
+        if not code:
+            return jsonify(found=False, message="Enter an Employee Code.")
+
+        found, message, data = _svc.lookup_employee(code)
+        if found:
+            return jsonify(found=True, name=data["name"],
+                           department=data["department"], message=message)
+        return jsonify(found=False, message=message)
+    
+    except Exception as e:
+        # Always return JSON, never let exceptions bubble up to error handler
+        # which would return HTML
+        import traceback
+        traceback.print_exc()
+        return jsonify(found=False, message=f"Error: {str(e)}"), 200
+
+
+# ── Logout ────────────────────────────────────────────────────────────
+
+@authentication_bp.route("/logout")
+@login_required
+def logout():
+    _svc.logout_current_user()
+    flash("You have been signed out successfully.", "info")
+    return redirect(url_for("authentication.login"))
+
+
+# ── Refresh Session (Force role update) ────────────────────────────────
+
+@authentication_bp.route("/refresh-session")
+@login_required
+def refresh_session():
+    """
+    Force refresh the current user session from database.
+    This ensures role changes take effect immediately without logout.
+    """
+    from flask_login import fresh_login_required, request as flask_request
+    from flask import session
+    
+    # Refresh the user from database
+    from app.models.user import User  # noqa: PLC0415
+    user = User.query.get(current_user.id)
+    
+    if user:
+        # Clear the session and re-login with fresh user
+        from flask_login import login_user, logout_user
+        logout_user()
+        login_user(user, remember=False)
+        
+        # Redirect to appropriate dashboard based on new role
+        return redirect(_svc.get_dashboard_url(user))
+    
+    return redirect(url_for("authentication.login"))
+
+
+# ── Forgot Password ───────────────────────────────────────────────────
+
+@authentication_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard.index"))
+    
+    # Redirect to login page with forgot tab
+    return redirect(url_for("authentication.login", tab="forgot"))
+
+
+# ── Reset Password ────────────────────────────────────────────────────
+
+@authentication_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard.index"))
+
+    form  = ResetPasswordForm()
+    error = None
+
+    if request.method == "POST":
+        try:
+            password = request.form.get("password", "")
+            confirm_password = request.form.get("confirm_password", "")
+            
+            # Manual validation
+            if not password:
+                error = "Password is required."
+            elif not confirm_password:
+                error = "Please confirm your password."
+            elif password != confirm_password:
+                error = "Passwords do not match."
+            elif len(password) < 8:
+                error = "Password must be at least 8 characters."
+            else:
+                # Try to reset password
+                ok, msg = _svc.reset_password(token, password)
+                if ok:
+                    flash(msg, "success")
+                    return redirect(url_for("authentication.login"))
+                else:
+                    error = msg
+        except Exception as e:
+            error = f"An error occurred: {str(e)}"
+    
+    return render_template(
+        "authentication/reset_password.html",
+        title="Reset Password",
+        form=form,
+        token=token,
+        error=error,
+    )
