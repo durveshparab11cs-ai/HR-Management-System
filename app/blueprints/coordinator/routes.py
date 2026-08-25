@@ -54,6 +54,16 @@ def dashboard():
     return render_template("coordinator/portal.html")
 
 
+@coordinator_bp.route("/login", methods=["GET"])
+def coordinator_login():
+    """Coordinator login page"""
+    # If already logged in, redirect to portal
+    if current_user.is_authenticated and current_user.role == "super_admin":
+        return redirect(url_for("coordinator.dashboard"))
+    
+    return render_template("coordinator/login.html")
+
+
 # ============================================================================
 # API ENDPOINTS FOR 4-STEP WORKFLOW
 # ============================================================================
