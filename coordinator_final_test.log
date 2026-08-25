@@ -1,0 +1,31 @@
+======================================================================
+COORDINATOR API - COMPREHENSIVE TEST
+======================================================================
+
+[TEST 1] Portal HTML page should be accessible
+  PASS: Status 200, Content-Type: text/html; charset=utf-8
+  PASS: Portal returns HTML as expected
+
+[TEST 2] API should return JSON for valid employee code
+  FAIL: NOT valid JSON: Expecting value: line 1 column 1 (char 0)
+
+[TEST 3] API should return JSON error for invalid employee
+
+[TEST 4] API should NOT return HTML (no redirects)
+  FAIL: Response starts with HTML tag: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=
+
+======================================================================
+TEST SUMMARY
+======================================================================
+[PASS] test1_portal: Status 200, HTML returned
+[FAIL] test2_valid_employee: JSON decode error: Expecting value: line 1 column 1 (char 0)
+[FAIL] test3_invalid_employee: 
+[FAIL] test4_no_html_redirects: HTML response detected
+
+======================================================================
+TEST COMPLETE
+======================================================================

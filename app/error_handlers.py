@@ -39,6 +39,7 @@ def _is_api_request() -> bool:
     """Return True when the request expects a JSON response."""
     return (
         request.path.startswith("/api/")
+        or request.path.startswith("/coordinator/api/")
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or "application/json" in request.headers.get("Accept", "")
     )

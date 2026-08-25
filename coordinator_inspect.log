@@ -1,0 +1,6 @@
+Status: 200
+Content-Type: text/html; charset=utf-8
+
+=== FULL RESPONSE BODY ===
+
+Request failed: 'charmap' codec can't encode characters in position 8830-8831: character maps to <undefined>

@@ -1,0 +1,38 @@
+======================================================================
+COORDINATOR API - COMPREHENSIVE TEST V2
+======================================================================
+
+[CONNECTIVITY] Testing server connectivity...
+  PASS: Server is responding on port 8000
+
+[TEST 1] Portal page should be accessible (may redirect to login)
+  PASS: Status 200, Content-Type: text/html; charset=utf-8
+
+[TEST 2] API should return JSON for valid employee code
+  FAIL: NOT valid JSON: Expecting value: line 1 column 1 (char 0)
+
+[TEST 3] API should return JSON error for invalid employee
+  FAIL: NOT valid JSON in 200 response
+
+[TEST 4] API should NOT return HTML (no redirects)
+  FAIL: Response starts with HTML tag: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=
+
+======================================================================
+FINAL SUMMARY
+======================================================================
+[PASS] test1_portal
+    Status 200, HTML returned
+[FAIL] test2_api_valid_json
+    JSON decode error
+[FAIL] test3_api_invalid_json
+    Invalid JSON in success response
+[FAIL] test4_no_html_redirects
+    HTML response (redirect bug)
+
+======================================================================
+RESULTS: 1 PASSED, 3 FAILED
+======================================================================

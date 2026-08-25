@@ -1,0 +1,16 @@
+======================================================================
+COORDINATOR API - DEBUG TEST
+======================================================================
+
+[TEST] Simple API call to /coordinator/api/search-employee
+URL: http://localhost:8000/coordinator/api/search-employee
+Payload: E-2606026
+Timeout: 5 seconds
+Creating request...
+Opening URL with 5 second timeout...
+Got response after 3.99 seconds
+Status: 200
+Content-Type: text/html; charset=utf-8
+Reading body...
+Body length: 21874
+Parsing JSON...

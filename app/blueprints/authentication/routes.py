@@ -201,3 +201,17 @@ def reset_password(token: str):
         token=token,
         error=error,
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# COORDINATOR ATTENDANCE PORTAL
+# ═════════════════════════════════════════════════════════════════════════
+# NOTE: Coordinator API endpoints are NOW registered directly with the Flask
+# app (not through this blueprint) to bypass Flask-Login authentication.
+# See: app/blueprints/coordinator/routes.py
+# 
+# Routes available:
+#   - /coordinator/portal (GET) - serves the portal HTML
+#   - /coordinator/api/search-employee (POST) - searches employee
+#   - /coordinator/api/submit-attendance (POST) - submits attendance
+#   - /coordinator/api/get-gps (POST) - returns GPS coordinates

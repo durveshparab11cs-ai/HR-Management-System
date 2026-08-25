@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinator Attendance Portal — Smart HRMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .main-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #667eea;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .form-control, .form-select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .camera-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        #cameraFeed {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            background: #000;
+        }
+        
+        #photoCanvas {
+            display: none;
+        }
+        
+        #photoPreview {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #667eea;
+            margin-top: 15px;
+        }
+        
+        .employee-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .employee-info p {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .employee-info strong {
+            color: #667eea;
+        }
+        
+        .btn-main {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        .btn-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .step-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="header">
+        <h1><i class="bi bi-camera"></i> Attendance</h1>
+        <p>Check-in / Check-out</p>
+    </div>
+
+    <!-- STEP 1: Enter Employee Code -->
+    <div id="step1">
+        <div class="step-label">Step 1 of 3</div>
+        <div class="form-group">
+            <label class="form-label">Employee Code</label>
+            <input type="text" class="form-control" id="employeeCode" placeholder="E.g., 2606026" autofocus>
+            <small style="color: #999; font-size: 12px;">Code will be auto-formatted</small>
+        </div>
+        <button class="btn btn-main" onclick="searchEmployee()">
+            <i class="bi bi-search"></i> Search Employee
+        </button>
+        <div id="error1" class="alert alert-error hidden"></div>
+    </div>
+
+    <!-- STEP 2: Take Photo -->
+    <div id="step2" class="hidden">
+        <div class="step-label">Step 2 of 3</div>
+        
+        <div class="employee-info">
+            <p><strong>Name:</strong> <span id="empName">—</span></p>
+            <p><strong>Department:</strong> <span id="empDept">—</span></p>
+            <p><strong>Designation:</strong> <span id="empDesig">—</span></p>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Camera Feed</label>
+            <div class="camera-container">
+                <video id="cameraFeed" autoplay playsinline muted></video>
+                <canvas id="photoCanvas"></canvas>
+            </div>
+        </div>
+
+        <button class="btn btn-main btn-small" onclick="capturePhoto()">
+            <i class="bi bi-camera-fill"></i> Capture Photo
+        </button>
+
+        <div id="photoPreviewContainer" class="hidden">
+            <img id="photoPreview" alt="Photo preview">
+        </div>
+
+        <button class="btn btn-main" onclick="proceedToStep3()">
+            <i class="bi bi-arrow-right"></i> Next
+        </button>
+    </div>
+
+    <!-- STEP 3: Check-in or Check-out -->
+    <div id="step3" class="hidden">
+        <div class="step-label">Step 3 of 3</div>
+        
+        <div class="employee-info">
+            <p><strong>Employee:</strong> <span id="empNameStep3">—</span></p>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Action</label>
+            <select class="form-select" id="actionSelect">
+                <option value="checkin">Check-in</option>
+                <option value="checkout">Check-out</option>
+            </select>
+        </div>
+
+        <button class="btn btn-main" onclick="submitAttendance()">
+            <i class="bi bi-check-circle"></i> Submit Attendance
+        </button>
+
+        <div id="success3" class="alert alert-success hidden"></div>
+        <div id="error3" class="alert alert-error hidden"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let employee = null;
+    let photoData = null;
+    let stream = null;
+
+    function hideError(step) {
+        document.getElementById(`error${step}`).classList.add('hidden');
+    }
+
+    function showError(step, message) {
+        const elem = document.getElementById(`error${step}`);
+        elem.textContent = '✗ ' + message;
+        elem.classList.remove('hidden');
+    }
+
+    function showSuccess(step, message) {
+        const elem = document.getElementById(`success${step}`);
+        elem.textContent = '✓ ' + message;
+        elem.classList.remove('hidden');
+    }
+
+    async function searchEmployee() {
+        hideError(1);
+        const code = document.getElementById('employeeCode').value.trim();
+        
+        if (!code) {
+            showError(1, 'Please enter employee code');
+            return;
+        }
+
+        const formatted = code.startsWith('E-') ? code : `E-${code}`;
+
+        try {
+            const resp = await fetch('/coordinator/api/search-employee', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employee_code: formatted })
+            });
+
+            const data = await resp.json();
+
+            if (data.success) {
+                employee = data.employee;
+                document.getElementById('empName').textContent = employee.full_name;
+                document.getElementById('empDept').textContent = employee.department;
+                document.getElementById('empDesig').textContent = employee.designation;
+                document.getElementById('empNameStep3').textContent = employee.full_name;
+                
+                document.getElementById('step1').classList.add('hidden');
+                document.getElementById('step2').classList.remove('hidden');
+                
+                startCamera();
+            } else {
+                showError(1, data.error || 'Employee not found');
+            }
+        } catch (error) {
+            showError(1, 'Error: ' + error.message);
+        }
+    }
+
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            document.getElementById('cameraFeed').srcObject = stream;
+        } catch (error) {
+            showError(2, 'Cannot access camera: ' + error.message);
+        }
+    }
+
+    function capturePhoto() {
+        const video = document.getElementById('cameraFeed');
+        const canvas = document.getElementById('photoCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        photoData = canvas.toDataURL('image/jpeg');
+        
+        const preview = document.getElementById('photoPreview');
+        preview.src = photoData;
+        document.getElementById('photoPreviewContainer').classList.remove('hidden');
+    }
+
+    function proceedToStep3() {
+        if (!photoData) {
+            alert('Please capture a photo first');
+            return;
+        }
+        
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+        }
+        
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.remove('hidden');
+    }
+
+    async function submitAttendance() {
+        const action = document.getElementById('actionSelect').value;
+        
+        try {
+            const resp = await fetch('/coordinator/api/submit-attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: employee.id,
+                    action: action,
+                    photo_base64: photoData,
+                    latitude: 0,
+                    longitude: 0
+                })
+            });
+
+            const data = await resp.json();
+
+            if (data.success) {
+                showSuccess(3, `${action === 'checkin' ? 'Checked in' : 'Checked out'} at ${data.time}`);
+                setTimeout(reset, 2000);
+            } else {
+                showError(3, data.error || 'Failed to submit');
+            }
+        } catch (error) {
+            showError(3, 'Error: ' + error.message);
+        }
+    }
+
+    function reset() {
+        employee = null;
+        photoData = null;
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        
+        document.getElementById('employeeCode').value = '';
+        document.getElementById('step1').classList.remove('hidden');
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.add('hidden');
+        document.getElementById('photoPreviewContainer').classList.add('hidden');
+        document.getElementById('success3').classList.add('hidden');
+        document.getElementById('error1').classList.add('hidden');
+        document.getElementById('error3').classList.add('hidden');
+    }
+</script>
+</body>
+</html>

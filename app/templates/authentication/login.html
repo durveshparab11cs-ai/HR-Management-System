@@ -123,6 +123,10 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
               id="tab-register" type="button" onclick="switchTab('register')">
         <i class="bi bi-person-plus-fill"></i> Register
       </button>
+      <button class="tab-btn {% if active_tab=='coordinator' %}active{% endif %}"
+              id="tab-coordinator" type="button" onclick="window.location.href='/coordinator/login'" style="color:#16a34a;font-weight:700">
+        <i class="bi bi-clock-history"></i> Attendance
+      </button>
       <button class="tab-btn {% if active_tab=='forgot' %}active{% endif %}"
               id="tab-forgot" type="button" onclick="switchTab('forgot')">
         <i class="bi bi-key"></i> Forgot Password

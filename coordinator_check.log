@@ -1,0 +1,18 @@
+Status Code: 200
+Content-Type: text/html; charset=utf-8
+Body length: 21874
+First 200 chars: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="csrf-
+
+RESULT: API is returning HTML (not JSON)
+Response starts with: <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=
+Page title: Sign In — Smart HRMS

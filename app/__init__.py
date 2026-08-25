@@ -58,6 +58,16 @@ def create_app(env: str = "development") -> Flask:
     from app.logging_config import setup_logging  # noqa: PLC0415
     setup_logging(app)
 
+    # DEBUG: Log every request
+    @app.before_request
+    def log_request():
+        app.logger.info(f"[REQUEST] {request.method} {request.path}")
+    
+    @app.after_request
+    def log_response(response):
+        app.logger.info(f"[RESPONSE] {request.method} {request.path} -> {response.status_code} {response.content_type}")
+        return response
+
     # ── 3. Extensions ────────────────────────────────────────────────
     _init_extensions(app)
 
@@ -68,6 +78,10 @@ def create_app(env: str = "development") -> Flask:
     # ── 5. Blueprints ────────────────────────────────────────────────
     from app.blueprints import register_blueprints  # noqa: PLC0415
     register_blueprints(app)
+    
+    # ── 5b. Register coordinator API routes (bypass Flask-Login) ──────
+    from app.blueprints.coordinator.routes import register_coordinator_routes  # noqa: PLC0415
+    register_coordinator_routes(app)
 
     # ── 5a. Admin redirect hook ──────────────────────────────────────
     # REMOVED: Dangerous redirect logic that was causing 404s
@@ -624,12 +638,13 @@ def _register_request_handlers(app: Flask) -> None:
     """
     Register global request handlers for admin user redirects and permissions.
 
+    - Skip authentication for coordinator API endpoints
     - Redirect admin/super_admin users from /dashboard/* to /admin/
     - Enforce dashboard access control
     """
-    from flask import request, redirect, url_for  # noqa: PLC0415
-    from flask_login import current_user  # noqa: PLC0415
-
+    from flask import request, redirect, url_for, g, session  # noqa: PLC0415
+    from flask_login import current_user
+    
     @app.before_request
     def enforce_admin_access():
         """Redirect admin users from /dashboard/ to /admin/."""

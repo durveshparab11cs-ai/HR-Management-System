@@ -35,8 +35,15 @@ app = create_app(environment)
 if __name__ == "__main__":
     # Bind to all interfaces (0.0.0.0) so it's accessible from network
     # Listen on port 8000 as configured
-    app.run(
-        host="0.0.0.0",
-        port=8000,
-        debug=app.config.get("DEBUG", False),
+    # Use werkzeug's make_server directly to bypass the reloader issues
+    from werkzeug.serving import make_server
+    
+    server = make_server(
+        "0.0.0.0",
+        8000,
+        app,
+        threaded=True,
     )
+    
+    app.logger.info("Starting server on http://0.0.0.0:8000")
+    server.serve_forever()
