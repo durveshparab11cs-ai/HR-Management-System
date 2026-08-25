@@ -143,10 +143,19 @@ def register_coordinator_routes(app):
                 db.session.commit()
                 logger.info(f"[COORDINATOR-API] Check-in: {employee_id}")
                 
+                # Convert to IST for display
+                try:
+                    import pytz
+                    IST = pytz.timezone('Asia/Kolkata')
+                    ist_time = now.replace(tzinfo=pytz.utc).astimezone(IST)
+                    display_time = ist_time.strftime('%H:%M:%S')
+                except Exception:
+                    display_time = now.strftime('%H:%M:%S')
+                
                 return jsonify({
                     "success": True,
                     "message": "Check-in recorded",
-                    "time": now.strftime('%H:%M:%S')
+                    "time": display_time
                 }), 200
             
             elif action == "checkout":
@@ -169,10 +178,19 @@ def register_coordinator_routes(app):
                 db.session.commit()
                 logger.info(f"[COORDINATOR-API] Check-out: {employee_id}")
                 
+                # Convert to IST for display
+                try:
+                    import pytz
+                    IST = pytz.timezone('Asia/Kolkata')
+                    ist_time = now.replace(tzinfo=pytz.utc).astimezone(IST)
+                    display_time = ist_time.strftime('%H:%M:%S')
+                except Exception:
+                    display_time = now.strftime('%H:%M:%S')
+                
                 return jsonify({
                     "success": True,
                     "message": "Check-out recorded",
-                    "time": now.strftime('%H:%M:%S')
+                    "time": display_time
                 }), 200
             
         except Exception as e:
