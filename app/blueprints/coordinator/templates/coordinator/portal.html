@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinator Attendance Portal</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #ddd;
+            z-index: 0;
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .step-num {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .step.active .step-num {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .step.completed .step-num {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .step-label {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+        }
+        
+        .step.active .step-label {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .content {
+            display: none;
+        }
+        
+        .content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group button {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .employee-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item label {
+            font-size: 12px;
+            color: #999;
+            font-weight: 500;
+        }
+        
+        .info-item .value {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background: #000;
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            display: none;
+        }
+        
+        .photo-preview {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .message.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .loading {
+            text-align: center;
+            display: none;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Attendance Portal</h1>
+            <p>Coordinator Check-In/Check-Out System</p>
+        </div>
+        
+        <!-- Step Indicators -->
+        <div class="steps">
+            <div class="step active" data-step="1">
+                <div class="step-num">1</div>
+                <div class="step-label">Enter Code</div>
+            </div>
+            <div class="step" data-step="2">
+                <div class="step-num">2</div>
+                <div class="step-label">Employee Info</div>
+            </div>
+            <div class="step" data-step="3">
+                <div class="step-num">3</div>
+                <div class="step-label">Capture</div>
+            </div>
+            <div class="step" data-step="4">
+                <div class="step-num">4</div>
+                <div class="step-label">Confirm</div>
+            </div>
+        </div>
+        
+        <!-- STEP 1: Employee Code Input -->
+        <div class="content active" data-content="1">
+            <div class="message" id="msg-step1"></div>
+            <div class="form-group">
+                <label>📱 Employee Code</label>
+                <input type="text" id="empCode" placeholder="e.g., E-2606026" autofocus>
+            </div>
+            <button class="btn-primary" onclick="searchEmployee()">Next Step →</button>
+        </div>
+        
+        <!-- STEP 2: Employee Information -->
+        <div class="content" data-content="2">
+            <div class="message" id="msg-step2"></div>
+            <div class="loading" id="loading-step2">
+                <div class="spinner"></div>
+                <p>Searching...</p>
+            </div>
+            <div class="employee-info" id="empInfo" style="display:none;">
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Code</label>
+                        <div class="value" id="emp-code"></div>
+                    </div>
+                    <div class="info-item">
+                        <label>Name</label>
+                        <div class="value" id="emp-name"></div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Department</label>
+                        <div class="value" id="emp-dept"></div>
+                    </div>
+                    <div class="info-item">
+                        <label>Designation</label>
+                        <div class="value" id="emp-desig"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="goStep(1)">← Back</button>
+                <button class="btn-primary" onclick="goStep(3)">Next Step →</button>
+            </div>
+        </div>
+        
+        <!-- STEP 3: Camera Capture -->
+        <div class="content" data-content="3">
+            <div class="message" id="msg-step3"></div>
+            <div class="form-group">
+                <label>📷 Take Photo</label>
+                <video id="camera" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="goStep(2)">← Back</button>
+                <button class="btn-primary" onclick="capturePhoto()">Capture Photo →</button>
+            </div>
+        </div>
+        
+        <!-- STEP 4: Confirmation -->
+        <div class="content" data-content="4">
+            <div class="message" id="msg-step4"></div>
+            <div id="photoDisplay" style="display:none;">
+                <img id="photoImg" class="photo-preview" style="margin-bottom: 20px;">
+            </div>
+            <div class="loading" id="loading-step4">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+            </div>
+            <div class="button-group" id="actionButtons" style="display:none;">
+                <button class="btn-secondary" onclick="goStep(3)">← Back</button>
+                <button class="btn-success" onclick="submitAttendance('checkin')">✓ Check-In</button>
+                <button class="btn-danger" onclick="submitAttendance('checkout')">✗ Check-Out</button>
+            </div>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="resetPortal()">Start Over</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        let currentEmployee = null;
+        let capturedPhoto = null;
+        
+        function goStep(step) {
+            console.log(`Going to step ${step}`);
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active', 'completed');
+                const num = parseInt(s.dataset.step);
+                if (num === step) s.classList.add('active');
+                else if (num < step) s.classList.add('completed');
+            });
+            document.querySelector(`.content[data-content="${step}"]`).classList.add('active');
+            
+            if (step === 3) startCamera();
+        }
+        
+        function clearMessage(id) {
+            const msg = document.getElementById(id);
+            msg.classList.remove('success', 'error');
+            msg.textContent = '';
+        }
+        
+        function showMessage(id, text, type) {
+            const msg = document.getElementById(id);
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+        }
+        
+        function searchEmployee() {
+            const code = document.getElementById('empCode').value.trim().toUpperCase();
+            if (!code) {
+                showMessage('msg-step1', '❌ Please enter employee code', 'error');
+                return;
+            }
+            
+            clearMessage('msg-step1');
+            document.getElementById('loading-step2').classList.add('active');
+            
+            fetch(`${API_BASE}/coordinator/api/search-employee`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employee_code: code })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loading-step2').classList.remove('active');
+                if (data.success) {
+                    currentEmployee = data.employee;
+                    document.getElementById('emp-code').textContent = data.employee.employee_code;
+                    document.getElementById('emp-name').textContent = data.employee.full_name;
+                    document.getElementById('emp-dept').textContent = data.employee.department;
+                    document.getElementById('emp-desig').textContent = data.employee.designation;
+                    document.getElementById('empInfo').style.display = 'block';
+                    goStep(2);
+                } else {
+                    showMessage('msg-step2', `❌ ${data.error}`, 'error');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading-step2').classList.remove('active');
+                showMessage('msg-step2', `❌ Error: ${err.message}`, 'error');
+            });
+        }
+        
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                .then(stream => {
+                    document.getElementById('camera').srcObject = stream;
+                })
+                .catch(err => {
+                    showMessage('msg-step3', `❌ Camera error: ${err.message}`, 'error');
+                });
+        }
+        
+        function capturePhoto() {
+            const video = document.getElementById('camera');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 240;
+            ctx.drawImage(video, 0, 0);
+            
+            capturedPhoto = canvas.toDataURL('image/jpeg');
+            document.getElementById('photoImg').src = capturedPhoto;
+            document.getElementById('photoDisplay').style.display = 'block';
+            document.getElementById('actionButtons').style.display = 'flex';
+            
+            const stream = video.srcObject;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            
+            goStep(4);
+        }
+        
+        function submitAttendance(action) {
+            if (!currentEmployee || !capturedPhoto) {
+                showMessage('msg-step4', '❌ Missing data', 'error');
+                return;
+            }
+            
+            document.getElementById('loading-step4').classList.add('active');
+            document.getElementById('actionButtons').style.display = 'none';
+            clearMessage('msg-step4');
+            
+            fetch(`${API_BASE}/coordinator/api/submit-attendance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: currentEmployee.id,
+                    action: action,
+                    photo_base64: capturedPhoto,
+                    latitude: 18.520430,
+                    longitude: 73.856743
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loading-step4').classList.remove('active');
+                if (data.success) {
+                    showMessage('msg-step4', `✓ ${data.message}`, 'success');
+                    setTimeout(() => resetPortal(), 3000);
+                } else {
+                    showMessage('msg-step4', `❌ ${data.error}`, 'error');
+                    document.getElementById('actionButtons').style.display = 'flex';
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading-step4').classList.remove('active');
+                showMessage('msg-step4', `❌ Error: ${err.message}`, 'error');
+                document.getElementById('actionButtons').style.display = 'flex';
+            });
+        }
+        
+        function resetPortal() {
+            currentEmployee = null;
+            capturedPhoto = null;
+            document.getElementById('empCode').value = '';
+            document.getElementById('photoDisplay').style.display = 'none';
+            document.getElementById('empInfo').style.display = 'none';
+            document.getElementById('actionButtons').style.display = 'none';
+            clearMessage('msg-step1');
+            clearMessage('msg-step2');
+            clearMessage('msg-step3');
+            clearMessage('msg-step4');
+            goStep(1);
+            document.getElementById('empCode').focus();
+        }
+        
+        // Enter key to search
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('empCode').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchEmployee();
+            });
+        });
+    </script>
+</body>
+</html>

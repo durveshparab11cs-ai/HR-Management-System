@@ -51,28 +51,6 @@ def login():
             else:
                 active_tab = "login"
 
-        elif action == "coordinator":
-            # Coordinator portal login (uses username/password instead of employee code)
-            coordinator_user = request.form.get("employee_code")  # Username field repurposed
-            coordinator_pw = request.form.get("password")
-            
-            if not coordinator_user or not coordinator_pw:
-                error = "Please enter coordinator username and password."
-                active_tab = "coordinator"
-            else:
-                from app.models.user import User  # noqa: PLC0415
-                user = User.query.filter_by(username=coordinator_user).first()
-                
-                if user and user.check_password(coordinator_pw):
-                    from flask_login import login_user
-                    login_user(user, remember=False)
-                    user.record_successful_login(request.remote_addr)
-                    next_url = request.form.get("next") or url_for("coordinator.dashboard")
-                    return redirect(next_url)
-                else:
-                    error = "Invalid coordinator username or password."
-                    active_tab = "coordinator"
-
         elif action == "register":
             if register_form.validate_on_submit():
                 ok, msg, user = _svc.register_by_code(
@@ -120,26 +98,16 @@ def lookup_employee():
     AJAX endpoint called by the registration form to fetch employee name.
     GET /auth/lookup-employee?code=E-2603028
     Returns JSON {found, name, department, message}
-    
-    Always returns JSON, even on error (never HTML error pages).
     """
-    try:
-        code = request.args.get("code", "").strip().upper()
-        if not code:
-            return jsonify(found=False, message="Enter an Employee Code.")
+    code = request.args.get("code", "").strip().upper()
+    if not code:
+        return jsonify(found=False, message="Enter an Employee Code.")
 
-        found, message, data = _svc.lookup_employee(code)
-        if found:
-            return jsonify(found=True, name=data["name"],
-                           department=data["department"], message=message)
-        return jsonify(found=False, message=message)
-    
-    except Exception as e:
-        # Always return JSON, never let exceptions bubble up to error handler
-        # which would return HTML
-        import traceback
-        traceback.print_exc()
-        return jsonify(found=False, message=f"Error: {str(e)}"), 200
+    found, message, data = _svc.lookup_employee(code)
+    if found:
+        return jsonify(found=True, name=data["name"],
+                       department=data["department"], message=message)
+    return jsonify(found=False, message=message)
 
 
 # ── Logout ────────────────────────────────────────────────────────────

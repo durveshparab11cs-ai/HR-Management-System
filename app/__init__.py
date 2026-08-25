@@ -111,9 +111,8 @@ def create_app(env: str = "development") -> Flask:
     # Run table creation immediately but don't let it crash the app
     try:
         _auto_create_tables(app)
-        # Skip these for now - they cause errors during initial startup
-        # _ensure_comp_off_leavetype(app)
-        # _ensure_office_settings(app)
+        # CRITICAL: Ensure Comp Off leave type exists (must run after tables created)
+        _ensure_comp_off_leavetype(app)
     except Exception as exc:
         app.logger.error("Table creation failed (non-fatal): %s", exc)
 
@@ -191,37 +190,9 @@ def _init_extensions(app: Flask) -> None:
     server_session.init_app(app)
 
     # Import all models so Alembic discovers them for migrations
-    # CRITICAL: ALL models must be imported here so db.create_all() sees them!
-    from app.models import (  # noqa: F401, PLC0415
-        User,
-        OfficeSettings,
-        OfficeDevice,
-        Employee,
-        EmployeeMaster,
-        LoginHistory,
-        Attendance,
-        AttendanceLog,
-        AttendancePhoto,
-        GPSLog,
-        LeaveType,
-        LeaveRequest,
-        HalfDayRequest,
-        EarlyLeaveRequest,
-        Notification,
-        CompanyProfile,
-        Department,
-        Position,
-        Shift,
-        SalaryStructure,
-        SalaryComponent,
-        PayrollRun,
-        Payslip,
-        EmployeeShiftAssignment,
-        ShiftChangeRequest,
-        Hospital,
-        EmployeeHospitalAssignment,
-    )
+    from app.models import User  # noqa: F401, PLC0415
     from app.models.shift_change_log import ShiftChangeLog  # noqa: F401, PLC0415
+    # v2 — force redeploy 2026-07-22
 
     app.logger.debug("Extensions initialized.")
 
@@ -773,7 +744,7 @@ def _auto_create_tables(app: Flask) -> None:
                 insp = inspect(db.engine)
                 required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
                 emp_cols = insp.get_columns('employees')
-                existing_cols = [c.get('name') if isinstance(c, dict) else c.name for c in emp_cols]
+                existing_cols = [c.name for c in emp_cols]
                 
                 missing_cols = [col for col in required_cols if col not in existing_cols]
                 if missing_cols:
@@ -801,7 +772,7 @@ def _auto_create_tables(app: Flask) -> None:
                 # Also check attendance_photos for checkout_image_data
                 try:
                     photo_cols_list = insp.get_columns('attendance_photos')
-                    photo_cols = [c.get('name') if isinstance(c, dict) else c.name for c in photo_cols_list]
+                    photo_cols = [c.name for c in photo_cols_list]
                     if 'checkout_image_data' not in photo_cols:
                         app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
                         app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
@@ -835,19 +806,12 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
-            # STEP 4: Seed office settings (CRITICAL - needed for attendance to work)
-            try:
-                _auto_seed_office_settings(app)
-                app.logger.info("✓ Step 4: _auto_seed_office_settings()")
-            except Exception as exc:
-                app.logger.warning("⚠️  Step 4: _auto_seed_office_settings() failed: %s", exc)
-            
-            # STEP 4.1: Seed employees
+            # STEP 4: Seed employees
             try:
                 _auto_seed_employees(app)
-                app.logger.info("✓ Step 4.1: _auto_seed_employees()")
+                app.logger.info("✓ Step 4: _auto_seed_employees()")
             except Exception as exc:
-                app.logger.warning("⚠️  Step 4.1: _auto_seed_employees() failed: %s", exc)
+                app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
             
             # STEP 4.3: Seed hospitals
             try:
@@ -983,7 +947,6 @@ def _auto_seed_hospitals(app: Flask) -> None:
             {"name": "Despande Hospital", "lat": 0.0, "lng": 0.0},
             {"name": "Dr. M L Dhavale Hospital", "lat": 18.9220, "lng": 72.8347},
             {"name": "Dr R.N. Cooper Muncipial General Hospital", "lat": 19.0176, "lng": 72.8479},
-            {"name": "Head office", "lat": 19.014835, "lng": 72.845173},
             {"name": "Hyderabad Omega Hospital (Jabalpur)", "lat": 23.1815, "lng": 79.9864},
             {"name": "Jijamata Hospital", "lat": 19.0576, "lng": 72.8295},
             {"name": "Jupiter Hospital (THANE)", "lat": 19.2183, "lng": 72.9781},
@@ -1028,9 +991,7 @@ def _auto_seed_hospitals(app: Flask) -> None:
                 hospital_name=h_data["name"],
                 latitude=h_data["lat"],
                 longitude=h_data["lng"],
-                is_active=True,
-                # Set larger radius for Head office to account for GPS accuracy
-                allowed_radius_metres=150 if h_data["name"] == "Head office" else 100
+                is_active=True
             )
             _db.session.add(hospital)
         
@@ -1187,44 +1148,6 @@ def _auto_seed_holidays(app: Flask) -> None:
         app.logger.info(f"✓ Auto-seeded {count} new holidays = {total} total")
     except Exception as exc:
         app.logger.error("Auto-seed holidays failed: %s", exc)
-        try:
-            from app.extensions.database import db  # noqa: PLC0415
-            db.session.rollback()
-        except Exception:
-            pass
-
-
-def _auto_seed_office_settings(app: Flask) -> None:
-    """Seed default OfficeSettings if not already present."""
-    try:
-        from app.models.office_settings import OfficeSettings  # noqa: PLC0415
-        from app.extensions.database import db as _odb  # noqa: PLC0415
-        import datetime  # noqa: PLC0415
-        
-        # Check if any office settings exist
-        if OfficeSettings.query.count() > 0:
-            app.logger.info("OfficeSettings already seeded — skipping.")
-            return
-        
-        # Create default office - using coordinates that match user's typical location
-        # Coordinates: 19.014669, 72.845424 (matches user's current location from the screenshot)
-        office = OfficeSettings(
-            name="Head Office",
-            is_default=True,
-            latitude=19.014669,
-            longitude=72.845424,
-            radius_metres=200,  # Increased to 200m for realistic GPS variance
-            office_start_time=datetime.time(9, 0),
-            office_end_time=datetime.time(18, 0),
-            grace_period_minutes=10,
-            half_day_threshold_minutes=300,  # < 5h = half day
-        )
-        _odb.session.add(office)
-        _odb.session.commit()
-        app.logger.info("✓ Auto-seeded default OfficeSettings: %s (lat=%s, lon=%s, radius=%sm)", 
-                       office.name, office.latitude, office.longitude, office.radius_metres)
-    except Exception as exc:
-        app.logger.error("Auto-seed OfficeSettings failed: %s", exc)
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()
@@ -1772,72 +1695,6 @@ def _ensure_comp_off_leavetype(app: Flask) -> None:
     
     except Exception as e:
         app.logger.error(f"❌ _ensure_comp_off_leavetype exception: {e}")
-        try:
-            from app.extensions.database import db  # noqa: PLC0415
-            db.session.rollback()
-        except Exception:
-            pass
-
-
-def _ensure_office_settings(app: Flask) -> None:
-    """
-    CRITICAL: Ensure default OfficeSettings record exists in production database.
-    
-    This is required for attendance operations to work. If missing, Render 500 errors
-    occur when checking office location/timezone.
-    """
-    try:
-        with app.app_context():
-            from app.extensions.database import db  # noqa: PLC0415
-            from app.models.office_settings import OfficeSettings  # noqa: PLC0415
-            import datetime  # noqa: PLC0415
-            
-            # Check if any office settings exist
-            try:
-                default_office = OfficeSettings.query.filter_by(is_default=True).first()
-                if default_office:
-                    app.logger.info(f"✓ Default OfficeSettings found: {default_office.name}")
-                    return
-                
-                # Try to get any office settings
-                any_office = OfficeSettings.query.first()
-                if any_office:
-                    app.logger.info(f"✓ OfficeSettings exists: {any_office.name}")
-                    if not any_office.is_default:
-                        any_office.is_default = True
-                        db.session.add(any_office)
-                        db.session.commit()
-                        app.logger.info(f"✓ Marked {any_office.name} as default")
-                    return
-            except Exception as query_err:
-                app.logger.warning(f"⚠️  Query for OfficeSettings failed: {query_err}")
-            
-            # No office settings exist - create default
-            app.logger.info("ℹ️  Creating default OfficeSettings...")
-            try:
-                office = OfficeSettings(
-                    name="Head Office",
-                    is_default=True,
-                    latitude=18.520430,
-                    longitude=73.856743,
-                    radius_metres=100,
-                    office_start_time=datetime.time(9, 0),
-                    office_end_time=datetime.time(18, 0),
-                    grace_period_minutes=10,
-                    half_day_threshold_minutes=300,  # < 5h = half day
-                )
-                db.session.add(office)
-                db.session.commit()
-                app.logger.info(f"✅ Created default OfficeSettings: {office.name}")
-            except Exception as create_err:
-                app.logger.error(f"❌ Failed to create OfficeSettings: {create_err}")
-                try:
-                    db.session.rollback()
-                except Exception:
-                    pass
-    
-    except Exception as e:
-        app.logger.error(f"❌ _ensure_office_settings exception: {e}")
         try:
             from app.extensions.database import db  # noqa: PLC0415
             db.session.rollback()

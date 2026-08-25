@@ -77,8 +77,7 @@ class GPSService:
             # Extract coordinates - simple getattr
             ref_lat = getattr(office, 'latitude', None)
             ref_lon = getattr(office, 'longitude', None)
-            # Try both allowed_radius_metres (Hospital model) and radius_metres (fallback)
-            ref_radius = getattr(office, 'allowed_radius_metres', None) or getattr(office, 'radius_metres', None)
+            ref_radius = getattr(office, 'radius_metres', None)
             
             if not (ref_lat and ref_lon and ref_radius):
                 logger.error("GPS_INCOMPLETE_OFFICE | lat=%s | lon=%s | radius=%s", ref_lat, ref_lon, ref_radius)
@@ -115,8 +114,7 @@ class GPSService:
             
             # Step 5: Check if within radius
             if not result.within_radius:
-                # Try both hospital_name (Hospital model) and name (fallback)
-                office_name = getattr(office, 'hospital_name', None) or getattr(office, 'name', 'Office')
+                office_name = getattr(office, 'name', 'Office')
                 reason = f"You are {result.distance_metres:.0f}m from {office_name}. Allowed radius: {ref_radius}m."
                 logger.warning("GPS_REJECTED | %s", reason)
                 return GPSVerificationResult(
