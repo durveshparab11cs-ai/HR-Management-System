@@ -59,13 +59,15 @@ def create_app(env: str = "development") -> Flask:
     setup_logging(app)
 
     # DEBUG: Log every request
+    from flask import request as _request
+    
     @app.before_request
     def log_request():
-        app.logger.info(f"[REQUEST] {request.method} {request.path}")
+        app.logger.info(f"[REQUEST] {_request.method} {_request.path}")
     
     @app.after_request
     def log_response(response):
-        app.logger.info(f"[RESPONSE] {request.method} {request.path} -> {response.status_code} {response.content_type}")
+        app.logger.info(f"[RESPONSE] {_request.method} {_request.path} -> {response.status_code} {response.content_type}")
         return response
 
     # ── 3. Extensions ────────────────────────────────────────────────

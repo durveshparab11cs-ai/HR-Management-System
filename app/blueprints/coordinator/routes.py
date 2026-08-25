@@ -54,31 +54,41 @@ def register_coordinator_routes(app):
                 employee_code = f"E-{employee_code}"
             
             if not employee_code or employee_code == "E-":
-                return jsonify({"success": False, "error": "Employee code required"}), 400
+                resp = jsonify({"success": False, "error": "Employee code required"})
+                resp.headers['Content-Type'] = 'application/json'
+                return resp, 400
             
             logger.info(f"[COORDINATOR-API] Searching: {employee_code}")
-            employee = Employee.query.filter_by(employee_code=employee_code).first()
+            from sqlalchemy.orm import joinedload
+            employee = Employee.query.options(joinedload(Employee.user)).filter_by(employee_code=employee_code).first()
             
             if not employee:
                 logger.warning(f"[COORDINATOR-API] Not found: {employee_code}")
-                return jsonify({"success": False, "error": "Employee not found"}), 404
+                resp = jsonify({"success": False, "error": "Employee not found"})
+                resp.headers['Content-Type'] = 'application/json'
+                return resp, 404
             
             logger.info(f"[COORDINATOR-API] Found: {employee.full_name}")
-            return jsonify({
+            response_data = {
                 "success": True,
                 "employee": {
                     "id": employee.id,
                     "employee_code": employee.employee_code,
-                    "full_name": employee.full_name,
+                    "full_name": employee.full_name or "N/A",
                     "department": employee.department or "N/A",
                     "designation": employee.designation or "N/A",
                     "email": employee.email or "N/A"
                 }
-            }), 200
+            }
+            resp = jsonify(response_data)
+            resp.headers['Content-Type'] = 'application/json'
+            return resp, 200
             
         except Exception as e:
             logger.error(f"[COORDINATOR-API] Error: {e}")
-            return jsonify({"success": False, "error": "Server error"}), 500
+            resp = jsonify({"success": False, "error": "Server error"})
+            resp.headers['Content-Type'] = 'application/json'
+            return resp, 500
     
     app.logger.info("✓ Registered /coordinator/api/search-employee")
     
