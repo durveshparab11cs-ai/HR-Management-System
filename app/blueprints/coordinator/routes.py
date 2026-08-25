@@ -6,11 +6,10 @@ Step 3: Camera Capture
 Step 4: Check-in/Check-out
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, abort, make_response
 from flask_login import login_required, current_user
 import logging
-import random
 
 from app.extensions.database import db
 from app.models.employee import Employee
@@ -18,7 +17,6 @@ from app.models.attendance import Attendance
 from app.blueprints.attendance.gps_service import GPSService
 from app.blueprints.attendance.photo_service import PhotoService
 from app.blueprints.attendance.distance_calculator import haversine_metres
-from app.utils.datetime_utils import get_naive_ist
 
 logger = logging.getLogger("coordinator")
 
@@ -33,35 +31,14 @@ _gps_svc = GPSService()
 _photo_svc = PhotoService()
 
 
-def _check_coordinator_authorization():
-    """Verify coordinator access"""
-    if not current_user.is_authenticated:
-        abort(401)
-    if current_user.role != "super_admin":
-        abort(403)
-    return current_user
-
-
 # ============================================================================
-# MAIN COORDINATOR PORTAL - 4 STEP WORKFLOW
+# MAIN COORDINATOR PORTAL - SIMPLE WORKFLOW
 # ============================================================================
 
 @coordinator_bp.route("/", methods=["GET"])
-@login_required
 def dashboard():
-    """Main coordinator portal dashboard"""
-    _check_coordinator_authorization()
+    """Main coordinator attendance portal - NO LOGIN REQUIRED"""
     return render_template("coordinator/portal.html")
-
-
-@coordinator_bp.route("/login", methods=["GET"])
-def coordinator_login():
-    """Coordinator login page"""
-    # If already logged in, redirect to portal
-    if current_user.is_authenticated and current_user.role == "super_admin":
-        return redirect(url_for("coordinator.dashboard"))
-    
-    return render_template("coordinator/login.html")
 
 
 # ============================================================================
@@ -69,15 +46,12 @@ def coordinator_login():
 # ============================================================================
 
 @coordinator_bp.route("/api/search-employee", methods=["POST"])
-@login_required
 def search_employee():
     """
-    STEP 1 → STEP 2: Search employee by code
+    STEP 1: Search employee by code
     Input: employee_code
     Output: Employee information or error
     """
-    _check_coordinator_authorization()
-    
     try:
         data = request.get_json()
         employee_code = data.get("employee_code", "").strip().upper()
@@ -110,15 +84,12 @@ def search_employee():
 
 
 @coordinator_bp.route("/api/submit-attendance", methods=["POST"])
-@login_required
 def submit_attendance():
     """
-    STEP 4: Submit attendance (check-in or check-out)
+    STEP 2: Submit attendance (check-in or check-out)
     Input: employee_id, action (checkin/checkout), photo_base64, latitude, longitude
     Output: Success/error message
     """
-    _check_coordinator_authorization()
-    
     try:
         data = request.get_json()
         employee_id = data.get("employee_id")
@@ -135,8 +106,8 @@ def submit_attendance():
         if not employee:
             return jsonify({"success": False, "error": "Employee not found"}), 404
         
-        # Get current time in IST
-        now = get_naive_ist()
+        # Get current time
+        now = datetime.utcnow()
         today = now.date()
         
         # Check if already checked in today
@@ -149,7 +120,7 @@ def submit_attendance():
             if existing_checkin and existing_checkin.checkin_time:
                 return jsonify({
                     "success": False,
-                    "error": f"Already checked in at {existing_checkin.checkin_time.strftime('%H:%M:%S IST')}"
+                    "error": f"Already checked in at {existing_checkin.checkin_time.strftime('%H:%M:%S')}"
                 }), 400
             
             # Create new attendance record
@@ -173,8 +144,8 @@ def submit_attendance():
             db.session.commit()
             return jsonify({
                 "success": True,
-                "message": f"✓ Check-in recorded at {now.strftime('%H:%M:%S IST')}",
-                "time": now.strftime('%H:%M:%S IST')
+                "message": f"✓ Check-in recorded at {now.strftime('%H:%M:%S')}",
+                "time": now.strftime('%H:%M:%S')
             }), 200
         
         elif action == "checkout":
@@ -187,7 +158,7 @@ def submit_attendance():
             if existing_checkin.checkout_time:
                 return jsonify({
                     "success": False,
-                    "error": f"Already checked out at {existing_checkin.checkout_time.strftime('%H:%M:%S IST')}"
+                    "error": f"Already checked out at {existing_checkin.checkout_time.strftime('%H:%M:%S')}"
                 }), 400
             
             # Record checkout
@@ -200,8 +171,8 @@ def submit_attendance():
             db.session.commit()
             return jsonify({
                 "success": True,
-                "message": f"✓ Check-out recorded at {now.strftime('%H:%M:%S IST')}",
-                "time": now.strftime('%H:%M:%S IST')
+                "message": f"✓ Check-out recorded at {now.strftime('%H:%M:%S')}",
+                "time": now.strftime('%H:%M:%S')
             }), 200
         
     except Exception as e:
@@ -211,10 +182,8 @@ def submit_attendance():
 
 
 @coordinator_bp.route("/api/get-gps", methods=["POST"])
-@login_required
 def get_gps():
     """Get coordinator's current GPS location"""
-    _check_coordinator_authorization()
     try:
         # Default location - can be customized
         return jsonify({
