@@ -145,4 +145,7 @@ class EmployeeRepository:
         return user
 
     def count_total(self) -> int:
-        return Employee.query.filter_by(is_deleted=False).count()
+        # Count ONLY EmployeeMaster table with is_active=True
+        # Total employees = 467 (from imported/active EmployeeMaster records)
+        from app.models.employee_master import EmployeeMaster
+        return EmployeeMaster.query.filter_by(is_active=True).count()
