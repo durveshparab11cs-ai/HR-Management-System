@@ -20,8 +20,10 @@ from app.models.employee import Employee  # noqa: F401
 from app.models.employee_master import EmployeeMaster  # noqa: F401
 from app.models.login_history import LoginHistory  # noqa: F401
 from app.models.attendance import Attendance  # noqa: F401
+from app.models.attendance_master import AttendanceMaster  # noqa: F401
 from app.models.attendance_log import AttendanceLog  # noqa: F401
 from app.models.attendance_photo import AttendancePhoto  # noqa: F401
+from app.models.attendance_master_photo import AttendanceMasterPhoto  # noqa: F401
 from app.models.gps_log import GPSLog  # noqa: F401
 from app.models.leave import LeaveType, LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
@@ -35,7 +37,7 @@ from app.models.coordinator_otp import CoordinatorOTP  # noqa: F401
 
 __all__ = [
     "User", "OfficeSettings", "OfficeDevice", "Employee", "EmployeeMaster", "LoginHistory",
-    "Attendance", "AttendanceLog", "AttendancePhoto", "GPSLog",
+    "Attendance", "AttendanceMaster", "AttendanceLog", "AttendancePhoto", "AttendanceMasterPhoto", "GPSLog",
     "LeaveType", "LeaveRequest", "HalfDayRequest", "EarlyLeaveRequest",
     "Notification",
     "CompanyProfile", "Department", "Position", "Shift",

@@ -471,13 +471,42 @@ async function submitAttendance(type) {
     const data = await res.json();
     if (data.success) {
       alert('✓ ' + data.message);
-      setTimeout(() => window.location.href = '/auth/login?tab=coordinator', 1000);
+      // Reset form for next employee
+      setTimeout(() => {
+        resetKiosk();
+      }, 1000);
     } else {
       showError(4, data.message || 'Failed');
     }
   } catch (e) {
     showError(4, `Error: ${e.message}`);
   }
+}
+
+function resetKiosk() {
+  // Clear all data
+  employeeData = null;
+  photoBase64 = null;
+  currentStep = 1;
+  
+  // Clear input fields
+  document.getElementById('employee-code').value = '';
+  document.getElementById('photo-preview').src = '';
+  document.getElementById('captured-photo').style.display = 'none';
+  document.getElementById('camera-preview').style.display = 'block';
+  document.getElementById('camera-buttons').style.display = 'flex';
+  document.getElementById('retake-buttons').style.display = 'none';
+  
+  // Clear errors
+  for (let i = 1; i <= 4; i++) {
+    const err = document.getElementById(`error-${i}`);
+    if (err) err.style.display = 'none';
+  }
+  
+  // Reset to Step 1
+  showPanel(1);
+  updateStepIndicator();
+  document.getElementById('employee-code').focus();
 }
 
 window.addEventListener('load', () => document.getElementById('employee-code').focus());
@@ -491,12 +520,7 @@ window.addEventListener('load', () => document.getElementById('employee-code').f
 def kiosk_employee():
     """
     Lookup employee by code from the kiosk.
-    
-    Query params:
-        code: Employee code (e.g., E-2603025)
-    
-    Returns:
-        {success: bool, employee: {...}, message: string}
+    Searches in both Employee and EmployeeMaster tables.
     """
     code = request.args.get("code", "").strip().upper()
     
@@ -505,14 +529,34 @@ def kiosk_employee():
     
     try:
         from app.blueprints.employees.repository import EmployeeRepository
-        emp_repo = EmployeeRepository()
-        employee = emp_repo.get_by_code(code)
+        from app.models.employee_master import EmployeeMaster
         
+        emp_repo = EmployeeRepository()
+        
+        # Try Employee table first
+        employee = emp_repo.get_by_employee_code(code)
+        
+        # If not found, try EmployeeMaster table
         if not employee:
-            return jsonify({
-                "success": False,
-                "message": f"Employee {code} not found"
-            }), 404
+            employee_master = EmployeeMaster.query.filter_by(employee_code=code, is_active=True).first()
+            if employee_master:
+                # Convert EmployeeMaster to Employee-like object for response
+                return jsonify({
+                    "success": True,
+                    "employee": {
+                        "id": employee_master.id,
+                        "code": employee_master.employee_code,
+                        "name": employee_master.employee_name,
+                        "department": employee_master.department or "N/A",
+                        "designation": employee_master.designation or "N/A",
+                    },
+                    "message": f"Found: {employee_master.employee_name}"
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "message": f"Employee {code} not found"
+                }), 404
         
         return jsonify({
             "success": True,
@@ -522,12 +566,14 @@ def kiosk_employee():
                 "name": employee.full_name,
                 "department": employee.department or "N/A",
                 "designation": employee.designation or "N/A",
-                "photo_url": f"/api/v1/employee/{employee.id}/photo" if employee.profile_photo else None,
             },
             "message": f"Found: {employee.full_name}"
         })
     
     except Exception as e:
+        import traceback
+        import sys
+        traceback.print_exc(file=sys.stderr)
         return jsonify({
             "success": False,
             "message": f"Lookup failed: {str(e)}"
@@ -552,7 +598,7 @@ def kiosk_attendance():
     Returns:
         {success: bool, message: string, attendance_id: int}
     """
-    from datetime import date
+    from datetime import date, datetime
     
     data = request.get_json() or {}
     
@@ -563,8 +609,8 @@ def kiosk_attendance():
     accuracy = data.get("accuracy")
     photo_b64 = data.get("photo_base64")
     
-    # Validation
-    if not all([code, check_type, latitude, longitude, accuracy, photo_b64]):
+    # Validation - check for None/empty, NOT falsy (0 is valid for coords)
+    if not code or not check_type or latitude is None or longitude is None or accuracy is None or not photo_b64:
         return jsonify({
             "success": False,
             "message": "Missing required fields"
@@ -574,67 +620,189 @@ def kiosk_attendance():
         from app.blueprints.employees.repository import EmployeeRepository
         from app.blueprints.attendance.repository import AttendanceRepository
         from app.models.attendance_photo import AttendancePhoto
+        from app.models.attendance_master_photo import AttendanceMasterPhoto
+        from app.models.employee_master import EmployeeMaster
         from app.extensions.database import db
         
         emp_repo = EmployeeRepository()
         att_repo = AttendanceRepository()
         
-        # Find employee
-        employee = emp_repo.get_by_code(code)
+        # Find employee - try Employee table first
+        employee = emp_repo.get_by_employee_code(code)
+        employee_name = None
+        
+        # If not found in Employee, try EmployeeMaster
         if not employee:
-            return jsonify({
-                "success": False,
-                "message": f"Employee {code} not found"
-            }), 404
+            employee_master = EmployeeMaster.query.filter_by(employee_code=code, is_active=True).first()
+            if not employee_master:
+                return jsonify({
+                    "success": False,
+                    "message": f"Employee {code} not found"
+                }), 404
+            # Store employee master name for response
+            employee_name = employee_master.employee_name
+            # For EmployeeMaster, we'll use master id as employee_id placeholder
+            employee_id = None  # Will handle specially
+            use_master = True
+        else:
+            employee_id = employee.id
+            employee_name = employee.full_name
+            use_master = False
         
         today = date.today()
         
-        # Get or create attendance record
-        attendance = att_repo.get_today(employee.id, today)
-        if not attendance:
-            from app.models.attendance import Attendance
-            attendance = Attendance(
-                employee_id=employee.id,
-                date=today,
-                status="present"
-            )
-            db.session.add(attendance)
-            db.session.flush()
-        
-        # Store check-in/out time
-        from datetime import datetime
-        now = datetime.now()
-        
-        if check_type == "checkin":
-            attendance.check_in_time = now
+        if use_master:
+            # For EmployeeMaster employees, store in AttendanceMaster table
+            from app.models.attendance_master import AttendanceMaster
+            
+            # Get or create attendance record for this employee_master and date
+            attendance_master = AttendanceMaster.query.filter_by(
+                employee_master_id=employee_master.id,
+                date=today
+            ).first()
+            
+            if not attendance_master:
+                attendance_master = AttendanceMaster(
+                    employee_master_id=employee_master.id,
+                    employee_code=code,
+                    date=today,
+                    status="present"
+                )
+                db.session.add(attendance_master)
+                db.session.flush()
+            
+            # Check if already checked in/out
+            if check_type == "checkin":
+                if attendance_master.check_in_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You have already checked in today. Cannot check in twice."
+                    }), 400
+            else:  # checkout
+                if attendance_master.check_out_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You have already checked out today. Cannot check out twice."
+                    }), 400
+                if not attendance_master.check_in_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You must check in before you can check out."
+                    }), 400
+            
+            # Store check-in/out time
+            now = datetime.now()
+            
+            if check_type == "checkin":
+                attendance_master.check_in_time = now
+                attendance_master.check_in_latitude = latitude
+                attendance_master.check_in_longitude = longitude
+                attendance_master.check_in_accuracy = accuracy
+            else:
+                attendance_master.check_out_time = now
+                attendance_master.check_out_latitude = latitude
+                attendance_master.check_out_longitude = longitude
+                attendance_master.check_out_accuracy = accuracy
+            
+            # Store photo in AttendanceMasterPhoto (I-prefix photo table)
+            photo = AttendanceMasterPhoto.query.filter_by(attendance_master_id=attendance_master.id).first()
+            if not photo:
+                photo = AttendanceMasterPhoto(
+                    attendance_master_id=attendance_master.id,
+                    employee_master_id=employee_master.id
+                )
+                db.session.add(photo)
+            
+            if check_type == "checkin":
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
+            
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": f"{check_type.title()} recorded for {employee_name}",
+                "attendance_id": attendance_master.id,
+                "employee": {
+                    "code": code,
+                    "name": employee_name
+                }
+            })
         else:
-            attendance.check_out_time = now
-        
-        # Store photo
-        photo = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
-        if not photo:
-            photo = AttendancePhoto(attendance_id=attendance.id)
-            db.session.add(photo)
-        
-        if check_type == "checkin":
-            photo.image_data = photo_b64
-        else:
-            photo.checkout_image_data = photo_b64
-        
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": f"{check_type.title()} recorded for {employee.full_name}",
-            "attendance_id": attendance.id,
-            "employee": {
-                "code": employee.employee_code,
-                "name": employee.full_name
-            }
-        })
+            # Regular employee with full record
+            attendance = att_repo.get_today(employee_id, today)
+            if not attendance:
+                from app.models.attendance import Attendance
+                attendance = Attendance(
+                    employee_id=employee_id,
+                    date=today,
+                    status="present"
+                )
+                db.session.add(attendance)
+                db.session.flush()
+            
+            # Check if already checked in/out
+            if check_type == "checkin":
+                if attendance.check_in_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You have already checked in today. Cannot check in twice."
+                    }), 400
+            else:  # checkout
+                if attendance.check_out_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You have already checked out today. Cannot check out twice."
+                    }), 400
+                if not attendance.check_in_time:
+                    return jsonify({
+                        "success": False,
+                        "message": "You must check in before you can check out."
+                    }), 400
+            
+            # Store check-in/out time
+            now = datetime.now()
+            
+            if check_type == "checkin":
+                attendance.check_in_time = now
+            else:
+                attendance.check_out_time = now
+            
+            # Store photo in AttendancePhoto (E-prefix photo table)
+            photo = AttendancePhoto.query.filter_by(attendance_id=attendance.id).first()
+            if not photo:
+                photo = AttendancePhoto(
+                    attendance_id=attendance.id,
+                    employee_id=employee_id
+                )
+                db.session.add(photo)
+            
+            if check_type == "checkin":
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
+            
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": f"{check_type.title()} recorded for {employee_name}",
+                "attendance_id": attendance.id,
+                "employee": {
+                    "code": employee.employee_code,
+                    "name": employee_name
+                }
+            })
     
     except Exception as e:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except:
+            pass
+        import traceback
+        import sys
+        traceback.print_exc(file=sys.stderr)
         return jsonify({
             "success": False,
             "message": f"Attendance submission failed: {str(e)}"

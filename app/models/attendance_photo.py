@@ -1,14 +1,12 @@
 """
 app/models/attendance_photo.py
 ================================
-AttendancePhoto — stores one proof photo per attendance check-in.
+AttendancePhoto — stores one proof photo per attendance check-in for E-prefix employees.
 
 The photo is NOT used for biometric verification — it is a visual
 proof record accessible to HR for audit purposes only.
 
-Architecture note:
-    Photo is stored in uploads/attendance/<employee_id>/<filename>
-    This model stores only the relative path, not the binary.
+For I-prefix (EmployeeMaster) employees, use AttendanceMasterPhoto instead.
 """
 
 from datetime import datetime
@@ -19,7 +17,7 @@ from app.extensions.database import db
 
 
 class AttendancePhoto(db.Model):
-    """Proof photo uploaded after successful GPS check-in."""
+    """Proof photo uploaded after successful GPS check-in for E-prefix employees."""
 
     __tablename__ = "attendance_photos"
 
