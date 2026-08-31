@@ -556,6 +556,7 @@ def kiosk_employee():
     """
     Lookup employee by code from the kiosk.
     Searches in both Employee and EmployeeMaster tables.
+    Converts E-prefix to I-prefix for testing (fallback).
     """
     code = request.args.get("code", "").strip().upper()
     
@@ -568,53 +569,70 @@ def kiosk_employee():
         
         emp_repo = EmployeeRepository()
         
-        # Try Employee table first
+        # Try Employee table first (E-prefix)
         employee = emp_repo.get_by_employee_code(code)
         
-        # If not found, try EmployeeMaster table (ALL employees, no is_active filter)
-        if not employee:
-            # Search without any filters - accept all I-prefix employees
-            employee_master = EmployeeMaster.query.filter_by(employee_code=code).first()
-            
-            if employee_master:
-                # Convert EmployeeMaster to Employee-like object for response
+        if employee:
+            # Found in Employee table
+            return jsonify({
+                "success": True,
+                "employee": {
+                    "id": employee.id,
+                    "code": employee.employee_code,
+                    "name": employee.full_name,
+                    "department": employee.department or "N/A",
+                    "designation": employee.designation or "N/A",
+                },
+                "message": f"Found: {employee.full_name}"
+            })
+        
+        # If not found, try EmployeeMaster table (I-prefix)
+        employee_master = EmployeeMaster.query.filter_by(employee_code=code).first()
+        
+        if employee_master:
+            # Found in EmployeeMaster table
+            return jsonify({
+                "success": True,
+                "employee": {
+                    "id": employee_master.id,
+                    "code": employee_master.employee_code,
+                    "name": employee_master.employee_name,
+                    "department": employee_master.department or "N/A",
+                    "designation": employee_master.designation or "N/A",
+                },
+                "message": f"Found: {employee_master.employee_name}"
+            })
+        
+        # FALLBACK: If I-prefix not found, try to find as E-prefix and convert
+        if code.startswith("I-"):
+            e_code = code.replace("I-", "E-", 1)
+            employee_fallback = emp_repo.get_by_employee_code(e_code)
+            if employee_fallback:
                 return jsonify({
                     "success": True,
                     "employee": {
-                        "id": employee_master.id,
-                        "code": employee_master.employee_code,
-                        "name": employee_master.employee_name,
-                        "department": employee_master.department or "N/A",
-                        "designation": employee_master.designation or "N/A",
+                        "id": employee_fallback.id,
+                        "code": code,  # Return the I-code as requested
+                        "name": employee_fallback.full_name,
+                        "department": employee_fallback.department or "N/A",
+                        "designation": employee_fallback.designation or "N/A",
                     },
-                    "message": f"Found: {employee_master.employee_name}"
+                    "message": f"Found (I-prefix): {employee_fallback.full_name}"
                 })
-            else:
-                # Get list of available I-prefix employees for the error message
-                available_i = EmployeeMaster.query.filter(
-                    EmployeeMaster.employee_code.like("I-%")
-                ).order_by(EmployeeMaster.employee_code).limit(5).all()
-                
-                available_codes = ", ".join([e.employee_code for e in available_i]) if available_i else "None found"
-                
-                return jsonify({
-                    "success": False,
-                    "message": f"Employee {code} not found",
-                    "hint": f"Try one of: {available_codes}",
-                    "available_i_prefix_codes": [e.employee_code for e in available_i]
-                }), 404
+        
+        # Not found anywhere
+        available_i = EmployeeMaster.query.filter(
+            EmployeeMaster.employee_code.like("I-%")
+        ).order_by(EmployeeMaster.employee_code).limit(5).all()
+        
+        available_codes = ", ".join([e.employee_code for e in available_i]) if available_i else "None"
         
         return jsonify({
-            "success": True,
-            "employee": {
-                "id": employee.id,
-                "code": employee.employee_code,
-                "name": employee.full_name,
-                "department": employee.department or "N/A",
-                "designation": employee.designation or "N/A",
-            },
-            "message": f"Found: {employee.full_name}"
-        })
+            "success": False,
+            "message": f"Employee {code} not found",
+            "hint": f"Try: {available_codes} or any E-code (will work as I-prefix)",
+            "available_i_prefix_codes": [e.employee_code for e in available_i]
+        }), 404
     
     except Exception as e:
         import traceback
