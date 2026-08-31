@@ -79,8 +79,9 @@ def create_app(env: str = "development") -> Flask:
 
     # ── 4b. EARLY: Register coordinator routes BEFORE blueprints ──────
     # This ensures they're not caught by Flask-Login redirects
-    from app.blueprints.coordinator.routes import register_coordinator_routes  # noqa: PLC0415
-    register_coordinator_routes(app)
+    # TEMPORARILY DISABLED: Causing 502 on Render - will add after app is stable
+    # from app.blueprints.coordinator.routes import register_coordinator_routes  # noqa: PLC0415
+    # register_coordinator_routes(app)
 
     # ── 5. Blueprints ────────────────────────────────────────────────
     from app.blueprints import register_blueprints  # noqa: PLC0415
