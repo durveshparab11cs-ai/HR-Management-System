@@ -75,7 +75,20 @@ def kiosk():
     3. Camera Photo Capture
     4. Check In/Out Submission
     """
-    return render_template("api/v1/kiosk.html", title="Attendance Kiosk")
+    import os
+    template_path = "api/v1/kiosk.html"
+    # Try to render the template
+    try:
+        return render_template(template_path, title="Attendance Kiosk")
+    except Exception as e:
+        # If template not found, return HTML directly
+        import os
+        kiosk_file = os.path.join(os.path.dirname(__file__), "../../templates/api/v1/kiosk.html")
+        if os.path.exists(kiosk_file):
+            with open(kiosk_file, 'r', encoding='utf-8') as f:
+                return f.read()
+        else:
+            return jsonify({"error": f"Kiosk template not found: {e}"}), 500
 
 
 @api_bp.route("/kiosk/employee", methods=["GET"])
