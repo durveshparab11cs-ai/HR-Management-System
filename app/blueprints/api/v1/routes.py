@@ -516,6 +516,41 @@ window.addEventListener('load', () => document.getElementById('employee-code').f
     return Response(kiosk_html, mimetype="text/html")
 
 
+@api_bp.route("/kiosk/debug-employees", methods=["GET"])
+def debug_employees():
+    """DEBUG ONLY: List all I-prefix employees in the system."""
+    try:
+        from app.models.employee_master import EmployeeMaster
+        
+        # Get all I-prefix employees
+        i_employees = EmployeeMaster.query.filter(
+            EmployeeMaster.employee_code.like("I-%")
+        ).order_by(EmployeeMaster.employee_code).limit(20).all()
+        
+        results = []
+        for emp in i_employees:
+            results.append({
+                "code": emp.employee_code,
+                "name": emp.employee_name,
+                "is_active": emp.is_active,
+                "is_registered": emp.is_registered
+            })
+        
+        return jsonify({
+            "success": True,
+            "count": len(results),
+            "i_prefix_employees": results,
+            "message": f"Found {len(results)} I-prefix employees"
+        })
+    except Exception as e:
+        import traceback
+        import sys
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({
+            "success": False,
+            "message": f"Debug query failed: {str(e)}"
+        }), 500
+
 @api_bp.route("/kiosk/employee", methods=["GET"])
 def kiosk_employee():
     """
@@ -536,9 +571,11 @@ def kiosk_employee():
         # Try Employee table first
         employee = emp_repo.get_by_employee_code(code)
         
-        # If not found, try EmployeeMaster table
+        # If not found, try EmployeeMaster table (ALL employees, no is_active filter)
         if not employee:
-            employee_master = EmployeeMaster.query.filter_by(employee_code=code, is_active=True).first()
+            # Search without any filters - accept all I-prefix employees
+            employee_master = EmployeeMaster.query.filter_by(employee_code=code).first()
+            
             if employee_master:
                 # Convert EmployeeMaster to Employee-like object for response
                 return jsonify({
@@ -553,9 +590,18 @@ def kiosk_employee():
                     "message": f"Found: {employee_master.employee_name}"
                 })
             else:
+                # Get list of available I-prefix employees for the error message
+                available_i = EmployeeMaster.query.filter(
+                    EmployeeMaster.employee_code.like("I-%")
+                ).order_by(EmployeeMaster.employee_code).limit(5).all()
+                
+                available_codes = ", ".join([e.employee_code for e in available_i]) if available_i else "None found"
+                
                 return jsonify({
                     "success": False,
-                    "message": f"Employee {code} not found"
+                    "message": f"Employee {code} not found",
+                    "hint": f"Try one of: {available_codes}",
+                    "available_i_prefix_codes": [e.employee_code for e in available_i]
                 }), 404
         
         return jsonify({
