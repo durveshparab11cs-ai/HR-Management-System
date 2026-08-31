@@ -31,6 +31,7 @@ from app.models.employee_shift_assignment import EmployeeShiftAssignment  # noqa
 from app.models.shift_change_request import ShiftChangeRequest  # noqa: F401
 from app.models.hospital import Hospital  # noqa: F401
 from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: F401
+from app.models.coordinator_otp import CoordinatorOTP  # noqa: F401
 
 __all__ = [
     "User", "OfficeSettings", "OfficeDevice", "Employee", "EmployeeMaster", "LoginHistory",
@@ -41,4 +42,5 @@ __all__ = [
     "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip",
     "EmployeeShiftAssignment", "ShiftChangeRequest",
     "Hospital", "EmployeeHospitalAssignment",
+    "CoordinatorOTP",
 ]

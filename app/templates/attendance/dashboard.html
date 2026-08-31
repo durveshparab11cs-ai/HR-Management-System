@@ -184,6 +184,29 @@
 <!-- Toast container -->
 <div class="att-toast-wrap" id="att-toasts"></div>
 
+<<<<<<< HEAD
+=======
+<!-- ── COORDINATOR PORTAL BANNER ── -->
+{% if current_user.employee_code in ['E-2606026', 'E-2512012'] %}
+<div id="coordinator-banner" class="coordinator-alert show">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:15px">
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="background:rgba(255,255,255,.2);width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.8rem">
+        🛡️
+      </div>
+      <div>
+        <h5 style="margin:0;font-weight:700;font-size:1.2rem">Coordinator Portal Available</h5>
+        <p style="margin:5px 0 0 0;font-size:.9rem;opacity:.95">Access the attendance kiosk to manage employee check-ins</p>
+      </div>
+    </div>
+    <a href="{{ url_for('coordinator.dashboard') }}" style="background:#fff;color:#667eea;border:none;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.95rem;white-space:nowrap;cursor:pointer;transition:all .2s" onmouseover="this.style.transform='translateY(-2px);this.style.boxShadow=\'0 4px 16px rgba(0,0,0,.2)\'' " onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+      Go to Portal →
+    </a>
+  </div>
+</div>
+{% endif %}
+
+>>>>>>> c1e2d4900e563df8df5d43e3f08a222543242fa3
 <!-- ── STATUS BANNER ── -->
 <div class="att-banner">
   <div class="att-date" id="att-date"></div>
@@ -195,10 +218,10 @@
       <div class="att-pill">
         <div class="att-dot {% if status.attendance.check_out_time %}off{% endif %}"></div>
         {% if status.attendance.check_out_time %}
-          {% set ist_time = status.attendance.check_out_time + timedelta(hours=5, minutes=30) %}
+          {% set ist_time = status.attendance.check_out_time %}
           Signed Out — <span>{{ ist_time.strftime('%H:%M') }}</span> IST
         {% else %}
-          {% set ist_time = status.attendance.check_in_time + timedelta(hours=5, minutes=30) %}
+          {% set ist_time = status.attendance.check_in_time %}
           Signed In — <span>{{ ist_time.strftime('%H:%M') }}</span> IST
         {% endif %}
       </div>
@@ -224,7 +247,7 @@
       <div class="att-tile-label">Check In (IST)</div>
       <div class="att-tile-value">
         {% if status.attendance and status.attendance.check_in_time %}
-          {% set ist_time = status.attendance.check_in_time + timedelta(hours=5, minutes=30) %}
+          {% set ist_time = status.attendance.check_in_time %}
           <span>{{ ist_time.strftime('%H:%M') }}</span>
         {% else %}—{% endif %}
       </div>

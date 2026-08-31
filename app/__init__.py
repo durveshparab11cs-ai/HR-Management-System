@@ -560,20 +560,16 @@ def _register_template_filters(app: Flask) -> None:
 
     @app.template_filter("ist")
     def to_ist(dt, fmt: str = "%H:%M"):
-        """Convert UTC datetime to IST. Usage: {{ dt | ist }}"""
+        """Format datetime (already in IST). Usage: {{ dt | ist }}"""
         if dt is None:
             return "—"
         if not isinstance(dt, _dt):
             return str(dt)
-        if IST is None:
-            return dt.strftime(fmt)
+        # Times are already stored in IST, just format them
         try:
-            import pytz as _pytz
-            if dt.tzinfo is None:
-                dt = _pytz.utc.localize(dt)
-            return dt.astimezone(IST).strftime(fmt)
-        except Exception:
             return dt.strftime(fmt)
+        except Exception:
+            return "—"
 
     @app.template_filter("ist_date")
     def to_ist_date(dt):
@@ -621,21 +617,18 @@ def _register_root_redirect(app: Flask) -> None:
 
 
 def _register_health(app: Flask) -> None:
-    """
-    Register the /health liveness probe endpoint at the app level.
-
-    This is separate from the API blueprint so load balancers can reach it
-    without knowing the API prefix, and CSRF/auth are never applied to it.
-
-    Args:
-        app: Flask instance.
-    """
-    from flask import jsonify  # noqa: PLC0415
+    """Register the /health liveness probe and /camera-test diagnostic endpoints."""
+    from flask import jsonify, render_template  # noqa: PLC0415
 
     @app.route("/health")
     def health():
         """Liveness probe — returns 200 OK when app is running."""
         return jsonify({"status": "ok", "version": app.config.get("APP_VERSION", "1.0.0")}), 200
+
+    @app.route("/camera-test")
+    def camera_test():
+        """Camera diagnostic page — no auth required, for debugging only."""
+        return render_template("camera_test.html")
 
 
 def _register_request_handlers(app: Flask) -> None:

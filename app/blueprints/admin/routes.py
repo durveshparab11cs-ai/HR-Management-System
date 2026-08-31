@@ -190,11 +190,12 @@ def view_all_attendance():
         from app.blueprints.attendance.attendance_engine import compute_check_out_meta
         from app.blueprints.attendance.repository import AttendanceRepository
 
-        # Convert times to IST
+        # Times are now stored directly in IST (as of 2026-08-21 11:42)
+        # No conversion needed - just return the time as-is
         def to_ist(dt):
             if not dt:
                 return None
-            return dt + timedelta(hours=5, minutes=30)
+            return dt  # Already in IST
 
         check_in_ist = to_ist(att.check_in_time)
         check_out_ist = to_ist(att.check_out_time)
@@ -525,8 +526,8 @@ def export_daily_attendance():
     def to_ist(dt):
         if not dt:
             return "—"
-        from datetime import timedelta
-        return (dt + timedelta(hours=5, minutes=30)).strftime("%I:%M %p")
+        # Times already stored in IST (as of 2026-08-21 11:42)
+        return dt.strftime("%I:%M %p")
 
     def fmt_hours(mins):
         if not mins:

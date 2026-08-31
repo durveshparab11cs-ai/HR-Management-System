@@ -124,7 +124,7 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
         <i class="bi bi-person-plus-fill"></i> Register
       </button>
       <button class="tab-btn {% if active_tab=='coordinator' %}active{% endif %}"
-              id="tab-coordinator" type="button" onclick="window.location.href='/coordinator/login'" style="color:#16a34a;font-weight:700">
+              id="tab-coordinator" type="button" onclick="switchTab('coordinator')" style="color:#16a34a;font-weight:700">
         <i class="bi bi-clock-history"></i> Attendance
       </button>
       <button class="tab-btn {% if active_tab=='forgot' %}active{% endif %}"
@@ -198,6 +198,52 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
           <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
         </p>
       </form>
+    </div>
+
+    <!-- ── ATTENDANCE (COORDINATOR LOGIN) ── -->
+    <div class="tab-panel {% if active_tab=='coordinator' %}active{% endif %}" id="panel-coordinator">
+      <p class="panel-title">Attendance Kiosk</p>
+      <p class="panel-sub">Enter your credentials to mark attendance</p>
+
+      <div id="coord-error" class="auth-error" style="display:none">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <div id="coord-error-text"></div>
+      </div>
+
+      <div id="coord-success" class="auth-success" style="display:none">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>Login successful! Redirecting...</div>
+      </div>
+
+      <div id="coord-form-container">
+        <div class="f-group">
+          <label class="f-label" for="coord-username">Username</label>
+          <div class="f-row">
+            <span class="f-icon"><i class="bi bi-person"></i></span>
+            <input type="text" id="coord-username" placeholder="CS CREATIVE SOLUTIONS" autocomplete="off" value="">
+          </div>
+        </div>
+
+        <div class="f-group">
+          <label class="f-label" for="coord-password">Password</label>
+          <div class="f-row">
+            <span class="f-icon"><i class="bi bi-lock"></i></span>
+            <input type="password" id="coord-password" placeholder="CSCS@VikasDeshmukh" autocomplete="off" value="">
+          </div>
+        </div>
+
+        <button type="button" class="btn-submit" id="coord-btn" onclick="validateCoordinatorLogin()">
+          <span id="coord-txt">Access Attendance Kiosk</span>
+        </button>
+      </div>
+
+      <div id="coord-kiosk-container" style="display:none;text-align:center">
+        <p style="font-size:.85rem;color:#16a34a;margin:14px 0"><i class="bi bi-check-circle-fill"></i> Access granted</p>
+        <p style="font-size:.78rem;color:#555;margin-bottom:12px">You can now access the attendance marking system.</p>
+        <button type="button" class="btn-submit" onclick="window.location.href='/attendance'" style="background:linear-gradient(180deg,#4ade80,#22c55e);border-color:#16a34a">
+          <i class="bi bi-clock-history"></i> Open Attendance System
+        </button>
+      </div>
     </div>
 
     <!-- ── REGISTER ── -->
@@ -446,6 +492,55 @@ wireLoading('forgot-form', 'f-btn', 'f-spin', 'f-txt', 'Sending reset token…')
 window.addEventListener('DOMContentLoaded', function() {
   const active = document.querySelector('.tab-panel.active input:not([type="hidden"])');
   if (active) active.focus();
+});
+
+// ── Coordinator Login (Attendance Kiosk) ────────────────────────────
+function validateCoordinatorLogin() {
+  const username = document.getElementById('coord-username').value.trim();
+  const password = document.getElementById('coord-password').value;
+  const errorDiv = document.getElementById('coord-error');
+  const errorText = document.getElementById('coord-error-text');
+  const successDiv = document.getElementById('coord-success');
+
+  // Hardcoded credentials
+  const correctUsername = 'CS CREATIVE SOLUTIONS';
+  const correctPassword = 'CSCS@VikasDeshmukh';
+
+  errorDiv.style.display = 'none';
+  successDiv.style.display = 'none';
+
+  if (username === correctUsername && password === correctPassword) {
+    // Success
+    document.getElementById('coord-form-container').style.display = 'none';
+    document.getElementById('coord-kiosk-container').style.display = 'block';
+    successDiv.style.display = 'flex';
+    // Redirect to success page or stay on login
+    document.getElementById('coord-form-container').style.display = 'none';
+    document.getElementById('coord-kiosk-container').style.display = 'block';
+    successDiv.style.display = 'flex';
+  } else {
+    // Failed
+    if (!username || !password) {
+      errorText.textContent = 'Please enter both username and password';
+    } else {
+      errorText.textContent = 'Invalid username or password';
+    }
+    errorDiv.style.display = 'flex';
+    document.getElementById('coord-password').value = '';
+    document.getElementById('coord-password').focus();
+  }
+}
+
+// Allow Enter key to submit attendance login
+document.addEventListener('DOMContentLoaded', function() {
+  const coordPassword = document.getElementById('coord-password');
+  if (coordPassword) {
+    coordPassword.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        validateCoordinatorLogin();
+      }
+    });
+  }
 });
 </script>
 </body>

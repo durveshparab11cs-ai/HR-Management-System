@@ -106,13 +106,12 @@ class ReportService:
         def fmt_time(dt):
             if not dt:
                 return "—"
+            # Times are already stored in IST (as of 2026-08-21 12:00)
+            # No conversion needed
             try:
-                if dt.tzinfo is None:
-                    import pytz as _p  # noqa: PLC0415
-                    dt = _p.utc.localize(dt)
-                return dt.astimezone(IST).strftime("%H:%M")
-            except Exception:
                 return dt.strftime("%H:%M")
+            except Exception:
+                return "—"
 
         result = []
         for att, emp, usr in rows:

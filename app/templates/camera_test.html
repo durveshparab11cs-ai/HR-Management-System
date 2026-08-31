@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Camera Diagnostic</title>
+<style>
+body { font-family: sans-serif; padding: 30px; background: #1a1a2e; color: #fff; }
+video { width: 400px; height: 300px; background: #000; border-radius: 8px; display: block; margin: 20px 0; }
+button { padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+pre { background: #0d0d1a; padding: 15px; border-radius: 6px; white-space: pre-wrap; font-size: 13px; color: #0f0; }
+</style>
+</head>
+<body>
+<h2>Camera Diagnostic</h2>
+<button onclick="testCamera()">Test Camera</button>
+<button onclick="listDevices()">List Devices</button>
+<video id="v" autoplay playsinline></video>
+<pre id="log">Click a button to start...</pre>
+<script>
+const log = document.getElementById('log');
+function write(msg) { log.textContent += '\n' + msg; console.log(msg); }
+
+async function listDevices() {
+    log.textContent = '--- Device Enumeration ---';
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        write('Total devices: ' + devices.length);
+        devices.forEach((d, i) => {
+            write(`[${i}] kind=${d.kind} label="${d.label}" id=${d.deviceId.substring(0,8)}...`);
+        });
+    } catch(e) {
+        write('ERROR: ' + e.name + ' - ' + e.message);
+    }
+}
+
+async function testCamera() {
+    log.textContent = '--- Camera Test ---';
+    write('navigator.mediaDevices exists: ' + !!navigator.mediaDevices);
+    write('getUserMedia exists: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+    write('Protocol: ' + location.protocol);
+    write('Host: ' + location.host);
+    
+    if (!navigator.mediaDevices) {
+        write('ERROR: mediaDevices not available (need HTTPS or localhost)');
+        return;
+    }
+
+    // Step 1: enumerate
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        write('Video inputs found: ' + cams.length);
+        cams.forEach((c, i) => write(`  Camera[${i}]: "${c.label || '(no label - need permission)'}"`));
+    } catch(e) {
+        write('enumerateDevices error: ' + e.name + ' - ' + e.message);
+    }
+
+    // Step 2: getUserMedia
+    write('\nCalling getUserMedia({video: true})...');
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        write('SUCCESS! Stream active: ' + stream.active);
+        const track = stream.getVideoTracks()[0];
+        write('Track label: ' + track.label);
+        write('Track state: ' + track.readyState);
+        document.getElementById('v').srcObject = stream;
+        write('\nCamera is working!');
+    } catch(e) {
+        write('getUserMedia FAILED:');
+        write('  name: ' + e.name);
+        write('  message: ' + e.message);
+        write('  constraint: ' + (e.constraint || 'N/A'));
+    }
+}
+</script>
+</body>
+</html>

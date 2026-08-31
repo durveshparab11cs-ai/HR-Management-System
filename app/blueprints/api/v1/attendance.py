@@ -39,22 +39,19 @@ _svc  = AttendanceService()
 
 def _serialize_attendance_record(att) -> dict:
     """Serialize a single attendance record for API response."""
-    import pytz  # noqa: PLC0415
-    IST = pytz.timezone("Asia/Kolkata")
+    # Times are already stored in IST, no conversion needed
 
     def fmt_time(dt):
         if not dt:
             return None
-        if dt.tzinfo is None:
-            dt = pytz.UTC.localize(dt)
-        return dt.astimezone(IST).strftime("%H:%M")
+        # Times already in IST, just format them
+        return dt.strftime("%H:%M")
 
     def fmt_time_full(dt):
         if not dt:
             return None
-        if dt.tzinfo is None:
-            dt = pytz.UTC.localize(dt)
-        return dt.astimezone(IST).strftime("%H:%M:%S")
+        # Times already in IST, just format them
+        return dt.strftime("%H:%M:%S")
 
     return {
         "id": att.id,

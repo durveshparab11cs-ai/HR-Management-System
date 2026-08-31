@@ -4,16 +4,18 @@ blueprints/authentication/routes.py
 Authentication routes — Employee Code-based login and registration.
 """
 
-from flask import flash, jsonify, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask_login import current_user, login_required, login_user
 
 from app.constants.limits import Limits
 from app.extensions.limiter import limiter
+from app.blueprints.employees.repository import EmployeeRepository
 from .forms import ForgotPasswordForm, LoginForm, RegisterForm, ResetPasswordForm
 from .service import AuthService
 from . import authentication_bp
 
 _svc = AuthService()
+_emp_repo = EmployeeRepository()
 
 
 # ── Login / Register ──────────────────────────────────────────────────
@@ -108,6 +110,118 @@ def lookup_employee():
         return jsonify(found=True, name=data["name"],
                        department=data["department"], message=message)
     return jsonify(found=False, message=message)
+
+
+# ── Coordinator OTP Verification ──────────────────────────────────────
+
+@authentication_bp.route("/coordinator/verify-otp", methods=["GET", "POST"])
+def coordinator_verify_otp():
+    """
+    STEP 2: OTP Verification for coordinator login.
+    Displays OTP input form and verifies OTP against challenge.
+    """
+    from flask import session
+    from app.services.coordinator_otp_service import CoordinatorOTPService
+    from app.extensions.mail import mail
+    
+    # Check if challenge token exists in session
+    challenge_token = session.get('coordinator_challenge_token')
+    if not challenge_token:
+        flash("Verification session expired. Please login again.", "warning")
+        return redirect(url_for('authentication.login') + '?tab=coordinator')
+    
+    error = None
+    success_msg = None
+    
+    if request.method == "POST":
+        action = request.form.get("action", "verify")
+        
+        if action == "verify":
+            # Verify OTP
+            otp = request.form.get("otp", "").strip()
+            
+            if not otp:
+                error = "Please enter the OTP."
+            elif len(otp) != 6 or not otp.isdigit():
+                error = "OTP must be 6 digits."
+            else:
+                otp_service = CoordinatorOTPService(mail=mail)
+                success, message, challenge = otp_service.verify_otp(challenge_token, otp)
+                
+                if success:
+                    # OTP verified successfully - NOW create authenticated session
+                    from app.models.user import User
+                    from flask_login import login_user
+                    
+                    # Clear challenge from session
+                    session.pop('coordinator_challenge_token', None)
+                    session.pop('coordinator_challenge_created', None)
+                    
+                    # Find coordinator user
+                    coord_user = User.query.filter_by(role="super_admin").first()
+                    if not coord_user:
+                        # Fallback
+                        employee = _emp_repo.get_by_code("E-2606026")
+                        if employee:
+                            coord_user = User.query.filter_by(id=employee.user_id).first()
+                    
+                    if coord_user:
+                        login_user(coord_user, remember=False)
+                        coord_user.record_successful_login(request.remote_addr)
+                        flash("Login successful!", "success")
+                        return redirect(url_for("coordinator.dashboard"))
+                    else:
+                        error = "Coordinator account not found. Please contact administrator."
+                else:
+                    error = message
+        
+        elif action == "resend":
+            # Resend OTP
+            otp_service = CoordinatorOTPService(mail=mail)
+            cooldown = int(current_app.config.get('OTP_RESEND_COOLDOWN_SECONDS', 60))
+            success, message, new_otp = otp_service.resend_otp(challenge_token, cooldown)
+            
+            if success and new_otp:
+                # Send new OTP to recipients
+                recipients_str = current_app.config.get('COORDINATOR_OTP_RECIPIENTS', '')
+                recipients = [email.strip() for email in recipients_str.split(',') if email.strip()]
+                
+                email_success, email_message = otp_service.send_otp_email(new_otp, recipients)
+                
+                if email_success:
+                    success_msg = "New OTP sent successfully. Please check your email."
+                else:
+                    error = "Failed to send new OTP. Please try again."
+            else:
+                error = message
+    
+    return render_template(
+        "authentication/coordinator_otp_verify.html",
+        title="Coordinator OTP Verification",
+        error=error,
+        success_msg=success_msg,
+        challenge_token=challenge_token
+    )
+
+
+@authentication_bp.route("/coordinator/cancel-otp", methods=["POST"])
+def coordinator_cancel_otp():
+    """Cancel OTP verification and return to login."""
+    from flask import session
+    from app.services.coordinator_otp_service import CoordinatorOTPService
+    from app.extensions.mail import mail
+    
+    challenge_token = session.get('coordinator_challenge_token')
+    if challenge_token:
+        # Invalidate challenge
+        otp_service = CoordinatorOTPService(mail=mail)
+        otp_service.invalidate_challenge(challenge_token)
+        
+        # Clear session
+        session.pop('coordinator_challenge_token', None)
+        session.pop('coordinator_challenge_created', None)
+    
+    return redirect(url_for('authentication.login') + '?tab=coordinator')
 
 
 # ── Logout ────────────────────────────────────────────────────────────

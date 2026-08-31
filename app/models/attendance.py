@@ -70,5 +70,27 @@ class Attendance(BaseModel):
         h, m = divmod(self.working_minutes, 60)
         return f"{h}h {m}m"
 
+    @property
+    def check_in_time_ist(self) -> str:
+        """Return check-in time formatted as HH:MM (already stored in IST)"""
+        if not self.check_in_time:
+            return "—"
+        try:
+            # Times are already in IST, just format them
+            return self.check_in_time.strftime("%H:%M")
+        except Exception:
+            return "—"
+
+    @property
+    def check_out_time_ist(self) -> str:
+        """Return check-out time formatted as HH:MM (already stored in IST)"""
+        if not self.check_out_time:
+            return "—"
+        try:
+            # Times are already in IST, just format them
+            return self.check_out_time.strftime("%H:%M")
+        except Exception:
+            return "—"
+
     def __repr__(self) -> str:
         return f"<Attendance id={self.id} emp={self.employee_id} date={self.date} status={self.status!r}>"

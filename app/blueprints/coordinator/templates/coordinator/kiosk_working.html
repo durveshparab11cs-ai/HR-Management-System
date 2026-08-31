@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Kiosk - {{ cache_id }}</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .cache-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 99999;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { background: #4caf50; }
+            50% { background: #45a049; }
+        }
+        .kiosk-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+            margin: 70px auto 20px;
+        }
+        .kiosk-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .kiosk-header h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 80px;
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-number {
+            background: #667eea;
+            color: white;
+            transform: scale(1.2);
+        }
+        .step.completed .step-number {
+            background: #4caf50;
+            color: white;
+        }
+        .step-label {
+            font-size: 11px;
+            text-align: center;
+            color: #666;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .employee-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .info-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .info-item label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        .message.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+        }
+        .message.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background: #000;
+        }
+        .photo-preview {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="cache-indicator">
+        ✅ ✅ ✅ WORKING VERSION {{ cache_id }} | Time: {{ current_time }}
+    </div>
+
+    <div class="kiosk-container">
+        <div class="kiosk-header">
+            <h1>🏢 Attendance Kiosk</h1>
+            <p>Employee Check-In / Check-Out System</p>
+        </div>
+
+        <div class="step-indicator">
+            <div class="step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Enter Code</div>
+            </div>
+            <div class="step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Search</div>
+            </div>
+            <div class="step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">View Info</div>
+            </div>
+            <div class="step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Camera</div>
+            </div>
+            <div class="step" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-label">Capture</div>
+            </div>
+            <div class="step" data-step="6">
+                <div class="step-number">6</div>
+                <div class="step-label">Confirm</div>
+            </div>
+        </div>
+
+        <div class="content-section active" data-content="1">
+            <div class="form-group">
+                <label>📱 Enter Employee Code</label>
+                <input type="text" id="employeeCode" placeholder="e.g., E-2606026" autofocus>
+                <div class="error-message" id="codeError"></div>
+            </div>
+            <button type="button" class="btn-primary" id="nextBtn">Next →</button>
+        </div>
+
+        <div class="content-section" data-content="2">
+            <div class="loading" id="searchLoading">
+                <div class="spinner"></div>
+                <p>Searching...</p>
+            </div>
+            <div id="employeePreview" class="employee-info"></div>
+            <div class="error-message" id="searchError"></div>
+            <div class="button-group">
+                <button type="button" class="btn-secondary" id="backBtn">← Back</button>
+                <button type="button" class="btn-primary" id="confirmBtn">Next →</button>
+            </div>
+        </div>
+
+        <div class="content-section" data-content="3">
+            <div id="employeeDetails" class="employee-info"></div>
+            <div class="button-group">
+                <button type="button" class="btn-secondary" id="back2Btn">← Back</button>
+                <button type="button" class="btn-primary" id="cameraBtn">Next →</button>
+            </div>
+        </div>
+
+        <div class="content-section" data-content="4">
+            <video id="cameraFeed" autoplay playsinline></video>
+            <div class="button-group">
+                <button type="button" class="btn-secondary" id="back3Btn">← Back</button>
+                <button type="button" class="btn-primary" id="captureBtn">Capture →</button>
+            </div>
+        </div>
+
+        <div class="content-section" data-content="5">
+            <canvas id="photoCanvas" style="display:none;"></canvas>
+            <img id="photoPreview" class="photo-preview" style="display:none;">
+            <div class="button-group">
+                <button type="button" class="btn-secondary" id="retakeBtn">Retake</button>
+                <button type="button" class="btn-primary" id="usePhotoBtn">Use Photo →</button>
+            </div>
+        </div>
+
+        <div class="content-section" data-content="6">
+            <div class="message" id="attendanceMessage"></div>
+            <div class="loading" id="attendanceLoading">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+            </div>
+            <div class="button-group">
+                <button type="button" class="btn-secondary" id="newEmployeeBtn">New Employee</button>
+                <button type="button" class="btn-success" id="checkinBtn">✅ Check-In</button>
+                <button type="button" class="btn-danger" id="checkoutBtn">🚪 Check-Out</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🟢🟢🟢 WORKING KIOSK LOADED - Cache ID: {{ cache_id }}');
+        alert('KIOSK LOADED SUCCESSFULLY! Cache ID: {{ cache_id }}');
+        
+        let currentStep = 1;
+        let selectedEmployee = null;
+        let capturedPhoto = null;
+        let currentGPS = null;
+        const API_BASE = window.location.origin;
+
+        function goToStep(step) {
+            console.log('✅ Going to step:', step);
+            currentStep = step;
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelector('.content-section[data-content="' + step + '"]').classList.add('active');
+            document.querySelectorAll('.step').forEach(s => {
+                const num = parseInt(s.dataset.step);
+                s.classList.remove('active', 'completed');
+                if (num === step) s.classList.add('active');
+                else if (num < step) s.classList.add('completed');
+            });
+            if (step === 4) startCamera();
+            else if (step === 5) capturePhoto();
+            else if (step === 6) getGPS();
+        }
+
+        document.getElementById('nextBtn').addEventListener('click', async function() {
+            console.log('✅✅✅ NEXT BUTTON CLICKED!');
+            const code = document.getElementById('employeeCode').value.trim().toUpperCase();
+            if (!code) {
+                document.getElementById('codeError').textContent = 'Please enter employee code';
+                return;
+            }
+            document.getElementById('codeError').textContent = '';
+            document.getElementById('searchLoading').classList.add('active');
+            
+            try {
+                const res = await fetch(API_BASE + '/coordinator/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ search_term: code })
+                });
+                const data = await res.json();
+                document.getElementById('searchLoading').classList.remove('active');
+                
+                if (!data.success || !data.employee) {
+                    document.getElementById('searchError').textContent = data.error || 'Employee not found';
+                    return;
+                }
+                
+                selectedEmployee = data.employee;
+                const html = '<div class="info-item"><label>Code</label><div class="value">' + data.employee.employee_code + '</div></div>' +
+                    '<div class="info-item"><label>Name</label><div class="value">' + data.employee.full_name + '</div></div>' +
+                    '<div class="info-item"><label>Department</label><div class="value">' + data.employee.department + '</div></div>' +
+                    '<div class="info-item"><label>Designation</label><div class="value">' + data.employee.designation + '</div></div>';
+                document.getElementById('employeePreview').innerHTML = html;
+                document.getElementById('employeeDetails').innerHTML = html;
+                goToStep(2);
+            } catch (err) {
+                document.getElementById('searchLoading').classList.remove('active');
+                document.getElementById('searchError').textContent = 'Error: ' + err.message;
+            }
+        });
+
+        document.getElementById('backBtn').addEventListener('click', () => goToStep(1));
+        document.getElementById('confirmBtn').addEventListener('click', () => goToStep(3));
+        document.getElementById('back2Btn').addEventListener('click', () => goToStep(2));
+        document.getElementById('cameraBtn').addEventListener('click', () => goToStep(4));
+        document.getElementById('back3Btn').addEventListener('click', () => goToStep(3));
+        
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                document.getElementById('cameraFeed').srcObject = stream;
+            } catch (e) {
+                alert('Camera error: ' + e.message);
+                goToStep(3);
+            }
+        }
+
+        document.getElementById('captureBtn').addEventListener('click', () => goToStep(5));
+        
+        function capturePhoto() {
+            const video = document.getElementById('cameraFeed');
+            const canvas = document.getElementById('photoCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 240;
+            ctx.drawImage(video, 0, 0);
+            capturedPhoto = canvas.toDataURL('image/jpeg');
+            document.getElementById('photoPreview').src = capturedPhoto;
+            document.getElementById('photoPreview').style.display = 'block';
+            const stream = video.srcObject;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
+
+        document.getElementById('retakeBtn').addEventListener('click', () => { capturedPhoto = null; goToStep(4); });
+        document.getElementById('usePhotoBtn').addEventListener('click', () => goToStep(6));
+
+        function getGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        currentGPS = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                    },
+                    () => {
+                        currentGPS = { latitude: 18.520430, longitude: 73.856743, accuracy: 100 };
+                    }
+                );
+            } else {
+                currentGPS = { latitude: 18.520430, longitude: 73.856743, accuracy: 100 };
+            }
+        }
+
+        async function submitAttendance(action) {
+            if (!selectedEmployee || !currentGPS) { alert('Missing data'); return; }
+            document.getElementById('attendanceLoading').classList.add('active');
+            
+            try {
+                const endpoint = action === 'checkin' ? '/coordinator/check-in' : '/coordinator/check-out';
+                const res = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        employee_id: selectedEmployee.id,
+                        latitude: currentGPS.latitude,
+                        longitude: currentGPS.longitude,
+                        accuracy: currentGPS.accuracy,
+                        photo_base64: capturedPhoto
+                    })
+                });
+                const data = await res.json();
+                document.getElementById('attendanceLoading').classList.remove('active');
+                
+                if (data.success) {
+                    document.getElementById('attendanceMessage').textContent = data.message;
+                    document.getElementById('attendanceMessage').className = 'message success';
+                    setTimeout(() => resetKiosk(), 3000);
+                } else {
+                    document.getElementById('attendanceMessage').textContent = data.error || data.message;
+                    document.getElementById('attendanceMessage').className = 'message error';
+                }
+            } catch (err) {
+                document.getElementById('attendanceLoading').classList.remove('active');
+                document.getElementById('attendanceMessage').textContent = 'Error: ' + err.message;
+                document.getElementById('attendanceMessage').className = 'message error';
+            }
+        }
+
+        document.getElementById('checkinBtn').addEventListener('click', () => submitAttendance('checkin'));
+        document.getElementById('checkoutBtn').addEventListener('click', () => submitAttendance('checkout'));
+        document.getElementById('newEmployeeBtn').addEventListener('click', resetKiosk);
+
+        function resetKiosk() {
+            selectedEmployee = null;
+            capturedPhoto = null;
+            currentGPS = null;
+            document.getElementById('employeeCode').value = '';
+            document.getElementById('photoPreview').style.display = 'none';
+            document.getElementById('attendanceMessage').innerHTML = '';
+            goToStep(1);
+        }
+
+        document.getElementById('employeeCode').addEventListener('keypress', e => {
+            if (e.key === 'Enter') document.getElementById('nextBtn').click();
+        });
+    </script>
+</body>
+</html>

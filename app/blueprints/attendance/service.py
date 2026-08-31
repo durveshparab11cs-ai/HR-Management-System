@@ -19,6 +19,7 @@ from datetime import datetime, date, timezone
 from typing import Optional, Tuple
 
 from flask import request
+from app.utils.datetime_utils import get_naive_ist
 
 from app.extensions.database import db
 from app.models.attendance import Attendance
@@ -105,7 +106,7 @@ class AttendanceService:
                 logger.warning("Duplicate check-in attempt for emp=%s", employee.id)
                 return False, "You have already checked in today.", None, None
 
-            now = datetime.utcnow()
+            now = get_naive_ist()  # Use IST time instead of UTC
             is_late, late_minutes = compute_check_in_meta(now, office, employee.id, today)
             logger.info("Check-in meta: is_late=%s, late_minutes=%s", is_late, late_minutes)
 
@@ -232,7 +233,7 @@ class AttendanceService:
                 logger.warning("CHECK_OUT FAILED: Already checked out")
                 return False, "You have already checked out today.", None, None
 
-            now  = datetime.utcnow()
+            now  = get_naive_ist()  # Use IST time instead of UTC
             meta = compute_check_out_meta(attendance, now, office, employee.id)
             logger.info("Check-out meta: working=%dm, overtime=%dm", 
                        meta["working_minutes"], meta["overtime_minutes"])

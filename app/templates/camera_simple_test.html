@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Camera Test</title>
+    <style>
+        body { font-family: Arial; padding: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; }
+        video { width: 100%; max-width: 640px; border: 2px solid #ddd; border-radius: 8px; margin: 20px 0; }
+        button { padding: 12px 24px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
+        .primary { background: #4CAF50; color: white; }
+        .secondary { background: #2196F3; color: white; }
+        .log { background: #f0f0f0; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Ultra-Simple Camera Test</h1>
+        <p>This page tests camera access with the absolute minimum code.</p>
+        
+        <button class="primary" onclick="testCamera()">Start Camera</button>
+        <button class="secondary" onclick="listDevices()">List Devices</button>
+        <button onclick="location.reload()">Reload Page</button>
+        
+        <video id="video" autoplay playsinline></video>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] ${msg}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(msg);
+        }
+
+        async function testCamera() {
+            log('🔍 Starting camera test...');
+            log('📍 Protocol: ' + window.location.protocol);
+            log('📍 Hostname: ' + window.location.hostname);
+            
+            if (!navigator.mediaDevices) {
+                log('❌ navigator.mediaDevices NOT available');
+                return;
+            }
+            log('✅ navigator.mediaDevices is available');
+            
+            if (!navigator.mediaDevices.getUserMedia) {
+                log('❌ getUserMedia NOT available');
+                return;
+            }
+            log('✅ getUserMedia is available');
+            
+            try {
+                log('🎥 Calling getUserMedia({ video: true })...');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                log('✅ SUCCESS! Got camera stream');
+                log('📹 Stream ID: ' + stream.id);
+                log('📹 Tracks: ' + stream.getTracks().length);
+                
+                stream.getTracks().forEach((track, i) => {
+                    log(`  Track ${i}: ${track.kind} - ${track.label} - ${track.readyState}`);
+                });
+                
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                log('✅ Video element connected to stream');
+                
+            } catch (err) {
+                log('❌ ERROR: ' + err.name);
+                log('   Message: ' + err.message);
+                log('   Stack: ' + (err.stack || 'no stack'));
+            }
+        }
+
+        async function listDevices() {
+            log('📱 Listing media devices...');
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                log('❌ enumerateDevices NOT available');
+                return;
+            }
+            
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                log(`✅ Found ${devices.length} total devices`);
+                
+                const videoInputs = devices.filter(d => d.kind === 'videoinput');
+                log(`📹 Video inputs: ${videoInputs.length}`);
+                
+                if (videoInputs.length === 0) {
+                    log('⚠️ NO VIDEO DEVICES FOUND');
+                    log('   This means:');
+                    log('   1. No camera is connected');
+                    log('   2. Camera driver is missing/disabled');
+                    log('   3. Another app is using the camera exclusively');
+                    log('   4. Windows privacy settings block camera');
+                } else {
+                    videoInputs.forEach((device, i) => {
+                        log(`  ${i+1}. ${device.label || 'Camera ' + (i+1)} (${device.deviceId.substring(0, 20)}...)`);
+                    });
+                }
+                
+                const audioInputs = devices.filter(d => d.kind === 'audioinput');
+                log(`🎤 Audio inputs: ${audioInputs.length}`);
+                
+            } catch (err) {
+                log('❌ ERROR listing devices: ' + err.message);
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded');
+            log('🌐 User Agent: ' + navigator.userAgent);
+            listDevices();
+        });
+    </script>
+</body>
+</html>
