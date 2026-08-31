@@ -220,7 +220,7 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
           <label class="f-label" for="coord-username">Username</label>
           <div class="f-row">
             <span class="f-icon"><i class="bi bi-person"></i></span>
-            <input type="text" id="coord-username" placeholder="CS CREATIVE SOLUTIONS" autocomplete="off" value="">
+            <input type="text" id="coord-username" placeholder="CS CREATIVE SOLUTIONS" autocomplete="off" value="CS CREATIVE SOLUTIONS" readonly style="cursor:not-allowed;color:#666">
           </div>
         </div>
 
@@ -240,8 +240,8 @@ body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden
       <div id="coord-kiosk-container" style="display:none;text-align:center">
         <p style="font-size:.85rem;color:#16a34a;margin:14px 0"><i class="bi bi-check-circle-fill"></i> Access granted</p>
         <p style="font-size:.78rem;color:#555;margin-bottom:12px">You can now access the attendance marking system.</p>
-        <button type="button" class="btn-submit" onclick="window.location.href='/attendance'" style="background:linear-gradient(180deg,#4ade80,#22c55e);border-color:#16a34a">
-          <i class="bi bi-clock-history"></i> Open Attendance System
+        <button type="button" class="btn-submit" onclick="window.location.href='/api/v1/kiosk'" style="background:linear-gradient(180deg,#4ade80,#22c55e);border-color:#16a34a">
+          <i class="bi bi-clock-history"></i> Open Attendance Kiosk
         </button>
       </div>
     </div>
