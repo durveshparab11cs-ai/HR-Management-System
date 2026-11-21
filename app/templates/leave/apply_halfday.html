@@ -459,14 +459,32 @@
         </div>
 
         <div class="hd-card-body">
+            {% set si = shift_info or {'shift_name': 'General Shift (10:00 AM – 07:00 PM)', 'start_time_str': '10:00 AM', 'end_time_str': '07:00 PM', 'mid_time_str': '03:00 PM', 'morning_window': '10:00 AM – 03:00 PM', 'afternoon_window': '03:00 PM – 07:00 PM', 'morning_duty_hours': '5', 'afternoon_duty_hours': '4'} %}
+
+            <!-- Shift & Policy Badge -->
+            <div class="hd-shift-banner mb-3" style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.22); border-radius: 12px; padding: 0.9rem 1.15rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: #0284c7; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #0284c7;">Your Assigned Shift</div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #0f172a;">{{ si.shift_name }} ({{ si.start_time_str }} – {{ si.end_time_str }})</div>
+                    </div>
+                </div>
+                <div style="font-size: 0.76rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.65rem; border-radius: 9999px;">
+                    <i class="bi bi-shield-check me-1"></i>5h Duty Policy Active
+                </div>
+            </div>
 
             <!-- Policy note -->
             <div class="hd-policy-box">
                 <i class="bi bi-info-circle-fill"></i>
                 <p>
-                    Half-day requests require manager approval and are subject to leave balance.
-                    Morning half covers <strong>09:00–13:00</strong> and afternoon half covers
-                    <strong>13:00–18:00</strong>. Approved requests automatically update your attendance.
+                    <strong>Company Half-Day Policy:</strong> Duty starts from your shift start time; <strong>5 hours of duty</strong> must be completed.
+                    For your shift (<strong>{{ si.start_time_str }} – {{ si.end_time_str }}</strong>):
+                    First half covers <strong>{{ si.morning_window }}</strong> (5h duty).
+                    Second half covers <strong>{{ si.afternoon_window }}</strong> (remaining {{ si.afternoon_duty_hours }}h duty).
                 </p>
             </div>
 
@@ -488,14 +506,12 @@
                 <!-- ── Half type ── -->
                 <p class="hd-section-label">Select Session</p>
                 <div class="hd-radio-group" role="radiogroup" aria-labelledby="half-type-label">
-                    {% set ns = namespace(idx=0) %}
                     {% for subfield in form.half_type %}
-                    {% set ns.idx = loop.index %}
                     <label class="hd-radio-card" for="{{ subfield.id }}">
                         {{ subfield() }}
                         <span class="hd-radio-label">
                             <span class="hd-radio-icon">
-                                {% if loop.index == 1 %}
+                                {% if subfield.data == 'morning' or loop.index == 1 %}
                                     <i class="bi bi-sunrise-fill" style="color:#f59e0b"></i>
                                 {% else %}
                                     <i class="bi bi-sunset-fill" style="color:#6366f1"></i>
@@ -503,8 +519,14 @@
                             </span>
                             <span>
                                 <span class="hd-radio-title">{{ subfield.label.text }}</span>
-                                <span class="hd-radio-desc">
-                                    {% if loop.index == 1 %}09:00 – 13:00{% else %}13:00 – 18:00{% endif %}
+                                <span class="hd-radio-desc" style="display:flex; flex-direction:column; gap:0.25rem; margin-top:0.25rem;">
+                                    {% if subfield.data == 'morning' or loop.index == 1 %}
+                                        <span style="font-weight:700; color:#1e293b;">Leave: {{ si.morning_window }}</span>
+                                        <span style="font-size:0.75rem; color:#059669; font-weight:600;"><i class="bi bi-briefcase me-1"></i>Duty hours: {{ si.afternoon_window }} ({{ si.afternoon_duty_hours }}h)</span>
+                                    {% else %}
+                                        <span style="font-weight:700; color:#1e293b;">Leave: {{ si.afternoon_window }}</span>
+                                        <span style="font-size:0.75rem; color:#059669; font-weight:600;"><i class="bi bi-briefcase me-1"></i>Duty hours: {{ si.morning_window }} (5h completed)</span>
+                                    {% endif %}
                                 </span>
                             </span>
                             <span class="hd-radio-check" aria-hidden="true"></span>

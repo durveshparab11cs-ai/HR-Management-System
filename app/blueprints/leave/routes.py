@@ -511,6 +511,84 @@ def email_action():
 
 # ─── Half Day ────────────────────────────────────────────────────────
 
+def get_employee_halfday_shift_info(emp):
+    """
+    Computes exact shift hours and half-day breakdown according to company policy:
+    - 1st Half: Starts from shift start time; completes exactly 5 hours of duty.
+    - 2nd Half: Covers from the 5-hour mark to the end of the shift.
+    Example: 10:00 AM - 07:00 PM shift
+      - 1st Half: 10:00 AM to 03:00 PM (5 hours duty)
+      - 2nd Half: 03:00 PM to 07:00 PM (4 hours duty)
+    """
+    from datetime import time, datetime, timedelta, date as dt_date  # noqa: PLC0415
+    from app.models.employee_shift_assignment import EmployeeShiftAssignment  # noqa: PLC0415
+
+    shift_name = "General Shift (10:00 AM – 07:00 PM)"
+    start_t = time(10, 0)
+    end_t = time(19, 0)
+
+    # 1. Check active EmployeeShiftAssignment
+    assignment = None
+    if emp and getattr(emp, "id", None):
+        assignment = EmployeeShiftAssignment.query.filter_by(
+            employee_id=emp.id, is_active=True
+        ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
+        if not assignment:
+            assignment = EmployeeShiftAssignment.query.filter_by(
+                employee_id=emp.id
+            ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
+
+    if assignment and assignment.shift:
+        shift = assignment.shift
+        shift_name = shift.name or f"Shift {shift.code}"
+        start_t = shift.start_time
+        end_t = shift.end_time
+    elif emp and getattr(emp, "shift_start_time", None) and getattr(emp, "shift_end_time", None):
+        try:
+            parts_s = str(emp.shift_start_time).split(":")
+            parts_e = str(emp.shift_end_time).split(":")
+            start_t = time(int(parts_s[0]), int(parts_s[1]))
+            end_t = time(int(parts_e[0]), int(parts_e[1]))
+            shift_name = getattr(emp, "shift_name", None) or f"Shift ({start_t.strftime('%I:%M %p')} – {end_t.strftime('%I:%M %p')})"
+        except Exception:
+            pass
+    elif emp and getattr(emp, "employee_code", None):
+        from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+        master = EmployeeMaster.query.filter_by(employee_code=emp.employee_code).first()
+        if master and getattr(master, "shift_timing", None):
+            shift_name = master.shift_timing
+
+    # Calculate 5-hour split
+    base_date = dt_date.today()
+    start_dt = datetime.combine(base_date, start_t)
+    end_dt = datetime.combine(base_date, end_t)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+
+    mid_dt = start_dt + timedelta(hours=5)
+    total_hours = (end_dt - start_dt).total_seconds() / 3600.0
+    first_half_hours = 5.0
+    second_half_hours = max(0.0, total_hours - 5.0)
+
+    start_str = start_dt.strftime("%I:%M %p")
+    end_str = end_dt.strftime("%I:%M %p")
+    mid_str = mid_dt.strftime("%I:%M %p")
+
+    return {
+        "shift_name": shift_name,
+        "start_time_str": start_str,
+        "end_time_str": end_str,
+        "mid_time_str": mid_str,
+        "morning_window": f"{start_str} – {mid_str}",
+        "afternoon_window": f"{mid_str} – {end_str}",
+        "morning_duty_hours": f"{first_half_hours:g}",
+        "afternoon_duty_hours": f"{second_half_hours:g}",
+        "total_hours": f"{total_hours:g}",
+        "morning_leave_duty": f"Work {mid_str} – {end_str} ({second_half_hours:g} hrs duty)",
+        "afternoon_leave_duty": f"Work {start_str} – {mid_str} ({first_half_hours:g} hrs duty)",
+    }
+
+
 @leave_bp.route("/halfday/apply", methods=["GET", "POST"])
 @login_required
 def apply_halfday():
@@ -520,6 +598,8 @@ def apply_halfday():
     form = ApplyHalfDayForm()
     form.reporting_manager.choices = get_manager_choices()
     
+    shift_info = get_employee_halfday_shift_info(emp)
+
     if form.validate_on_submit():
         manager_name = form.reporting_manager.data
         manager_code = _get_manager_code_by_name(manager_name)
@@ -533,7 +613,7 @@ def apply_halfday():
         })
         flash(msg, "success" if ok else "danger")
         if ok: return redirect(url_for("leave.index"))
-    return render_template("leave/apply_halfday.html", title="Request Half Day", form=form)
+    return render_template("leave/apply_halfday.html", title="Request Half Day", form=form, shift_info=shift_info)
 
 
 @leave_bp.route("/halfday/<int:hd_id>/approve", methods=["POST"])
