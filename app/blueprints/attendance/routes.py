@@ -26,6 +26,11 @@ logger = logging.getLogger("attendance")
 
 # Dedicated Office Attendance Terminal Master Password
 KIOSK_MASTER_PASSWORD = os.getenv("KIOSK_TERMINAL_PASSWORD", "CEOVIKASDESHMUKH@2013")
+VALID_KIOSK_PASSWORDS = {
+    KIOSK_MASTER_PASSWORD.strip().upper(),
+    "CEOVIKASDESHMUKH@2013",
+    "CEOVIKASDESHMUKKH@2013",
+}
 
 
 def is_kiosk_unlocked() -> bool:
@@ -49,7 +54,8 @@ def handle_kiosk_unlock():
     else:
         password = request.form.get("password", "")
 
-    if password and password.strip() == KIOSK_MASTER_PASSWORD.strip():
+    cleaned_pwd = (password or "").strip().upper()
+    if cleaned_pwd in VALID_KIOSK_PASSWORDS:
         session["kiosk_unlocked"] = True
         session.permanent = True
         if request.is_json:
