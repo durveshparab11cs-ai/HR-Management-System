@@ -213,12 +213,19 @@ class ReportService:
         }
 
     def get_departments(self) -> list:
+        from app.constants.enums import Department
+        canonical = [d.value for d in Department]
         rows = (
             db.session.query(Employee.department)
             .filter(Employee.is_deleted == False, Employee.department.isnot(None))
             .distinct().order_by(Employee.department).all()
         )
-        return [r.department for r in rows]
+        existing = [r.department for r in rows if r.department]
+        result = list(canonical)
+        for dept in existing:
+            if dept not in result:
+                result.append(dept)
+        return result
 
     def get_all_employees_simple(self) -> list:
         return (

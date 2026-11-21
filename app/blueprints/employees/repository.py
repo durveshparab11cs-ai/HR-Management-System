@@ -114,6 +114,8 @@ class EmployeeRepository:
 
     def get_departments(self) -> list:
         try:
+            from app.constants.enums import Department
+            canonical = [d.value for d in Department]
             rows = (
                 db.session.query(Employee.department)
                 .filter(Employee.is_deleted == False, Employee.department.isnot(None))
@@ -121,11 +123,17 @@ class EmployeeRepository:
                 .order_by(Employee.department)
                 .all()
             )
-            return [r[0] for r in rows if r[0]]  # Handle tuple unpacking
+            existing = [r[0] for r in rows if r[0]]
+            result = list(canonical)
+            for dept in existing:
+                if dept not in result:
+                    result.append(dept)
+            return result
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"get_departments error: {e}")
-            return []  # Return empty list on error instead of crashing
+            from app.constants.enums import Department
+            return [d.value for d in Department]
 
     # ── User account ops ──────────────────────────────────────────────
     def get_user_by_id(self, user_id: int) -> Optional[User]:
