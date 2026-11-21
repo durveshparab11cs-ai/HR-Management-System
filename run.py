@@ -1,55 +1,35 @@
 """
 Smart HRMS — Application Entry Point
-FORCE SQLite - NO Render/Production database
+Supports both production (Render/Gunicorn with PostgreSQL) and local development.
 """
-
 import os
 import sys
+from pathlib import Path
 
-print("\n" + "="*80)
-print("STARTUP: Clearing PostgreSQL environment variables")
-print("="*80)
+PROJECT_ROOT = Path(__file__).parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# ===== CRITICAL: Clear ALL database env vars BEFORE anything loads =====
-keys_to_delete = []
-for k in list(os.environ.keys()):
-    if any(x in k.upper() for x in ['DATABASE', 'POSTGRES', 'DB_', 'RENDER', 'DPG-', 'SQL']):
-        keys_to_delete.append(k)
-        print(f"  Deleting: {k}")
-
-for key in keys_to_delete:
-    del os.environ[key]
-
-print(f"\nDeleted {len(keys_to_delete)} PostgreSQL-related environment variables")
-
-# Force development environment and SQLite (before dotenv!)
-print("\nSETTING: FLASK_ENV=development")
-print("SETTING: DATABASE_URL=sqlite:///smart_hrms_dev.db")
-
-os.environ["FLASK_ENV"] = "development"
-os.environ["DATABASE_URL"] = "sqlite:///smart_hrms_dev.db"
-
-# Now load dotenv - but be careful not to override our settings
-print("\nLoading .env file...")
+# Load .env if present without overriding explicit platform environment variables
 from dotenv import load_dotenv
-load_dotenv(override=False)  # override=False means our pre-set vars take priority
+load_dotenv(override=False)
 
-# RE-ENFORCE after dotenv loads (it WILL try to override our settings)
-print("\nRE-ENFORCING SQLite settings after .env load...")
-os.environ["FLASK_ENV"] = "development"
-os.environ["DATABASE_URL"] = "sqlite:///smart_hrms_dev.db"
+# Normalize postgres:// -> postgresql:// for SQLAlchemy 2.x compatibility
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url.startswith("postgres://"):
+    os.environ["DATABASE_URL"] = db_url.replace("postgres://", "postgresql://", 1)
 
-print(f"\nFinal DATABASE_URL: {os.environ.get('DATABASE_URL')}")
-print(f"Final FLASK_ENV: {os.environ.get('FLASK_ENV')}")
-print("="*80 + "\n")
-
+env = os.environ.get("FLASK_ENV", "production")
 from app import create_app
 
-# Create app in DEVELOPMENT mode with SQLite
-app = create_app("development")
+app = create_app(env)
 
 if __name__ == "__main__":
-    from werkzeug.serving import make_server
-    server = make_server("0.0.0.0", 8000, app, threaded=True)
-    app.logger.info("Starting server on http://0.0.0.0:8000 (SQLite mode)")
-    server.serve_forever()
+    port = int(os.environ.get("PORT", 8000))
+    if env == "production":
+        from werkzeug.serving import make_server
+        server = make_server("0.0.0.0", port, app, threaded=True)
+        app.logger.info(f"Starting server on http://0.0.0.0:{port} ({env} mode)")
+        server.serve_forever()
+    else:
+        app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

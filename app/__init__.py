@@ -628,8 +628,25 @@ def _register_health(app: Flask) -> None:
 
     @app.route("/health")
     def health():
-        """Liveness probe — returns 200 OK when app is running."""
-        return jsonify({"status": "ok", "version": app.config.get("APP_VERSION", "1.0.0")}), 200
+        """Comprehensive liveness & readiness probe — checks app and database."""
+        db_status = "connected"
+        try:
+            from app.extensions.database import db  # noqa: PLC0415
+            from sqlalchemy import text  # noqa: PLC0415
+            db.session.execute(text("SELECT 1"))
+        except Exception as e:
+            db_status = f"unhealthy: {str(e)}"
+            return jsonify({
+                "status": "unhealthy",
+                "database": db_status,
+                "version": app.config.get("APP_VERSION", "1.0.0")
+            }), 503
+
+        return jsonify({
+            "status": "ok",
+            "database": db_status,
+            "version": app.config.get("APP_VERSION", "1.0.0")
+        }), 200
 
     @app.route("/camera-test")
     def camera_test():
@@ -671,11 +688,15 @@ def _register_request_handlers(app: Flask) -> None:
 
 def _auto_create_tables(app: Flask) -> None:
     """
-    Create all DB tables on first boot and auto-seed employee master data.
-    
-    NUCLEAR MODE: If columns are missing, DROP and RECREATE the employee table
-    to match the current model definition.
+    Create all DB tables on first boot and auto-seed employee master data in development.
+    In production mode, schema is managed strictly via migrations / DDL scripts.
     """
+    import os  # noqa: PLC0415
+    env_name = app.config.get("ENV") or os.environ.get("FLASK_ENV")
+    if env_name == "production":
+        app.logger.info("✓ Production mode detected: automatic DDL table creation and seeding bypassed.")
+        return
+
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
@@ -757,65 +778,23 @@ def _auto_create_tables(app: Flask) -> None:
                 except Exception:
                     pass
 
-            # STEP 2: Check if columns exist - if missing, DROP and recreate tables
+            # STEP 2: Safe Schema Validation (Strictly Non-Destructive)
             try:
                 insp = inspect(db.engine)
-                required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
-                emp_cols = insp.get_columns('employees')
-                existing_cols = [c.name for c in emp_cols]
+                table_names = insp.get_table_names()
+                if 'employees' in table_names:
+                    emp_cols = [c['name'] for c in insp.get_columns('employees')]
+                    required_cols = ['shift_start_time', 'shift_end_time', 'is_flexible_shift', 'required_working_hours']
+                    missing_cols = [col for col in required_cols if col not in emp_cols]
+                    if missing_cols:
+                        app.logger.warning("ℹ️  Schema notice: Missing columns in employees: %s. Handled via migrations.", missing_cols)
                 
-                missing_cols = [col for col in required_cols if col not in existing_cols]
-                if missing_cols:
-                    app.logger.warning("⚠️  Missing columns in employees: %s", missing_cols)
-                    app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating employees table...")
-                    
-                    try:
-                        dialect = db.engine.dialect.name
-                        if dialect == 'postgresql':
-                            db.session.execute(text('DROP TABLE IF EXISTS employees CASCADE'))
-                        else:
-                            db.session.execute(text('DROP TABLE IF EXISTS employees'))
-                        db.session.commit()
-                        app.logger.info("✓ Dropped old employees table")
-                        
-                        db.create_all()
-                        app.logger.info("✓ Recreated employees table with new schema")
-                    except Exception as drop_err:
-                        app.logger.warning("⚠️  Could not drop employees table: %s", drop_err)
-                        try:
-                            db.session.rollback()
-                        except Exception:
-                            pass
-                
-                # Also check attendance_photos for checkout_image_data
-                try:
-                    photo_cols_list = insp.get_columns('attendance_photos')
-                    photo_cols = [c.name for c in photo_cols_list]
+                if 'attendance_photos' in table_names:
+                    photo_cols = [c['name'] for c in insp.get_columns('attendance_photos')]
                     if 'checkout_image_data' not in photo_cols:
-                        app.logger.warning("⚠️  Missing checkout_image_data in attendance_photos")
-                        app.logger.warning("🔥 NUCLEAR MODE: Dropping and recreating attendance_photos table...")
-                        try:
-                            dialect = db.engine.dialect.name
-                            if dialect == 'postgresql':
-                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos CASCADE'))
-                            else:
-                                db.session.execute(text('DROP TABLE IF EXISTS attendance_photos'))
-                            db.session.commit()
-                            app.logger.info("✓ Dropped old attendance_photos table")
-                            
-                            db.create_all()
-                            app.logger.info("✓ Recreated attendance_photos table with new schema")
-                        except Exception as photo_drop_err:
-                            app.logger.warning("⚠️  Could not drop attendance_photos table: %s", photo_drop_err)
-                            try:
-                                db.session.rollback()
-                            except Exception:
-                                pass
-                except Exception as photo_check_err:
-                    app.logger.warning("⚠️  Could not check attendance_photos columns: %s", photo_check_err)
-                    
+                        app.logger.warning("ℹ️  Schema notice: Missing checkout_image_data in attendance_photos. Handled via migrations.")
             except Exception as exc:
-                app.logger.warning("⚠️  Column check failed: %s", exc)
+                app.logger.warning("⚠️  Schema validation check warning: %s", exc)
 
             # STEP 3: Add any still-missing columns
             try:
@@ -882,12 +861,12 @@ def _migrate_add_columns(db) -> None:
         ('shift_change_requests', 'reporting_manager_code',    'reporting_manager_code VARCHAR(50)'),
         ('shift_change_requests', 'reporting_manager_name',    'reporting_manager_name VARCHAR(200)'),
         # Hospital allocation fields for employees
-        ('employee', 'hospital_id', 'hospital_id INTEGER'),
-        ('employee', 'current_shift', 'current_shift VARCHAR(50)'),
-        ('employee', 'shift_start_time', 'shift_start_time VARCHAR(20)'),
-        ('employee', 'shift_end_time', 'shift_end_time VARCHAR(20)'),
-        ('employee', 'is_flexible_shift', 'is_flexible_shift INTEGER'),
-        ('employee', 'required_working_hours', 'required_working_hours INTEGER'),
+        ('employees', 'hospital_id', 'hospital_id INTEGER'),
+        ('employees', 'current_shift', 'current_shift VARCHAR(50)'),
+        ('employees', 'shift_start_time', 'shift_start_time VARCHAR(20)'),
+        ('employees', 'shift_end_time', 'shift_end_time VARCHAR(20)'),
+        ('employees', 'is_flexible_shift', 'is_flexible_shift INTEGER'),
+        ('employees', 'required_working_hours', 'required_working_hours INTEGER'),
         # Hospital allocation fields for employee_master
         ('employee_master', 'working_location', 'working_location VARCHAR(200)'),
         ('employee_master', 'shift_timing', 'shift_timing VARCHAR(100)'),
@@ -1616,11 +1595,14 @@ def _ensure_super_admin_roles(app: Flask) -> None:
 
 def _ensure_comp_off_leavetype(app: Flask) -> None:
     """
-    CRITICAL: Ensure Comp Off (CO) leave type exists in production database.
-    
-    Handles UNIQUE constraints on BOTH code AND name columns.
-    ALWAYS checks for "Comp Off" by name first, before trying to insert.
+    Ensure Comp Off (CO) leave type exists in development database.
+    In production mode, initial reference data is seeded via migration scripts.
     """
+    import os  # noqa: PLC0415
+    env_name = app.config.get("ENV") or os.environ.get("FLASK_ENV")
+    if env_name == "production":
+        return
+
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415

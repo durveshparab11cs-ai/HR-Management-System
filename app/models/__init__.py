@@ -34,15 +34,17 @@ from app.models.shift_change_request import ShiftChangeRequest  # noqa: F401
 from app.models.hospital import Hospital  # noqa: F401
 from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: F401
 from app.models.coordinator_otp import CoordinatorOTP  # noqa: F401
+from app.models.company_holiday import CompanyHoliday  # noqa: F401
+from app.models.shift_change_log import ShiftChangeLog  # noqa: F401
 
 __all__ = [
     "User", "OfficeSettings", "OfficeDevice", "Employee", "EmployeeMaster", "LoginHistory",
     "Attendance", "AttendanceMaster", "AttendanceLog", "AttendancePhoto", "AttendanceMasterPhoto", "GPSLog",
     "LeaveType", "LeaveRequest", "HalfDayRequest", "EarlyLeaveRequest",
     "Notification",
-    "CompanyProfile", "Department", "Position", "Shift",
+    "CompanyProfile", "Department", "Position", "Shift", "CompanyHoliday",
     "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip", "EmployeeSalaryMaster",
-    "EmployeeShiftAssignment", "ShiftChangeRequest",
+    "EmployeeShiftAssignment", "ShiftChangeRequest", "ShiftChangeLog",
     "Hospital", "EmployeeHospitalAssignment",
     "CoordinatorOTP",
 ]

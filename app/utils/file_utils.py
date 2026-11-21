@@ -76,24 +76,16 @@ def save_file(
 ) -> str:
     """
     Validate and save an uploaded file securely.
-
-    Generates a UUID-based filename to prevent:
-        - Directory traversal attacks
-        - Filename collisions
-        - Executable file name spoofing
-
-    Args:
-        file: Werkzeug FileStorage object from request.files.
-        subfolder: Subdirectory within UPLOAD_FOLDER.
-        max_bytes: Maximum allowed file size in bytes.
-        allowed_extensions: Set of permitted lowercase extensions.
-
-    Returns:
-        Relative path string (relative to UPLOAD_FOLDER) for database storage.
-
-    Raises:
-        FileOperationError: If the file is invalid, too large, or save fails.
+    Seamlessly routes through S3StorageService if AWS S3 is enabled,
+    or local filesystem if in development.
     """
+    from app.services.s3_storage_service import storage_service
+    if storage_service.use_s3:
+        try:
+            return storage_service.upload_file(file, folder=subfolder, allowed_extensions=allowed_extensions, max_bytes=max_bytes)
+        except Exception as exc:
+            raise FileOperationError(f"Cloud upload failed: {exc}") from exc
+
     if not file or not file.filename:
         raise FileOperationError("No file provided.")
 
@@ -129,16 +121,20 @@ def save_file(
     return str(Path(subfolder) / unique_filename).replace("\\", "/")
 
 
+def get_file_url(relative_path: str, expires_in: int = 3600) -> str:
+    """Get public or presigned download URL for a file path/key."""
+    from app.services.s3_storage_service import storage_service
+    return storage_service.get_download_url(relative_path, expires_in=expires_in)
+
+
 def delete_file(relative_path: str) -> bool:
     """
-    Delete a file by its relative path from UPLOAD_FOLDER.
-
-    Args:
-        relative_path: Path relative to UPLOAD_FOLDER as stored in the DB.
-
-    Returns:
-        True if deleted, False if file was not found (already gone).
+    Delete a file by its relative path from UPLOAD_FOLDER or S3.
     """
+    from app.services.s3_storage_service import storage_service
+    if storage_service.use_s3:
+        return storage_service.delete_file(relative_path)
+
     from flask import current_app  # noqa: PLC0415
     base = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
     target = base / relative_path

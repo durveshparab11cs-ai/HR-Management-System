@@ -1,52 +1,18 @@
-<<<<<<< HEAD
-#!/usr/bin/env python
-import urllib.request
-import json
-
-# Test coordinator API
-url = "http://localhost:8000/coordinator/api/search-employee"
-payload = json.dumps({"employee_code": "E-2606026"}).encode('utf-8')
-
-req = urllib.request.Request(
-    url,
-    data=payload,
-    headers={'Content-Type': 'application/json', 'Accept': 'application/json'},
-    method='POST'
-)
-
-try:
-    response = urllib.request.urlopen(req)
-    body = response.read().decode('utf-8')
-    with open('test_output.txt', 'w') as f:
-        f.write(f"Status: {response.status}\n")
-        f.write(f"Content-Type: {response.headers.get('Content-Type')}\n")
-        f.write(f"Body (first 300 chars): {body[:300]}\n")
-        f.write(f"Is JSON: {body.strip().startswith(('{', '['))}\n")
-except urllib.error.HTTPError as he:
-    with open('test_output.txt', 'w') as f:
-        f.write(f"Error {he.code}\n")
-        f.write(f"Content-Type: {he.headers.get('Content-Type')}\n")
-        body = he.read().decode('utf-8')
-        f.write(f"Body (first 300 chars): {body[:300]}\n")
-        f.write(f"Is HTML: {'<!DOCTYPE' in body or '<html' in body.lower()}\n")
-except Exception as e:
-    with open('test_output.txt', 'w') as f:
-        f.write(f"Exception: {type(e).__name__}: {e}\n")
-=======
 """
-Quick test script to verify coordinator search endpoint works.
+Quick test script to verify coordinator search endpoint / models.
 """
 import os
-os.environ['FLASK_ENV'] = 'production'
-os.environ['APP_NAME'] = 'Smart HRMS'
-os.environ['DATABASE_URL'] = 'sqlite:///C:/Users/Administrator/Documents/HRMS/smart_hrms/instance/smart_hrms_dev.db'
+import sys
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from app import create_app
 from app.models.employee import Employee
 from app.models.user import User
 from app.extensions.database import db
 
-app = create_app()
+app = create_app('development')
 
 with app.app_context():
     print("\n=== Testing Coordinator Search ===\n")
@@ -82,9 +48,10 @@ with app.app_context():
     else:
         print(f"✗ No exact match for '{search_term}'")
         
+        from sqlalchemy import or_
         # Try by name
         employee = Employee.query.join(User).filter(
-            User.full_name.ilike(f"%{search_term}%")
+            or_(User.first_name.ilike(f"%{search_term}%"), User.last_name.ilike(f"%{search_term}%"))
         ).first()
         
         if employee:
@@ -96,7 +63,7 @@ with app.app_context():
     
     search_term = "Durvesh"
     employee = Employee.query.join(User).filter(
-        User.full_name.ilike(f"%{search_term}%")
+        or_(User.first_name.ilike(f"%{search_term}%"), User.last_name.ilike(f"%{search_term}%"))
     ).first()
     
     if employee:
@@ -105,4 +72,3 @@ with app.app_context():
         print(f"✗ No match for '{search_term}'")
     
     print("\n" + "="*60 + "\n")
->>>>>>> c1e2d4900e563df8df5d43e3f08a222543242fa3

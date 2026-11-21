@@ -130,7 +130,7 @@ class BaseConfig:
     # --------------------------------------------------------------------------
     # Application Domain Settings
     # --------------------------------------------------------------------------
-    APP_TIMEZONE: str = os.environ.get("APP_TIMEZONE", "UTC")
+    APP_TIMEZONE: str = os.environ.get("APP_TIMEZONE", "Asia/Kolkata")
     ITEMS_PER_PAGE: int = int(os.environ.get("ITEMS_PER_PAGE", 25))
     ADMIN_EMAIL: str = os.environ.get("ADMIN_EMAIL", "admin@smarthrms.com")
 
@@ -138,7 +138,7 @@ class BaseConfig:
     # APScheduler
     # --------------------------------------------------------------------------
     SCHEDULER_API_ENABLED: bool = os.environ.get("SCHEDULER_API_ENABLED", "False") == "True"
-    SCHEDULER_TIMEZONE: str = os.environ.get("SCHEDULER_TIMEZONE", "UTC")
+    SCHEDULER_TIMEZONE: str = os.environ.get("SCHEDULER_TIMEZONE", "Asia/Kolkata")
 
     # --------------------------------------------------------------------------
     # Security Headers (applied by middleware)
@@ -245,19 +245,23 @@ class ProductionConfig(BaseConfig):
 
     # PostgreSQL — fix postgres:// → postgresql:// for SQLAlchemy 2.x
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
-    SQLALCHEMY_DATABASE_URI: str = (
-        _db_url.replace("postgres://", "postgresql://", 1)
-        if _db_url else "sqlite:///smart_hrms_dev.db"
-    )
+    if _db_url and _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI: str = _db_url
 
-    # PostgreSQL connection pool settings
-    SQLALCHEMY_ENGINE_OPTIONS: dict = {
-        "pool_pre_ping": True,
-        "pool_size": int(os.environ.get("DB_POOL_SIZE", 10)),
-        "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 20)),
-        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
-        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 3600)),
-    }
+    # Dynamic connection pool settings: PostgreSQL (RDS) vs SQLite fallback
+    if "sqlite" in _db_url:
+        SQLALCHEMY_ENGINE_OPTIONS: dict = {
+            "pool_pre_ping": True,
+        }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS: dict = {
+            "pool_pre_ping": True,
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", 10)),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 20)),
+            "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
+            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 3600)),
+        }
 
     # Cache — use Redis if available, else SimpleCache
     CACHE_TYPE: str = os.environ.get("CACHE_TYPE", "SimpleCache")
@@ -265,7 +269,7 @@ class ProductionConfig(BaseConfig):
 
     # Session — use filesystem by default; set SESSION_TYPE=redis if Redis available
     SESSION_TYPE: str = os.environ.get("SESSION_TYPE", "filesystem")
-    SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "/tmp/hrms_sessions")
+    SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "./instance/sessions")
 
     # Production log level
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "WARNING")
