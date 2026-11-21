@@ -123,7 +123,7 @@
 
 .floating-input {
   width: 100%;
-  padding: 1rem 1rem 0.5rem 1rem;
+  padding: 1.25rem 1rem 0.45rem 1rem;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -131,6 +131,10 @@
   font-size: 0.95rem;
   outline: none;
   transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.floating-input[type="password"] {
+  padding-right: 2.8rem;
 }
 
 .floating-input:focus {
@@ -146,13 +150,51 @@
   font-size: 0.9rem;
   pointer-events: none;
   transition: all var(--dur-fast) var(--ease-smooth);
+  z-index: 2;
 }
 
 .floating-input:focus ~ .floating-label,
-.floating-input:not(:placeholder-shown) ~ .floating-label {
-  top: 0.35rem;
-  left: 1rem;
-  font-size: 0.72rem;
-  color: var(--accent-core);
-  font-weight: 600;
+.floating-input:not(:placeholder-shown) ~ .floating-label,
+.floating-input:-webkit-autofill ~ .floating-label,
+.floating-input:autofill ~ .floating-label,
+.floating-input.has-value ~ .floating-label {
+  top: 0.3rem !important;
+  left: 1rem !important;
+  font-size: 0.72rem !important;
+  color: var(--accent-core) !important;
+  font-weight: 600 !important;
+}
+
+/* Dark theme autofill protection against white background */
+.floating-input:-webkit-autofill,
+.floating-input:-webkit-autofill:hover,
+.floating-input:-webkit-autofill:focus,
+.floating-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(15, 23, 42, 0.95) inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: color 0.15s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-primary);
 }

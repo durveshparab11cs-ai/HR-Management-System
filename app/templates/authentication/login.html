@@ -560,6 +560,9 @@
                 autocomplete="current-password"
               >
               <label for="login-password" class="floating-label">Password</label>
+              <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password', this)" tabindex="-1" title="Show/Hide password">
+                <i class="bi bi-eye"></i>
+              </button>
             </div>
 
             <!-- Submit Button -->
@@ -660,6 +663,9 @@
                 autocomplete="new-password"
               >
               <label for="reg-password" class="floating-label">Create Strong Password</label>
+              <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('reg-password', this)" tabindex="-1" title="Show/Hide password">
+                <i class="bi bi-eye"></i>
+              </button>
             </div>
 
             <!-- Submit Button -->
@@ -776,7 +782,46 @@
       {% if error %}
         window.triggerErrorShake('auth-card');
       {% endif %}
+
+      // 5. Auto-adjust floating labels for browser-autofilled credentials
+      function updateFloatingLabels() {
+        document.querySelectorAll('.floating-input').forEach(input => {
+          if (input.value && input.value.trim().length > 0) {
+            input.classList.add('has-value');
+          } else {
+            input.classList.remove('has-value');
+          }
+        });
+      }
+      updateFloatingLabels();
+      setTimeout(updateFloatingLabels, 60);
+      setTimeout(updateFloatingLabels, 250);
+      setTimeout(updateFloatingLabels, 600);
+      setTimeout(updateFloatingLabels, 1500);
+
+      document.querySelectorAll('.floating-input').forEach(input => {
+        input.addEventListener('input', updateFloatingLabels);
+        input.addEventListener('change', updateFloatingLabels);
+        input.addEventListener('focus', function () { this.classList.add('has-value'); });
+        input.addEventListener('blur', updateFloatingLabels);
+      });
     });
+
+    // ── Toggle Password Visibility ──
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const icon = btn.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+      }
+    }
 
     // ── Employee Code Lookup for Registration ──
     let lookupTimer = null;
