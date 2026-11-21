@@ -595,6 +595,199 @@
       display: none;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Kiosk Terminal Master Password Modal ── */
+    .kiosk-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 18, 32, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 1.25rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .kiosk-modal-backdrop.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    .kiosk-modal-card {
+      width: 100%;
+      max-width: 440px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.88) 100%);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 22px;
+      box-shadow: 
+        0 25px 60px -10px rgba(0, 0, 0, 0.8),
+        0 0 35px rgba(56, 189, 248, 0.22),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.35);
+      padding: 2rem 2rem 1.75rem 2rem;
+      transform: scale(0.92) translateY(12px);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+    .kiosk-modal-backdrop.active .kiosk-modal-card {
+      transform: scale(1) translateY(0);
+    }
+    .kiosk-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .kiosk-modal-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.45rem;
+    }
+    .kiosk-modal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.65rem;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 9999px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: #38bdf8;
+      text-transform: uppercase;
+    }
+    .kiosk-modal-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.3rem;
+    }
+    .kiosk-modal-desc {
+      font-size: 0.84rem;
+      color: #94a3b8;
+      line-height: 1.45;
+    }
+    .kiosk-modal-close-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      margin-left: 0.5rem;
+    }
+    .kiosk-modal-close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+    .kiosk-modal-error {
+      padding: 0.65rem 0.85rem;
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.1rem;
+    }
+    .kiosk-input-wrap {
+      margin-bottom: 1.25rem;
+      text-align: left;
+    }
+    .kiosk-input-label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+      margin-bottom: 0.45rem;
+    }
+    .kiosk-input-field {
+      width: 100%;
+      height: 50px;
+      padding: 0 46px 0 16px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.96rem;
+      transition: all 0.2s ease;
+    }
+    .kiosk-input-field:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+      background: rgba(15, 23, 42, 0.95);
+    }
+    .kiosk-eye-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 6px;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+    .kiosk-eye-btn:hover {
+      color: #38bdf8;
+    }
+    .kiosk-submit-btn {
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      box-shadow: 0 8px 24px -4px rgba(2, 132, 199, 0.5);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .kiosk-submit-btn:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px -4px rgba(2, 132, 199, 0.65);
+    }
+    .kiosk-submit-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
   </style>
 </head>
 <body>
@@ -933,10 +1126,10 @@
             <p>Employees cannot punch from personal devices. Use the office computer terminal with attached camera to mark check-in &amp; check-out.</p>
           </div>
         </div>
-        <a href="/kiosk" class="portal-action-btn kiosk-btn">
+        <button type="button" class="portal-action-btn kiosk-btn" onclick="openKioskModal()">
           <span>Open Attendance Terminal</span>
-          <i class="bi bi-arrow-right"></i>
-        </a>
+          <i class="bi bi-shield-lock-fill"></i>
+        </button>
       </div>
 
       <div class="login-portal-card payroll-portal">
@@ -953,6 +1146,53 @@
           <i class="bi bi-lock-fill"></i>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Kiosk Terminal Master Password Modal -->
+  <div class="kiosk-modal-backdrop" id="kioskModalBackdrop" onclick="handleKioskBackdropClick(event)">
+    <div class="kiosk-modal-card motion-scale-up" onclick="event.stopPropagation()">
+      <div class="kiosk-modal-header">
+        <div>
+          <div class="kiosk-modal-badge-row">
+            <span class="kiosk-modal-badge">
+              <i class="bi bi-shield-lock-fill"></i> Office PC Terminal &bull; Master Lock
+            </span>
+          </div>
+          <h3 class="kiosk-modal-title">Office Attendance Kiosk</h3>
+          <p class="kiosk-modal-desc">This terminal is restricted to authorized office computers. Enter the Master Terminal Password to unlock.</p>
+        </div>
+        <button type="button" class="kiosk-modal-close-btn" onclick="closeKioskModal()" title="Close">&times;</button>
+      </div>
+
+      <div class="kiosk-modal-error" id="kioskModalError" style="display: none;">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span id="kioskModalErrorText">Invalid Master Terminal Password. Access Denied.</span>
+      </div>
+
+      <form id="kioskUnlockForm" onsubmit="submitKioskUnlock(event)">
+        <div class="kiosk-input-wrap">
+          <label for="kioskPasswordInput" class="kiosk-input-label">Master Terminal Password</label>
+          <div class="password-field-container">
+            <input 
+              type="password" 
+              id="kioskPasswordInput" 
+              class="kiosk-input-field" 
+              placeholder="Enter master password" 
+              required 
+              autocomplete="off"
+            >
+            <button type="button" class="kiosk-eye-btn" onclick="toggleKioskModalPwd()" title="Show/Hide Password">
+              <i class="bi bi-eye" id="kioskModalEyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="kiosk-submit-btn" id="kioskSubmitBtn">
+          <span>Unlock &amp; Launch Terminal</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </form>
     </div>
   </div>
 
@@ -1063,6 +1303,98 @@
           card.style.display = 'none';
         }
       }, 400);
+    }
+
+    // ── Kiosk Terminal Unlock Modal Logic ──
+    function openKioskModal() {
+      const modal = document.getElementById('kioskModalBackdrop');
+      const input = document.getElementById('kioskPasswordInput');
+      const errorEl = document.getElementById('kioskModalError');
+      if (errorEl) errorEl.style.display = 'none';
+      if (input) input.value = '';
+      modal.classList.add('active');
+      setTimeout(() => { if (input) input.focus(); }, 150);
+    }
+
+    function closeKioskModal() {
+      const modal = document.getElementById('kioskModalBackdrop');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function handleKioskBackdropClick(e) {
+      if (e.target.id === 'kioskModalBackdrop') {
+        closeKioskModal();
+      }
+    }
+
+    function toggleKioskModalPwd() {
+      const input = document.getElementById('kioskPasswordInput');
+      const icon = document.getElementById('kioskModalEyeIcon');
+      if (!input || !icon) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeKioskModal();
+      }
+    });
+
+    async function submitKioskUnlock(e) {
+      e.preventDefault();
+      const input = document.getElementById('kioskPasswordInput');
+      const submitBtn = document.getElementById('kioskSubmitBtn');
+      const errorEl = document.getElementById('kioskModalError');
+      const errorText = document.getElementById('kioskModalErrorText');
+      const password = input.value.trim();
+      
+      if (!password) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" style="display:inline-block;" role="status" aria-hidden="true"></span> Authenticating...';
+      if (errorEl) errorEl.style.display = 'none';
+
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const response = await fetch('/kiosk/unlock', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({ password: password })
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success) {
+          submitBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Unlocked! Launching...';
+          setTimeout(() => {
+            window.location.href = data.redirect_url || '/kiosk';
+          }, 300);
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Unlock &amp; Launch Terminal</span> <i class="bi bi-arrow-right"></i>';
+          if (errorEl && errorText) {
+            errorText.textContent = data.error || 'Invalid Master Terminal Password. Access Denied.';
+            errorEl.style.display = 'flex';
+          }
+          input.select();
+          input.focus();
+        }
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Unlock &amp; Launch Terminal</span> <i class="bi bi-arrow-right"></i>';
+        if (errorEl && errorText) {
+          errorText.textContent = 'Connection error. Please try again.';
+          errorEl.style.display = 'flex';
+        }
+      }
     }
   </script>
 </body>

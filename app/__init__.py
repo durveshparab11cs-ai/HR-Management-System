@@ -615,11 +615,23 @@ def _register_root_redirect(app: Flask) -> None:
         """Convenience redirect to authentication.login"""
         return redirect(url_for("authentication.login"))
 
-    @app.route("/kiosk")
+    @app.route("/kiosk", methods=["GET", "POST"])
     def kiosk():
-        """Dedicated Attendance Kiosk terminal view."""
-        from flask import render_template
-        return render_template("attendance/kiosk.html")
+        """Dedicated Attendance Kiosk terminal view with password lock."""
+        from app.blueprints.attendance.routes import handle_kiosk_request
+        return handle_kiosk_request()
+
+    @app.route("/kiosk/unlock", methods=["POST"])
+    def kiosk_unlock():
+        """Unlock endpoint for Kiosk terminal."""
+        from app.blueprints.attendance.routes import handle_kiosk_unlock
+        return handle_kiosk_unlock()
+
+    @app.route("/kiosk/lock", methods=["GET", "POST"])
+    def kiosk_lock():
+        """Lock endpoint for Kiosk terminal."""
+        from app.blueprints.attendance.routes import handle_kiosk_lock
+        return handle_kiosk_lock()
 
 
 def _register_health(app: Flask) -> None:

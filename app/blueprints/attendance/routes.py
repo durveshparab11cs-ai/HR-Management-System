@@ -8,12 +8,13 @@ import os
 import traceback
 import logging
 from datetime import date
-from flask import flash, jsonify, redirect, render_template, request, url_for, send_from_directory, abort
+from flask import flash, jsonify, redirect, render_template, request, url_for, send_from_directory, abort, session
 from flask_login import current_user, login_required
 
 from app.blueprints.employees.repository import EmployeeRepository
 from app.core.security import hr_required
 from app.repositories.office_device_repo import OfficeDeviceRepository
+from app.extensions.csrf import csrf
 from .device_service import DeviceService
 from .forms import OfficeSettingsForm
 from .office_settings_service import OfficeSettingsService
@@ -22,6 +23,60 @@ from .service import AttendanceService
 from . import attendance_bp
 
 logger = logging.getLogger("attendance")
+
+# Dedicated Office Attendance Terminal Master Password
+KIOSK_MASTER_PASSWORD = os.getenv("KIOSK_TERMINAL_PASSWORD", "CEOVIKASDESHMUKH@2013")
+
+
+def is_kiosk_unlocked() -> bool:
+    """Verify if the current session or user is authorized to access the Kiosk."""
+    if session.get("kiosk_unlocked") is True:
+        return True
+    if current_user.is_authenticated and getattr(current_user, "role", None) in [
+        "SUPER_ADMIN", "ADMIN", "HR_HEAD", "HR_MANAGER", "COORDINATOR"
+    ]:
+        return True
+    return False
+
+
+@csrf.exempt
+def handle_kiosk_unlock():
+    """Handle unlocking the kiosk via POST (JSON or Form)."""
+    password = ""
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        password = data.get("password", "")
+    else:
+        password = request.form.get("password", "")
+
+    if password and password.strip() == KIOSK_MASTER_PASSWORD.strip():
+        session["kiosk_unlocked"] = True
+        session.permanent = True
+        if request.is_json:
+            return jsonify({"success": True, "redirect_url": "/kiosk"})
+        return redirect("/kiosk")
+
+    if request.is_json:
+        return jsonify({"success": False, "error": "Invalid Master Terminal Password. Access Denied."}), 401
+    return render_template("attendance/kiosk_unlock.html", error="Invalid Master Terminal Password. Access Denied."), 401
+
+
+def handle_kiosk_lock():
+    """Lock the kiosk session."""
+    session.pop("kiosk_unlocked", None)
+    return redirect(url_for("authentication.login"))
+
+
+def handle_kiosk_request():
+    """Route handler for /kiosk."""
+    if request.method == "POST":
+        return handle_kiosk_unlock()
+
+    if is_kiosk_unlocked():
+        return render_template("attendance/kiosk.html")
+
+    return render_template("attendance/kiosk_unlock.html")
+
 
 _svc       = AttendanceService()
 _repo      = AttendanceRepository()
@@ -33,10 +88,23 @@ _device_svc = DeviceService(_device_repo)
 
 # ── Employee attendance dashboard ────────────────────────────────────
 
-@attendance_bp.route("/kiosk")
+@attendance_bp.route("/kiosk", methods=["GET", "POST"])
 def kiosk():
-    """Dedicated Attendance Kiosk terminal view."""
-    return render_template("attendance/kiosk.html")
+    """Dedicated Attendance Kiosk terminal view with password lock."""
+    return handle_kiosk_request()
+
+
+@attendance_bp.route("/kiosk/unlock", methods=["POST"])
+@csrf.exempt
+def kiosk_unlock():
+    """Unlock endpoint for Kiosk terminal."""
+    return handle_kiosk_unlock()
+
+
+@attendance_bp.route("/kiosk/lock", methods=["GET", "POST"])
+def kiosk_lock():
+    """Lock endpoint for Kiosk terminal."""
+    return handle_kiosk_lock()
 
 
 @attendance_bp.route("/gps-test")

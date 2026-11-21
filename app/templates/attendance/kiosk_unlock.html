@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+  <title>Unlock Office Kiosk — CS Creative Solutions</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b1220;
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
+      padding: 1.5rem;
+    }
+
+    .scenery-backdrop {
+      position: fixed;
+      top: -20px; left: -20px; right: -20px; bottom: -20px;
+      background: url('{{ url_for("static", filename="img/login-bg-scenery.jpg") }}') center center / cover no-repeat;
+      filter: blur(8px);
+      transform: scale(1.04);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .scenery-scrim {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(11, 18, 32, 0.4) 0%, rgba(11, 18, 32, 0.75) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .unlock-container {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Ambient Glow behind card */
+    .card-ambient-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 380px;
+      height: 280px;
+      background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.15) 50%, transparent 70%);
+      filter: blur(35px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .unlock-card {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.85) 100%);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 22px;
+      box-shadow: 
+        0 25px 60px -15px rgba(0, 0, 0, 0.7),
+        0 0 35px rgba(56, 189, 248, 0.2),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
+      padding: 2.25rem 2rem 2rem 2rem;
+      text-align: center;
+    }
+
+    /* 3D Crest Emblem */
+    .crest-icon-box {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1.25rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #2563eb 50%, #0f172a 100%);
+      border: 1.5px solid rgba(186, 230, 253, 0.6);
+      box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+      font-size: 1.75rem;
+      color: #ffffff;
+    }
+
+    .brand-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 9999px;
+      font-size: 0.64rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: #38bdf8;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .unlock-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 0.4rem;
+    }
+
+    .unlock-desc {
+      font-size: 0.86rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 1.6rem;
+    }
+
+    /* Form & Input */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 1.25rem;
+      text-align: left;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+      margin-bottom: 0.45rem;
+    }
+
+    .password-field-container {
+      position: relative;
+    }
+
+    .password-field {
+      width: 100%;
+      height: 52px;
+      padding: 0 48px 0 16px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .password-field:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .eye-toggle-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 8px;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .eye-toggle-btn:hover {
+      color: #38bdf8;
+    }
+
+    .error-alert {
+      padding: 0.7rem 0.9rem;
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 0.84rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .unlock-submit-btn {
+      width: 100%;
+      height: 52px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.96rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      box-shadow: 0 8px 25px -4px rgba(2, 132, 199, 0.55);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .unlock-submit-btn:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #1d4ed8 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -4px rgba(2, 132, 199, 0.7);
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 1.5rem;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .back-link:hover {
+      color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scenery-backdrop" aria-hidden="true"></div>
+  <div class="scenery-scrim" aria-hidden="true"></div>
+
+  <div class="unlock-container">
+    <div class="card-ambient-glow" aria-hidden="true"></div>
+
+    <div class="unlock-card">
+      <div class="crest-icon-box">
+        <i class="bi bi-shield-lock-fill"></i>
+      </div>
+
+      <div class="brand-eyebrow">
+        <span>Office PC Terminal &bull; Master Lock</span>
+      </div>
+
+      <h1 class="unlock-title">Office Attendance Kiosk</h1>
+      <p class="unlock-desc">
+        This terminal is restricted to authorized on-premise office hardware. Enter the Master Terminal Password to initialize camera hardware.
+      </p>
+
+      {% if error %}
+      <div class="error-alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="POST" action="/kiosk/unlock">
+        {% if csrf_token %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+
+        <div class="input-wrapper">
+          <label for="passwordField" class="input-label">Master Terminal Password</label>
+          <div class="password-field-container">
+            <input 
+              type="password" 
+              name="password" 
+              id="passwordField" 
+              class="password-field" 
+              placeholder="Enter master password" 
+              required 
+              autocomplete="off" 
+              autofocus
+            >
+            <button type="button" class="eye-toggle-btn" onclick="togglePassword()" title="Show/Hide Password">
+              <i class="bi bi-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="unlock-submit-btn">
+          <span>Unlock &amp; Launch Terminal</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </form>
+
+      <div>
+        <a href="/login" class="back-link">
+          <i class="bi bi-arrow-left"></i>
+          <span>Return to Portal Login</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const field = document.getElementById('passwordField');
+      const icon = document.getElementById('eyeIcon');
+      if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        field.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    }
+  </script>
+</body>
+</html>
