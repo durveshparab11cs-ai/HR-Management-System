@@ -1,0 +1,23 @@
+name: Render 24/7 Keep-Alive Monitor
+
+on:
+  schedule:
+    # Trigger every 10 minutes to prevent Render free tier spin-down
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Render Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Keep-Alive Ping
+        run: |
+          echo "Sending keep-alive ping to Render..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://smart-hrms-erp.onrender.com/health")
+          echo "Render responded with HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Render instance is awake and healthy!"
+          else
+            echo "Unexpected status $HTTP_STATUS, ping completed."
+          fi
