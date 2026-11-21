@@ -7,10 +7,10 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Sign In — Smart HRMS | CS Creative Solutions</title>
 
-  <!-- Typography: Inter & JetBrains Mono -->
+  <!-- Typography: Inter, Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
   <!-- Enterprise Design System & Motion Tokens -->
@@ -74,26 +74,152 @@
       padding: 2.5rem 1rem;
     }
 
-    .brand-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.6rem;
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 0.45rem 1rem;
-      border-radius: 9999px;
-      margin-bottom: 1.5rem;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.9);
-      letter-spacing: 0.02em;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    /* ── Executive Brand Identity (CS Creative Solutions) ── */
+    .brand-header-wrapper {
+      position: relative;
+      margin-bottom: 1.75rem;
+      display: flex;
+      justify-content: center;
+      z-index: 10;
     }
 
-    .brand-badge i {
-      color: var(--accent-core);
+    .brand-ambient-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 70px;
+      background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.45) 0%, rgba(99, 102, 241, 0.2) 50%, transparent 75%);
+      filter: blur(24px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .brand-capsule {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.95rem;
+      padding: 0.65rem 1.6rem 0.65rem 0.8rem;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.78) 100%);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 9999px;
+      box-shadow: 
+        0 20px 40px -10px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(59, 130, 246, 0.25),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.45);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .brand-capsule:hover {
+      transform: translateY(-2px);
+      border-color: rgba(96, 165, 250, 0.6);
+      box-shadow: 
+        0 24px 48px -10px rgba(0, 0, 0, 0.7),
+        0 0 32px rgba(59, 130, 246, 0.4),
+        inset 0 1px 2px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .brand-emblem {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+      flex-shrink: 0;
+    }
+
+    .emblem-letters {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 900;
+      font-size: 1.05rem;
+      letter-spacing: -0.04em;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    .emblem-sparkle {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+      animation: pulseSparkle 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseSparkle {
+      0%, 100% { transform: scale(0.9); opacity: 0.85; }
+      50% { transform: scale(1.35); opacity: 1; }
+    }
+
+    .brand-identity-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      text-align: left;
+    }
+
+    .brand-name {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #ffffff 20%, #e2e8f0 70%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+    }
+
+    .brand-verified-badge {
+      font-size: 0.95rem;
+      color: #38bdf8;
+      -webkit-text-fill-color: #38bdf8;
+      display: inline-flex;
+      align-items: center;
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+    }
+
+    .brand-descriptor {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      line-height: 1;
+    }
+
+    .descriptor-accent {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    .descriptor-dot {
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 0.65rem;
+    }
+
+    .descriptor-sub {
+      color: #cbd5e1;
+      opacity: 0.95;
     }
 
     .auth-card {
@@ -454,10 +580,28 @@
   <canvas id="hero-canvas"></canvas>
 
   <div class="login-container">
-    <!-- Brand Pill -->
-    <div class="brand-badge motion-fade-in">
-      <i class="bi bi-shield-check"></i>
-      <span>CS Creative Solutions &bull; Enterprise HRMS</span>
+    <!-- Executive Brand Identity -->
+    <div class="brand-header-wrapper motion-fade-in">
+      <div class="brand-ambient-glow" aria-hidden="true"></div>
+      <div class="brand-capsule">
+        <div class="brand-emblem">
+          <span class="emblem-letters">CS</span>
+          <span class="emblem-sparkle"></span>
+        </div>
+        <div class="brand-identity-text">
+          <div class="brand-name">
+            <span>CS Creative Solutions</span>
+            <span class="brand-verified-badge" title="Verified Enterprise Organization">
+              <i class="bi bi-patch-check-fill"></i>
+            </span>
+          </div>
+          <div class="brand-descriptor">
+            <span class="descriptor-accent">ENTERPRISE HRMS</span>
+            <span class="descriptor-dot">&bull;</span>
+            <span class="descriptor-sub">OPERATIONS PLATFORM</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Main Auth Card -->
