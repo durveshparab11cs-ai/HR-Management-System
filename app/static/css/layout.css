@@ -454,3 +454,121 @@
     color: #0284c7 !important;
     font-size: 0.95rem !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE & TABLET DASHBOARD RESPONSIVENESS REFINEMENTS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767.98px) {
+    /* Main Content Area */
+    .hrms-content {
+        padding: 0.85rem 0.65rem !important;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    /* Executive Frosted Topbar / Banner */
+    .executive-frosted-banner,
+    .dashboard-topbar,
+    .hrms-page-header {
+        padding: 1rem 1rem !important;
+        border-radius: 16px !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .greeting-title,
+    .glitter-shimmer-text,
+    .hrms-page-title {
+        font-size: 1.3rem !important;
+        line-height: 1.3 !important;
+    }
+
+    .executive-frosted-banner .btn-primary {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 0.65rem 1rem !important;
+        min-height: 46px;
+    }
+
+    .greeting-date,
+    .greeting-date-pill {
+        font-size: 0.78rem !important;
+        padding: 0.25rem 0.65rem !important;
+    }
+
+    /* Dashboard Status & Info Cards */
+    .card-body.p-4 {
+        padding: 1.15rem 1rem !important;
+    }
+
+    .card-header.px-4 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .card-body.px-4 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Horizontal Scrollable Nav Pills (Salary Vault Months) */
+    #salaryMonthTabs {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 0.45rem !important;
+        scrollbar-width: none !important;
+    }
+    #salaryMonthTabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* Responsive Data Tables */
+    .table-responsive {
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: 12px;
+        margin-bottom: 0;
+    }
+
+    /* Navbar Tap Targets & Mobile Layout */
+    .hrms-navbar {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .hrms-navbar-icon-btn,
+    .hrms-sidebar-toggle {
+        min-width: 42px;
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hrms-notification-dropdown {
+        min-width: 290px !important;
+        max-width: calc(100vw - 2rem) !important;
+    }
+
+    /* Sidebar Navigation */
+    .hrms-sidebar {
+        width: min(290px, 85vw) !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* Extra Small Screen Adjustments */
+    .glitter-badge {
+        font-size: 0.68rem !important;
+        padding: 0.2rem 0.55rem !important;
+    }
+
+    .badge-glitter-pill {
+        font-size: 0.68rem !important;
+        padding: 0.2rem 0.55rem !important;
+    }
+
+    .d-flex.align-items-center.gap-3 {
+        gap: 0.5rem !important;
+    }
+}
