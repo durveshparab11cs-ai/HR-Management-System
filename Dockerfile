@@ -79,4 +79,4 @@ EXPOSE 8000
 # Default command — Start Gunicorn WSGI server
 # Note: Render provides native health checks via the configured health check path (/health)
 # Docker-level HEALTHCHECK is omitted to prevent port collision with dynamic $PORT on Render
-CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level info --access-logfile - --error-logfile - run:app"]
+CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class gthread --threads 4 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level info --access-logfile - --error-logfile - run:app"]

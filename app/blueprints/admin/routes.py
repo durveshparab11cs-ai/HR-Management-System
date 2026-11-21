@@ -87,56 +87,73 @@ def index():
     except Exception:
         pending_early     = 0
     try:
-        today_records     = _att.get_all_today(today)
-        # Add computed status based on working hours and photo uploads
-        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
-        from app.models.attendance_photo import AttendancePhoto
-        from datetime import datetime as dt_now
-        for att in today_records:
-            try:
-                # Check if both check-in and check-out photos are uploaded
-                photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
-                has_checkin_photo = photo and photo.image_data
-                has_checkout_photo = photo and photo.checkout_image_data
-                
-                if not has_checkin_photo or not has_checkout_photo:
-                    # Missing one or both photos → PENDING
-                    att.status = "pending"
-                elif att.check_in_time and att.check_out_time:
-                    # Both photos uploaded - compute status based on working hours
-                    office = _att.get_office_for_employee(_emp.get_by_id(att.employee_id))
-                    if office:
-                        meta = compute_check_out_meta(att, att.check_out_time, office, att.employee_id)
-                        new_status = meta.get("status")
-                        if new_status:
-                            att.status = new_status
-            except Exception as e:
-                import logging
-                logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
+        today_records = _att.get_all_today(today)
+        # Optimized batch loading: avoid N+1 queries and avoid pulling megabytes of base64 images
+        if today_records:
+            from app.blueprints.attendance.attendance_engine import compute_check_out_meta
+            from app.models.attendance_photo import AttendancePhoto
+            from app.models.employee import Employee
+            from sqlalchemy.orm import load_only
+
+            att_ids = [a.id for a in today_records]
+            emp_ids = list({a.employee_id for a in today_records if a.employee_id})
+
+            # Check presence of checkin/checkout photos in ONE batch query
+            photos = (
+                AttendancePhoto.query
+                .filter(AttendancePhoto.attendance_id.in_(att_ids))
+                .options(load_only(AttendancePhoto.id, AttendancePhoto.attendance_id, AttendancePhoto.image_data, AttendancePhoto.checkout_image_data))
+                .all()
+            )
+            photo_map = {
+                p.attendance_id: (bool(p.image_data), bool(p.checkout_image_data))
+                for p in photos
+            }
+
+            # Batch load employees to avoid per-record database lookups
+            emp_map = {e.id: e for e in Employee.query.filter(Employee.id.in_(emp_ids)).all()} if emp_ids else {}
+
+            for att in today_records:
+                try:
+                    has_checkin, has_checkout = photo_map.get(att.id, (False, False))
+                    if not has_checkin or not has_checkout:
+                        att.status = "pending"
+                    elif att.check_in_time and att.check_out_time:
+                        emp = emp_map.get(att.employee_id)
+                        office = _att.get_office_for_employee(emp) if emp else None
+                        if office:
+                            meta = compute_check_out_meta(att, att.check_out_time, office, att.employee_id)
+                            new_status = meta.get("status")
+                            if new_status:
+                                att.status = new_status
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error computing status for att {att.id}: {e}", exc_info=True)
     except Exception as e:
         import logging
         logging.error(f"Error fetching today records: {e}", exc_info=True)
-        today_records     = []
+        today_records = []
     try:
-        recent_requests   = _leave.get_pending(page=1, per_page=5).items
+        recent_requests = _leave.get_pending(page=1, per_page=5).items
     except Exception:
-        recent_requests   = []
+        recent_requests = []
 
-    # Fetch recent attendance photos for the live visual verification card
+    # Fetch recent attendance photos for the live visual verification card (joined query in 1 round-trip)
     recent_photos = []
     total_photos_count = 0
     try:
         from app.models.attendance_photo import AttendancePhoto
         from app.models.employee import Employee
+        from app.extensions.database import db
         total_photos_count = AttendancePhoto.query.count()
-        raw_photos = (
-            AttendancePhoto.query
+        results = (
+            db.session.query(AttendancePhoto, Employee)
+            .outerjoin(Employee, AttendancePhoto.employee_id == Employee.id)
             .order_by(AttendancePhoto.id.desc())
             .limit(6)
             .all()
         )
-        for p in raw_photos:
-            emp = Employee.query.get(p.employee_id) if p.employee_id else None
+        for p, emp in results:
             recent_photos.append({
                 "id": p.id,
                 "attendance_id": p.attendance_id,

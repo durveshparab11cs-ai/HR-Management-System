@@ -120,6 +120,11 @@ class BaseConfig:
     ALLOWED_DOCUMENT_EXTENSIONS: set = {"pdf", "doc", "docx", "xls", "xlsx", "csv"}
 
     # --------------------------------------------------------------------------
+    # Static Files Caching
+    # --------------------------------------------------------------------------
+    SEND_FILE_MAX_AGE_DEFAULT: int = int(os.environ.get("SEND_FILE_MAX_AGE_DEFAULT", 86400))  # 1 day default
+
+    # --------------------------------------------------------------------------
     # Logging
     # --------------------------------------------------------------------------
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
@@ -270,6 +275,9 @@ class ProductionConfig(BaseConfig):
     # Session — use filesystem by default; set SESSION_TYPE=redis if Redis available
     SESSION_TYPE: str = os.environ.get("SESSION_TYPE", "filesystem")
     SESSION_FILE_DIR: str = os.environ.get("SESSION_FILE_DIR", "./instance/sessions")
+
+    # Static asset caching in production (7 days)
+    SEND_FILE_MAX_AGE_DEFAULT: int = int(os.environ.get("SEND_FILE_MAX_AGE_DEFAULT", 604800))
 
     # Production log level
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "WARNING")
