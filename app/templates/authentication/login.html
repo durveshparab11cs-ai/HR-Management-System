@@ -1,547 +1,818 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<title>{{ title }} — {{ app_name }}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;background:#060e1f;display:flex;flex-direction:column}
-/* Top bar */
-.topbar{background:#131921;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;flex-shrink:0}
-.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-.topbar-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#4f9cf9,#1a5fb4);display:flex;align-items:center;justify-content:center}
-.topbar-icon i{color:#fff;font-size:1.1rem}
-.topbar-name{color:#fff;font-weight:700;font-size:1.15rem}.topbar-name span{color:#febd69}
-.topbar-tagline{color:#ccc;font-size:.76rem;margin-top:1px}
-/* Page */
-.page-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}
-.app-logo{text-align:center;margin-bottom:16px}
-.app-logo .logo-icon{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4f9cf9,#1a5fb4);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(79,156,249,.35);margin-bottom:6px}
-.app-logo .logo-icon i{color:#fff;font-size:1.5rem}
-.app-logo h1{font-size:1.25rem;font-weight:700;color:#fff;margin-bottom:2px}
-.app-logo p{font-size:.78rem;color:#94a3b8}
-/* Auth box */
-.auth-box{width:100%;max-width:360px;background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.06),0 16px 48px rgba(0,0,0,.2);overflow:hidden}
-/* Tabs */
-.tab-bar{display:flex;background:#f3f3f3;border-bottom:1px solid #d5d9d9}
-.tab-btn{flex:1;padding:12px 4px;font-size:.875rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:#555;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;position:relative}
-.tab-btn.active{background:#fff;color:#0f1117;box-shadow:inset 0 -2px 0 #f90}
-.tab-btn:not(.active):hover{background:#e9e9e9;color:#111}
-/* Panel */
-.tab-panel{display:none;padding:24px}
-.tab-panel.active{display:block}
-.panel-title{font-size:1.15rem;font-weight:700;color:#0f1117;margin-bottom:3px}
-.panel-sub{font-size:.78rem;color:#555;margin-bottom:18px}
-/* Error */
-.auth-error{background:#fff5f5;border:1px solid #fed7d7;border-left:4px solid #c53030;border-radius:4px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px;margin-bottom:16px;font-size:.82rem;color:#c53030}
-.auth-success{background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:4px;padding:10px 14px;display:flex;align-items:flex-start;gap:9px;margin-bottom:16px;font-size:.82rem;color:#166534}
-/* Fields */
-.f-group{margin-bottom:14px}
-.f-label{display:block;font-size:.8rem;font-weight:600;color:#0f1117;margin-bottom:5px}
-.f-row{display:flex;align-items:center;background:#f8fafc;border:1.5px solid #d5d9d9;border-radius:3px;overflow:hidden;transition:border-color .18s,box-shadow .18s}
-.f-row:focus-within{border-color:#e77600;box-shadow:0 0 0 3px rgba(231,118,0,.2)}
-.f-row.err{border-color:#c53030}
-.f-icon{padding:0 11px;color:#888;font-size:.9rem;flex-shrink:0}
-.f-row input,.f-row select{flex:1;border:none;outline:none;background:transparent;padding:10px 4px;font-size:.875rem;color:#0f1117;font-family:inherit;min-width:0}
-.f-row input::placeholder{color:#bbb}
-.f-toggle{background:none;border:none;padding:0 11px;cursor:pointer;color:#888;font-size:.9rem;transition:color .15s}
-.f-toggle:hover{color:#e77600}
-.f-err{font-size:.74rem;color:#c53030;margin-top:4px;display:flex;align-items:center;gap:4px}
-/* Employee name lookup */
-.emp-name-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:3px;padding:9px 12px;margin-bottom:14px;display:none}
-.emp-name-label{font-size:.72rem;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.emp-name-value{font-size:.93rem;font-weight:700;color:#0f1117;margin-top:1px}
-/* Strength bar */
-.strength-bar{height:3px;background:#e0e0e0;border-radius:2px;margin-top:6px;overflow:hidden}
-.strength-fill{height:100%;width:0;border-radius:2px;transition:width .3s,background .3s}
-.strength-lbl{font-size:.7rem;margin-top:3px;color:#777}
-/* Options */
-.options-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.remember{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#0f1117;cursor:pointer;user-select:none}
-.remember input{width:15px;height:15px;accent-color:#e77600;cursor:pointer}
-.forgot{font-size:.8rem;color:#0066c0;text-decoration:none;font-weight:500}
-.forgot:hover{text-decoration:underline;color:#c45500}
-/* Button */
-.btn-submit{width:100%;padding:10px;background:linear-gradient(180deg,#f7dfa5,#f0c14b);border:1px solid #a88734;border-radius:3px;font-size:.9rem;font-weight:600;color:#111;font-family:inherit;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 1px 0 rgba(255,255,255,.4) inset}
-.btn-submit:hover:not(:disabled){background:linear-gradient(180deg,#f5d78e,#eeb933)}
-.btn-submit:disabled{opacity:.6;cursor:not-allowed}
-.btn-spin{width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:#111;border-radius:50%;animation:spin .65s linear infinite;display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* OR divider */
-.or-div{display:flex;align-items:center;gap:10px;margin:14px 0;color:#767676;font-size:.76rem}
-.or-div::before,.or-div::after{content:'';flex:1;border-top:1px solid #ddd}
-/* New account */
-.new-acct-box{width:100%;max-width:360px;border:1px solid #d5d9d9;border-radius:8px;padding:14px 18px;background:#fff;text-align:center;font-size:.82rem;color:#0f1117;margin-top:14px}
-.btn-create{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;width:100%;padding:8px;background:linear-gradient(180deg,#f7f8fa,#e7e9ec);border:1px solid #adb1b8;border-radius:3px;font-size:.85rem;font-weight:600;color:#0f1117;cursor:pointer;font-family:inherit;transition:background .15s}
-.btn-create:hover{background:linear-gradient(180deg,#e7e9ec,#d9dce1)}
-/* Footer */
-.page-footer{background:#e7e7e7;border-top:1px solid #ddd;text-align:center;padding:12px;font-size:.74rem;color:#555;flex-shrink:0}
-.page-footer a{color:#0066c0;text-decoration:none;margin:0 8px}
-.page-footer a:hover{text-decoration:underline}
-/* First-user notice */
-.first-notice{background:#fffbf0;border:1px solid #f0c040;border-radius:4px;padding:9px 12px;display:flex;gap:8px;align-items:flex-start;font-size:.78rem;color:#7a5000;margin-bottom:14px;line-height:1.5}
-.first-notice i{color:#f90;font-size:.95rem;flex-shrink:0;margin-top:1px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Sign In — Smart HRMS | CS Creative Solutions</title>
+
+  <!-- Typography: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Enterprise Design System & Motion Tokens -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-enterprise.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    .login-scenery-backdrop {
+      position: fixed;
+      top: -20px;
+      left: -20px;
+      right: -20px;
+      bottom: -20px;
+      width: calc(100vw + 40px);
+      height: calc(100vh + 40px);
+      background: url('{{ url_for("static", filename="img/login-bg-scenery.jpg") }}') center center / cover no-repeat;
+      filter: blur(6px);
+      transform: scale(1.03);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .login-scenery-scrim {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 45%, rgba(11, 18, 32, 0.28) 0%, rgba(11, 18, 32, 0.6) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #hero-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 10;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1rem;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 0.45rem 1rem;
+      border-radius: 9999px;
+      margin-bottom: 1.5rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .brand-badge i {
+      color: var(--accent-core);
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .auth-header {
+      padding: 2rem 2rem 1.25rem 2rem;
+      text-align: center;
+    }
+
+    .auth-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .auth-header p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* ── Tab Navigation (Exactly 3 Tabs) ── */
+    .tab-header {
+      display: flex;
+      position: relative;
+      background: rgba(4, 8, 20, 0.5);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 1rem;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.85rem 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: color var(--dur-fast) var(--ease-smooth);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: #60a5fa;
+    }
+
+    .tab-content {
+      padding: 1.75rem 2rem 2rem 2rem;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* ── Alert Notices ── */
+    .auth-alert {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.45;
+    }
+
+    .alert-danger {
+      background: var(--status-danger-bg);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .alert-success {
+      background: var(--status-success-bg);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #86efac;
+    }
+
+    .alert-info {
+      background: var(--status-info-bg);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      color: #7dd3fc;
+    }
+
+    /* ── Custom Select for Department ── */
+    .floating-select {
+      width: 100%;
+      padding: 1rem 1rem 0.5rem 1rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+      appearance: none;
+      transition: all var(--dur-fast) var(--ease-smooth);
+    }
+
+    .floating-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .floating-select option {
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    .select-chevron {
+      position: absolute;
+      right: 1rem;
+      top: 1.1rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 0.8rem;
+    }
+
+    /* ── Login Portals Section ── */
+    .login-portals-section {
+      width: 100%;
+      max-width: 440px;
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .login-portal-card {
+      background: var(--bg-card);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      transition: all var(--dur-normal) var(--ease-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+    .login-portal-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+      box-shadow: var(--glass-shadow-md);
+    }
+    .login-portal-card.kiosk-portal {
+      border-color: rgba(6, 182, 212, 0.3);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(6, 182, 212, 0.08));
+    }
+    .login-portal-card.payroll-portal {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(99, 102, 241, 0.08));
+    }
+
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+    }
+    .portal-badge.office-badge {
+      background: rgba(6, 182, 212, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+    .portal-badge.payroll-badge {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .portal-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .portal-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .portal-icon.kiosk-icon {
+      background: linear-gradient(135deg, #06b6d4, #0284c7);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.35);
+    }
+    .portal-icon.payroll-icon {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .portal-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.25rem;
+    }
+    .portal-header p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .portal-action-btn {
+      width: 100%;
+      height: 42px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all var(--dur-fast) var(--ease-smooth);
+    }
+    .portal-action-btn.kiosk-btn {
+      background: rgba(6, 182, 212, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+    .portal-action-btn.kiosk-btn:hover {
+      background: #0ea5e9;
+      color: #fff;
+      border-color: #0ea5e9;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+    }
+    .portal-action-btn.payroll-btn {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+    .portal-action-btn.payroll-btn:hover {
+      background: #6366f1;
+      color: #fff;
+      border-color: #6366f1;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    /* ── Primary Action Button ── */
+    .btn-auth-primary {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-md);
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.92rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all var(--dur-fast) var(--ease-smooth);
+      box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+    }
+
+    .btn-auth-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px 0 rgba(37, 99, 235, 0.5);
+    }
+
+    .btn-auth-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .lookup-status-card {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      display: none;
+    }
+
+    .lookup-label {
+      font-size: 0.7rem;
+      color: #34d399;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .lookup-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-top: 0.15rem;
+    }
+
+    .auth-footer {
+      padding: 1.25rem 2rem;
+      background: rgba(4, 8, 20, 0.4);
+      border-top: 1px solid var(--border-subtle);
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
 
-<!-- Top Bar -->
-<header class="topbar">
-  <a class="topbar-brand" href="/">
-    <div class="topbar-icon"><i class="bi bi-grid-3x3-gap-fill"></i></div>
-    <div>
-      <div class="topbar-name">Smart <span>HRMS</span></div>
-      <div class="topbar-tagline">Human Resource Management System</div>
-    </div>
-  </a>
-</header>
+  <!-- Scenery Background Layer (Lush Anime/Ghibli Landscape with subtle blur) -->
+  <div class="login-scenery-backdrop" aria-hidden="true"></div>
+  <div class="login-scenery-scrim" aria-hidden="true"></div>
 
-<main class="page-body">
-  <!-- Logo -->
-  <div class="app-logo">
-    <div class="logo-icon"><i class="bi bi-building-fill-check"></i></div>
-    <h1>Smart HRMS</h1>
-    <p>Your complete workforce platform</p>
-  </div>
+  <!-- Dynamic Interactive Background Canvas -->
+  <canvas id="hero-canvas"></canvas>
 
-  <!-- Auth box -->
-  <div class="auth-box">
-
-    <!-- Tabs -->
-    <div class="tab-bar">
-      <button class="tab-btn {% if active_tab=='login' %}active{% endif %}"
-              id="tab-login" type="button" onclick="switchTab('login')">
-        <i class="bi bi-box-arrow-in-right"></i> Sign In
-      </button>
-      <button class="tab-btn {% if active_tab=='register' %}active{% endif %}"
-              id="tab-register" type="button" onclick="switchTab('register')">
-        <i class="bi bi-person-plus-fill"></i> Register
-      </button>
-      <button class="tab-btn {% if active_tab=='coordinator' %}active{% endif %}"
-              id="tab-coordinator" type="button" onclick="switchTab('coordinator')" style="color:#16a34a;font-weight:700">
-        <i class="bi bi-clock-history"></i> Attendance
-      </button>
-      <button class="tab-btn {% if active_tab=='forgot' %}active{% endif %}"
-              id="tab-forgot" type="button" onclick="switchTab('forgot')">
-        <i class="bi bi-key"></i> Forgot Password
-      </button>
+  <div class="login-container">
+    <!-- Brand Pill -->
+    <div class="brand-badge motion-fade-in">
+      <i class="bi bi-shield-check"></i>
+      <span>CS Creative Solutions &bull; Enterprise HRMS</span>
     </div>
 
-    <!-- ── SIGN IN ── -->
-    <div class="tab-panel {% if active_tab=='login' %}active{% endif %}" id="panel-login">
-      <p class="panel-title">Sign in</p>
-      <p class="panel-sub">Use your Employee Code to access the system</p>
+    <!-- Main Auth Card -->
+    <div class="auth-card motion-slide-up" id="auth-card">
+      <div class="auth-header">
+        <h1>Smart HRMS</h1>
+        <p>Enterprise Workforce &amp; Operations Portal</p>
+      </div>
 
-      {% if error and active_tab == 'login' %}
-      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
-      {% endif %}
+      <!-- Exactly 3 Tabs: Sign In, Register, Forgot Password -->
+      <nav class="tab-header" id="auth-tabs" aria-label="Authentication modes">
+        <button type="button" class="tab-btn {% if active_tab == 'login' %}active{% endif %}" data-target="tab-login">
+          <i class="bi bi-box-arrow-in-right"></i> Sign In
+        </button>
+        <button type="button" class="tab-btn {% if active_tab == 'register' %}active{% endif %}" data-target="tab-register">
+          <i class="bi bi-person-plus"></i> Register
+        </button>
+        <button type="button" class="tab-btn {% if active_tab == 'forgot' %}active{% endif %}" data-target="tab-forgot">
+          <i class="bi bi-key"></i> Forgot Password
+        </button>
+        <div class="tab-glider"></div>
+      </nav>
 
-      <form method="POST" id="login-form" novalidate>
-        {{ login_form.hidden_tag() }}
-        <input type="hidden" name="action" value="login">
-        <input type="hidden" name="next" value="{{ request.args.get('next','') }}">
-
-        <div class="f-group">
-          <label class="f-label" for="l-code">Employee Code</label>
-          <div class="f-row {% if login_form.employee_code.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
-            {{ login_form.employee_code(id="l-code", autocomplete="username",
-                oninput="this.value=this.value.toUpperCase()") }}
+      <div class="tab-content">
+        <!-- Server Error Flash / Message -->
+        {% if error %}
+          <div class="auth-alert alert-danger motion-shake" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>{{ error }}</div>
           </div>
-          {% for e in login_form.employee_code.errors %}
-          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
-        </div>
-
-        <div class="f-group">
-          <label class="f-label" for="l-dept">Department <span style="color:#c53030">*</span></label>
-          <div class="f-row {% if login_form.department.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-building"></i></span>
-            {{ login_form.department(id="l-dept", style="flex:1;border:none;outline:none;background:transparent;padding:10px 4px;font-size:.875rem;color:#0f1117;font-family:inherit") }}
+        {% endif %}
+        {% if success_msg %}
+          <div class="auth-alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>{{ success_msg }}</div>
           </div>
-          {% for e in login_form.department.errors %}
-          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
-        </div>
+        {% endif %}
 
-        <div class="f-group">
-          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-            <label class="f-label" style="margin-bottom:0" for="l-pw">Password</label>
-            <a href="javascript:void(0)" onclick="switchTab('forgot')" class="forgot">Forgot password?</a>
-          </div>
-          <div class="f-row {% if login_form.password.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-lock"></i></span>
-            {{ login_form.password(id="l-pw", autocomplete="current-password") }}
-            <button type="button" class="f-toggle" onclick="togglePw('l-pw',this)" tabindex="-1">
-              <i class="bi bi-eye"></i>
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 1: SIGN IN (Employee Code + Department + Password)
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane {% if active_tab == 'login' %}active{% endif %}" id="tab-login">
+          <form method="POST" action="{{ url_for('authentication.login') }}" id="form-login" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="login">
+
+            <!-- Employee Code -->
+            <div class="floating-group">
+              <input
+                type="text"
+                name="employee_code"
+                id="login-code"
+                class="floating-input font-mono"
+                placeholder=" "
+                required
+                autocomplete="username"
+                value="{{ login_form.employee_code.data or '' }}"
+              >
+              <label for="login-code" class="floating-label">Employee Code (e.g. E-2512012)</label>
+            </div>
+
+            <!-- Department (Optional) -->
+            <div class="floating-group">
+              <select name="department" id="login-dept" class="floating-select">
+                <option value="" selected>— Select Department (Optional) —</option>
+                {% if department_choices %}
+                  {% for code, label in department_choices %}
+                    <option value="{{ code }}" {% if login_form.department.data == code %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="CEO">CEO</option>
+                  <option value="Proprietor">Proprietor</option>
+                  <option value="AGM">AGM</option>
+                  <option value="Operations">Operations</option>
+                  <option value="BDM">BDM</option>
+                  <option value="Claim">Claim</option>
+                  <option value="MIS">MIS</option>
+                  <option value="Data Analytics">Data Analytics</option>
+                  <option value="HR">HR</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Accounts">Accounts</option>
+                  <option value="IT Hardware">IT Hardware</option>
+                  <option value="IT Software">IT Software</option>
+                  <option value="FOSS">FOSS</option>
+                  <option value="Social Media">Social Media</option>
+                {% endif %}
+              </select>
+              <i class="bi bi-chevron-down select-chevron"></i>
+            </div>
+
+            <!-- Password -->
+            <div class="floating-group">
+              <input
+                type="password"
+                name="password"
+                id="login-password"
+                class="floating-input"
+                placeholder=" "
+                required
+                autocomplete="current-password"
+              >
+              <label for="login-password" class="floating-label">Password</label>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-auth-primary" id="btn-login-submit">
+              <span class="spinner-border-sm" id="spin-login"></span>
+              <span id="text-login">Sign In to Dashboard</span>
             </button>
+          </form>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 2: REGISTER (Pending Account, Requires HR Approval)
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane {% if active_tab == 'register' %}active{% endif %}" id="tab-register">
+          <div class="auth-alert alert-info">
+            <i class="bi bi-info-circle-fill"></i>
+            <div>Registration requires an existing record in Employee Master. Accounts are created in <strong>Pending</strong> state and activated upon HR approval.</div>
           </div>
-        </div>
 
-        <div class="options-row">
-          <label class="remember">
-            {{ login_form.remember_me(id="l-rem") }} Stay signed in
-          </label>
-        </div>
+          <form method="POST" action="{{ url_for('authentication.login') }}" id="form-register" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="register">
 
-        <button type="submit" class="btn-submit" id="l-btn">
-          <div class="btn-spin" id="l-spin"></div>
-          <span id="l-txt">Sign In</span>
-        </button>
+            <!-- Employee Code Lookup -->
+            <div class="floating-group">
+              <input
+                type="text"
+                name="employee_code"
+                id="reg-code"
+                class="floating-input font-mono"
+                placeholder=" "
+                required
+                autocomplete="off"
+                oninput="lookupEmployee(this.value)"
+              >
+              <label for="reg-code" class="floating-label">Enter Employee Code</label>
+            </div>
 
-        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5">
-          By continuing, you agree to Smart HRMS
-          <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
-        </p>
-      </form>
-    </div>
+            <!-- Verified Employee Name Card -->
+            <div class="lookup-status-card" id="reg-lookup-card">
+              <div class="lookup-label"><i class="bi bi-check-circle"></i> Verified Master Record</div>
+              <div class="lookup-name" id="reg-lookup-name">—</div>
+            </div>
 
-    <!-- ── ATTENDANCE (COORDINATOR LOGIN) ── -->
-    <div class="tab-panel {% if active_tab=='coordinator' %}active{% endif %}" id="panel-coordinator">
-      <p class="panel-title">Attendance Kiosk</p>
-      <p class="panel-sub">Enter your credentials to mark attendance</p>
+            <!-- Department Selection -->
+            <div class="floating-group">
+              <select name="department" id="reg-dept" class="floating-select" required>
+                <option value="" selected>— Select Your Department —</option>
+                {% if department_choices %}
+                  {% for code, label in department_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="CEO">CEO</option>
+                  <option value="Proprietor">Proprietor</option>
+                  <option value="AGM">AGM</option>
+                  <option value="Operations">Operations</option>
+                  <option value="BDM">BDM</option>
+                  <option value="Claim">Claim</option>
+                  <option value="MIS">MIS</option>
+                  <option value="Data Analytics">Data Analytics</option>
+                  <option value="HR">HR</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Accounts">Accounts</option>
+                  <option value="IT Hardware">IT Hardware</option>
+                  <option value="IT Software">IT Software</option>
+                  <option value="FOSS">FOSS</option>
+                  <option value="Social Media">Social Media</option>
+                {% endif %}
+              </select>
+              <i class="bi bi-chevron-down select-chevron"></i>
+            </div>
 
-      <div id="coord-error" class="auth-error" style="display:none">
-        <i class="bi bi-exclamation-circle-fill"></i>
-        <div id="coord-error-text"></div>
-      </div>
+            <!-- Actual Designation Input -->
+            <div class="floating-group">
+              <input
+                type="text"
+                name="designation"
+                id="reg-designation"
+                class="floating-input"
+                placeholder=" "
+                required
+                autocomplete="organization-title"
+                value="{{ register_form.designation.data or '' }}"
+              >
+              <label for="reg-designation" class="floating-label">Actual Designation (e.g. Senior Software Engineer)</label>
+            </div>
 
-      <div id="coord-success" class="auth-success" style="display:none">
-        <i class="bi bi-check-circle-fill"></i>
-        <div>Login successful! Redirecting...</div>
-      </div>
+            <!-- New Password -->
+            <div class="floating-group">
+              <input
+                type="password"
+                name="password"
+                id="reg-password"
+                class="floating-input"
+                placeholder=" "
+                required
+                autocomplete="new-password"
+              >
+              <label for="reg-password" class="floating-label">Create Strong Password</label>
+            </div>
 
-      <div id="coord-form-container">
-        <div class="f-group">
-          <label class="f-label" for="coord-username">Username</label>
-          <div class="f-row">
-            <span class="f-icon"><i class="bi bi-person"></i></span>
-            <input type="text" id="coord-username" placeholder="CS CREATIVE SOLUTIONS" autocomplete="off" value="CS CREATIVE SOLUTIONS" readonly style="cursor:not-allowed;color:#666">
-          </div>
-        </div>
-
-        <div class="f-group">
-          <label class="f-label" for="coord-password">Password</label>
-          <div class="f-row">
-            <span class="f-icon"><i class="bi bi-lock"></i></span>
-            <input type="password" id="coord-password" placeholder="CSCS@VikasDeshmukh" autocomplete="off" value="">
-          </div>
-        </div>
-
-        <button type="button" class="btn-submit" id="coord-btn" onclick="validateCoordinatorLogin()">
-          <span id="coord-txt">Access Attendance Kiosk</span>
-        </button>
-      </div>
-
-      <div id="coord-kiosk-container" style="display:none;text-align:center">
-        <p style="font-size:.85rem;color:#16a34a;margin:14px 0"><i class="bi bi-check-circle-fill"></i> Access granted</p>
-        <p style="font-size:.78rem;color:#555;margin-bottom:12px">You can now access the attendance marking system.</p>
-        <button type="button" class="btn-submit" onclick="window.location.href='/api/v1/kiosk'" style="background:linear-gradient(180deg,#4ade80,#22c55e);border-color:#16a34a">
-          <i class="bi bi-clock-history"></i> Open Attendance Kiosk
-        </button>
-      </div>
-    </div>
-
-    <!-- ── REGISTER ── -->
-    <div class="tab-panel {% if active_tab=='register' %}active{% endif %}" id="panel-register">
-      <p class="panel-title">Create account</p>
-      <p class="panel-sub">Enter your Employee Code to set up your account</p>
-
-      <div class="first-notice">
-        <i class="bi bi-star-fill"></i>
-        <div>The <strong>first person to register</strong> becomes <strong>Super Admin</strong> automatically. All others register as Employee.</div>
-      </div>
-
-      {% if error and active_tab == 'register' %}
-      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
-      {% endif %}
-
-      <form method="POST" id="reg-form" novalidate>
-        {{ register_form.hidden_tag() }}
-        <input type="hidden" name="action" value="register">
-
-        <!-- Employee Code -->
-        <div class="f-group">
-          <label class="f-label" for="r-code">Employee Code <span style="color:#c53030">*</span></label>
-          <div class="f-row {% if register_form.employee_code.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
-            {{ register_form.employee_code(id="r-code", autocomplete="off",
-                oninput="this.value=this.value.toUpperCase();onCodeInput(this.value)") }}
-            <span id="lookup-spin" style="padding:0 10px;display:none">
-              <div class="btn-spin" style="display:block;border-top-color:#888"></div>
-            </span>
-          </div>
-          {% for e in register_form.employee_code.errors %}
-          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
-        </div>
-
-        <!-- Employee name (auto-populated via AJAX) -->
-        <div class="emp-name-box" id="emp-name-box">
-          <div class="emp-name-label">Employee Name</div>
-          <div class="emp-name-value" id="emp-name-value"></div>
-        </div>
-        <div id="code-error-msg" class="auth-error" style="display:none">
-          <i class="bi bi-exclamation-circle-fill"></i>
-          <div id="code-error-text"></div>
-        </div>
-
-        <!-- Password -->
-        <div class="f-group">
-          <label class="f-label" for="r-pw">Password <span style="color:#c53030">*</span></label>
-          <div class="f-row {% if register_form.password.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-lock"></i></span>
-            {{ register_form.password(id="r-pw", autocomplete="new-password") }}
-            <button type="button" class="f-toggle" onclick="togglePw('r-pw',this)" tabindex="-1">
-              <i class="bi bi-eye"></i>
+            <!-- Submit Button -->
+            <button type="submit" class="btn-auth-primary" id="btn-reg-submit">
+              <span class="spinner-border-sm" id="spin-reg"></span>
+              <span id="text-reg">Submit for HR Approval</span>
             </button>
-          </div>
-          <div class="strength-bar"><div class="strength-fill" id="sw-bar"></div></div>
-          <div class="strength-lbl" id="sw-lbl"></div>
-          {% for e in register_form.password.errors %}
-          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+          </form>
         </div>
 
-        <!-- Confirm password -->
-        <div class="f-group">
-          <label class="f-label" for="r-cpw">Re-enter Password <span style="color:#c53030">*</span></label>
-          <div class="f-row {% if register_form.confirm_password.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-lock-fill"></i></span>
-            {{ register_form.confirm_password(id="r-cpw", autocomplete="new-password") }}
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 3: FORGOT PASSWORD (Secure OTP / Reset Link)
+             ══════════════════════════════════════════════════════════════ -->
+        <div class="tab-pane {% if active_tab == 'forgot' %}active{% endif %}" id="tab-forgot">
+          <div class="auth-alert alert-info">
+            <i class="bi bi-shield-lock"></i>
+            <div>Enter your registered Employee Code to receive a secure password reset link or authorization token.</div>
           </div>
-          {% for e in register_form.confirm_password.errors %}
-          <p class="f-err"><i class="bi bi-x-circle"></i>{{ e }}</p>{% endfor %}
+
+          <form method="POST" action="{{ url_for('authentication.login') }}" id="form-forgot" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="forgot">
+
+            <!-- Employee Code -->
+            <div class="floating-group">
+              <input
+                type="text"
+                name="employee_code"
+                id="forgot-code"
+                class="floating-input font-mono"
+                placeholder=" "
+                required
+              >
+              <label for="forgot-code" class="floating-label">Employee Code (e.g. E-2512012)</label>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-auth-primary" id="btn-forgot-submit">
+              <span class="spinner-border-sm" id="spin-forgot"></span>
+              <span id="text-forgot">Send Reset Authorization</span>
+            </button>
+          </form>
         </div>
+      </div>
 
-        <button type="submit" class="btn-submit" id="r-btn">
-          <div class="btn-spin" id="r-spin"></div>
-          <span id="r-txt">Create Account</span>
-        </button>
-
-        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5">
-          By creating an account, you agree to Smart HRMS
-          <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
-        </p>
-      </form>
+      <div class="auth-footer">
+        Strictly Authorized Personnel Only &bull; Access Audit Logged &bull; &copy; {{ current_year or 2026 }} CS Creative Solutions
+      </div>
     </div>
 
-    <!-- ── FORGOT PASSWORD ── -->
-    <div class="tab-panel {% if active_tab=='forgot' %}active{% endif %}" id="panel-forgot">
-      <p class="panel-title">Reset password</p>
-      <p class="panel-sub">Enter your Employee Code to reset your password</p>
+    <!-- Dedicated Sections for Office Kiosk & Employee Payroll on Login Page -->
+    <div class="login-portals-section">
+      <div class="login-portal-card kiosk-portal">
+        <div class="portal-badge office-badge"><i class="bi bi-pc-display me-1"></i>Office PC Terminal</div>
+        <div class="portal-header">
+          <div class="portal-icon kiosk-icon"><i class="bi bi-camera-fill"></i></div>
+          <div>
+            <h3>Office Attendance Kiosk</h3>
+            <p>Employees cannot punch from personal devices. Use the office computer terminal with attached camera to mark check-in &amp; check-out.</p>
+          </div>
+        </div>
+        <a href="/kiosk" class="portal-action-btn kiosk-btn">
+          <span>Open Attendance Terminal</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
 
-      {% if error and active_tab == 'forgot' %}
-      <div class="auth-error"><i class="bi bi-exclamation-circle-fill"></i><div>{{ error }}</div></div>
+      <div class="login-portal-card payroll-portal">
+        <div class="portal-badge payroll-badge"><i class="bi bi-file-earmark-text me-1"></i>Employee Self-Service</div>
+        <div class="portal-header">
+          <div class="portal-icon payroll-icon"><i class="bi bi-cash-stack"></i></div>
+          <div>
+            <h3>Payroll &amp; Payslips</h3>
+            <p>Sign in to view your monthly payslip register, earnings breakdowns, approved allowances, and tax deductions.</p>
+          </div>
+        </div>
+        <button type="button" class="portal-action-btn payroll-btn" onclick="document.querySelector('[data-target=\'tab-login\']').click(); window.scrollTo({top: 0, behavior: 'smooth'});">
+          <span>Sign In to Access Payroll</span>
+          <i class="bi bi-lock-fill"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('static', filename='js/motion.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1. Initialize 3D Hero Particle Canvas
+      window.initHeroCanvas('hero-canvas');
+
+      // 2. Initialize Gliding Tab Bar
+      window.initGlidingTabs('auth-tabs');
+
+      // 3. Tab Switching Logic
+      const tabButtons = document.querySelectorAll('#auth-tabs .tab-btn');
+      const tabPanes = document.querySelectorAll('.tab-content .tab-pane');
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const targetId = this.getAttribute('data-target');
+          tabPanes.forEach(pane => {
+            pane.classList.remove('active');
+            if (pane.id === targetId) {
+              pane.classList.add('active');
+              const input = pane.querySelector('input:not([type="hidden"])');
+              if (input) input.focus();
+            }
+          });
+        });
+      });
+
+      // 4. Trigger shake if error alert exists
+      {% if error %}
+        window.triggerErrorShake('auth-card');
       {% endif %}
-
-      <form method="POST" id="forgot-form" novalidate>
-        {{ forgot_form.hidden_tag() if forgot_form else '' }}
-        <input type="hidden" name="action" value="forgot">
-
-        <div class="f-group">
-          <label class="f-label" for="f-code">Employee Code</label>
-          <div class="f-row {% if forgot_form and forgot_form.employee_code.errors %}err{% endif %}">
-            <span class="f-icon"><i class="bi bi-person-badge"></i></span>
-            <input type="text" id="f-code" name="employee_code" placeholder="e.g. E-2603028" 
-                   autocomplete="off" oninput="this.value=this.value.toUpperCase()" required>
-          </div>
-        </div>
-
-        <button type="submit" class="btn-submit" id="f-btn">
-          <div class="btn-spin" id="f-spin"></div>
-          <span id="f-txt">Reset Password</span>
-        </button>
-
-        <p style="font-size:.72rem;color:#555;margin-top:10px;line-height:1.5;text-align:center">
-          You'll be taken to the password reset page.
-        </p>
-      </form>
-    </div>
-  </div>
-
-  <!-- New account prompt (under sign-in) -->
-  <div class="new-acct-box" id="new-acct-prompt" {% if active_tab=='register' %}style="display:none"{% endif %}>
-    <span>New to Smart HRMS?</span>
-    <button class="btn-create" type="button" onclick="switchTab('register')">
-      <i class="bi bi-person-plus"></i> Create your HRMS account
-    </button>
-  </div>
-</main>
-
-<footer class="page-footer">
-  <div>&copy; {{ current_year }} Smart HRMS</div>
-  <div style="margin-top:5px">
-    <a href="#">Conditions of Use</a>
-    <a href="#">Privacy Notice</a>
-    <a href="#">Help</a>
-  </div>
-</footer>
-
-<script>
-// ── Tab switching ────────────────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
-  document.getElementById('panel-' + tab).classList.add('active');
-  const prompt = document.getElementById('new-acct-prompt');
-  if (prompt) prompt.style.display = tab === 'register' ? 'none' : '';
-  setTimeout(() => {
-    const first = document.querySelector('#panel-' + tab + ' input:not([type="hidden"])');
-    if (first) first.focus();
-  }, 30);
-}
-
-// ── Password visibility ──────────────────────────────────────────────
-function togglePw(id, btn) {
-  const inp = document.getElementById(id);
-  const icon = btn.querySelector('i');
-  const show = inp.type === 'password';
-  inp.type = show ? 'text' : 'password';
-  icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
-}
-
-// ── Password strength ─────────────────────────────────────────────────
-(function() {
-  const inp = document.getElementById('r-pw');
-  const bar = document.getElementById('sw-bar');
-  const lbl = document.getElementById('sw-lbl');
-  if (!inp || !bar) return;
-  inp.addEventListener('input', function() {
-    const v = inp.value;
-    if (!v) { bar.style.width='0'; lbl.textContent=''; return; }
-    let s = 0;
-    if (v.length >= 8)  s++;
-    if (v.length >= 12) s++;
-    if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
-    if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) s++;
-    const L = [
-      {w:'20%', c:'#c0392b', t:'Too weak'},
-      {w:'40%', c:'#e67e22', t:'Weak'},
-      {w:'65%', c:'#f1c40f', t:'Fair'},
-      {w:'82%', c:'#27ae60', t:'Good'},
-      {w:'100%',c:'#16a085', t:'Strong ✓'},
-    ];
-    const l = L[Math.max(0, s)];
-    bar.style.width = l.w;
-    bar.style.background = l.c;
-    lbl.textContent = l.t;
-    lbl.style.color = l.c;
-  });
-})();
-
-// ── Employee code lookup (AJAX) ───────────────────────────────────────
-let lookupTimer = null;
-function onCodeInput(value) {
-  const nameBox  = document.getElementById('emp-name-box');
-  const nameVal  = document.getElementById('emp-name-value');
-  const errBox   = document.getElementById('code-error-msg');
-  const errTxt   = document.getElementById('code-error-text');
-  const spin     = document.getElementById('lookup-spin');
-
-  nameBox.style.display = 'none';
-  errBox.style.display  = 'none';
-  clearTimeout(lookupTimer);
-
-  if (!value || value.length < 3) return;
-
-  lookupTimer = setTimeout(async () => {
-    spin.style.display = 'block';
-    try {
-      const res  = await fetch('/auth/lookup-employee?code=' + encodeURIComponent(value));
-      const data = await res.json();
-      if (data.found) {
-        nameVal.textContent = data.name;
-        nameBox.style.display = '';
-        errBox.style.display  = 'none';
-      } else {
-        errTxt.textContent    = data.message;
-        errBox.style.display  = '';
-        nameBox.style.display = 'none';
-      }
-    } catch(e) {
-      // silently ignore network errors during lookup
-    } finally {
-      spin.style.display = 'none';
-    }
-  }, 600);
-}
-
-// ── Form submit loading state ─────────────────────────────────────────
-function wireLoading(formId, btnId, spinId, txtId, loadTxt) {
-  const form = document.getElementById(formId);
-  if (!form) return;
-  form.addEventListener('submit', function() {
-    if (!form.checkValidity()) return;
-    const btn  = document.getElementById(btnId);
-    const spin = document.getElementById(spinId);
-    const txt  = document.getElementById(txtId);
-    if (btn)  btn.disabled = true;
-    if (spin) spin.style.display = 'block';
-    if (txt)  txt.textContent = loadTxt;
-  });
-}
-wireLoading('login-form', 'l-btn', 'l-spin', 'l-txt', 'Signing in…');
-wireLoading('reg-form',   'r-btn', 'r-spin', 'r-txt', 'Creating account…');
-wireLoading('forgot-form', 'f-btn', 'f-spin', 'f-txt', 'Sending reset token…');
-
-// ── Auto-focus ────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', function() {
-  const active = document.querySelector('.tab-panel.active input:not([type="hidden"])');
-  if (active) active.focus();
-});
-
-// ── Coordinator Login (Attendance Kiosk) ────────────────────────────
-function validateCoordinatorLogin() {
-  const username = document.getElementById('coord-username').value.trim();
-  const password = document.getElementById('coord-password').value;
-  const errorDiv = document.getElementById('coord-error');
-  const errorText = document.getElementById('coord-error-text');
-  const successDiv = document.getElementById('coord-success');
-
-  // Hardcoded credentials
-  const correctUsername = 'CS CREATIVE SOLUTIONS';
-  const correctPassword = 'CSCS@VikasDeshmukh';
-
-  errorDiv.style.display = 'none';
-  successDiv.style.display = 'none';
-
-  if (username === correctUsername && password === correctPassword) {
-    // Success
-    document.getElementById('coord-form-container').style.display = 'none';
-    document.getElementById('coord-kiosk-container').style.display = 'block';
-    successDiv.style.display = 'flex';
-    // Redirect to success page or stay on login
-    document.getElementById('coord-form-container').style.display = 'none';
-    document.getElementById('coord-kiosk-container').style.display = 'block';
-    successDiv.style.display = 'flex';
-  } else {
-    // Failed
-    if (!username || !password) {
-      errorText.textContent = 'Please enter both username and password';
-    } else {
-      errorText.textContent = 'Invalid username or password';
-    }
-    errorDiv.style.display = 'flex';
-    document.getElementById('coord-password').value = '';
-    document.getElementById('coord-password').focus();
-  }
-}
-
-// Allow Enter key to submit attendance login
-document.addEventListener('DOMContentLoaded', function() {
-  const coordPassword = document.getElementById('coord-password');
-  if (coordPassword) {
-    coordPassword.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        validateCoordinatorLogin();
-      }
     });
-  }
-});
-</script>
+
+    // ── Employee Code Lookup for Registration ──
+    let lookupTimer = null;
+    function lookupEmployee(code) {
+      const card = document.getElementById('reg-lookup-card');
+      const nameEl = document.getElementById('reg-lookup-name');
+      clearTimeout(lookupTimer);
+
+      if (!code || code.trim().length < 3) {
+        card.style.display = 'none';
+        return;
+      }
+
+      lookupTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('/auth/lookup-employee?code=' + encodeURIComponent(code.trim()));
+          const data = await res.json();
+          if (data.found) {
+            nameEl.textContent = data.name;
+            card.style.display = 'block';
+            if (data.department) {
+              const deptSelect = document.getElementById('reg-dept');
+              if (deptSelect) deptSelect.value = data.department;
+            }
+            if (data.designation) {
+              const desigInput = document.getElementById('reg-designation');
+              if (desigInput && !desigInput.value) desigInput.value = data.designation;
+            }
+          } else {
+            card.style.display = 'none';
+          }
+        } catch (err) {
+          card.style.display = 'none';
+        }
+      }, 400);
+    }
+  </script>
 </body>
 </html>

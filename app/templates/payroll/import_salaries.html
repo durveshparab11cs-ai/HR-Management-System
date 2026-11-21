@@ -1,0 +1,533 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Import Employee Salaries — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}
+{% set breadcrumbs=[('Payroll', url_for('payroll.index')), ('Import Salaries', None)] %}
+{% include 'shared/breadcrumbs.html' %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .salary-card {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s ease;
+  }
+  .salary-metric {
+    border-radius: 12px;
+    padding: 18px 20px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .salary-metric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  .metric-val {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .metric-lbl {
+    font-size: 0.725rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
+  .upload-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 38px 24px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: #2563eb;
+    background: #eff6ff;
+  }
+  .upload-icon {
+    width: 54px;
+    height: 54px;
+    line-height: 54px;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #16a34a;
+    font-size: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h4 fw-bold text-slate-800 mb-1 d-flex align-items-center gap-2">
+      <span class="p-2 rounded-3 bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px">
+        <i class="bi bi-file-earmark-spreadsheet-fill fs-5"></i>
+      </span>
+      Import Employee Salary Structure
+    </h1>
+    <p class="text-muted small mb-0">Upload Excel spreadsheet with Employee Code, Name, Gross Salary, PF, TDS, and PT</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{{ url_for('payroll.sample_salary_template') }}" class="btn btn-outline-success btn-sm px-3 fw-semibold shadow-xs">
+      <i class="bi bi-download me-1"></i> Download Sample Excel
+    </a>
+    <a href="{{ url_for('payroll.index') }}" class="btn btn-outline-secondary btn-sm px-3">
+      <i class="bi bi-arrow-left me-1"></i> Back to Payroll
+    </a>
+  </div>
+</div>
+
+<!-- KPI Metrics Overview -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="salary-metric bg-white" style="border-left: 4px solid #2563eb;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="metric-val text-primary">{{ total_records }}</div>
+          <div class="metric-lbl text-muted">Configured Employees</div>
+        </div>
+        <div class="p-2 rounded-circle bg-primary-subtle text-primary">
+          <i class="bi bi-people-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="salary-metric bg-white" style="border-left: 4px solid #16a34a;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="metric-val text-success">₹{{ '{:,.0f}'.format(total_gross) }}</div>
+          <div class="metric-lbl text-muted">Total Monthly Gross</div>
+        </div>
+        <div class="p-2 rounded-circle bg-success-subtle text-success">
+          <i class="bi bi-currency-rupee fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="salary-metric bg-white" style="border-left: 4px solid #ea580c;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="metric-val text-warning" style="color: #ea580c !important;">₹{{ '{:,.0f}'.format(total_pf + total_tds + total_pt) }}</div>
+          <div class="metric-lbl text-muted">Total Monthly Deductions</div>
+        </div>
+        <div class="p-2 rounded-circle bg-warning-subtle text-warning">
+          <i class="bi bi-dash-circle-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="salary-metric bg-white" style="border-left: 4px solid #7c3aed;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="metric-val" style="color: #7c3aed;">₹{{ '{:,.0f}'.format(total_net) }}</div>
+          <div class="metric-lbl text-muted">Total Net Payout</div>
+        </div>
+        <div class="p-2 rounded-circle bg-purple-subtle text-purple" style="background:#ede9fe; color:#7c3aed;">
+          <i class="bi bi-wallet-fill fs-5"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload & Instruction Section -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="salary-card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold mb-0 text-slate-800">
+          <i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i>Upload Salary Excel / CSV
+        </h6>
+        <span class="badge bg-primary-subtle text-primary px-2 py-1 small">Supports .xlsx, .xls, .csv</span>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" id="salary-upload-form">
+        {{ csrf_token_field() }}
+
+        <div class="upload-dropzone" id="drop-zone" onclick="document.getElementById('excel-file').click()">
+          <div class="upload-icon">
+            <i class="bi bi-file-earmark-excel-fill"></i>
+          </div>
+          <div class="fw-bold text-slate-800 fs-6 mb-1">Click or drag Excel sheet here</div>
+          <p class="text-muted small mb-2">Accepts formatted employee salary sheets up to 15 MB</p>
+          <div id="file-name-display" class="fw-bold text-primary small d-none">
+            <i class="bi bi-check2-circle me-1"></i> <span id="file-name-text"></span>
+          </div>
+        </div>
+
+        <input type="file" id="excel-file" name="excel_file" accept=".xlsx,.xls,.csv" class="d-none" onchange="onSalaryFileSelect(this)">
+
+        <div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="previewSalaryFile()" id="preview-btn">
+            <i class="bi bi-eye me-1"></i> Preview First 15 Rows
+          </button>
+          <div class="d-flex gap-2">
+            <button type="reset" class="btn btn-light btn-sm text-muted" onclick="resetSalaryForm()">Clear</button>
+            <button type="submit" class="btn btn-primary btn-sm px-4 fw-semibold" id="submit-btn">
+              <i class="bi bi-upload me-1"></i> Import Salary Structure
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Live AJAX Preview Container -->
+      <div id="preview-container" class="mt-4 d-none">
+        <hr class="my-3 text-muted">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="fw-semibold small text-slate-700"><i class="bi bi-table me-1"></i> File Preview (Sample Rows)</span>
+          <span class="badge bg-secondary-subtle text-secondary small" id="preview-row-count"></span>
+        </div>
+        <div class="table-responsive rounded-3 border">
+          <table class="table table-sm table-hover mb-0 align-middle" style="font-size:0.8rem">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Code</th>
+                <th>Name</th>
+                <th class="text-end">Gross Salary</th>
+                <th class="text-end">PF</th>
+                <th class="text-end">TDS</th>
+                <th class="text-end">PT</th>
+                <th class="text-end pe-3">Net Take-Home</th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Format Guidelines Card -->
+  <div class="col-lg-4">
+    <div class="salary-card p-4 h-100 bg-white">
+      <h6 class="fw-bold mb-3 text-slate-800 d-flex align-items-center gap-2">
+        <i class="bi bi-info-circle-fill text-info"></i> Column Specifications
+      </h6>
+
+      <div class="mb-3">
+        <div class="small fw-semibold text-slate-800 mb-1">Required Columns:</div>
+        <ul class="list-unstyled small text-muted ps-1 mb-0">
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success mt-1"></i>
+            <div><strong>Employee Code</strong>: Unique ID (e.g. <code>E-2606026</code>)</div>
+          </li>
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success mt-1"></i>
+            <div><strong>Employee Name</strong>: Full name of employee</div>
+          </li>
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success mt-1"></i>
+            <div><strong>Salary Amount</strong>: Monthly Gross / CTC (e.g. <code>45000</code>)</div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mb-3">
+        <div class="small fw-semibold text-slate-800 mb-1">Deduction Columns (Optional):</div>
+        <ul class="list-unstyled small text-muted ps-1 mb-0">
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-dash-circle text-primary mt-1"></i>
+            <div><strong>PF</strong>: Provident Fund deduction (e.g. <code>1800</code> or <code>0</code>)</div>
+          </li>
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-dash-circle text-primary mt-1"></i>
+            <div><strong>TDS</strong>: Tax Deducted at Source (e.g. <code>500</code>)</div>
+          </li>
+          <li class="mb-2 d-flex align-items-start gap-2">
+            <i class="bi bi-dash-circle text-primary mt-1"></i>
+            <div><strong>PT</strong>: Professional Tax (defaults to <code>200</code> if blank)</div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="p-3 rounded-3 bg-light border small text-muted">
+        <i class="bi bi-shield-check text-success me-1"></i>
+        Existing employee codes are automatically updated without creating duplicate entries.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Results Report (if submitted) -->
+{% if result and result.success %}
+<div class="salary-card p-4 mb-4 border-success">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h6 class="fw-bold mb-0 text-success d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill fs-5"></i> Import Execution Summary
+    </h6>
+    <span class="badge bg-success-subtle text-success">{{ result.total }} rows evaluated</span>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-4">
+      <div class="p-3 rounded-3 bg-success-subtle text-center">
+        <div class="h3 fw-bold text-success mb-0">{{ result.imported }}</div>
+        <div class="small text-success fw-semibold">New Records Added</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="p-3 rounded-3 bg-primary-subtle text-center">
+        <div class="h3 fw-bold text-primary mb-0">{{ result.updated }}</div>
+        <div class="small text-primary fw-semibold">Existing Records Updated</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="p-3 rounded-3 bg-danger-subtle text-center">
+        <div class="h3 fw-bold text-danger mb-0">{{ result.errors }}</div>
+        <div class="small text-danger fw-semibold">Errors / Skipped</div>
+      </div>
+    </div>
+  </div>
+
+  {% if result.details %}
+  <div class="table-responsive rounded-3 border" style="max-height: 240px; overflow-y: auto;">
+    <table class="table table-sm table-hover mb-0 align-middle" style="font-size:0.8rem">
+      <thead class="table-light sticky-top">
+        <tr>
+          <th class="ps-3">Code</th>
+          <th>Name</th>
+          <th>Status</th>
+          <th class="pe-3">Breakdown / Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in result.details %}
+        <tr>
+          <td class="ps-3"><code class="text-primary fw-bold">{{ d.code }}</code></td>
+          <td class="fw-semibold">{{ d.name }}</td>
+          <td>
+            {% if d.status == 'imported' %}
+              <span class="badge bg-success-subtle text-success">New</span>
+            {% elif d.status == 'updated' %}
+              <span class="badge bg-primary-subtle text-primary">Updated</span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger">Error</span>
+            {% endif %}
+          </td>
+          <td class="pe-3 text-muted">{{ d.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Master Salary Records Table -->
+<div class="salary-card">
+  <div class="p-3 px-4 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <h6 class="fw-bold mb-0 text-slate-800">Configured Salary Master Records</h6>
+      <span class="badge bg-secondary-subtle text-secondary small">{{ pagination.total }} active</span>
+    </div>
+
+    <!-- Search Form -->
+    <form method="GET" class="d-flex gap-2 align-items-center" style="max-width:320px">
+      <div class="input-group input-group-sm">
+        <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="Search code or name...">
+        {% if search_q %}
+        <a href="{{ url_for('payroll.import_salaries') }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+        {% endif %}
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:0.875rem">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Employee Code</th>
+          <th>Employee Name</th>
+          <th class="text-end">Gross Salary</th>
+          <th class="text-end">PF</th>
+          <th class="text-end">TDS</th>
+          <th class="text-end">PT</th>
+          <th class="text-end">Net Take-Home</th>
+          <th class="text-center pe-4">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in pagination.items %}
+        <tr>
+          <td class="ps-4">
+            <span class="badge bg-light text-primary border fw-semibold px-2 py-1">{{ s.employee_code }}</span>
+          </td>
+          <td>
+            <div class="fw-bold text-slate-800">{{ s.employee_name }}</div>
+          </td>
+          <td class="text-end fw-semibold text-slate-800">
+            ₹{{ '{:,.2f}'.format(s.salary_amount) }}
+          </td>
+          <td class="text-end text-muted">
+            ₹{{ '{:,.2f}'.format(s.pf_amount) }}
+          </td>
+          <td class="text-end text-muted">
+            ₹{{ '{:,.2f}'.format(s.tds_amount) }}
+          </td>
+          <td class="text-end text-muted">
+            ₹{{ '{:,.2f}'.format(s.pt_amount) }}
+          </td>
+          <td class="text-end fw-bold text-success">
+            ₹{{ '{:,.2f}'.format(s.net_salary) }}
+          </td>
+          <td class="text-center pe-4">
+            <form method="POST" action="{{ url_for('payroll.delete_salary_record', record_id=s.id) }}" onsubmit="return confirm('Remove salary configuration for {{ s.employee_code }}?')">
+              {{ csrf_token_field() }}
+              <button type="submit" class="btn btn-sm btn-outline-danger p-1 px-2" title="Delete Record">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-2 d-block mb-2 text-slate-300"></i>
+            No salary master records found. Download the sample Excel and import your salary structures.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="p-3 border-top d-flex justify-content-between align-items-center">
+    <div class="small text-muted">
+      Showing page {{ pagination.page }} of {{ pagination.pages }}
+    </div>
+    <ul class="pagination pagination-sm mb-0">
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page else '' }}">
+            <a class="page-link" href="{{ url_for('payroll.import_salaries', page=p, q=search_q) }}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function onSalaryFileSelect(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      document.getElementById('file-name-text').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+      document.getElementById('file-name-display').classList.remove('d-none');
+    }
+  }
+
+  function resetSalaryForm() {
+    document.getElementById('file-name-display').classList.add('d-none');
+    document.getElementById('preview-container').classList.add('d-none');
+    document.getElementById('excel-file').value = '';
+  }
+
+  // Drag and drop handlers
+  const dropZone = document.getElementById('drop-zone');
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add('dragover');
+    }, false);
+  });
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('dragover');
+    }, false);
+  });
+  dropZone.addEventListener('drop', e => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      document.getElementById('excel-file').files = files;
+      onSalaryFileSelect(document.getElementById('excel-file'));
+    }
+  });
+
+  // AJAX Preview handler
+  function previewSalaryFile() {
+    const fileInput = document.getElementById('excel-file');
+    if (!fileInput.files || !fileInput.files[0]) {
+      alert('Please select an Excel or CSV file first to preview.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('excel_file', fileInput.files[0]);
+    formData.append('csrf_token', '{{ csrf_token() }}');
+
+    const previewBtn = document.getElementById('preview-btn');
+    previewBtn.disabled = true;
+    previewBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Loading...';
+
+    fetch('{{ url_for("payroll.preview_salaries") }}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      previewBtn.disabled = false;
+      previewBtn.innerHTML = '<i class="bi bi-eye me-1"></i> Preview First 15 Rows';
+      if (!data.success) {
+        alert(data.error || 'Failed to read file preview');
+        return;
+      }
+      const tbody = document.getElementById('preview-tbody');
+      tbody.innerHTML = '';
+      (data.preview_items || []).forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="ps-3"><code class="text-primary fw-bold">${item.code}</code></td>
+          <td class="fw-semibold">${item.name}</td>
+          <td class="text-end fw-semibold">₹${Number(item.salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+          <td class="text-end text-muted">₹${Number(item.pf).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+          <td class="text-end text-muted">₹${Number(item.tds).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+          <td class="text-end text-muted">₹${Number(item.pt).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+          <td class="text-end pe-3 fw-bold text-success">₹${Number(item.net).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('preview-row-count').textContent = (data.preview_items || []).length + ' rows previewed';
+      document.getElementById('preview-container').classList.remove('d-none');
+    })
+    .catch(err => {
+      previewBtn.disabled = false;
+      previewBtn.innerHTML = '<i class="bi bi-eye me-1"></i> Preview First 15 Rows';
+      alert('Error previewing file: ' + err);
+    });
+  }
+</script>
+{% endblock %}

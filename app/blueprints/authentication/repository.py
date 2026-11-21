@@ -37,17 +37,27 @@ class AuthRepository:
     def get_by_employee_code(self, employee_code: str) -> Optional[User]:
         """
         Find a User by their employee_code stored in the Employee table.
-        Falls back to email-placeholder lookup if Employee record is missing.
+        Normalizes hyphenated/unhyphenated codes (e.g. E-2512012, e2512012).
+        Falls back to username and email-placeholder lookup.
         """
+        import re  # noqa: PLC0415
+        from sqlalchemy import or_  # noqa: PLC0415
         from app.models.employee import Employee  # noqa: PLC0415
-        code = employee_code.strip().upper()
+
+        c = (employee_code or "").strip()
+        clean = re.sub(r"[^A-Za-z0-9]", "", c).upper()
+        variants = [c, c.upper(), c.lower(), clean, clean.lower()]
+        if clean.startswith("E") and len(clean) > 1:
+            hyphen = f"E-{clean[1:]}"
+            variants.extend([hyphen, hyphen.lower()])
+        variants = list(dict.fromkeys([v for v in variants if v]))
 
         # Primary path: join User → Employee
         result = (
             db.session.query(User)
             .join(Employee, Employee.user_id == User.id)
             .filter(
-                Employee.employee_code == code,
+                Employee.employee_code.in_(variants),
                 Employee.is_deleted == False,
                 User.is_deleted == False,
             )
@@ -56,22 +66,26 @@ class AuthRepository:
         if result:
             return result
 
-        # Fallback: look up by the internal email placeholder generated at registration
-        # Format: {lowercase_code_no_dash}@hrms.internal  e.g. e2606026@hrms.internal
-        placeholder = f"{code.lower().replace('-', '')}@hrms.internal"
+        # Fallback: look up by username or internal email placeholder
+        usernames = [v.lower().replace("-", "") for v in variants]
+        emails = [f"{u}@hrms.internal" for u in usernames]
         result = User.query.filter(
-            User.email == placeholder,
+            or_(
+                User.username.in_(variants + usernames),
+                User.email.in_(emails),
+            ),
             User.is_deleted == False,
         ).first()
 
-        # If found via placeholder but Employee row is missing, create it now
+        # If found via fallback but Employee row is missing, create it now
         if result:
             existing_emp = Employee.query.filter_by(user_id=result.id, is_deleted=False).first()
             if not existing_emp:
                 try:
+                    std_code = f"E-{clean[1:]}" if clean.startswith("E") else clean
                     emp = Employee(
                         user_id=result.id,
-                        employee_code=code,
+                        employee_code=std_code,
                         created_by=result.id,
                     )
                     db.session.add(emp)

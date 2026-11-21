@@ -3,9 +3,19 @@
 {% block breadcrumbs %}{% set breadcrumbs=[('Payroll',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div><h1 class="h4 fw-bold mb-0">Payroll</h1><p class="text-muted small mb-0">{{ pagination.total }} payroll run{{ 's' if pagination.total != 1 else '' }}</p></div>
-  <a href="{{ url_for('payroll.run_payroll') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Run</a>
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h4 fw-bold mb-0">Payroll & Salary Vault</h1>
+    <p class="text-muted small mb-0">{{ pagination.total }} payroll run{{ 's' if pagination.total != 1 else '' }} &bull; Enterprise Salary Master Engine</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('payroll.import_salaries') }}" class="btn btn-outline-success btn-sm fw-semibold shadow-xs">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Import Salaries
+    </a>
+    <a href="{{ url_for('payroll.run_payroll') }}" class="btn btn-primary btn-sm fw-semibold shadow-xs">
+      <i class="bi bi-plus-lg me-1"></i>New Run
+    </a>
+  </div>
 </div>
 
 {% set sc={'draft':'secondary','processing':'info','processed':'primary','approved':'success','paid':'success','cancelled':'danger'} %}
@@ -24,7 +34,15 @@
         <td class="small text-danger">₹{{ '{:,.0f}'.format(run.total_deductions) }}</td>
         <td class="small fw-semibold">₹{{ '{:,.0f}'.format(run.total_net) }}</td>
         <td><span class="badge bg-{{ sc.get(run.status,'secondary') }}-subtle text-{{ sc.get(run.status,'secondary') }} small">{{ run.status.title() }}</span></td>
-        <td class="pe-4"><a href="{{ url_for('payroll.run_detail', run_id=run.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+        <td class="pe-4 d-flex gap-2 align-items-center">
+          <a href="{{ url_for('payroll.run_detail', run_id=run.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+          <form method="POST" action="{{ url_for('payroll.delete_run', run_id=run.id) }}" onsubmit="return confirm('Delete payroll run for {{ run.period_label }}? This will remove all associated payslips.');">
+            {{ csrf_token_field() }}
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Run">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="7" class="text-center py-5 text-muted">No payroll runs yet. <a href="{{ url_for('payroll.run_payroll') }}">Create one.</a></td></tr>

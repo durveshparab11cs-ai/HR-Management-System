@@ -21,6 +21,45 @@ from sqlalchemy import and_
 logger = logging.getLogger(__name__)
 
 
+def verify_comp_off_attendance(employee_id: int, work_date: date) -> Tuple[bool, int, str]:
+    """
+    Check if employee has worked at least 8 hours 30 minutes (510 minutes) on work_date.
+    Comp Off is ONLY credited when:
+    1. Reporting Manager approves the Sunday/Holiday duty request.
+    2. Employee works at least 8 hours 30 minutes on that day.
+    
+    Returns:
+        (is_eligible, total_minutes_worked, explanation_message)
+    """
+    from app.models.attendance import Attendance  # noqa: PLC0415
+    att = Attendance.query.filter(
+        Attendance.employee_id == employee_id,
+        Attendance.date == work_date,
+        Attendance.is_deleted == False
+    ).first()
+
+    if not att:
+        if work_date > date.today():
+            return False, 0, f"Duty date ({work_date.strftime('%d %b %Y')}) is in the future. Comp Off activates once 8h 30m shift is completed."
+        elif work_date == date.today():
+            return False, 0, "Duty is today. Comp Off activates once shift checkout is recorded with at least 8h 30m."
+        else:
+            return False, 0, f"No attendance record found on {work_date.strftime('%d %b %Y')}. Minimum 8h 30m duty required."
+
+    minutes = att.working_minutes or 0
+    if minutes == 0 and att.check_in_time and att.check_out_time:
+        minutes = int((att.check_out_time - att.check_in_time).total_seconds() // 60)
+
+    hrs = minutes // 60
+    mins = minutes % 60
+    time_str = f"{hrs}h {mins}m"
+
+    if minutes >= 510:  # 8 hours 30 minutes
+        return True, minutes, f"Completed {time_str} duty (>= 8h 30m requirement met)"
+    else:
+        return False, minutes, f"Worked only {time_str}. Minimum 8h 30m required (short by {510 - minutes} mins)."
+
+
 class CompOffService:
     """Service for managing Compensatory Off (Comp Off)."""
 
@@ -87,17 +126,17 @@ class CompOffService:
 
     def get_available_comp_offs(self, employee_id: int) -> list:
         """
-        Get all available (unused, not expired) comp offs for an employee.
+        Get all available (unused, not expired, manager-approved, and >= 8h 30m worked) comp offs.
         
         Returns:
-            List of LeaveRequest objects (earned comp offs)
+            List of LeaveRequest objects (earned and verified comp offs)
         """
         today = date.today()
         
         comp_offs = LeaveRequest.query.filter(
             and_(
                 LeaveRequest.employee_id == employee_id,
-                LeaveRequest.status == "approved",
+                LeaveRequest.status == "approved",  # Must be approved by manager!
                 LeaveRequest.comp_off_work_date != None,  # Only earned comp offs
                 LeaveRequest.comp_off_expiry_date >= today,  # Not expired
                 LeaveRequest.comp_off_used_on == None,  # Not yet used
@@ -105,7 +144,16 @@ class CompOffService:
             )
         ).order_by(LeaveRequest.comp_off_expiry_date.asc()).all()
         
-        return comp_offs
+        # Verify attendance: must have completed at least 8 hours 30 minutes!
+        eligible = []
+        for co in comp_offs:
+            ok, mins, msg = verify_comp_off_attendance(employee_id, co.comp_off_work_date)
+            if ok:
+                co.attendance_verified = True
+                co.attendance_msg = msg
+                eligible.append(co)
+
+        return eligible
 
     def mark_comp_off_used(
         self,

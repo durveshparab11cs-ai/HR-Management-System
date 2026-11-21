@@ -28,6 +28,18 @@
         <!-- Page title (mobile) -->
         <span class="d-md-none fw-semibold text-truncate">{{ title | default(app_name) }}</span>
 
+        <!-- App Launcher Trigger -->
+        <button
+            class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2 px-2 py-1 ms-2"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#appLauncherModal"
+            title="App Launcher (Workspaces)"
+        >
+            <i class="bi bi-grid-3x3-gap-fill text-primary" aria-hidden="true"></i>
+            <span class="d-none d-md-inline small fw-semibold">Apps</span>
+        </button>
+
         <!-- Global search bar (desktop) -->
         <div class="hrms-navbar-search d-none d-lg-block ms-2">
             <div class="input-group input-group-sm">
@@ -50,7 +62,7 @@
     <div class="d-flex align-items-center gap-2">
 
         <!-- Notification bell -->
-        <div class="dropdown">
+        <div class="dropdown" id="notificationDropdownContainer">
             <button
                 class="btn btn-link hrms-navbar-icon-btn position-relative p-2"
                 type="button"
@@ -58,6 +70,7 @@
                 aria-expanded="false"
                 aria-label="Notifications"
                 id="notification-btn"
+                onclick="loadNotificationDrawer()"
             >
                 <i class="bi bi-bell fs-5" aria-hidden="true"></i>
                 <span
@@ -68,16 +81,24 @@
                 ></span>
             </button>
 
-            <div class="dropdown-menu dropdown-menu-end hrms-notification-dropdown shadow" aria-labelledby="notification-btn">
-                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-                    <h6 class="mb-0 fw-semibold">Notifications</h6>
-                    <a href="#" class="small text-primary hrms-mark-all-read" onclick="markAllRead(event)">Mark all read</a>
+            <div class="dropdown-menu dropdown-menu-end hrms-notification-dropdown shadow-lg border-0" aria-labelledby="notification-btn" style="min-width: 360px; max-width: 420px; border-radius: 16px; overflow: hidden;">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light bg-opacity-75">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0 fw-bold" style="font-size: 0.88rem; color: #0f172a;">Notifications</h6>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fw-bold" id="notification-unread-pill" style="font-size: 0.7rem; display: none;">0 new</span>
+                    </div>
+                    <a href="#" class="small text-primary text-decoration-none fw-semibold" onclick="markAllNotificationsRead(event)">Mark all read</a>
                 </div>
-                <div class="hrms-notification-list" id="notification-list">
-                    <div class="text-center text-muted small py-4">No new notifications</div>
+                <div class="hrms-notification-list" id="notification-list" style="max-height: 380px; overflow-y: auto;">
+                    <div class="text-center text-muted small py-4" id="notification-empty-placeholder">
+                        <i class="bi bi-bell-slash text-muted d-block mb-1" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                        No new notifications
+                    </div>
                 </div>
-                <div class="text-center border-top py-2">
-                    <a href="{{ url_for('notifications.index') }}" class="small text-primary">View all</a>
+                <div class="text-center border-top py-2 bg-light bg-opacity-50">
+                    <a href="{{ url_for('notifications.index') }}" class="small text-primary text-decoration-none fw-semibold">
+                        View all notification history <i class="bi bi-arrow-right"></i>
+                    </a>
                 </div>
             </div>
         </div>
@@ -146,21 +167,132 @@
 </header>
 
 <script>
-function markAllRead(event) {
-  event.preventDefault();
-  fetch('/notifications/mark-all-read', {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '',
-      'X-Requested-With': 'XMLHttpRequest'
+// ── Real-time Notification Drawer & Instant Redirection ──
+async function loadNotificationDrawer() {
+  const listEl = document.getElementById('notification-list');
+  const badgeEl = document.getElementById('notification-count');
+  const pillEl = document.getElementById('notification-unread-pill');
+  if (!listEl) return;
+
+  try {
+    const res = await fetch('/notifications/recent?limit=10', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const items = data.notifications || [];
+    const count = data.unread_count || 0;
+
+    // Update Badges
+    if (badgeEl) {
+      if (count > 0) {
+        badgeEl.textContent = count > 99 ? '99+' : count;
+        badgeEl.style.display = 'inline-block';
+      } else {
+        badgeEl.style.display = 'none';
+      }
     }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      location.reload();
+    if (pillEl) {
+      if (count > 0) {
+        pillEl.textContent = `${count} new`;
+        pillEl.style.display = 'inline-block';
+      } else {
+        pillEl.style.display = 'none';
+      }
     }
-  })
-  .catch(err => console.error('Error marking notifications as read:', err));
+
+    // Render Drawer Items
+    if (items.length === 0) {
+      listEl.innerHTML = `
+        <div class="text-center text-muted small py-4" id="notification-empty-placeholder">
+          <i class="bi bi-bell-slash text-muted d-block mb-1" style="font-size: 1.5rem; opacity: 0.5;"></i>
+          No new notifications
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    items.forEach(n => {
+      const icon = n.icon || 'bi-bell-fill';
+      const color = n.color || 'primary';
+      const url = n.action_url || '/dashboard';
+      html += `
+        <a href="/notifications/${n.id}/click" class="dropdown-item d-flex align-items-start gap-3 px-3 py-2 border-bottom notification-entry-item" style="white-space: normal; text-decoration: none; transition: background 0.15s ease;">
+          <div class="rounded-circle p-2 bg-${color}-subtle text-${color} flex-shrink-0 mt-1" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+            <i class="bi ${icon}" style="font-size: 0.88rem;"></i>
+          </div>
+          <div class="flex-grow-1" style="min-width: 0;">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fw-bold small text-dark text-truncate">${escapeHtml(n.title)}</span>
+              <span class="text-muted ms-2 flex-shrink-0" style="font-size: 0.68rem;">${n.created_at}</span>
+            </div>
+            <p class="mb-0 text-muted small" style="font-size: 0.76rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(n.message)}</p>
+          </div>
+        </a>`;
+    });
+    listEl.innerHTML = html;
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+  }
 }
+
+async function handleNotificationClick(id, targetUrl) {
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    // Mark as read in background
+    await fetch(`/notifications/${id}/read`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+  } catch (e) {
+    // Ignore error and proceed with redirect
+  }
+  // Directly redirect user to the notification destination
+  window.location.href = targetUrl;
+}
+
+async function markAllNotificationsRead(event) {
+  if (event) event.preventDefault();
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  try {
+    const res = await fetch('/notifications/mark-all-read', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      const badgeEl = document.getElementById('notification-count');
+      const pillEl = document.getElementById('notification-unread-pill');
+      const listEl = document.getElementById('notification-list');
+      if (badgeEl) badgeEl.style.display = 'none';
+      if (pillEl) pillEl.style.display = 'none';
+      if (listEl) {
+        listEl.innerHTML = `
+          <div class="text-center text-muted small py-4">
+            <i class="bi bi-check-circle text-success d-block mb-1" style="font-size: 1.5rem;"></i>
+            All caught up! No unread notifications.
+          </div>`;
+      }
+    }
+  } catch (err) {
+    console.error('Error marking all notifications as read:', err);
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// Initial poll on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadNotificationDrawer();
+});
 </script>

@@ -615,6 +615,12 @@ def _register_root_redirect(app: Flask) -> None:
         """Convenience redirect to authentication.login"""
         return redirect(url_for("authentication.login"))
 
+    @app.route("/kiosk")
+    def kiosk():
+        """Dedicated Attendance Kiosk terminal view."""
+        from flask import render_template
+        return render_template("attendance/kiosk.html")
+
 
 def _register_health(app: Flask) -> None:
     """Register the /health liveness probe and /camera-test diagnostic endpoints."""
@@ -818,33 +824,9 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
-            # STEP 4: Seed employees
-            try:
-                _auto_seed_employees(app)
-                app.logger.info("✓ Step 4: _auto_seed_employees()")
-            except Exception as exc:
-                app.logger.warning("⚠️  Step 4: _auto_seed_employees() failed: %s", exc)
-            
-            # STEP 4.3: Seed hospitals
-            try:
-                _auto_seed_hospitals(app)
-                app.logger.info("✓ Step 4.3: _auto_seed_hospitals()")
-            except Exception as exc:
-                app.logger.warning("⚠️  Step 4.3: _auto_seed_hospitals() failed: %s", exc)
-            
-            # STEP 4.5: Seed shifts
-            try:
-                _auto_seed_shifts(app)
-                app.logger.info("✓ Step 4.5: _auto_seed_shifts()")
-            except Exception as exc:
-                app.logger.warning("⚠️  Step 4.5: _auto_seed_shifts() failed: %s", exc)
-            
-            # STEP 4.6: Seed holidays
-            try:
-                _auto_seed_holidays(app)
-                app.logger.info("✓ Step 4.6: _auto_seed_holidays()")
-            except Exception as exc:
-                app.logger.warning("⚠️  Step 4.6: _auto_seed_holidays() failed: %s", exc)
+            # Hardcoded automatic seeding DISABLED per Zero Dummy Data policy.
+            # Real shifts, hospitals, holidays, and employees are imported via Data Import Center.
+            app.logger.info("✓ Zero Dummy Data Enforced: Hardcoded automatic seeding disabled.")
 
             # STEP 5: Ensure admin roles (only if columns exist)
             try:
@@ -1483,10 +1465,10 @@ def _ensure_super_admin_roles(app: Flask) -> None:
         from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
         from app.extensions.database import db  # noqa: PLC0415
         
-        # Employee codes to ensure as super_admin
+        # Employee codes to ensure as super_admin (E-2512012 is a normal employee)
         target_codes = [
-            {'code': 'E-2512012', 'fallback_name': 'Pratik Prakash Sagvekar'},
             {'code': 'E-2603025', 'fallback_name': 'Raj Sanjay Shukla'},
+            {'code': 'E-2606026', 'fallback_name': 'Durvesh Parab'},
         ]
         
         made_changes = False

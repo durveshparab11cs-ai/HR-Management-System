@@ -71,16 +71,16 @@ class BaseConfig:
     LOGIN_MESSAGE_CATEGORY: str = "info"
 
     # --------------------------------------------------------------------------
-    # Flask-Mail
+    # Flask-Mail (executivehr0001@gmail.com)
     # --------------------------------------------------------------------------
-    MAIL_SERVER: str = os.environ.get("MAIL_SERVER", "localhost")
+    MAIL_SERVER: str = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT: int = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS: bool = os.environ.get("MAIL_USE_TLS", "True") == "True"
     MAIL_USE_SSL: bool = os.environ.get("MAIL_USE_SSL", "False") == "True"
-    MAIL_USERNAME: str | None = os.environ.get("MAIL_USERNAME")
+    MAIL_USERNAME: str | None = os.environ.get("MAIL_USERNAME", "executivehr0001@gmail.com")
     MAIL_PASSWORD: str | None = os.environ.get("MAIL_PASSWORD")
     MAIL_DEFAULT_SENDER: str = os.environ.get(
-        "MAIL_DEFAULT_SENDER", "Smart HRMS <noreply@smarthrms.com>"
+        "MAIL_DEFAULT_SENDER", "CS Creative Solutions HR <executivehr0001@gmail.com>"
     )
     MAIL_MAX_EMAILS: int = int(os.environ.get("MAIL_MAX_EMAILS", 50))
     MAIL_ASCII_ATTACHMENTS: bool = False

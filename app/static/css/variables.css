@@ -81,8 +81,8 @@
     /* ----------------------------------------------------------------
      * 4. Typography
      * ---------------------------------------------------------------- */
-    --hrms-font-family-base: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    --hrms-font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --hrms-font-family-base: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --hrms-font-family-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
     --hrms-font-size-xs:     0.75rem;    /* 12px */
     --hrms-font-size-sm:     0.875rem;   /* 14px */

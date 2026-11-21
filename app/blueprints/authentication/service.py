@@ -50,26 +50,34 @@ class AuthService:
         - If password is wrong first time: still allow retry (no auto-registration on wrong password)
         - Every employee in master should succeed eventually
         """
+        import re  # noqa: PLC0415
         from flask import session  # noqa: PLC0415
         from app.models.employee import Employee  # noqa: PLC0415
         from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
 
         ip = self._get_ip()
         ua = request.user_agent.string if request.user_agent else None
-        code = employee_code.strip().upper()
-
-        # ── FIRST: Check if employee exists in EmployeeMaster ────────
-        # This is the SOURCE OF TRUTH - every employee should be here
-        master = EmployeeMaster.query.filter_by(employee_code=code).first()
         
-        if not master:
-            # Code doesn't exist in master at all
-            auth_repo.record_login(None, code, False, ip, ua, "employee_code_not_found")
-            logger.warning("LOGIN_FAILED | code=%s | reason=not_in_master | ip=%s", code, ip)
+        c = (employee_code or "").strip()
+        clean = re.sub(r"[^A-Za-z0-9]", "", c).upper()
+        variants = [c, c.upper(), c.lower(), clean, clean.lower()]
+        if clean.startswith("E") and len(clean) > 1:
+            hyphen = f"E-{clean[1:]}"
+            variants.extend([hyphen, hyphen.lower()])
+        variants = list(dict.fromkeys([v for v in variants if v]))
+
+        # ── FIRST: Check EmployeeMaster or existing User ────────
+        master = EmployeeMaster.query.filter(EmployeeMaster.employee_code.in_(variants)).first()
+        user = auth_repo.get_by_employee_code(employee_code)
+
+        if not master and not user:
+            # Code doesn't exist in master or user accounts
+            auth_repo.record_login(None, c, False, ip, ua, "employee_code_not_found")
+            logger.warning("LOGIN_FAILED | code=%s | reason=not_in_master_or_user | ip=%s", c, ip)
             return False, "Employee Code not found in system. Please contact HR.", None
 
-        # ── SECOND: Look up User (existing or to-be-created) ─────────
-        user = auth_repo.get_by_employee_code(code)
+        # Standardized code
+        code = master.employee_code if master else (f"E-{clean[1:]}" if clean.startswith("E") else clean)
 
         # ── Auto-create User + Employee if first login (code in master but no User) ────
         if not user and master and not master.is_registered:
@@ -301,6 +309,7 @@ class AuthService:
         return True, "Employee found.", {
             "name":        master.employee_name,
             "department":  master.department or "",
+            "designation": master.designation or "",
             "code":        master.employee_code,
         }
 
@@ -308,6 +317,8 @@ class AuthService:
         self,
         employee_code: str,
         password: str,
+        department: str = "",
+        designation: str = "",
     ) -> Tuple[bool, str, Optional[User]]:
         """
         Complete self-registration for an employee using their code.
@@ -396,16 +407,25 @@ class AuthService:
                     logger.warning("No office found for working_location=%s, using default", 
                                  master.working_location)
             
+            final_dept = department.strip() if department and department.strip() else (master.department or "General")
+            final_desig = designation.strip() if designation and designation.strip() else (master.designation or "Employee")
+
             employee = Employee(
                 user_id=user.id,
                 employee_code=code,
-                department=master.department or None,  # ✅ POPULATE FROM MASTER
-                designation=master.designation or None,  # ✅ POPULATE FROM MASTER
-                office_settings_id=office_settings_id,  # ✅ POPULATE FROM MASTER
+                department=final_dept,
+                designation=final_desig,
+                office_settings_id=office_settings_id,
                 created_by=user.id,
             )
             db.session.add(employee)
             db.session.flush()  # Flush to get employee.id
+
+            # Sync selected department & designation back to master
+            if department and department.strip():
+                master.department = department.strip()
+            if designation and designation.strip():
+                master.designation = designation.strip()
             
             # Mark as registered in master - now with explicit commit
             auth_repo.mark_registered(master, user.id)
@@ -417,8 +437,8 @@ class AuthService:
             success_msg = f"✓ Account created as {role_label}. You can now sign in."
             
             logger.info(
-                "REGISTERED_SUCCESS | user_id=%s | code=%s | role=%s | name=%s | dept=%s",
-                user.id, code, role, master.employee_name, master.department
+                "REGISTERED_SUCCESS | user_id=%s | code=%s | role=%s | name=%s | dept=%s | desig=%s",
+                user.id, code, role, master.employee_name, final_dept, final_desig
             )
             return True, success_msg, user
 

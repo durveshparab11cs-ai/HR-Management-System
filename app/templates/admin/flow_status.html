@@ -1,0 +1,323 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Flow Status — Operational Pipeline | Smart HRMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 motion-fade-in">
+
+  <!-- Executive Header Topbar -->
+  <div class="bg-white border shadow-sm rounded-4 p-4 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">
+          <i class="bi bi-diagram-3-fill me-1"></i> Operational Architecture
+        </span>
+        <span class="text-muted small fw-medium">&bull; End-to-End Pipeline</span>
+      </div>
+      <h1 class="h3 fw-bold text-dark mb-1">System Flow Status</h1>
+      <p class="text-muted small mb-0 fw-medium">Live status and real record counts across the attendance-to-payroll pipeline.</p>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="/kiosk" target="_blank" class="btn btn-outline-primary btn-sm px-3 fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-display"></i> Open /kiosk
+      </a>
+      <a href="{{ url_for('payroll.index') }}" class="btn btn-warning btn-sm px-3 fw-bold text-dark d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-shield-lock-fill"></i> Payroll Vault
+      </a>
+    </div>
+  </div>
+
+  <!-- Pipeline Flow Visualizer -->
+  <div class="row g-4">
+
+    <!-- ── SECTION 1: MASTER CONFIGURATION & REAL DATA ── -->
+    <div class="col-12">
+      <div class="card bg-white border shadow-sm rounded-4 p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="badge rounded-circle p-2 bg-primary-subtle text-primary" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+            <i class="bi bi-database-check fs-6"></i>
+          </span>
+          <h5 class="h6 fw-bold text-primary mb-0 text-uppercase tracking-wider">
+            Phase A: Setup &amp; Master Data Foundation
+          </h5>
+        </div>
+        
+        <div class="row g-3">
+          <!-- Step 1: Company Profile -->
+          <div class="col-md-2 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">1</span>
+                {% if stage1.is_ready %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">Ready</span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">Pending</span>
+                {% endif %}
+              </div>
+              <div class="step-title">Company Setup</div>
+              <div class="step-val text-truncate" title="{{ stage1.company_name or 'Not Configured' }}">{{ stage1.company_name or 'Not Configured' }}</div>
+              <div class="step-desc">Legal PAN, TAN, EPFO &amp; Address</div>
+            </div>
+          </div>
+
+          <!-- Step 2: Hospitals (GPS) -->
+          <div class="col-md-2 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">2</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">{{ stage2.total }} Inst.</span>
+              </div>
+              <div class="step-title">Hospitals &amp; GPS</div>
+              <div class="step-val font-mono">{{ stage2.with_gps }} / {{ stage2.total }}</div>
+              <div class="step-desc">Hospitals with Geo-fences</div>
+            </div>
+          </div>
+
+          <!-- Step 3: Shifts -->
+          <div class="col-md-2 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">3</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">{{ stage3.total }} Shifts</span>
+              </div>
+              <div class="step-title">Work Timings</div>
+              <div class="step-val font-mono">{{ stage3.total }} Active</div>
+              <div class="step-desc">{{ stage3.night_shifts }} Overnight shifts</div>
+            </div>
+          </div>
+
+          <!-- Step 4: Holidays -->
+          <div class="col-md-2 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">4</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">2026</span>
+              </div>
+              <div class="step-title">Holidays Calendar</div>
+              <div class="step-val font-mono">{{ stage4.total }} Days</div>
+              <div class="step-desc">Paid Company Holidays</div>
+            </div>
+          </div>
+
+          <!-- Step 5: Employee Master -->
+          <div class="col-md-4 col-sm-12">
+            <div class="p-3 rounded-3 flow-step-card highlight-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">5</span>
+                <span class="badge bg-primary text-white fw-bold">Target: {{ stage5.target }}</span>
+              </div>
+              <div class="step-title">Employee Master Registry</div>
+              <div class="d-flex align-items-baseline gap-2 mb-1">
+                <span class="step-val font-mono text-primary fs-4">{{ stage5.master_count }}</span>
+                <span class="small text-muted fw-semibold">Master codes loaded</span>
+              </div>
+              <div class="small text-muted fw-medium">
+                {{ stage5.active_users }} Logins &bull; {{ stage5.salary_structures }} Salary structures
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 2: ATTENDANCE & LEAVE ENGINE ── -->
+    <div class="col-12">
+      <div class="card bg-white border shadow-sm rounded-4 p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="badge rounded-circle p-2 bg-success-subtle text-success" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+            <i class="bi bi-clock-history fs-6"></i>
+          </span>
+          <h5 class="h6 fw-bold text-success mb-0 text-uppercase tracking-wider">
+            Phase B: Attendance Capture &amp; Daily Attribution
+          </h5>
+        </div>
+
+        <div class="row g-3">
+          <!-- Step 6: Raw Punches Today -->
+          <div class="col-md-4 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">6</span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle fw-semibold">Live Today</span>
+              </div>
+              <div class="step-title">Raw Punches ({{ stage6.date_str }})</div>
+              <div class="row g-2 mt-2 font-mono">
+                <div class="col-6">
+                  <div class="small text-muted fw-semibold">Checked In</div>
+                  <div class="fs-4 fw-bold text-success">{{ stage6.checked_in_today }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted fw-semibold">Checked Out</div>
+                  <div class="fs-4 fw-bold text-primary">{{ stage6.checked_out_today }}</div>
+                </div>
+              </div>
+              <div class="small text-muted mt-2 border-top pt-2 fw-medium">
+                <i class="bi bi-image me-1 text-primary"></i> {{ stage6.total_photos }} proof photos stored
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 7: Finalized Daily Status -->
+          <div class="col-md-4 col-sm-6">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">7</span>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fw-semibold">Engine</span>
+              </div>
+              <div class="step-title">Daily Attendance Engine</div>
+              <div class="row g-2 mt-2 font-mono small">
+                <div class="col-4">
+                  <span class="text-muted fw-semibold">Present:</span> <strong class="text-dark fs-6">{{ stage7.present }}</strong>
+                </div>
+                <div class="col-4">
+                  <span class="text-muted fw-semibold">Late:</span> <strong class="text-warning-emphasis fs-6">{{ stage7.late }}</strong>
+                </div>
+                <div class="col-4">
+                  <span class="text-muted fw-semibold">Half-Day:</span> <strong class="text-info-emphasis fs-6">{{ stage7.half_day }}</strong>
+                </div>
+              </div>
+              <div class="small text-danger fw-semibold mt-2 border-top pt-2">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ stage7.partial_missing_out }} partial punches (missing OUT)
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 8: Leave & Comp-Off Wallet -->
+          <div class="col-md-4 col-sm-12">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">8</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-semibold">
+                  {{ stage8.pending_approval }} Pending
+                </span>
+              </div>
+              <div class="step-title">Leave &amp; Comp-Off Wallet</div>
+              <div class="fs-4 fw-bold text-dark font-mono mt-1 mb-1">
+                {{ stage8.on_leave_today }} <span class="fs-6 text-muted fw-medium">on approved leave today</span>
+              </div>
+              <div class="small text-muted border-top pt-2 fw-medium">
+                Flows automatically into payable days. 90-day FIFO Comp-Off wallet active.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 3: MONTHLY CONSOLIDATION & PAYROLL ── -->
+    <div class="col-12">
+      <div class="card bg-white border shadow-sm rounded-4 p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="badge rounded-circle p-2 bg-warning-subtle text-warning" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+            <i class="bi bi-cash-stack fs-6"></i>
+          </span>
+          <h5 class="h6 fw-bold text-warning-emphasis mb-0 text-uppercase tracking-wider">
+            Phase C: Monthly Finalization &amp; Payroll Generation
+          </h5>
+        </div>
+
+        <div class="row g-3">
+          <!-- Step 9: Monthly Cut-off -->
+          <div class="col-md-6 col-sm-12">
+            <div class="p-3 rounded-3 flow-step-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">9</span>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fw-semibold">
+                  {{ stage9.current_month }}
+                </span>
+              </div>
+              <div class="step-title">Monthly Attendance Consolidation</div>
+              <div class="step-val fs-5 text-dark mb-1">Attendance Cut-Off</div>
+              <div class="small text-muted fw-medium">{{ stage9.status }}</div>
+            </div>
+          </div>
+
+          <!-- Step 10: Payroll Draft & Locked Runs -->
+          <div class="col-md-6 col-sm-12">
+            <div class="p-3 rounded-3 flow-step-card highlight-card h-100">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="step-num">10</span>
+                {% if stage10.is_ready %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold">Runs Active</span>
+                {% else %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle fw-bold">Awaiting Structures</span>
+                {% endif %}
+              </div>
+              <div class="step-title">Payroll Vault &amp; Payslips</div>
+              <div class="d-flex align-items-baseline gap-3 mt-2 font-mono">
+                <div>
+                  <div class="small text-muted fw-semibold">Draft Runs</div>
+                  <div class="fs-5 fw-bold text-warning-emphasis">{{ stage10.draft_runs }}</div>
+                </div>
+                <div>
+                  <div class="small text-muted fw-semibold">Approved / Locked</div>
+                  <div class="fs-5 fw-bold text-success">{{ stage10.approved_runs }}</div>
+                </div>
+                <div>
+                  <div class="small text-muted fw-semibold">Payslips Generated</div>
+                  <div class="fs-5 fw-bold text-primary">{{ stage10.total_payslips }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.flow-step-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.flow-step-card:hover {
+  background: #ffffff;
+  transform: translateY(-3px);
+  border-color: #3b82f6;
+  box-shadow: 0 10px 20px -3px rgba(59, 130, 246, 0.12);
+}
+.highlight-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border: 1.5px solid #bfdbfe;
+}
+.highlight-card:hover {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 10px 22px -3px rgba(37, 99, 235, 0.15);
+}
+.step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.step-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #0f172a;
+  margin-bottom: 0.35rem;
+}
+.step-val {
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #0f172a;
+  margin-bottom: 0.25rem;
+}
+.step-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.35;
+}
+</style>
+{% endblock %}

@@ -14,8 +14,131 @@
         {{ form.hidden_tag() }}
         <div class="mb-3">
             <label class="form-label fw-medium small">Leave Type <span class="text-danger">*</span></label>
-            {{ form.leave_type_id(class="form-select" + (" is-invalid" if form.leave_type_id.errors else "")) }}
+            {{ form.leave_type_id(class="form-select" + (" is-invalid" if form.leave_type_id.errors else ""), id="leave-type-select") }}
             {% for e in form.leave_type_id.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            
+            <!-- Immediate warning if employee selects Comp Off without any balance -->
+            <div id="no-comp-off-inline-alert" class="alert alert-danger py-2 px-3 small mt-2 mb-0 rounded-2" style="display:none; border-left: 4px solid #dc3545;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-exclamation-octagon-fill me-1 text-danger"></i>
+                        <strong>You Don't Have Any Comp Off Available!</strong>
+                        <div class="mt-1 text-muted" style="font-size:0.75rem;">
+                            Comp Off requires prior Sunday/Holiday duty approval (minimum 8h 30m worked). Please choose another leave type or apply for duty permission.
+                        </div>
+                    </div>
+                    <a href="{{ url_for('leave.apply_holiday_work') }}" class="btn btn-sm btn-outline-danger ms-2 flex-shrink-0" style="font-size:0.75rem;">
+                        <i class="bi bi-calendar-plus me-1"></i>+ Sunday/Holiday Duty
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Compensatory Off (Comp Off) Work Date Selection Block ── -->
+        <div class="mb-3 p-3 rounded-3" id="comp-off-block" style="display:none; background-color:#faf5ff; border:2px solid #a855f7;">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label fw-bold text-dark mb-0 small">
+                    <i class="bi bi-calendar2-check-fill me-1" style="color:#7e22ce !important;"></i>
+                    Compensatory Off (Comp Off) Duty Details <span class="text-danger">*</span>
+                </label>
+                <span class="badge rounded-pill px-2 py-1" style="background:#7e22ce; color:#ffffff; font-size:0.75rem">
+                    <i class="bi bi-shield-lock-fill me-1"></i>Strict Single-Use Policy
+                </span>
+            </div>
+
+            <!-- Active Selected Duty Date Banner -->
+            <div class="p-2 mb-3 rounded-2 text-center" style="background:#f3e8ff; border:1px dashed #9333ea;">
+                <span class="small text-muted d-block mb-1">Sunday / Holiday Duty Date Being Availed:</span>
+                <span id="selected-comp-off-display-badge" class="badge fs-6 fw-bold px-3 py-2 text-wrap" style="background:#6b21a8; color:#fff;">
+                    {% if prefill_co_date %}
+                        Duty Date: {{ prefill_co_date }}
+                    {% elif available_comp_offs %}
+                        Duty Date: {{ available_comp_offs[0].comp_off_work_date.strftime('%d %b %Y (%A)') }}
+                    {% else %}
+                        Please Select or Enter Sunday / Holiday Date Worked
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Available Approved & Verified Credits -->
+            {% if available_comp_offs %}
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-dark mb-1">
+                    <i class="bi bi-check-circle-fill text-success me-1"></i>Available Approved Sunday / Holiday Credits:
+                </label>
+                <div class="list-group">
+                    {% for co in available_comp_offs %}
+                    <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3 border rounded-2 mb-1 comp-off-item" style="cursor:pointer;">
+                        <div class="d-flex align-items-center">
+                            <input class="form-check-input me-2 comp-off-radio" type="radio" name="comp_off_credit_radio" 
+                                   value="{{ co.comp_off_work_date.isoformat() }}"
+                                   data-display-date="{{ co.comp_off_work_date.strftime('%d %b %Y (%A)') }}"
+                                   {% if loop.first or prefill_co_date == co.comp_off_work_date.isoformat() %}checked{% endif %}>
+                            <div>
+                                <span class="fw-bold text-dark">{{ co.comp_off_work_date.strftime('%d %b %Y (%A)') }}</span>
+                                <span class="badge bg-success ms-2" style="font-size:0.7rem;"><i class="bi bi-check2-circle me-1"></i>Manager Approved &bull; 8h 30m+ Duty Verified</span>
+                                <div class="text-muted small mt-1" style="font-size:0.75rem;">
+                                    Valid until: <strong class="text-dark">{{ co.comp_off_expiry_date.strftime('%d %b %Y') }}</strong> (90 days)
+                                    {% if co.reason %} &bull; <em>{{ co.reason[:40] }}</em>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Pending Requests Warning -->
+            {% if pending_comp_offs %}
+            <div class="alert alert-warning py-2 px-3 small mb-3 border-warning rounded-2">
+                <div class="fw-bold d-flex align-items-center text-warning-emphasis mb-1">
+                    <i class="bi bi-hourglass-split me-1 fs-6"></i>
+                    Sunday / Holiday Duty Awaiting Manager Approval / 8h 30m Attendance:
+                </div>
+                <ul class="mb-1 ps-3" style="font-size:0.8rem;">
+                    {% for p in pending_comp_offs %}
+                    <li>
+                        <strong>{{ p.comp_off_work_date.strftime('%d %b %Y (%A)') }}</strong> &mdash; 
+                        <span class="badge bg-warning text-dark">Pending Manager Approval</span> 
+                        &bull; Attendance Status: {{ p.comp_off_attendance_status.msg }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="text-muted" style="font-size:0.75rem;">
+                    * <em>Comp Off cannot be credited or availed until your Reporting Manager approves your duty request and your shift attendance reflects at least 8 hours 30 minutes.</em>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- No Credits Notice -->
+            {% if not available_comp_offs and not pending_comp_offs %}
+            <div class="alert alert-danger py-2 px-3 small mb-3 rounded-2">
+                <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>No Eligible Sunday / Holiday Duty Credits Found</div>
+                <p class="mb-2" style="font-size:0.78rem;">
+                    Comp Off can only be availed after you work on a Sunday or Company Holiday (minimum 8 hours 30 minutes) and your Reporting Manager approves your duty request.
+                </p>
+                <a href="{{ url_for('leave.apply_holiday_work') }}" class="btn btn-sm btn-outline-danger fw-semibold">
+                    <i class="bi bi-calendar-plus me-1"></i>+ Apply for Permission to Work on Sunday / Holiday
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Hidden input that carries the verified work date into form submission -->
+            <input type="hidden" name="comp_off_work_date_input" id="comp-off-work-date-input" 
+                   value="{% if available_comp_offs %}{{ available_comp_offs[0].comp_off_work_date.isoformat() }}{% elif prefill_co_date %}{{ prefill_co_date }}{% endif %}">
+
+            <!-- Strict Single-Use Policy Notice Box -->
+            <div class="p-2 rounded-2 bg-white border border-danger-subtle text-dark small mb-0 shadow-xs">
+                <div class="fw-bold text-danger mb-1 d-flex align-items-center">
+                    <i class="bi bi-lock-fill me-1"></i>STRICT SINGLE-USE POLICY:
+                </div>
+                <ul class="mb-0 ps-3 text-muted" style="font-size:0.75rem;">
+                    <li>Each Sunday / Holiday worked qualifies for <strong>strictly 1 day</strong> of Compensatory Off.</li>
+                    <li>Once you submit this leave request, this duty credit is <strong>permanently redeemed and locked</strong>. It cannot be used again.</li>
+                    <li>HR and your Reporting Manager will see the exact Sunday / Holiday duty date on your approval record and email notification.</li>
+                </ul>
+            </div>
         </div>
         <div class="row g-3 mb-3">
             <div class="col-6">
@@ -61,6 +184,56 @@
 </div>
 </div>
 </div>
+
+<!-- ── Modal: No Comp Off Balance Alert Popup ── -->
+<div class="modal fade" id="noCompOffModal" tabindex="-1" aria-labelledby="noCompOffModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0 py-3">
+                <h6 class="modal-title fw-bold" id="noCompOffModalLabel">
+                    <i class="bi bi-shield-exclamation me-2"></i>Action Denied: No Comp Off Balance
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="resetLeaveType()"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center bg-danger-subtle text-danger" style="width: 68px; height: 68px;">
+                        <i class="bi bi-calendar-x fs-1"></i>
+                    </span>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">You Don't Have Any Comp Off!</h5>
+                <p class="text-muted small mb-3">
+                    You currently have <strong>0 available Comp Off credits</strong> in your portal. You cannot select or apply for Compensatory Off.
+                </p>
+                
+                <div class="p-3 bg-light rounded text-start small mb-3 border">
+                    <div class="fw-bold text-dark mb-1"><i class="bi bi-info-circle me-1 text-primary"></i>Rules to earn Comp Off:</div>
+                    <ul class="mb-0 ps-3 text-muted" style="font-size:0.78rem;">
+                        <li>You must apply for permission to work on a Sunday or Company Holiday.</li>
+                        <li>Your Reporting Manager must approve your duty request.</li>
+                        <li>You must complete at least <strong>8 hours 30 minutes</strong> of shift attendance on that day.</li>
+                    </ul>
+                </div>
+
+                {% if pending_comp_offs %}
+                <div class="alert alert-warning text-start small py-2 px-3 mb-3 border-warning rounded-2">
+                    <i class="bi bi-hourglass-split me-1 text-warning-emphasis"></i>
+                    <strong>Duty Request In Progress:</strong> You have a Sunday/Holiday duty request for <strong>{{ pending_comp_offs[0].comp_off_work_date.strftime('%d %b %Y') }}</strong> awaiting manager approval and attendance verification.
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-center gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary btn-sm px-3 fw-semibold" data-bs-dismiss="modal" onclick="resetLeaveType()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Select Another Leave
+                    </button>
+                    <a href="{{ url_for('leave.apply_holiday_work') }}" class="btn btn-danger btn-sm px-3 fw-semibold">
+                        <i class="bi bi-calendar-plus me-1"></i>Apply for Sunday/Holiday Duty
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 {% block extra_css %}
 <!-- Select2 CSS -->
@@ -89,21 +262,151 @@
         width: '100%'
     });
 
-    // ── Working day count ────────────────────────────────────────────
+    // ── Comp Off Selection Toggle & 0-Balance Protection ─────────────
+    const leaveTypeSelect = document.getElementById('leave-type-select') || document.querySelector('[name="leave_type_id"]');
+    const compOffBlock = document.getElementById('comp-off-block');
+    const compTypeId = "{{ comp_type_id or '' }}";
+    const workDateInput = document.getElementById('comp-off-work-date-input');
+    const displayBadge = document.getElementById('selected-comp-off-display-badge');
+    const inlineAlert = document.getElementById('no-comp-off-inline-alert');
     const s = document.querySelector('[name="start_date"]');
     const e = document.querySelector('[name="end_date"]');
+    const availableCompOffCount = {{ available_comp_offs|length }};
+    let lastValidLeaveType = leaveTypeSelect ? leaveTypeSelect.value : '';
+
+    function isCompOffSelected() {
+        if (!leaveTypeSelect) return false;
+        const selectedVal = String(leaveTypeSelect.value || '');
+        const selectedText = (leaveTypeSelect.options[leaveTypeSelect.selectedIndex]?.text || '').toLowerCase();
+        return (selectedVal && selectedVal === String(compTypeId)) || selectedText.includes('comp');
+    }
+
+    function showNoCompOffPopup() {
+        const modalEl = document.getElementById('noCompOffModal');
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            try {
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.show();
+                return;
+            } catch(err) {
+                console.error("Bootstrap modal error:", err);
+            }
+        }
+        alert("⚠️ Action Denied: You Don't Have Any Comp Off!\n\nComp Off can only be availed after you have worked on a Sunday or Company Holiday (minimum 8 hours 30 minutes) and your Reporting Manager has approved your holiday duty request.");
+        resetLeaveType();
+    }
+
+    function resetLeaveType() {
+        if (!leaveTypeSelect) return;
+        if (lastValidLeaveType && lastValidLeaveType !== String(compTypeId)) {
+            leaveTypeSelect.value = lastValidLeaveType;
+        } else {
+            for (let i = 0; i < leaveTypeSelect.options.length; i++) {
+                const opt = leaveTypeSelect.options[i];
+                const optVal = String(opt.value || '');
+                const optText = opt.text.toLowerCase();
+                if (optVal !== String(compTypeId) && !optText.includes('comp') && optVal !== '') {
+                    leaveTypeSelect.value = optVal;
+                    break;
+                }
+            }
+        }
+        toggleCompOff();
+    }
+
+    window.resetLeaveType = resetLeaveType;
+
+    function toggleCompOff() {
+        if (!leaveTypeSelect) return;
+        const compSelected = isCompOffSelected();
+        
+        if (compSelected) {
+            if (availableCompOffCount === 0) {
+                // User has ZERO comp off credits -> Show popup alert and block!
+                if (inlineAlert) inlineAlert.style.display = 'block';
+                if (compOffBlock) compOffBlock.style.display = 'none';
+                showNoCompOffPopup();
+                return;
+            }
+
+            if (inlineAlert) inlineAlert.style.display = 'none';
+            if (compOffBlock) compOffBlock.style.display = 'block';
+            
+            // Comp Off is strictly 1 day: lock end_date to start_date
+            if (s && e) {
+                if (s.value) {
+                    e.value = s.value;
+                }
+                e.setAttribute('readonly', 'readonly');
+                e.style.backgroundColor = '#f1f5f9';
+                e.title = 'Comp Off is strictly for 1 day per Sunday/Holiday worked.';
+            }
+        } else {
+            lastValidLeaveType = leaveTypeSelect.value;
+            if (inlineAlert) inlineAlert.style.display = 'none';
+            if (compOffBlock) compOffBlock.style.display = 'none';
+            if (e) {
+                e.removeAttribute('readonly');
+                e.style.backgroundColor = '';
+                e.title = '';
+            }
+        }
+    }
+
+    if (leaveTypeSelect) {
+        leaveTypeSelect.addEventListener('change', toggleCompOff);
+        leaveTypeSelect.addEventListener('input', toggleCompOff);
+        toggleCompOff();
+    }
+
+    // Prevent submission if Comp Off is selected without balance
+    const leaveForm = document.querySelector('form');
+    if (leaveForm) {
+        leaveForm.addEventListener('submit', function(evt) {
+            if (isCompOffSelected() && availableCompOffCount === 0) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                showNoCompOffPopup();
+                return false;
+            }
+        });
+    }
+
+    // ── Radio selection for available Comp Offs ──────────────────────
+    const compRadios = document.querySelectorAll('.comp-off-radio');
+    compRadios.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                const dateVal = this.value;
+                const displayDate = this.getAttribute('data-display-date') || dateVal;
+                if (workDateInput) workDateInput.value = dateVal;
+                if (displayBadge) {
+                    displayBadge.innerHTML = `<i class="bi bi-calendar2-check me-1"></i>Duty Date: <strong>${displayDate}</strong>`;
+                }
+            }
+        });
+    });
+
+    // ── Working day count ────────────────────────────────────────────
     const display = document.getElementById('day-count-display');
     const txt     = document.getElementById('day-count-text');
     function updateCount() {
-        if (!s?.value || !e?.value) { display.style.display='none'; return; }
+        if (isCompOffSelected() && s && e) {
+            // Force end date to match start date for Comp Off
+            e.value = s.value;
+        }
+        if (!s?.value || !e?.value) { if (display) display.style.display='none'; return; }
         const start = new Date(s.value), end = new Date(e.value);
-        if (end < start) { display.style.display='none'; return; }
+        if (end < start) { if (display) display.style.display='none'; return; }
         let days = 0, cur = new Date(start);
         while (cur <= end) { if (cur.getDay() > 0 && cur.getDay() < 6) days++; cur.setDate(cur.getDate()+1); }
-        txt.textContent = `${days} working day${days!==1?'s':''} selected`;
-        display.style.display = '';
+        if (display && txt) {
+            txt.textContent = `${days} working day${days!==1?'s':''} selected`;
+            display.style.display = '';
+        }
     }
     s?.addEventListener('change', updateCount);
+    s?.addEventListener('input', updateCount);
     e?.addEventListener('change', updateCount);
     const today = new Date().toISOString().split('T')[0];
     if (s) s.min = today;

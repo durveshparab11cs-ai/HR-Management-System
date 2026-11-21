@@ -4,15 +4,27 @@
 {% block page_header %}{% endblock %}
 {% block content %}
 
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+<div class="executive-frosted-banner d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <div>
-        <h1 class="h4 fw-bold mb-0">
-            Good {% set hour = today.strftime('%H') | int %}{% if hour < 12 %}Morning{% elif hour < 17 %}Afternoon{% elif hour < 21 %}Evening{% else %}Night{% endif %}, {{ current_user.first_name }}!
-        </h1>
-        <p class="text-muted small mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
+        <div class="glitter-badge mb-2">
+            <i class="bi bi-stars sparkle-icon"></i>
+            <span>Employee Self-Service Portal</span>
+            <span class="badge-dot"></span>
+            <span class="badge-role">{{ (employee.department or 'Head Office') if employee else 'Head Office' }}</span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <h1 class="greeting-title glitter-shimmer-text">
+                Good {% set hour = today.strftime('%H') | int %}{% if hour < 12 %}Morning{% elif hour < 17 %}Afternoon{% elif hour < 21 %}Evening{% else %}Night{% endif %}, {{ current_user.first_name }}!
+            </h1>
+            <span class="badge-glitter-pill">Employee</span>
+        </div>
+        <div class="greeting-date-pill">
+            <i class="bi bi-calendar3"></i>
+            <span>{{ today.strftime('%A, %d %B %Y') }}</span>
+        </div>
     </div>
     {% if employee %}
-    <a href="{{ url_for('attendance.index') }}" class="btn btn-primary d-flex align-items-center gap-2">
+    <a href="{{ url_for('attendance.index') }}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm px-4 py-2 fw-semibold">
         <i class="bi bi-geo-alt-fill"></i>
         {% if today_att and today_att.check_in_time and not today_att.check_out_time %}Check Out
         {% elif today_att and today_att.check_out_time %}View Attendance
@@ -195,6 +207,391 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Monthly Salary & Absence Statement (Month-Wise Credit Breakdown) ── -->
+{% if monthly_salary_records %}
+<div class="card border-0 shadow-sm mb-4" style="background:#ffffff; border-radius:16px; overflow:hidden;">
+    <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small">
+                        <i class="bi bi-wallet2 me-1"></i>Salary Vault
+                    </span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small">
+                        Month-Wise Breakdown
+                    </span>
+                </div>
+                <h5 class="fw-bold mb-1 mt-2 text-dark">
+                    Monthly Salary & Attendance Statement
+                </h5>
+                <p class="text-muted small mb-0">Exact salary credited to your account, daily deduction rates, and calendar dates of absence</p>
+            </div>
+            
+            <!-- Month Selector Pills -->
+            {% if monthly_salary_records|length > 1 %}
+            <ul class="nav nav-pills gap-1" id="salaryMonthTabs" role="tablist">
+                {% for m in monthly_salary_records %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link py-1 px-3 small rounded-pill fw-semibold {% if loop.first %}active{% endif %}"
+                            id="tab-btn-{{ m.month_tab_id }}"
+                            data-bs-toggle="pill"
+                            data-bs-target="#tab-pane-{{ m.month_tab_id }}"
+                            type="button" role="tab"
+                            aria-controls="tab-pane-{{ m.month_tab_id }}"
+                            aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+                        {{ m.month_short }}
+                        {% if m.is_current %}<span class="badge bg-light text-primary ms-1" style="font-size:0.65rem">Current</span>{% endif %}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-semibold small">
+                {{ monthly_salary_records[0].month_short }} Current
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-body p-4 pt-2">
+        <div class="tab-content" id="salaryMonthTabsContent">
+            {% for m in monthly_salary_records %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                 id="tab-pane-{{ m.month_tab_id }}" role="tabpanel" 
+                 aria-labelledby="tab-btn-{{ m.month_tab_id }}" tabindex="0">
+
+                <!-- 1. Top KPI Row for Selected Month -->
+                <div class="row g-3 mb-4">
+                    <!-- Net Credited Amount -->
+                    <div class="col-md-4 col-sm-6">
+                        <div class="p-3 rounded-3 border bg-light h-100 position-relative overflow-hidden" style="border-left: 4px solid #10b981 !important;">
+                            <div class="small text-muted mb-1 fw-medium">Net Salary Credited</div>
+                            <div class="h3 fw-bold mb-1 text-success">₹{{ "{:,.2f}".format(m.net_salary) }}</div>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="badge bg-{{ m.status_class }}-subtle text-{{ m.status_class }} border border-{{ m.status_class }}-subtle rounded-pill small">
+                                    <i class="bi bi-check-circle-fill me-1"></i>{{ m.status_text }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gross CTC / Monthly Salary -->
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded-3 border bg-light h-100" style="border-left: 4px solid #3b82f6 !important;">
+                            <div class="small text-muted mb-1 fw-medium">Gross Salary (CTC)</div>
+                            <div class="h4 fw-bold mb-1 text-dark">₹{{ "{:,.2f}".format(m.gross_salary) }}</div>
+                            <div class="small text-muted">
+                                Daily Rate: 
+                                {% if m.has_salary_master %}
+                                <strong>₹{{ "{:,.2f}".format(m.daily_rate) }}/day</strong>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary rounded-pill">Pending HR Upload</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Summary -->
+                    <div class="col-md-3 col-sm-6">
+                        <div class="p-3 rounded-3 border bg-light h-100" style="border-left: 4px solid #6366f1 !important;">
+                            <div class="small text-muted mb-1 fw-medium">Attendance & Leaves</div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="h5 fw-bold text-success mb-0">{{ m.days_present }}</span>
+                                <span class="small text-muted">Present</span>
+                                <span class="text-muted">&bull;</span>
+                                <span class="h5 fw-bold text-primary mb-0">{{ m.leave_days }}</span>
+                                <span class="small text-muted">Paid Leave</span>
+                            </div>
+                            <div class="small text-muted">{{ m.days_in_month }} Total Days in {{ m.month_label }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Absence Count & Deduction -->
+                    <div class="col-md-2 col-sm-6">
+                        <div class="p-3 rounded-3 border bg-light h-100" style="border-left: 4px solid {% if m.days_absent > 0 %}#ef4444{% else %}#10b981{% endif %} !important;">
+                            <div class="small text-muted mb-1 fw-medium">Absent Days</div>
+                            <div class="h4 fw-bold mb-1 {% if m.days_absent > 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ m.days_absent }} <span class="fs-6 fw-normal text-muted">Day(s)</span>
+                            </div>
+                            <div class="small {% if m.absence_deduction > 0 %}text-danger{% else %}text-success{% endif %} fw-semibold">
+                                {% if m.absence_deduction > 0 %}-₹{{ "{:,.2f}".format(m.absence_deduction) }}{% else %}₹0.00 Deducted{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Detailed 2-Column Split: Absent Days vs Salary Deductions -->
+                <div class="row g-4">
+                    <!-- Left: On Which Day They Were Absent -->
+                    <div class="col-lg-6">
+                        <div class="card border border-light-subtle shadow-none h-100" style="background:#fcfcfd; border-radius:12px;">
+                            <div class="card-header bg-transparent border-0 pt-3 pb-2 px-3">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                        <i class="bi bi-calendar-x text-danger"></i>
+                                        On Which Day You Were Absent
+                                    </h6>
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill">
+                                        {{ m.days_absent }} Absent Recorded
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body p-3 pt-0">
+                                {% if m.absent_dates or m.half_day_dates %}
+                                    <div class="small text-muted mb-3">
+                                        Absences recorded during <strong>{{ m.month_label }}</strong>. For each absent day, pay deduction is computed as <code>Daily Rate (₹{{ "{:,.2f}".format(m.daily_rate) }})</code>:
+                                    </div>
+                                    <div class="d-flex flex-column gap-2 mb-3">
+                                        {% for ab in m.absent_dates %}
+                                        <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-white border border-danger-subtle shadow-2xs">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-x-circle-fill text-danger fs-5"></i>
+                                                <div>
+                                                    <span class="fw-bold text-dark">{{ ab.date_str }}</span>
+                                                    <div class="text-muted" style="font-size:0.75rem">{{ ab.badge }} &bull; Loss of Pay</div>
+                                                </div>
+                                            </div>
+                                            <span class="badge bg-danger-subtle text-danger font-monospace fw-bold">
+                                                -₹{{ "{:,.2f}".format(m.daily_rate) }}
+                                            </span>
+                                        </div>
+                                        {% endfor %}
+
+                                        {% for hd in m.half_day_dates %}
+                                        <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-white border border-warning-subtle shadow-2xs">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="bi bi-clock-history text-warning fs-5"></i>
+                                                <div>
+                                                    <span class="fw-bold text-dark">{{ hd.date_str }}</span>
+                                                    <div class="text-muted" style="font-size:0.75rem">{{ hd.badge }} &bull; 0.5 Day Deduction</div>
+                                                </div>
+                                            </div>
+                                            <span class="badge bg-warning-subtle text-warning font-monospace fw-bold">
+                                                -₹{{ "{:,.2f}".format(m.daily_rate * 0.5) }}
+                                            </span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% elif m.days_present > 0 %}
+                                    <div class="p-4 rounded-3 text-center bg-white border border-success-subtle my-2">
+                                        <i class="bi bi-patch-check-fill text-success fs-1 mb-2 d-block"></i>
+                                        <h6 class="fw-bold text-success mb-1">Zero Absences in {{ m.month_label }}!</h6>
+                                        <p class="text-muted small mb-0">You had no unexcused absences during this month. Full payable attendance credited.</p>
+                                    </div>
+                                {% else %}
+                                    <div class="p-4 rounded-3 text-center bg-white border border-light-subtle my-2">
+                                        <i class="bi bi-calendar-check text-muted fs-1 mb-2 d-block"></i>
+                                        <h6 class="fw-bold text-dark mb-1">No Attendance Punches in {{ m.month_label }}</h6>
+                                        <p class="text-muted small mb-0">No biometric or web attendance logs recorded for this month yet.</p>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Monthly Late Marks & Grace Policy Box -->
+                                <div class="p-3 rounded-3 bg-white border border-info-subtle mt-auto shadow-2xs">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-clock-history text-info fs-5"></i>
+                                            <div>
+                                                <div class="fw-bold text-dark small">Late Punches ({{ m.month_label }})</div>
+                                                <div class="text-muted" style="font-size:0.72rem">20-Min Grace Buffer &bull; Monthly Reset</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge {% if m.late_count >= 3 %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-info-subtle text-info border border-info-subtle{% endif %} rounded-pill px-2 py-1 fs-6">
+                                            {{ m.late_count }} Late Mark(s)
+                                        </span>
+                                    </div>
+
+                                    {% if m.late_half_days > 0 %}
+                                    <div class="alert alert-danger py-1 px-2 mb-2 small d-flex align-items-center gap-2 rounded-2" style="font-size:0.75rem">
+                                        <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+                                        <div>
+                                            <strong>Deduction Applied:</strong> {{ m.late_half_days }} half-day deduction ({{ m.late_count }} late marks this month).
+                                        </div>
+                                    </div>
+                                    {% elif m.late_count > 0 %}
+                                    <div class="alert alert-warning py-1 px-2 mb-2 small d-flex align-items-center gap-2 rounded-2" style="font-size:0.75rem">
+                                        <i class="bi bi-info-circle-fill text-warning"></i>
+                                        <div>
+                                            <strong>{{ m.late_count }} / 3 marks:</strong> {{ 3 - (m.late_count % 3) }} more late mark(s) will trigger 1 half-day deduction.
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-success py-1 px-2 mb-2 small d-flex align-items-center gap-2 rounded-2" style="font-size:0.75rem">
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                        <div>
+                                            <strong>0 Late Punches:</strong> Clean punctuality record for {{ m.month_label }}.
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="p-2 rounded bg-light border border-light-subtle text-muted" style="font-size:0.72rem; line-height:1.4;">
+                                        <i class="bi bi-arrow-repeat text-primary me-1"></i>
+                                        <strong>Monthly Policy:</strong> Employees have a 20-minute grace buffer on shift check-in. For every <strong>3 late marks within a single calendar month</strong>, 1 half-day pay deduction is applied. At the start of each new month, this counter <strong>resets back to 0</strong>.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Financial Deductions & Net Credited Calculation -->
+                    <div class="col-lg-6">
+                        <div class="card border border-light-subtle shadow-none h-100" style="background:#fcfcfd; border-radius:12px;">
+                            <div class="card-header bg-transparent border-0 pt-3 pb-2 px-3">
+                                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                    <i class="bi bi-receipt-cutoff text-primary"></i>
+                                    Salary Credit &amp; Deductions Breakdown
+                                </h6>
+                            </div>
+                            <div class="card-body p-3 pt-0">
+                                {% if not m.has_salary_master %}
+                                <div class="alert alert-light border border-warning-subtle text-dark small mb-3 p-3 rounded-3">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <i class="bi bi-info-circle-fill text-warning"></i>
+                                        <strong class="text-dark">Salary Master Pending HR Upload</strong>
+                                    </div>
+                                    <div class="text-muted" style="font-size:0.8rem">
+                                        Salary structure is awaiting upload into the Salary Master vault by HR. Once uploaded, exact CTC, statutory deductions (PF, PT, TDS), and attendance-adjusted net take-home will calculate automatically.
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <table class="table table-sm table-borderless align-middle mb-2">
+                                    <tbody>
+                                        <tr class="border-bottom">
+                                            <td class="text-muted py-2">
+                                                <i class="bi bi-plus-circle text-success me-2"></i>Gross Monthly CTC
+                                            </td>
+                                            <td class="text-end fw-semibold text-dark py-2 font-monospace">
+                                                ₹{{ "{:,.2f}".format(m.gross_salary) }}
+                                            </td>
+                                        </tr>
+                                        <tr class="border-bottom">
+                                            <td class="text-muted py-2">
+                                                <i class="bi bi-dash-circle text-danger me-2"></i>Absence / LOP Deduction
+                                                <div class="text-muted" style="font-size:0.72rem">Based on {{ m.days_absent }} day(s) absent</div>
+                                            </td>
+                                            <td class="text-end fw-semibold text-danger py-2 font-monospace">
+                                                -₹{{ "{:,.2f}".format(m.absence_deduction) }}
+                                            </td>
+                                        </tr>
+                                        <tr class="border-bottom">
+                                            <td class="text-muted py-2">
+                                                <i class="bi bi-dash-circle text-secondary me-2"></i>Provident Fund (PF)
+                                            </td>
+                                            <td class="text-end fw-semibold text-muted py-2 font-monospace">
+                                                -₹{{ "{:,.2f}".format(m.pf_amount) }}
+                                            </td>
+                                        </tr>
+                                        <tr class="border-bottom">
+                                            <td class="text-muted py-2">
+                                                <i class="bi bi-dash-circle text-secondary me-2"></i>Professional Tax (PT)
+                                            </td>
+                                            <td class="text-end fw-semibold text-muted py-2 font-monospace">
+                                                -₹{{ "{:,.2f}".format(m.pt_amount) }}
+                                            </td>
+                                        </tr>
+                                        {% if m.tds_amount > 0 %}
+                                        <tr class="border-bottom">
+                                            <td class="text-muted py-2">
+                                                <i class="bi bi-dash-circle text-secondary me-2"></i>Tax Deducted at Source (TDS)
+                                            </td>
+                                            <td class="text-end fw-semibold text-muted py-2 font-monospace">
+                                                -₹{{ "{:,.2f}".format(m.tds_amount) }}
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr class="bg-success-subtle bg-opacity-25 rounded-3">
+                                            <td class="py-3 ps-2">
+                                                <strong class="text-dark">Net Salary Credited to Account</strong>
+                                                <div class="text-muted small" style="font-size:0.75rem">Bank Account Credit Amount</div>
+                                            </td>
+                                            <td class="text-end py-3 pe-2">
+                                                <span class="h4 fw-bolder text-success font-monospace mb-0">
+                                                    ₹{{ "{:,.2f}".format(m.net_salary) }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-white border border-light-subtle">
+                                    <div class="small text-muted">
+                                        <i class="bi bi-bank me-1 text-primary"></i>Bank Payout Status:
+                                    </div>
+                                    <span class="badge bg-{{ m.status_class }}-subtle text-{{ m.status_class }} fw-bold">
+                                        {{ m.status_text }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 3. Historical Month-Wise Comparison Table -->
+        <div class="mt-4 pt-3 border-top">
+            <h6 class="fw-bold text-dark mb-3">
+                <i class="bi bi-clock-history text-primary me-2"></i>Last 6 Months Salary &amp; Attendance Track Record
+            </h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 text-nowrap">
+                    <thead class="table-light">
+                        <tr class="small text-muted text-uppercase" style="font-size:0.75rem">
+                            <th>Month</th>
+                            <th class="text-center">Days</th>
+                            <th class="text-center">Present</th>
+                            <th class="text-center">Leaves</th>
+                            <th class="text-center">Absent Days</th>
+                            <th class="text-end">Gross Salary</th>
+                            <th class="text-end">Absence Cut</th>
+                            <th class="text-end">Net Credited</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hist in monthly_salary_records %}
+                        <tr>
+                            <td class="fw-semibold">
+                                {{ hist.month_label }}
+                                {% if hist.is_current %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1 small">Current</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center text-muted">{{ hist.days_in_month }}</td>
+                            <td class="text-center fw-bold text-success">{{ hist.days_present }}</td>
+                            <td class="text-center text-primary">{{ hist.leave_days }}</td>
+                            <td class="text-center">
+                                {% if hist.days_absent > 0 %}
+                                    <span class="badge bg-danger-subtle text-danger font-monospace">{{ hist.days_absent }} day(s)</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success">0 (None)</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end font-monospace">₹{{ "{:,.2f}".format(hist.gross_salary) }}</td>
+                            <td class="text-end font-monospace {% if hist.absence_deduction > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                {% if hist.absence_deduction > 0 %}-₹{{ "{:,.2f}".format(hist.absence_deduction) }}{% else %}₹0.00{% endif %}
+                            </td>
+                            <td class="text-end font-monospace fw-bolder text-success">
+                                ₹{{ "{:,.2f}".format(hist.net_salary) }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ hist.status_class }}-subtle text-{{ hist.status_class }} border border-{{ hist.status_class }}-subtle" style="font-size:0.72rem">
+                                    {{ hist.status_text }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 {% endif %}

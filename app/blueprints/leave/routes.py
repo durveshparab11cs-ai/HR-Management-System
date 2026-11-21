@@ -177,7 +177,8 @@ def index():
 @leave_bp.route("/apply", methods=["GET", "POST"])
 @login_required
 def apply():
-    from .forms import get_manager_choices  # noqa: PLC0415
+    from .forms import get_manager_choices, ApplyLeaveForm  # noqa: PLC0415
+    from .comp_off_service import CompOffService  # noqa: PLC0415
     emp = _get_employee_or_redirect()
     if not emp: return redirect(url_for("dashboard.index"))
     form = ApplyLeaveForm()
@@ -186,16 +187,85 @@ def apply():
     allowed_codes = ['CL', 'SL', 'PL', 'CO']
     all_types = _repo.get_all_types()
     filtered_types = [lt for lt in all_types if lt.code in allowed_codes]
-    # Sort by leave_order or id for consistent display
     filtered_types.sort(key=lambda x: (x.leave_order or 0, x.id))
-    form.leave_type_id.choices = [(lt.id, lt.name) for lt in filtered_types]
+    # Get available comp offs saved in employee's portal
+    comp_svc = CompOffService()
+    available_comp_offs = comp_svc.get_available_comp_offs(emp.id)
+
+    choices = []
+    for lt in filtered_types:
+        if lt.code == 'CO':
+            avail_cnt = len(available_comp_offs)
+            choices.append((lt.id, f"{lt.name} ({avail_cnt} Available)"))
+        else:
+            choices.append((lt.id, lt.name))
+    form.leave_type_id.choices = choices
     form.reporting_manager.choices = get_manager_choices()
+
+    # Get pending duty permission requests
+    from app.models.leave import LeaveRequest as LRModel  # noqa: PLC0415
+    pending_comp_offs = LRModel.query.filter(
+        LRModel.employee_id == emp.id,
+        LRModel.comp_off_work_date != None,
+        LRModel.status == "pending",
+        LRModel.is_deleted == False
+    ).order_by(LRModel.comp_off_work_date.desc()).all()
+
+    comp_type = next((lt for lt in filtered_types if lt.code == 'CO'), None)
+    comp_type_id = comp_type.id if comp_type else None
+
+    # Pre-select work date if passed in query param
+    prefill_co_date = request.args.get("comp_off_date", "")
     
     if form.validate_on_submit():
         att = request.files.get("attachment")
-        # Get manager code from employee_master if exists
         manager_name = form.reporting_manager.data
         manager_code = _get_manager_code_by_name(manager_name)
+
+        # Check if Comp Off was selected
+        comp_off_work_date = None
+        if comp_type and form.leave_type_id.data == comp_type.id:
+            if len(available_comp_offs) == 0:
+                flash("You don't have any Comp Off available! Comp Off can only be availed after completing an approved Sunday/Holiday duty of at least 8 hours 30 minutes.", "danger")
+                return render_template(
+                    "leave/apply.html",
+                    title="Apply for Leave",
+                    form=form,
+                    available_comp_offs=available_comp_offs,
+                    pending_comp_offs=pending_comp_offs,
+                    comp_type_id=comp_type_id,
+                    prefill_co_date=prefill_co_date,
+                )
+
+            # Check credit dropdown vs direct date picker
+            chosen_credit = request.form.get("comp_off_credit_select", "")
+            manual_date_str = request.form.get("comp_off_work_date_input", "") or request.form.get("comp_off_work_date", "")
+            
+            from datetime import datetime as dt_cls
+            if chosen_credit and chosen_credit != "manual":
+                try:
+                    comp_off_work_date = dt_cls.fromisoformat(chosen_credit).date()
+                except Exception:
+                    comp_off_work_date = None
+            elif manual_date_str:
+                try:
+                    comp_off_work_date = dt_cls.fromisoformat(manual_date_str).date()
+                except Exception:
+                    comp_off_work_date = None
+            elif form.comp_off_work_date.data:
+                comp_off_work_date = form.comp_off_work_date.data
+
+            if not comp_off_work_date:
+                flash("Please specify which Sunday or Holiday date you worked on to avail Comp Off.", "danger")
+                return render_template(
+                    "leave/apply.html",
+                    title="Apply for Leave",
+                    form=form,
+                    available_comp_offs=available_comp_offs,
+                    pending_comp_offs=pending_comp_offs,
+                    comp_type_id=comp_type_id,
+                    prefill_co_date=prefill_co_date,
+                )
         
         ok, msg, lr = _svc.apply_leave(
             employee_id=emp.id,
@@ -206,13 +276,60 @@ def apply():
                 "reason": form.reason.data,
                 "reporting_manager_name": manager_name,
                 "reporting_manager_code": manager_code or "",
+                "comp_off_work_date": comp_off_work_date,
             },
             attachment=att if (att and att.filename) else None,
         )
         flash(msg, "success" if ok else "danger")
         if ok:
             return redirect(url_for("leave.index"))
-    return render_template("leave/apply.html", title="Apply for Leave", form=form)
+            
+    return render_template(
+        "leave/apply.html",
+        title="Apply for Leave",
+        form=form,
+        available_comp_offs=available_comp_offs,
+        pending_comp_offs=pending_comp_offs,
+        comp_type_id=comp_type_id,
+        prefill_co_date=prefill_co_date,
+    )
+
+
+# ─── Permission to Work on Sunday / Holiday (Earn Comp Off) ─────────
+
+@leave_bp.route("/holiday-work/apply", methods=["GET", "POST"])
+@login_required
+def apply_holiday_work():
+    """Employee portal: Apply for permission to work on Sunday or Company Holiday."""
+    from .forms import get_manager_choices, HolidayWorkPermissionForm  # noqa: PLC0415
+    emp = _get_employee_or_redirect()
+    if not emp: return redirect(url_for("dashboard.index"))
+
+    form = HolidayWorkPermissionForm()
+    form.reporting_manager.choices = get_manager_choices()
+
+    if form.validate_on_submit():
+        manager_name = form.reporting_manager.data
+        manager_code = _get_manager_code_by_name(manager_name)
+
+        ok, msg = _svc.apply_holiday_work_permission(
+            employee_id=emp.id,
+            form_data={
+                "work_date": form.work_date.data,
+                "reason": form.reason.data,
+                "reporting_manager_code": manager_code or "",
+            }
+        )
+        flash(msg, "success" if ok else "danger")
+        if ok:
+            return redirect(url_for("leave.index"))
+
+    return render_template(
+        "leave/holiday_work_apply.html",
+        title="Permission to Work on Sunday / Holiday",
+        form=form,
+        employee=emp,
+    )
 
 
 # ─── Cancel Leave ────────────────────────────────────────────────────
@@ -281,6 +398,115 @@ def reject(lr_id: int):
     ok, msg = _svc.reject_leave(lr_id, current_user.id, comment)
     flash(msg, "success" if ok else "danger")
     return redirect(request.referrer or url_for("leave.pending"))
+
+
+# ─── Bidirectional Email Action Handler ──────────────────────────────
+
+@leave_bp.route("/email-action", methods=["GET", "POST"])
+def email_action():
+    """
+    Handle single-click leave approval/rejection links from Reporting Manager emails.
+    Bi-directionally synchronizes with the HRMS database:
+    - If already approved/rejected in app: informs manager gracefully.
+    - If pending: executes decision immediately and syncs state everywhere.
+    """
+    token = request.args.get("token") or request.form.get("token")
+    action = (request.args.get("action") or request.form.get("action") or "").lower()
+
+    if not token or action not in ("approve", "reject"):
+        return render_template(
+            "leave/email_action_result.html",
+            success=False,
+            title="Invalid Action Request",
+            message="The action link provided is incomplete or malformed.",
+            action=action,
+            already_processed=False,
+            req=None
+        ), 400
+
+    from app.services.email_notification_service import verify_leave_action_token
+    token_data = verify_leave_action_token(token)
+    if not token_data:
+        return render_template(
+            "leave/email_action_result.html",
+            success=False,
+            title="Link Expired or Invalid",
+            message="This authorization link has expired (links are valid for 7 days) or is invalid. Please log in to the HRMS portal to take action.",
+            action=action,
+            already_processed=False,
+            req=None
+        ), 400
+
+    req_id = token_data.get("req_id")
+    req_type = token_data.get("req_type")
+    mgr_code = token_data.get("mgr_code")
+
+    # Fetch corresponding request object
+    from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest
+    if req_type == "leave":
+        req_obj = LeaveRequest.query.get(req_id)
+    elif req_type == "half_day":
+        req_obj = HalfDayRequest.query.get(req_id)
+    else:
+        req_obj = EarlyLeaveRequest.query.get(req_id)
+
+    if not req_obj:
+        return render_template(
+            "leave/email_action_result.html",
+            success=False,
+            title="Request Not Found",
+            message="The requested leave record was not found or has been deleted.",
+            action=action,
+            already_processed=False,
+            req=None
+        ), 404
+
+    # Check if ALREADY PROCESSED in HRMS portal or via earlier click
+    if req_obj.status != "pending":
+        status_disp = req_obj.status.upper()
+        return render_template(
+            "leave/email_action_result.html",
+            success=True,
+            title=f"Request Already {status_disp}",
+            message=f"This request has already been processed in the Smart HRMS portal with status: {status_disp}. Both systems are fully synchronized.",
+            action=req_obj.status,
+            already_processed=True,
+            req=req_obj
+        )
+
+    # Resolve reviewer user ID
+    from app.models.employee import Employee
+    from app.models.user import User
+    mgr_emp = Employee.query.filter_by(employee_code=mgr_code, is_deleted=False).first()
+    reviewer_user_id = mgr_emp.user_id if (mgr_emp and mgr_emp.user_id) else 1
+
+    comment = f"{action.capitalize()}d via Reporting Manager Email link"
+    
+    if req_type == "leave":
+        if action == "approve":
+            ok, msg = _svc.approve_leave(req_id, reviewer_user_id, comment)
+        else:
+            ok, msg = _svc.reject_leave(req_id, reviewer_user_id, comment)
+    elif req_type == "half_day":
+        if action == "approve":
+            ok, msg = _svc.approve_halfday(req_id, reviewer_user_id, comment)
+        else:
+            ok, msg = _svc.reject_halfday(req_id, reviewer_user_id, comment)
+    else:  # early_leave
+        if action == "approve":
+            ok, msg = _svc.approve_earlyleave(req_id, reviewer_user_id, comment)
+        else:
+            ok, msg = _svc.reject_earlyleave(req_id, reviewer_user_id, comment)
+
+    return render_template(
+        "leave/email_action_result.html",
+        success=ok,
+        title=f"Leave Request {action.title()}d Successfully" if ok else "Action Failed",
+        message=f"You have successfully {action}d this request. The employee's record and HRMS portal have been updated in real-time.",
+        action=action,
+        already_processed=False,
+        req=req_obj
+    )
 
 
 # ─── Half Day ────────────────────────────────────────────────────────

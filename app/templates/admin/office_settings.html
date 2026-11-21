@@ -113,8 +113,36 @@
             {{ row('Geofence Radius', office.radius_metres ~ 'm') }}
             {{ row('Start Time', office.office_start_time.strftime('%H:%M') if office.office_start_time else '—') }}
             {{ row('End Time', office.office_end_time.strftime('%H:%M') if office.office_end_time else '—') }}
-            {{ row('Grace Period', office.grace_period_minutes ~ ' min') }}
+            {{ row('Grace Period Buffer', office.grace_period_minutes ~ ' min (Policy Rule)') }}
             {{ row('Remote Check-In', 'Allowed' if office.allow_remote_checkin else 'Not Allowed') }}
+        </div>
+    </div>
+
+    <!-- Email Ecosystem & Late Rule Governance Panel -->
+    <div class="card border-0 shadow-sm mb-4" style="border: 1px solid #e0f2fe !important;">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-envelope-at-fill text-primary me-2"></i>Ecosystem Email &amp; Late Rules</h6>
+            <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold">Connected</span>
+        </div>
+        <div class="card-body px-4 py-3">
+            <div class="mb-3">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size:0.72rem;">Outbound HR Mailbox</div>
+                <div class="fw-bold text-dark font-mono small">executivehr0001@gmail.com</div>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size:0.72rem;">Late Mark Policy (20-Min Buffer)</div>
+                <div class="small text-secondary">
+                    Employees receive a <strong>20-minute buffer</strong> past shift time.<br>
+                    &bull; <strong>1st &amp; 2nd Late Marks:</strong> Instant email warning to employee.<br>
+                    &bull; <strong>3rd Late Mark:</strong> Automated <strong>Half-Day Deduction</strong> recorded &amp; penalty notice sent.
+                </div>
+            </div>
+            <div class="mb-1">
+                <div class="text-muted small fw-semibold text-uppercase" style="font-size:0.72rem;">Leave Sync Workflow</div>
+                <div class="small text-secondary">
+                    Leave requests dispatched to <strong>Reporting Manager</strong> via email with instant <strong>[Approve]</strong> and <strong>[Reject]</strong> action links. Both Email and App update synchronously in real-time.
+                </div>
+            </div>
         </div>
     </div>
 </div>

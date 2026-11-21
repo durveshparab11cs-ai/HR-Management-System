@@ -1,0 +1,101 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Permission to Work on Sunday / Holiday — {{ app_name }}{% endblock %}
+{% block breadcrumbs %}{% set breadcrumbs=[('Leave Portal', url_for('leave.index')), ('Holiday Work Permission', None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8 col-lg-6">
+<div class="card border-0 shadow-sm" style="border-radius:16px;">
+    <div class="card-header bg-transparent border-0 pt-4 pb-2 px-4">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge rounded-pill px-2 py-1" style="background:#ede9fe; color:#6b21a8; font-size:0.75rem">
+                <i class="bi bi-calendar2-plus me-1"></i>Earn Comp Off
+            </span>
+        </div>
+        <h5 class="fw-bold mb-1 text-dark">Permission to Work on Sunday / Holiday</h5>
+        <p class="text-muted small mb-0">Register duty performed on a weekend or company holiday to automatically credit 1 Compensatory Off to your portal.</p>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <!-- Work Date Field -->
+        <div class="mb-3">
+            <label class="form-label fw-medium small">Sunday / Holiday Work Date <span class="text-danger">*</span></label>
+            {{ form.work_date(class="form-control" + (" is-invalid" if form.work_date.errors else "")) }}
+            {% for e in form.work_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            <div class="form-text">Select the Sunday or Company Holiday date on which you are working or worked.</div>
+        </div>
+
+        <!-- Purpose / Reason -->
+        <div class="mb-3">
+            <label class="form-label fw-medium small">Purpose / Hospital Shift Details <span class="text-danger">*</span></label>
+            {{ form.reason(class="form-control" + (" is-invalid" if form.reason.errors else "")) }}
+            {% for e in form.reason.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            <div class="form-text">Specify the duty, emergency coverage, or hospital assignment requirement.</div>
+        </div>
+
+        <!-- Reporting Manager -->
+        <div class="mb-4">
+            <label class="form-label fw-medium small">Reporting Manager <span class="text-danger">*</span></label>
+            {{ form.reporting_manager(class="form-select" + (" is-invalid" if form.reporting_manager.errors else ""), id="reporting-manager-holiday-select") }}
+            {% for e in form.reporting_manager.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            <div class="form-text">Your manager will be notified of your Sunday / Holiday duty.</div>
+        </div>
+
+        <!-- Policy notice box -->
+        <div class="p-3 rounded-3 mb-4 border border-purple-subtle" style="background:#faf5ff; font-size:0.8rem; border-color:#d8b4fe !important;">
+            <div class="d-flex align-items-center gap-2 mb-1 fw-bold" style="color:#7e22ce;">
+                <i class="bi bi-shield-check"></i> Comp Off Crediting Policy (Mandatory Requirements)
+            </div>
+            <ul class="text-muted mb-0 ps-3" style="line-height:1.5;">
+                <li><strong>Manager Approval Required:</strong> Comp Off will <em>never</em> be auto-credited before your Reporting Manager reviews and approves your request.</li>
+                <li><strong>Minimum 8 Hours 30 Minutes:</strong> Comp Off credit activates <em>only</em> when at least <strong>8h 30m</strong> of shift attendance is completed on that Sunday/Holiday.</li>
+                <li><strong>90-Day Validity:</strong> Once approved and earned, the Comp Off remains available in your portal for 90 days.</li>
+            </ul>
+        </div>
+
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('leave.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+            <button type="submit" class="btn btn-primary flex-grow-1 fw-semibold">
+                <i class="bi bi-send me-1"></i>Submit for Manager Approval
+            </button>
+        </div>
+    </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+.select2-container .select2-selection--single {
+    height: 38px;
+    padding: 6px 12px;
+}
+.select2-container--bootstrap-5 .select2-selection {
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+(function() {
+    $('#reporting-manager-holiday-select').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Select Reporting Manager --',
+        allowClear: false,
+        width: '100%'
+    });
+})();
+</script>
+{% endblock %}

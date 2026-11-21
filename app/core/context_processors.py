@@ -120,19 +120,18 @@ def inject_navigation() -> dict:
             dept = ""
 
     all_items = [
-        {"label": "Dashboard",      "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
-        {"label": "Employees",      "icon": "bi-people",         "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
-        {"label": "Attendance",     "icon": "bi-calendar-check", "url_endpoint": "attendance.index",    "roles": None},
-        {"label": "Leave",          "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
-        {"label": "Leave Approval", "icon": "bi-person-check",   "url_endpoint": "leave.my_approvals",  "roles": None},
-        {"label": "Shift Change",   "icon": "bi-clock-history",  "url_endpoint": "shift_change.dashboard", "roles": None},
-        {"label": "Payroll",        "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
-        {"label": "Reports",        "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
-        {"label": "Notifications",  "icon": "bi-bell",           "url_endpoint": "notifications.index", "roles": None},
-        {"label": "Calendar",       "icon": "bi-calendar-event", "url_endpoint": "calendar.index",      "roles": None},
-        {"label": "Company",        "icon": "bi-building",       "url_endpoint": "company.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-        {"label": "Settings",       "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
-        {"label": "Admin Panel",    "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Dashboard",         "icon": "bi-speedometer2",   "url_endpoint": "dashboard.index",     "roles": None},
+        {"label": "Flow Status",       "icon": "bi-diagram-3-fill", "url_endpoint": "admin.flow_status",   "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Employees",         "icon": "bi-people",         "url_endpoint": "employees.index",     "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value, UserRole.MANAGER.value]},
+        {"label": "Hospitals",         "icon": "bi-hospital",       "url_endpoint": "admin.hospitals_list", "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
+        {"label": "Shift Timings",     "icon": "bi-clock-history",  "url_endpoint": "admin.shift_assignment", "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
+        {"label": "Attendance Photos", "icon": "bi-camera-fill",    "url_endpoint": "admin.attendance_photos", "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value]},
+        {"label": "Leave",             "icon": "bi-calendar-x",     "url_endpoint": "leave.index",         "roles": None},
+        {"label": "Payroll",           "icon": "bi-cash-stack",     "url_endpoint": "payroll.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Reports",           "icon": "bi-bar-chart",      "url_endpoint": "reports.index",       "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value, UserRole.MANAGER.value]},
+        {"label": "Settings",          "icon": "bi-gear",           "url_endpoint": "settings.index",      "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Admin Panel",       "icon": "bi-shield-lock",    "url_endpoint": "admin.index",         "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
+        {"label": "Data Readiness",    "icon": "bi-card-checklist", "url_endpoint": "admin.data_readiness", "roles": [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value]},
     ]
 
     # FOSS Shift & Location Management — visible to FOSS dept and Admin
@@ -142,21 +141,13 @@ def inject_navigation() -> dict:
         if "foss.index" in _app.view_functions:
             if dept == "FOSS" or role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
                 all_items.insert(-1, {
-                    "label": "FOSS — Shift & Location",
+                    "label": "FOSS — Hospital Location",
                     "icon": "bi-geo-fill",
                     "url_endpoint": "foss.index",
                     "roles": None,
                 })
     except Exception:  # noqa: BLE001
         pass
-
-    # HARDCODED: E-2606026 (Durvesh) sees ALL navigation items
-    if current_user.username == 'e2606026':
-        # Remove role restrictions for all items
-        all_items_for_durvesh = [
-            {**item, "roles": None} for item in all_items
-        ]
-        return {"nav_items": all_items_for_durvesh}
 
     filtered = [
         item for item in all_items

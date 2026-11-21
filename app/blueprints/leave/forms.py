@@ -61,10 +61,11 @@ class ApplyLeaveForm(FlaskForm):
         choices=LEAVE_TYPES,
         coerce=int,
         validators=[DataRequired(message="Please select a leave type.")],
-        render_kw={"class": "form-select"}
+        render_kw={"class": "form-select", "id": "leave-type-select"}
     )
     start_date = DateField("Start Date", validators=[DataRequired()])
     end_date = DateField("End Date", validators=[DataRequired()])
+    comp_off_work_date = DateField("Sunday / Holiday Date Worked", validators=[Opt()])
     reason = TextAreaField(
         "Reason",
         validators=[DataRequired(), Length(min=5, max=1000)],
@@ -79,6 +80,22 @@ class ApplyLeaveForm(FlaskForm):
     attachment = FileField(
         "Supporting Document (optional)",
         validators=[FileAllowed(["pdf", "jpg", "jpeg", "png", "doc", "docx"], "PDF, image, or Word doc only.")]
+    )
+
+
+class HolidayWorkPermissionForm(FlaskForm):
+    """Permission request to work on a Sunday or Company Holiday (earns Comp Off)."""
+    work_date = DateField("Sunday / Holiday Work Date", validators=[DataRequired(message="Please select the date to work.")])
+    reason = TextAreaField(
+        "Purpose of Sunday / Holiday Duty",
+        validators=[DataRequired(message="Please state the duty or hospital shift requirements."), Length(min=5, max=500)],
+        render_kw={"rows": 3, "placeholder": "Describe the emergency, hospital shift coverage, or duty details…"}
+    )
+    reporting_manager = SelectField(
+        "Reporting Manager",
+        choices=[],
+        validators=[DataRequired(message="Please select your Reporting Manager.")],
+        render_kw={"class": "form-select searchable-select", "id": "reporting-manager-holiday-select"}
     )
 
 

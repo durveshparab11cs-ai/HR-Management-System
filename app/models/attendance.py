@@ -65,10 +65,20 @@ class Attendance(BaseModel):
 
     @property
     def working_hours_display(self) -> str:
-        if not self.working_minutes:
+        mins = self.working_minutes
+        if (mins is None or mins == 0) and self.check_in_time and self.check_out_time:
+            try:
+                diff = (self.check_out_time - self.check_in_time).total_seconds()
+                if diff > 0:
+                    mins = int(diff // 60)
+            except Exception:
+                pass
+        if mins is None:
             return "—"
-        h, m = divmod(self.working_minutes, 60)
-        return f"{h}h {m}m"
+        h, m = divmod(mins, 60)
+        if h > 0:
+            return f"{h}h {m}m" if m > 0 else f"{h}h"
+        return f"{m}m" if m > 0 else "< 1m"
 
     @property
     def check_in_time_ist(self) -> str:

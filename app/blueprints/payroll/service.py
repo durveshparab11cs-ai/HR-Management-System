@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from typing import Optional, Tuple
 
 from app.extensions.database import db
-from app.models.payroll import PayrollRun, Payslip, SalaryStructure
+from app.models.payroll import PayrollRun, Payslip, SalaryStructure, EmployeeSalaryMaster
 from app.models.attendance import Attendance
 from app.models.employee import Employee
 from sqlalchemy import extract
@@ -64,8 +64,8 @@ class PayrollService:
         run = self.get_run(run_id)
         if not run:
             return False, "Payroll run not found."
-        if run.status not in ("draft", "processing"):
-            return False, f"Cannot process a run with status '{run.status}'."
+        if run.status not in ("draft", "processing", "processed"):
+            return False, f"Cannot process a run with status '{run.status}' (must be draft or processed)."
 
         run.status = "processing"
         db.session.commit()
@@ -87,22 +87,75 @@ class PayrollService:
 
             days_present = sum(1 for a in att_records if a.status == "present")
             leave_days   = sum(1 for a in att_records if a.status == "on_leave")
-            days_absent  = days_in_month - days_present - leave_days
+            half_days    = sum(0.5 for a in att_records if (a.status == "half_day" or getattr(a, "is_half_day", False)))
 
-            # Placeholder salary — replace with actual structure when HR configures it
-            basic         = 30000.0
-            daily_rate    = basic / days_in_month
-            earned_basic  = daily_rate * (days_present + leave_days)
-            hra           = earned_basic * 0.4
-            conveyance    = 1600.0
-            gross         = earned_basic + hra + conveyance
+            # 3 Late Marks Policy (Per-Month Reset):
+            # 20-min grace buffer. After every 3 late marks in THIS calendar month, 1 half-day deduction is applied.
+            # In the next month, the counter resets back to 0.
+            late_count = sum(1 for a in att_records if getattr(a, "is_late", False))
+            late_deduction_days = (late_count // 3) * 0.5
 
-            pf_deduction  = earned_basic * 0.12
-            pt_deduction  = 200.0
-            net           = gross - pf_deduction - pt_deduction
+            payable_days = max(0.0, days_present + half_days + leave_days - late_deduction_days)
+            days_absent  = max(0.0, days_in_month - (days_present + half_days + leave_days))
 
-            earnings   = json.dumps({"Basic": round(earned_basic,2), "HRA": round(hra,2), "Conveyance": conveyance})
-            deductions = json.dumps({"PF (12%)": round(pf_deduction,2), "Professional Tax": pt_deduction})
+            # Look up employee's imported salary structure master
+            salary_master = EmployeeSalaryMaster.query.filter_by(
+                employee_code=emp.employee_code, is_active=True
+            ).first()
+
+            payable_days = days_present + leave_days
+
+            if salary_master:
+                # Use real configured salary and deductions from imported Excel
+                monthly_gross = float(salary_master.salary_amount)
+                daily_rate    = monthly_gross / days_in_month if days_in_month > 0 else monthly_gross
+                earned_gross  = round(daily_rate * payable_days, 2)
+
+                # Deductions
+                # Pro-rate PF with attendance days if absent, or use full amount if present
+                att_ratio = (payable_days / days_in_month) if days_in_month > 0 else 1.0
+                pf_deduction = round(float(salary_master.pf_amount) * att_ratio, 2)
+                tds_deduction = round(float(salary_master.tds_amount), 2)
+                pt_deduction = round(float(salary_master.pt_amount), 2)
+
+                total_ded = round(pf_deduction + tds_deduction + pt_deduction, 2)
+                net = max(0.0, round(earned_gross - total_ded, 2))
+
+                earned_basic = earned_gross
+                gross = earned_gross
+
+                earn_dict = {
+                    "Monthly CTC / Gross": round(monthly_gross, 2),
+                    "Payable Days": f"{payable_days} / {days_in_month} Days",
+                    "Earned Gross": round(earned_gross, 2),
+                }
+                ded_dict = {}
+                if pf_deduction > 0:
+                    ded_dict["Provident Fund (PF)"] = round(pf_deduction, 2)
+                if tds_deduction > 0:
+                    ded_dict["Tax Deducted at Source (TDS)"] = round(tds_deduction, 2)
+                if pt_deduction > 0:
+                    ded_dict["Professional Tax (PT)"] = round(pt_deduction, 2)
+
+                earnings   = json.dumps(earn_dict)
+                deductions = json.dumps(ded_dict)
+            else:
+                # ZERO DUMMY DATA: If salary master has not been uploaded yet, do not fabricate numbers
+                basic         = 0.0
+                daily_rate    = 0.0
+                earned_basic  = 0.0
+                hra           = 0.0
+                conveyance    = 0.0
+                gross         = 0.0
+
+                pf_deduction  = 0.0
+                tds_deduction = 0.0
+                pt_deduction  = 0.0
+                total_ded     = 0.0
+                net           = 0.0
+
+                earnings   = json.dumps({"Notice": "Salary master pending upload by HR", "Basic": 0.0})
+                deductions = json.dumps({})
 
             # Remove old payslip for this emp+run if exists
             old = Payslip.query.filter_by(run_id=run.id, employee_id=emp.id).first()
@@ -113,7 +166,7 @@ class PayrollService:
                 run_id=run.id, employee_id=emp.id,
                 basic_salary=round(earned_basic, 2),
                 gross_salary=round(gross, 2),
-                total_deductions=round(pf_deduction + pt_deduction, 2),
+                total_deductions=round(total_ded, 2),
                 net_salary=round(net, 2),
                 working_days=days_in_month,
                 days_present=days_present,

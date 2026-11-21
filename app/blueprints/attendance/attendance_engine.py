@@ -74,25 +74,32 @@ def compute_check_in_meta(
             return False, 0
     
     # Try to get employee-specific shift
-    shift_start_time = office.office_start_time
-    grace_period = office.grace_period_minutes
+    shift_start_time = office.office_start_time if office else time(9, 0)
+    grace_period = office.grace_period_minutes if (office and office.grace_period_minutes) else 20
     
     if employee_id and attendance_date:
         shift_info = get_employee_shift_for_date(employee_id, attendance_date)
-        if shift_info:
-            shift_start_time = shift_info.get("start_time", office.office_start_time)
-            # Use shift-specific grace if available (for future enhancement)
-            # grace_period = shift_info.get("grace_period", office.grace_period_minutes)
+        if shift_info and shift_info.get("start_time"):
+            shift_start_time = shift_info["start_time"]
+            if shift_info.get("grace_period"):
+                grace_period = shift_info["grace_period"]
 
-    # Convert shift start time (IST) to UTC by subtracting 5:30
-    shift_start_utc = _naive_combine(ci.date(), shift_start_time) - IST_OFFSET
+    # Normalize check-in time to IST
+    # If check-in time appears to be UTC (roughly 5.5 hours behind IST shift timing), adjust by IST_OFFSET
+    shift_start_nominal = _naive_combine(ci.date(), shift_start_time)
+    diff_from_nominal = (shift_start_nominal - ci).total_seconds()
+    if diff_from_nominal > 14400:  # > 4 hours earlier, likely UTC timestamp
+        ci_ist = ci + IST_OFFSET
+    else:
+        ci_ist = ci
 
-    # Grace end in UTC
-    grace_end_utc = shift_start_utc + timedelta(minutes=grace_period)
+    # Grace end in IST (shift_start + 20 minutes buffer)
+    shift_start_ist = _naive_combine(ci_ist.date(), shift_start_time)
+    grace_end_ist = shift_start_ist + timedelta(minutes=grace_period)
 
-    if ci > grace_end_utc:
-        delta = ci - grace_end_utc
-        return True, int(delta.total_seconds() / 60)
+    if ci_ist > grace_end_ist:
+        delta = ci_ist - grace_end_ist
+        return True, max(1, int(delta.total_seconds() / 60))
     return False, 0
 
 

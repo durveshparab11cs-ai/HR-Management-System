@@ -1,0 +1,221 @@
+{#
+  shared/app_launcher.html
+  Enterprise App Launcher Modal
+  Provides role-gated navigation across the core pillars of Smart HRMS.
+#}
+
+<div class="modal fade" id="appLauncherModal" tabindex="-1" aria-labelledby="appLauncherModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content launcher-modal-content">
+      <div class="modal-header border-0 pb-1">
+        <div class="d-flex align-items-center gap-2">
+          <div class="launcher-icon-box">
+            <i class="bi bi-grid-3x3-gap-fill text-primary"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-dark mb-0" id="appLauncherModalLabel">App Launcher</h5>
+            <span class="text-muted small">Switch between Smart HRMS workspaces</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="row g-3">
+          {% if is_admin or is_hr_manager %}
+          <!-- 1. Core HR -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('admin.index') }}" class="launcher-card active-pillar">
+              <div class="launcher-card-icon icon-core">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Core HR Operations</div>
+                <div class="launcher-card-desc">Employees, Hospitals &amp; Allocations</div>
+              </div>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Management</span>
+            </a>
+          </div>
+
+          <!-- 2. Attendance Photos -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('admin.attendance_photos') }}" class="launcher-card">
+              <div class="launcher-card-icon icon-attendance">
+                <i class="bi bi-camera-fill"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Attendance Photos</div>
+                <div class="launcher-card-desc">Date-wise Facial Proof Wall &amp; Filters</div>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Photo Wall</span>
+            </a>
+          </div>
+
+          <!-- 3. Payroll Vault -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('payroll.index') }}" class="launcher-card vault-card" onclick="promptStepUpAuth(event, '{{ url_for('payroll.index') }}')">
+              <div class="launcher-card-icon icon-payroll">
+                <i class="bi bi-shield-lock-fill"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Payroll Vault</div>
+                <div class="launcher-card-desc">Accurate Runs, Slabs, PF/ESI &amp; Bank Files</div>
+              </div>
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                <i class="bi bi-lock-fill"></i> Security Vault
+              </span>
+            </a>
+          </div>
+          {% endif %}
+
+          <!-- Employee Self-Service (Everyone) -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('dashboard.index') }}" class="launcher-card">
+              <div class="launcher-card-icon icon-ess">
+                <i class="bi bi-person-badge"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Employee Portal</div>
+                <div class="launcher-card-desc">Personal Dashboard, Shifts &amp; Status</div>
+              </div>
+              <span class="badge bg-info-subtle text-info border border-info-subtle">Self Service</span>
+            </a>
+          </div>
+
+          <!-- Leave Hub (Everyone) -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('leave.index') }}" class="launcher-card">
+              <div class="launcher-card-icon icon-leave">
+                <i class="bi bi-calendar2-check-fill"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Leave &amp; Time-Off</div>
+                <div class="launcher-card-desc">Apply Leaves, Half-Days &amp; Balances</div>
+              </div>
+              <span class="badge bg-purple-subtle text-primary border border-primary-subtle">Time Off</span>
+            </a>
+          </div>
+
+          <!-- Attendance & Punches (Everyone) -->
+          <div class="col-md-4 col-sm-6">
+            <a href="{{ url_for('attendance.index') }}" class="launcher-card">
+              <div class="launcher-card-icon icon-punch">
+                <i class="bi bi-clock-history"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">My Attendance</div>
+                <div class="launcher-card-desc">Personal Punch Logs &amp; Working Hours</div>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Attendance</span>
+            </a>
+          </div>
+
+          {% if is_admin %}
+          <!-- Kiosk Terminal Mode -->
+          <div class="col-md-4 col-sm-6">
+            <a href="/coordinator/portal" target="_blank" class="launcher-card">
+              <div class="launcher-card-icon icon-kiosk">
+                <i class="bi bi-display-fill"></i>
+              </div>
+              <div class="launcher-card-body">
+                <div class="launcher-card-title">Kiosk Terminal</div>
+                <div class="launcher-card-desc">Office Camera Punching Terminal</div>
+              </div>
+              <span class="badge bg-cyan-subtle text-info border border-info-subtle">Hardware</span>
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="modal-footer border-0 pt-0 d-flex justify-content-between align-items-center">
+        {% if is_admin %}
+        <a href="/admin/readiness" class="small text-decoration-none text-muted">
+          <i class="bi bi-speedometer2"></i> View System Data Readiness Checklist
+        </a>
+        {% else %}
+        <span class="small text-muted">Smart HRMS Enterprise Portal</span>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.launcher-modal-content {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+}
+.launcher-icon-box {
+  width: 36px;
+  height: 36px;
+  background: #eff6ff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.launcher-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  height: 100%;
+}
+.launcher-card:hover {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+.launcher-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 0.85rem;
+}
+.icon-core { background: #eff6ff; color: #2563eb; }
+.icon-attendance { background: #ecfdf5; color: #059669; }
+.icon-payroll { background: #fffbeb; color: #d97706; }
+.icon-recruitment { background: #f5f3ff; color: #7c3aed; }
+.icon-ess { background: #f0f9ff; color: #0284c7; }
+.icon-leave { background: #faf5ff; color: #8b5cf6; }
+.icon-punch { background: #ecfdf5; color: #10b981; }
+.icon-kiosk { background: #ecfeff; color: #0891b2; }
+
+.launcher-card-title {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+}
+.launcher-card-desc {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin-bottom: 0.85rem;
+  flex: 1;
+}
+</style>
+
+<script>
+function promptStepUpAuth(event, redirectUrl) {
+  event.preventDefault();
+  const confirmed = confirm("🔒 SECURITY VERIFICATION\nYou are entering the Payroll Vault. Step-up authorization is active. Proceed?");
+  if (confirmed) {
+    window.location.href = redirectUrl;
+  }
+}
+</script>

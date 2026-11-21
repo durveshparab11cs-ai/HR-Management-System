@@ -1,0 +1,128 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Data Readiness Dashboard — Smart HRMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 motion-fade-in">
+
+  <!-- Header Banner -->
+  <div class="bg-white border shadow-sm rounded-4 p-4 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">
+          <i class="bi bi-shield-check me-1"></i> Enterprise Governance
+        </span>
+        <span class="text-muted small fw-medium">&bull; Zero Dummy Data Policy</span>
+      </div>
+      <h1 class="h3 fw-bold text-dark mb-1">System Data Readiness</h1>
+      <p class="text-muted small mb-0 fw-medium">Real-time status of business datasets required to activate automated workflows.</p>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="/admin/import" class="btn btn-primary btn-sm px-3 fw-semibold d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-cloud-arrow-up-fill"></i> Import Real Data
+      </a>
+    </div>
+  </div>
+
+  <!-- Overall Progress Card -->
+  <div class="card bg-white border shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+      <div class="row align-items-center g-4">
+        <div class="col-md-3 text-center border-end">
+          <div class="display-4 fw-bold text-primary mb-1 font-mono">
+            {{ readiness_percentage }}%
+          </div>
+          <div class="text-muted small fw-bold text-uppercase tracking-wider">Overall Data Readiness</div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between small text-dark fw-semibold mb-2">
+            <span>{{ ready_count }} of {{ total_modules }} modules configured</span>
+            <span class="text-muted">{{ total_modules - ready_count }} pending real data</span>
+          </div>
+          <div class="progress" style="height: 12px; background: #e2e8f0; border-radius: 9999px;">
+            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ readiness_percentage }}%;" aria-valuenow="{{ readiness_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3" style="background: #fffbeb; border: 1px solid #fde68a;">
+            <div class="d-flex align-items-center gap-2 text-warning-emphasis small fw-bold mb-1">
+              <i class="bi bi-exclamation-diamond-fill text-warning"></i> Module Lock Notice
+            </div>
+            <div class="text-dark small" style="font-size: 0.76rem; line-height: 1.4;">
+              Payroll runs are locked until statutory tax rates and salary structures are verified.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modules Dependency Checklist -->
+  <div class="card bg-white border shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+      <h5 class="h6 fw-bold text-dark mb-0">Module Readiness &amp; Dependency Checklist</h5>
+      <span class="badge bg-secondary-subtle text-secondary font-mono fw-bold">Strict Zero Dummy Data</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 text-dark">
+        <thead class="small text-muted text-uppercase" style="background: #f8fafc;">
+          <tr>
+            <th class="ps-4">Dataset Module</th>
+            <th>Required For</th>
+            <th class="text-center">Current / Target</th>
+            <th class="text-center">Status</th>
+            <th class="pe-4">Blocked Workflows</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in modules %}
+          <tr>
+            <td class="ps-4">
+              <div class="fw-bold text-dark">{{ m.name }}</div>
+              <div class="text-muted small font-mono">ID: {{ m.id }}</div>
+            </td>
+            <td class="text-muted small fw-medium">
+              {{ m.required_for }}
+            </td>
+            <td class="text-center font-mono small">
+              <span class="text-dark fw-bold fs-6">{{ m.count }}</span> / <span class="text-muted">{{ m.target }}</span>
+            </td>
+            <td class="text-center">
+              {% if m.status == 'Ready' %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-bold">
+                  <i class="bi bi-check-circle-fill me-1"></i> Ready
+                </span>
+              {% elif m.status == 'Partial' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 fw-bold">
+                  <i class="bi bi-pie-chart-fill me-1"></i> Partial
+                </span>
+              {% elif m.status == 'Pending Verification' %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fw-bold">
+                  <i class="bi bi-shield-exclamation me-1"></i> Needs Input
+                </span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold">
+                  <i class="bi bi-x-circle-fill me-1"></i> Missing
+                </span>
+              {% endif %}
+            </td>
+            <td class="pe-4 small">
+              {% if m.blocking and m.status != 'Ready' %}
+                <span class="text-danger fw-semibold d-flex align-items-center gap-1">
+                  <i class="bi bi-lock-fill text-danger"></i> {{ m.blocking }}
+                </span>
+              {% else %}
+                <span class="text-muted">&mdash; None</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

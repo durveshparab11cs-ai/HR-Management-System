@@ -1,0 +1,67 @@
+{#
+  macros/empty_state.html
+  Enterprise Zero-Dummy-Data Empty State Macro
+  Strict adherence to: Beautiful empty state, clear sentence, primary action.
+#}
+
+{% macro render_empty_state(title, message, action_text=None, action_url=None, action_icon="bi-plus-lg", icon="bi-folder2-open") %}
+<div class="empty-state-container motion-fade-in text-center p-5">
+  <div class="empty-state-icon-wrapper mb-3">
+    <div class="empty-state-glow"></div>
+    <div class="empty-state-icon">
+      <i class="bi {{ icon }}"></i>
+    </div>
+  </div>
+  <h3 class="empty-state-title h5 fw-bold mb-2 text-white">{{ title }}</h3>
+  <p class="empty-state-description text-muted small mx-auto mb-4" style="max-width: 420px; line-height: 1.6;">
+    {{ message }}
+  </p>
+  {% if action_text and action_url %}
+  <a href="{{ action_url }}" class="btn btn-primary empty-state-btn px-4 py-2">
+    <i class="bi {{ action_icon }} me-1"></i> {{ action_text }}
+  </a>
+  {% endif %}
+</div>
+
+<style>
+.empty-state-container {
+  background: rgba(13, 24, 56, 0.4);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg, 16px);
+  backdrop-filter: blur(12px);
+  margin: 1.5rem 0;
+}
+.empty-state-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-state-glow {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0) 70%);
+  border-radius: 50%;
+  animation: pulseGlow 3s infinite alternate;
+}
+.empty-state-icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: rgba(16, 31, 74, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #60a5fa;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+@keyframes pulseGlow {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(1.2); opacity: 1; }
+}
+</style>
+{% endmacro %}

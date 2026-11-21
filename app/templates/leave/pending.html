@@ -30,7 +30,28 @@
                     <div class="fw-semibold small">{{ lr.employee.full_name }}</div>
                     <div class="text-muted" style="font-size:.75rem">{{ lr.employee.employee_code }}</div>
                 </td>
-                <td><span class="badge rounded-pill px-2" style="background:{{ lr.leave_type.color }}20;color:{{ lr.leave_type.color }}">{{ lr.leave_type.name }}</span></td>
+                <td>
+                    <span class="badge rounded-pill px-2" style="background:{{ lr.leave_type.color }}20;color:{{ lr.leave_type.color }}">{{ lr.leave_type.name }}</span>
+                    {% if lr.leave_type.code == 'CO' and lr.comp_off_work_date %}
+                    <div class="mt-1">
+                        <span class="badge border" style="background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe !important; font-size:0.75rem;">
+                            <i class="bi bi-calendar2-check me-1"></i>Sunday/Holiday: <strong>{{ lr.comp_off_work_date.strftime('%d %b %Y') }}</strong>
+                        </span>
+                    </div>
+                    {% set att = lr.comp_off_attendance_status %}
+                    <div class="mt-1">
+                        {% if att.eligible %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.7rem;">
+                            <i class="bi bi-check-circle-fill me-1"></i>{{ att.msg }}
+                        </span>
+                        {% else %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:0.7rem;">
+                            <i class="bi bi-info-circle-fill me-1"></i>{{ att.msg }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </td>
                 <td class="small">{{ lr.start_date.strftime('%d %b') }} – {{ lr.end_date.strftime('%d %b %Y') }}</td>
                 <td class="small fw-semibold">{{ lr.total_days }}</td>
                 <td class="small text-muted" style="max-width:180px">{{ lr.reason[:60] }}{% if lr.reason|length > 60 %}…{% endif %}</td>

@@ -8,7 +8,7 @@ from datetime import date
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.core.security import admin_required, roles_required
+from app.core.security import admin_required, hr_required, roles_required
 from app.constants.enums import UserRole
 from app.blueprints.attendance.repository import AttendanceRepository
 from app.blueprints.employees.repository import EmployeeRepository
@@ -122,9 +122,38 @@ def index():
     except Exception:
         recent_requests   = []
 
+    # Fetch recent attendance photos for the live visual verification card
+    recent_photos = []
+    total_photos_count = 0
+    try:
+        from app.models.attendance_photo import AttendancePhoto
+        from app.models.employee import Employee
+        total_photos_count = AttendancePhoto.query.count()
+        raw_photos = (
+            AttendancePhoto.query
+            .order_by(AttendancePhoto.id.desc())
+            .limit(6)
+            .all()
+        )
+        for p in raw_photos:
+            emp = Employee.query.get(p.employee_id) if p.employee_id else None
+            recent_photos.append({
+                "id": p.id,
+                "attendance_id": p.attendance_id,
+                "employee_name": emp.full_name if emp else "Employee",
+                "employee_code": emp.employee_code if emp else "",
+                "department": emp.department if emp else "Operations",
+                "image_data": p.image_data,
+                "checkout_image_data": p.checkout_image_data,
+                "uploaded_at": getattr(p, "uploaded_at", None),
+            })
+    except Exception as e:
+        import logging
+        logging.error(f"Error fetching recent photos for admin index: {e}")
+
     return render_template(
         "admin/index.html",
-        title="Admin Dashboard",
+        title="Super Admin Operations Console",
         today=today,
         now=now,
         total_employees=total_employees,
@@ -137,113 +166,206 @@ def index():
         pending_early=pending_early,
         today_records=today_records,
         recent_requests=recent_requests,
+        recent_photos=recent_photos,
+        total_photos_count=total_photos_count,
     )
 
 
-@admin_bp.route("/attendance/all")
+@admin_bp.route("/attendance-photos", methods=["GET"])
+@admin_bp.route("/attendance/all", methods=["GET"])
 @login_required
 @admin_required
-def view_all_attendance():
+def attendance_photos():
     """
-    View all employees' attendance with check-in and check-out proof photos.
-    Shows today's attendance by default, with date filter and pagination.
+    Dedicated Attendance Photos Section:
+    Displays all attendance check-in and check-out proof photos stored date-wise.
+    Unified across Employee (E-prefix) and EmployeeMaster (I-prefix / imported).
+    Filters:
+      - date: YYYY-MM-DD (defaults to today; 'all' for all dates)
+      - name: case-insensitive substring search
+      - code: case-insensitive substring search
     """
-    from datetime import datetime as _dt
+    from datetime import datetime as _dt, date as _date, timedelta as _td
+    from zoneinfo import ZoneInfo
     from app.models.attendance import Attendance
     from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_master import AttendanceMaster
+    from app.models.attendance_master_photo import AttendanceMasterPhoto
     from app.models.employee import Employee
-    from app.models.user import User
-    from sqlalchemy import desc
+    from app.models.employee_master import EmployeeMaster
+    from app.constants.enums import DEPARTMENT_CHOICES
     from app.extensions.database import db
 
-    # Get date filter (default: today)
-    date_str = request.args.get("date", "").strip()
-    try:
-        view_date = _dt.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
-    except ValueError:
-        view_date = date.today()
+    tz = ZoneInfo("Asia/Kolkata")
+    today_kolkata = _dt.now(tz).date()
 
-    page = request.args.get("page", 1, type=int)
-    per_page = 20
+    def _format_ist_time(dt):
+        """Format datetime into IST (Asia/Kolkata) 12-hour AM/PM string."""
+        if not dt:
+            return None
+        if getattr(dt, "tzinfo", None) is not None:
+            return dt.astimezone(tz).strftime("%I:%M %p")
+        # Datetime in DB is already recorded in IST (Kolkata time)
+        return dt.strftime("%I:%M %p")
 
-    # Query all attendance for the given date with employee data
-    query = (
-        db.session.query(Attendance, Employee, User, AttendancePhoto)
-        .join(Employee, Attendance.employee_id == Employee.id)
-        .join(User, Employee.user_id == User.id)
-        .outerjoin(AttendancePhoto, Attendance.id == AttendancePhoto.attendance_id)
-        .filter(
-            Attendance.date == view_date,
-            Attendance.is_deleted == False,
-            Employee.is_deleted == False,
-            User.is_deleted == False,
-        )
-        .order_by(desc(Attendance.check_in_time))
+    # Query params
+    raw_date = request.args.get("date", "").strip()
+    q_name = request.args.get("name", "").strip().lower()
+    q_code = request.args.get("code", "").strip().upper()
+    q_dept = request.args.get("department", "").strip()
+
+    view_date = None
+    if raw_date and raw_date != "all":
+        try:
+            view_date = _dt.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            view_date = today_kolkata
+    elif raw_date == "all":
+        view_date = None
+    else:
+        view_date = today_kolkata
+
+    combined_items = []
+
+    # 1. Fetch from AttendanceMaster + AttendanceMasterPhoto (Kiosk & Master 541 records)
+    query_master = (
+        db.session.query(AttendanceMaster, AttendanceMasterPhoto, EmployeeMaster)
+        .join(EmployeeMaster, AttendanceMaster.employee_master_id == EmployeeMaster.id)
+        .outerjoin(AttendanceMasterPhoto, AttendanceMaster.id == AttendanceMasterPhoto.attendance_master_id)
     )
+    if view_date:
+        query_master = query_master.filter(AttendanceMaster.date == view_date)
+    if q_code:
+        query_master = query_master.filter(EmployeeMaster.employee_code.ilike(f"%{q_code}%"))
+    if q_name:
+        query_master = query_master.filter(EmployeeMaster.employee_name.ilike(f"%{q_name}%"))
+    if q_dept:
+        query_master = query_master.filter(EmployeeMaster.department.ilike(f"%{q_dept}%"))
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    for att_m, photo_m, emp_m in query_master.order_by(AttendanceMaster.date.desc(), AttendanceMaster.id.desc()).all():
+        checkin_img = photo_m.image_data if photo_m else None
+        checkout_img = photo_m.checkout_image_data if photo_m else None
 
-    # Format attendance data for template
-    attendance_data = []
-    for att, emp, usr, photo in pagination.items:
-        from datetime import timedelta
-        from app.blueprints.attendance.attendance_engine import compute_check_out_meta
-        from app.blueprints.attendance.repository import AttendanceRepository
+        t_in = _format_ist_time(att_m.check_in_time)
+        t_out = _format_ist_time(att_m.check_out_time)
 
-        # Times are now stored directly in IST (as of 2026-08-21 11:42)
-        # No conversion needed - just return the time as-is
-        def to_ist(dt):
-            if not dt:
-                return None
-            return dt  # Already in IST
+        duration = None
+        if att_m.check_in_time and att_m.check_out_time:
+            diff = att_m.check_out_time - att_m.check_in_time
+            secs = max(0, int(diff.total_seconds()))
+            hrs = secs // 3600
+            mins = (secs % 3600) // 60
+            duration = f"{hrs}h {mins}m"
 
-        check_in_ist = to_ist(att.check_in_time)
-        check_out_ist = to_ist(att.check_out_time)
-        
-        # Determine status based on photo uploads
-        status_display = att.status
-        
-        # Check if both check-in and check-out photos are uploaded
-        has_checkin_photo = photo and photo.image_data
-        has_checkout_photo = photo and photo.checkout_image_data
-        
-        if not has_checkin_photo or not has_checkout_photo:
-            # Missing one or both photos → PENDING
-            status_display = "pending"
-        elif att.check_in_time:
-            # Both photos uploaded - recalculate status based on working hours
-            from datetime import datetime as _dt_now
-            _att_repo = AttendanceRepository()
-            office = _att_repo.get_office_for_employee(emp)
-            if office:
-                # Use check-out time if available, otherwise use current time
-                calc_time = att.check_out_time if att.check_out_time else _dt_now.utcnow()
-                meta = compute_check_out_meta(att, calc_time, office, emp.id)
-                status_display = meta["status"]
-
-        attendance_data.append({
-            'attendance': att,
-            'employee': emp,
-            'user': usr,
-            'photo': photo,
-            'check_in_time_ist': check_in_ist,
-            'check_out_time_ist': check_out_ist,
-            'working_hours_display': att.working_hours_display,
-            'employee_code': emp.employee_code,
-            'employee_name': usr.full_name,
-            'department': emp.department or '—',
-            'status_display': status_display.replace('_', ' ').title(),
+        combined_items.append({
+            "record_id": f"master_{att_m.id}",
+            "date": att_m.date,
+            "date_str": att_m.date.strftime("%Y-%m-%d"),
+            "date_display": att_m.date.strftime("%A, %d %B %Y"),
+            "employee_code": emp_m.employee_code,
+            "employee_name": emp_m.employee_name,
+            "department": emp_m.department or "General",
+            "location": emp_m.working_location or "Hospital Site",
+            "status": att_m.status or "present",
+            "check_in_time": t_in,
+            "check_in_photo": checkin_img,
+            "check_out_time": t_out,
+            "check_out_photo": checkout_img,
+            "duration": duration,
+            "source": "Kiosk Terminal"
         })
 
-    return render_template(
-        "admin/view_all_attendance.html",
-        title="All Employee Attendance",
-        view_date=view_date,
-        date_str=view_date.strftime("%Y-%m-%d"),
-        attendance_data=attendance_data,
-        pagination=pagination,
-        page=page,
+    # 2. Fetch from Attendance + AttendancePhoto (Registered HR Employees)
+    query_emp = (
+        db.session.query(Attendance, AttendancePhoto, Employee)
+        .join(Employee, Attendance.employee_id == Employee.id)
+        .outerjoin(AttendancePhoto, Attendance.id == AttendancePhoto.attendance_id)
+        .filter(Attendance.is_deleted == False, Employee.is_deleted == False)
     )
+    if view_date:
+        query_emp = query_emp.filter(Attendance.date == view_date)
+    if q_code:
+        query_emp = query_emp.filter(Employee.employee_code.ilike(f"%{q_code}%"))
+    if q_name:
+        from app.models.user import User
+        query_emp = query_emp.join(User, Employee.user_id == User.id).filter(
+            (User.first_name.ilike(f"%{q_name}%")) | (User.last_name.ilike(f"%{q_name}%"))
+        )
+    if q_dept:
+        query_emp = query_emp.filter(Employee.department.ilike(f"%{q_dept}%"))
+
+    for att, photo, emp in query_emp.order_by(Attendance.date.desc(), Attendance.id.desc()).all():
+        checkin_img = photo.image_data if photo else None
+        checkout_img = photo.checkout_image_data if photo else None
+
+        t_in = _format_ist_time(att.check_in_time)
+        t_out = _format_ist_time(att.check_out_time)
+
+        duration = None
+        if att.check_in_time and att.check_out_time:
+            diff = att.check_out_time - att.check_in_time
+            secs = max(0, int(diff.total_seconds()))
+            hrs = secs // 3600
+            mins = (secs % 3600) // 60
+            duration = f"{hrs}h {mins}m"
+
+        combined_items.append({
+            "record_id": f"emp_{att.id}",
+            "date": att.date,
+            "date_str": att.date.strftime("%Y-%m-%d"),
+            "date_display": att.date.strftime("%A, %d %B %Y"),
+            "employee_code": emp.employee_code,
+            "employee_name": emp.full_name,
+            "department": emp.department or "General",
+            "location": getattr(emp, "location", None) or "Hospital Site",
+            "status": att.status or "present",
+            "check_in_time": t_in,
+            "check_in_photo": checkin_img,
+            "check_out_time": t_out,
+            "check_out_photo": checkout_img,
+            "duration": duration,
+            "source": "Office / Site"
+        })
+
+    # Sort all items date desc, then employee name
+    combined_items.sort(key=lambda x: (x["date"], x["employee_name"]), reverse=True)
+
+    # Group by date for date-wise display
+    from collections import OrderedDict
+    date_groups = OrderedDict()
+    for item in combined_items:
+        d_key = item["date_display"]
+        if d_key not in date_groups:
+            date_groups[d_key] = []
+        date_groups[d_key].append(item)
+
+    total_records = len(combined_items)
+    with_in_photo = sum(1 for x in combined_items if x["check_in_photo"])
+    with_out_photo = sum(1 for x in combined_items if x["check_out_photo"])
+
+    return render_template(
+        "admin/attendance_photos.html",
+        title="Attendance Photos",
+        date_groups=date_groups,
+        total_records=total_records,
+        with_in_photo=with_in_photo,
+        with_out_photo=with_out_photo,
+        selected_date=view_date.strftime("%Y-%m-%d") if view_date else "",
+        q_name=q_name,
+        q_code=q_code,
+        q_dept=q_dept,
+        department_choices=DEPARTMENT_CHOICES,
+        today_str=today_kolkata.strftime("%Y-%m-%d")
+    )
+
+
+@admin_bp.route("/view-all-attendance")
+@admin_bp.route("/all-attendance")
+@login_required
+@hr_required
+def view_all_attendance():
+    """Redirect legacy view_all_attendance endpoint to attendance_photos."""
+    return redirect(url_for("admin.attendance_photos", **request.args))
 
 
 @admin_bp.route("/office-settings", methods=["GET", "POST"])
@@ -372,11 +494,11 @@ def import_employees():
     if request.method == "POST":
         file = request.files.get("excel_file")
         if not file or not file.filename:
-            flash("Please select an Excel file to upload.", "warning")
-        elif not file.filename.lower().endswith((".xlsx", ".xls")):
-            flash("Only Excel files (.xlsx, .xls) are supported.", "danger")
+            flash("Please select a CSV or Excel file to upload.", "warning")
+        elif not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
+            flash("Only CSV or Excel files (.csv, .xlsx, .xls) are supported.", "danger")
         else:
-            result = import_svc.import_from_file(file, imported_by=current_user.id)
+            result = import_svc.import_from_source(file, imported_by=current_user.id)
             if result.get("success"):
                 flash(result["message"], "success")
             else:
@@ -863,71 +985,277 @@ def shift_assignment_import():
 @login_required
 @roles_required(UserRole.SUPER_ADMIN)
 def reseed_shifts():
-    """Reseed all 25 shifts (SUPER_ADMIN only)."""
-    from app.models.company import Shift  # noqa: PLC0415
-    from app.extensions.database import db  # noqa: PLC0415
-    
-    try:
-        # Clear existing shifts
-        Shift.query.delete()
-        db.session.commit()
-        
-        # Re-seed shifts
-        from datetime import time as dt_time
-        shifts_data = [
-            {"name": "06:00 AM to 03:00 PM", "code": "SHIFT_0600_1500", "start_time": "06:00", "end_time": "15:00", "is_night": False},
-            {"name": "06:30 AM to 03:30 PM", "code": "SHIFT_0630_1530", "start_time": "06:30", "end_time": "15:30", "is_night": False},
-            {"name": "07:00 AM to 04:00 PM", "code": "SHIFT_0700_1600", "start_time": "07:00", "end_time": "16:00", "is_night": False},
-            {"name": "07:30 AM to 04:30 PM", "code": "SHIFT_0730_1630", "start_time": "07:30", "end_time": "16:30", "is_night": False},
-            {"name": "08:00 AM to 05:00 PM", "code": "SHIFT_0800_1700", "start_time": "08:00", "end_time": "17:00", "is_night": False},
-            {"name": "08:00 AM to 06:00 PM", "code": "SHIFT_0800_1800", "start_time": "08:00", "end_time": "18:00", "is_night": False},
-            {"name": "08:30 AM to 05:30 PM", "code": "SHIFT_0830_1730", "start_time": "08:30", "end_time": "17:30", "is_night": False},
-            {"name": "09:00 AM to 06:00 PM", "code": "SHIFT_0900_1800", "start_time": "09:00", "end_time": "18:00", "is_night": False},
-            {"name": "09:30 AM to 06:30 PM", "code": "SHIFT_0930_1830", "start_time": "09:30", "end_time": "18:30", "is_night": False},
-            {"name": "10:00 AM to 06:00 PM", "code": "SHIFT_1000_1800", "start_time": "10:00", "end_time": "18:00", "is_night": False},
-            {"name": "10:00 AM to 07:00 PM", "code": "SHIFT_1000_1900", "start_time": "10:00", "end_time": "19:00", "is_night": False},
-            {"name": "10:15 AM to 07:15 PM", "code": "SHIFT_1015_1915", "start_time": "10:15", "end_time": "19:15", "is_night": False},
-            {"name": "10:30 AM to 07:30 PM", "code": "SHIFT_1030_1930", "start_time": "10:30", "end_time": "19:30", "is_night": False},
-            {"name": "11:00 AM to 08:00 PM", "code": "SHIFT_1100_2000", "start_time": "11:00", "end_time": "20:00", "is_night": False},
-            {"name": "11:30 AM to 08:30 PM", "code": "SHIFT_1130_2030", "start_time": "11:30", "end_time": "20:30", "is_night": False},
-            {"name": "12:00 PM to 09:00 PM", "code": "SHIFT_1200_2100", "start_time": "12:00", "end_time": "21:00", "is_night": False},
-            {"name": "12:30 PM to 09:30 PM", "code": "SHIFT_1230_2130", "start_time": "12:30", "end_time": "21:30", "is_night": False},
-            {"name": "12:45 PM to 09:45 PM", "code": "SHIFT_1245_2145", "start_time": "12:45", "end_time": "21:45", "is_night": False},
-            {"name": "01:00 PM to 10:00 PM", "code": "SHIFT_1300_2200", "start_time": "13:00", "end_time": "22:00", "is_night": False},
-            {"name": "01:00 PM to 06:00 PM", "code": "SHIFT_1300_1800", "start_time": "13:00", "end_time": "18:00", "is_night": False},
-            {"name": "07:00 PM to 04:00 AM", "code": "SHIFT_1900_0400", "start_time": "19:00", "end_time": "04:00", "is_night": True},
-            {"name": "09:00 PM to 06:00 AM", "code": "SHIFT_2100_0600", "start_time": "21:00", "end_time": "06:00", "is_night": True},
-            {"name": "10:00 PM to 06:00 AM", "code": "SHIFT_2200_0600", "start_time": "22:00", "end_time": "06:00", "is_night": True},
-            {"name": "10:00 PM to 07:00 AM", "code": "SHIFT_2200_0700", "start_time": "22:00", "end_time": "07:00", "is_night": True},
-            {"name": "10:30 PM to 07:30 AM", "code": "SHIFT_2230_0730", "start_time": "22:30", "end_time": "07:30", "is_night": True},
-        ]
-        
-        for shift_data in shifts_data:
-            start_h, start_m = map(int, shift_data["start_time"].split(":"))
-            end_h, end_m = map(int, shift_data["end_time"].split(":"))
-            
-            shift = Shift(
-                name=shift_data["name"],
-                code=shift_data["code"],
-                start_time=dt_time(start_h, start_m),
-                end_time=dt_time(end_h, end_m),
-                is_night_shift=shift_data["is_night"],
-                is_active=True,
-                grace_minutes=10,
-                break_minutes=60,
-                working_days="Mon-Sun"
-            )
-            db.session.add(shift)
-        
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': f'✅ Successfully seeded {len(shifts_data)} shifts',
-            'count': len(shifts_data)
-        })
-    except Exception as e:
-        db.session.rollback()
-        import logging
-        logger = logging.getLogger('admin')
-        logger.error('Reseed shifts error: %s', str(e))
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    """Reseed endpoint locked down per Zero Dummy Data policy."""
+    return jsonify({
+        'success': False,
+        'message': 'Reseed endpoint disabled: Shifts must be configured via Settings or imported from real data per Zero Dummy Data policy.'
+    }), 403
+
+
+@admin_bp.route("/flow-status", methods=["GET"])
+@login_required
+@admin_required
+def flow_status():
+    """Live Flow Status pipeline for Super Admin showing real counts at every stage."""
+    from datetime import date
+    from app.models.company import CompanyProfile, Shift
+    from app.models.hospital import Hospital
+    from app.models.employee_master import EmployeeMaster
+    from app.models.employee import Employee
+    from app.models.user import User
+    from app.models.company_holiday import CompanyHoliday
+    from app.models.leave import LeaveRequest, LeaveType
+    from app.models.attendance import Attendance
+    from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_master_photo import AttendanceMasterPhoto
+    from app.models.payroll import SalaryStructure, PayrollRun, Payslip
+    from app.models.office_settings import OfficeSettings
+
+    today = date.today()
+
+    # Stage 1: Company Profile
+    comp = CompanyProfile.query.first()
+    stage1 = {
+        "status": "Configured" if comp and comp.company_name else "Pending Setup",
+        "company_name": comp.company_name if comp else None,
+        "is_ready": bool(comp and comp.company_name)
+    }
+
+    # Stage 2: Hospitals (GPS)
+    total_hospitals = Hospital.query.count()
+    gps_hospitals = Hospital.query.filter(Hospital.latitude.isnot(None), Hospital.longitude.isnot(None)).count()
+    stage2 = {
+        "total": total_hospitals,
+        "with_gps": gps_hospitals,
+        "is_ready": total_hospitals > 0 and gps_hospitals == total_hospitals
+    }
+
+    # Stage 3: Shifts
+    total_shifts = Shift.query.count()
+    night_shifts = Shift.query.filter_by(is_night_shift=True).count()
+    stage3 = {
+        "total": total_shifts,
+        "night_shifts": night_shifts,
+        "is_ready": total_shifts > 0
+    }
+
+    # Stage 4: Holidays 2026
+    total_holidays = CompanyHoliday.query.count()
+    stage4 = {
+        "total": total_holidays,
+        "is_ready": total_holidays > 0
+    }
+
+    # Stage 5: Employee Master
+    total_master = EmployeeMaster.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    hr_profiles = Employee.query.count()
+    salary_structures_count = SalaryStructure.query.count()
+    stage5 = {
+        "master_count": total_master,
+        "active_users": active_users,
+        "hr_profiles": hr_profiles,
+        "salary_structures": salary_structures_count,
+        "target": 541,
+        "is_ready": total_master >= 541 and salary_structures_count >= total_master
+    }
+
+    # Stage 6: Raw Punches (Today)
+    checked_in_today = Attendance.query.filter(Attendance.date == today, Attendance.check_in_time.isnot(None)).count()
+    checked_out_today = Attendance.query.filter(Attendance.date == today, Attendance.check_out_time.isnot(None)).count()
+    photos_count = AttendancePhoto.query.count() + AttendanceMasterPhoto.query.count()
+    stage6 = {
+        "checked_in_today": checked_in_today,
+        "checked_out_today": checked_out_today,
+        "total_photos": photos_count,
+        "date_str": today.strftime('%d %b %Y')
+    }
+
+    # Stage 7: Daily Attendance Finalization
+    present_today = Attendance.query.filter(Attendance.date == today, Attendance.status == "present").count()
+    late_today = Attendance.query.filter(Attendance.date == today, Attendance.is_late.is_(True)).count()
+    half_day_today = Attendance.query.filter(Attendance.date == today, Attendance.is_half_day.is_(True)).count()
+    partial_today = Attendance.query.filter(Attendance.date == today, Attendance.check_in_time.isnot(None), Attendance.check_out_time.is_(None)).count()
+    stage7 = {
+        "present": present_today,
+        "late": late_today,
+        "half_day": half_day_today,
+        "partial_missing_out": partial_today,
+    }
+
+    # Stage 8: Leave & Comp-Off
+    pending_leaves = LeaveRequest.query.filter_by(status="pending").count()
+    approved_leaves_today = LeaveRequest.query.filter(
+        LeaveRequest.status == "approved",
+        LeaveRequest.start_date <= today,
+        LeaveRequest.end_date >= today
+    ).count()
+    stage8 = {
+        "pending_approval": pending_leaves,
+        "on_leave_today": approved_leaves_today
+    }
+
+    # Stage 9: Monthly Attendance & Cut-Off
+    stage9 = {
+        "current_month": today.strftime("%B %Y"),
+        "status": "In Progress (Finalizes at Month-End Cutoff)"
+    }
+
+    # Stage 10: Payroll Draft & Payslips
+    draft_runs = PayrollRun.query.filter_by(status="draft").count()
+    approved_runs = PayrollRun.query.filter_by(status="approved").count()
+    paid_runs = PayrollRun.query.filter_by(status="paid").count()
+    total_payslips = Payslip.query.count()
+    stage10 = {
+        "draft_runs": draft_runs,
+        "approved_runs": approved_runs,
+        "paid_runs": paid_runs,
+        "total_payslips": total_payslips,
+        "is_ready": approved_runs > 0 or paid_runs > 0
+    }
+
+    return render_template(
+        "admin/flow_status.html",
+        title="Flow Status — Operational Pipeline",
+        stage1=stage1,
+        stage2=stage2,
+        stage3=stage3,
+        stage4=stage4,
+        stage5=stage5,
+        stage6=stage6,
+        stage7=stage7,
+        stage8=stage8,
+        stage9=stage9,
+        stage10=stage10,
+        today=today
+    )
+
+
+@admin_bp.route("/readiness", methods=["GET"])
+@login_required
+@admin_required
+def data_readiness():
+    """Data Readiness Dashboard tracking real enterprise dataset loading."""
+    from app.models.company import CompanyProfile, Shift
+    from app.models.hospital import Hospital
+    from app.models.employee_master import EmployeeMaster
+    from app.models.company_holiday import CompanyHoliday
+    from app.models.leave import LeaveType
+    from app.models.office_settings import OfficeSettings
+    from app.models.office_device import OfficeDevice
+    from app.models.payroll import SalaryStructure
+
+    modules = [
+        {
+            "id": "company",
+            "name": "Company Legal Profile",
+            "required_for": "Payslips, PF/ESI Registration, Reports",
+            "count": CompanyProfile.query.count(),
+            "target": 1,
+            "status": "Ready" if CompanyProfile.query.count() > 0 else "Missing",
+            "blocking": "Official Branded Payslips, Statutory ECRs",
+        },
+        {
+            "id": "hospitals",
+            "name": "Hospitals & Geo-fencing",
+            "required_for": "GPS Mobile Check-In & Geo-Fence Validation",
+            "count": Hospital.query.count(),
+            "target": 46,
+            "status": "Ready" if Hospital.query.count() >= 46 else ("Partial" if Hospital.query.count() > 0 else "Missing"),
+            "blocking": "None (46 Hospitals Seeded)",
+        },
+        {
+            "id": "employees",
+            "name": "Employee Master Registry",
+            "required_for": "Authentication, Attendance, Kiosk, Leaves",
+            "count": EmployeeMaster.query.count(),
+            "target": 541,
+            "status": "Ready" if EmployeeMaster.query.count() >= 541 else "Partial",
+            "blocking": "Awaiting remaining 188 profiles to reach full 541 target",
+        },
+        {
+            "id": "shifts",
+            "name": "Shifts & Overtime Rules",
+            "required_for": "Attendance Attribution & Overnight Shifts",
+            "count": Shift.query.count(),
+            "target": 25,
+            "status": "Ready" if Shift.query.count() > 0 else "Missing",
+            "blocking": "None (25 Shifts Seeded)",
+        },
+        {
+            "id": "holidays",
+            "name": "Company Holidays 2026",
+            "required_for": "Comp-Off Calculations & Payable Days",
+            "count": CompanyHoliday.query.count(),
+            "target": 15,
+            "status": "Ready" if CompanyHoliday.query.count() > 0 else "Missing",
+            "blocking": "None (15 Holidays Seeded)",
+        },
+        {
+            "id": "leave",
+            "name": "Leave Policy & Quotas",
+            "required_for": "Leave Applications & LOP Deductions",
+            "count": LeaveType.query.count(),
+            "target": 8,
+            "status": "Ready" if LeaveType.query.count() > 0 else "Missing",
+            "blocking": "None (CL, SL, PL, CO Active)",
+        },
+        {
+            "id": "attendance_policy",
+            "name": "Attendance & Grace Rules",
+            "required_for": "Late Mark Thresholds & Nightly Finalization",
+            "count": OfficeSettings.query.count(),
+            "target": 1,
+            "status": "Ready" if OfficeSettings.query.count() > 0 else "Missing",
+            "blocking": "Automated Nightly Finalization Job",
+        },
+        {
+            "id": "payroll_rules",
+            "name": "Statutory & Tax Rules (PF/ESI/PT)",
+            "required_for": "Legal Compliance & Accurate Net Pay",
+            "count": 0,
+            "target": 1,
+            "status": "Pending Verification",
+            "blocking": "Monthly Payroll Run & Bank Transfer File Generation",
+        },
+        {
+            "id": "salary_structures",
+            "name": "Employee Salary Structures",
+            "required_for": "Payroll Run & Individual Payslips",
+            "count": SalaryStructure.query.count(),
+            "target": 541,
+            "status": "Ready" if SalaryStructure.query.count() >= 541 else ("Partial" if SalaryStructure.query.count() > 0 else "Missing"),
+            "blocking": "Payroll Processing Locked until structures imported",
+        },
+        {
+            "id": "opening_balances",
+            "name": "Leave & Comp-Off Opening Balances",
+            "required_for": "Comp-Off Wallet & Unavailed Leave Balance",
+            "count": 0,
+            "target": 541,
+            "status": "Missing",
+            "blocking": "Opening Balance Accrual",
+        },
+        {
+            "id": "kiosk_devices",
+            "name": "Registered Kiosk Hardware",
+            "required_for": "Hardware Device Lock on /kiosk",
+            "count": OfficeDevice.query.count(),
+            "target": 2,
+            "status": "Ready" if OfficeDevice.query.count() >= 2 else "Missing",
+            "blocking": "Hardware Terminal Lockout",
+        },
+    ]
+
+    ready_count = sum(1 for m in modules if m["status"] == "Ready")
+    readiness_percentage = round((ready_count / len(modules)) * 100)
+
+    return render_template(
+        "admin/readiness.html",
+        title="Data Readiness Dashboard",
+        modules=modules,
+        ready_count=ready_count,
+        total_modules=len(modules),
+        readiness_percentage=readiness_percentage,
+    )
+

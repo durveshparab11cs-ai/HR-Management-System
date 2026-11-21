@@ -83,6 +83,15 @@ class LeaveRequest(BaseModel):
         days = self.total_days
         return f"{days} day{'s' if days != 1 else ''}"
 
+    @property
+    def comp_off_attendance_status(self) -> dict:
+        """Helper to get live attendance eligibility for Comp Off requests."""
+        if not self.comp_off_work_date:
+            return {"eligible": False, "minutes": 0, "msg": "No work date"}
+        from app.blueprints.leave.comp_off_service import verify_comp_off_attendance
+        ok, mins, msg = verify_comp_off_attendance(self.employee_id, self.comp_off_work_date)
+        return {"eligible": ok, "minutes": mins, "msg": msg}
+
     def __repr__(self) -> str:
         return f"<LeaveRequest id={self.id} emp={self.employee_id} status={self.status!r}>"
 

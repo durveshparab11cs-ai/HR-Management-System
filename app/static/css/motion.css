@@ -1,0 +1,158 @@
+/**
+ * motion.css
+ * Enterprise Motion Tokens & Choreography Library
+ * Features: Spring-feel easings, Page Transitions, Stagger Reveal, Shimmer, Error Shake.
+ */
+
+:root {
+  /* ── Easing Tokens ── */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ── Duration Tokens ── */
+  --dur-fast: 150ms;
+  --dur-normal: 250ms;
+  --dur-slow: 400ms;
+  --dur-deliberate: 600ms;
+}
+
+/* ── Motion Respect Setting ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Reveal & Entrance Animations ── */
+.motion-fade-in {
+  animation: fadeIn var(--dur-normal) var(--ease-smooth) forwards;
+}
+
+.motion-slide-up {
+  animation: slideUp var(--dur-slow) var(--ease-out-expo) forwards;
+}
+
+.motion-scale-up {
+  animation: scaleUp var(--dur-slow) var(--ease-spring) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Error Shake ── */
+.motion-shake {
+  animation: errorShake 450ms cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes errorShake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* ── Skeleton Shimmer ── */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Gliding Tab Indicator ── */
+.tab-glider {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  transition: all var(--dur-normal) var(--ease-spring);
+  border-radius: 2px;
+}
+
+/* ── Stagger Helper Classes ── */
+.stagger-1 { animation-delay: 40ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 160ms; }
+.stagger-5 { animation-delay: 200ms; }
+
+/* ── Floating Label Inputs ── */
+.floating-group {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.floating-input {
+  width: 100%;
+  padding: 1rem 1rem 0.5rem 1rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.floating-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.floating-label {
+  position: absolute;
+  top: 0.85rem;
+  left: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  pointer-events: none;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.floating-input:focus ~ .floating-label,
+.floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 0.35rem;
+  left: 1rem;
+  font-size: 0.72rem;
+  color: var(--accent-core);
+  font-weight: 600;
+}

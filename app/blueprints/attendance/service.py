@@ -134,6 +134,39 @@ class AttendanceService:
             attendance.is_late                    = is_late
             attendance.late_minutes               = late_minutes
 
+            # ── 20-min buffer & 3-Late-Marks Policy (Warning / Half Day Penalty) ──
+            if is_late:
+                month_start = today.replace(day=1)
+                prev_lates = Attendance.query.filter(
+                    Attendance.employee_id == employee.id,
+                    Attendance.date >= month_start,
+                    Attendance.date < today,
+                    Attendance.is_late == True,
+                    Attendance.is_deleted == False
+                ).count()
+                total_lates_this_month = prev_lates + 1
+
+                # 3 late marks = 1 half-day deduction
+                if total_lates_this_month % 3 == 0:
+                    attendance.is_half_day = True
+                    attendance.status = "half_day"
+                    logger.warning("HALF_DAY_PENALTY_APPLIED | emp=%s | month_lates=%s", employee.id, total_lates_this_month)
+
+                try:
+                    from app.services.email_notification_service import send_late_warning_notification
+                    punch_time_display = now.strftime("%I:%M %p")
+                    shift_str = office.office_start_time.strftime("%I:%M %p") if office else "09:00 AM"
+                    send_late_warning_notification(
+                        employee=employee,
+                        attendance=attendance,
+                        late_count=total_lates_this_month,
+                        late_minutes=late_minutes,
+                        punch_time_str=punch_time_display,
+                        shift_start_str=shift_str,
+                    )
+                except Exception as mail_err:
+                    logger.warning("Failed to dispatch late warning email: %s", mail_err)
+
             logger.info("Saving attendance to database...")
             try:
                 if existing:

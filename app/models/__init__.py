@@ -28,7 +28,7 @@ from app.models.gps_log import GPSLog  # noqa: F401
 from app.models.leave import LeaveType, LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.company import CompanyProfile, Department, Position, Shift  # noqa: F401
-from app.models.payroll import SalaryStructure, SalaryComponent, PayrollRun, Payslip  # noqa: F401
+from app.models.payroll import SalaryStructure, SalaryComponent, PayrollRun, Payslip, EmployeeSalaryMaster  # noqa: F401
 from app.models.employee_shift_assignment import EmployeeShiftAssignment  # noqa: F401
 from app.models.shift_change_request import ShiftChangeRequest  # noqa: F401
 from app.models.hospital import Hospital  # noqa: F401
@@ -41,7 +41,7 @@ __all__ = [
     "LeaveType", "LeaveRequest", "HalfDayRequest", "EarlyLeaveRequest",
     "Notification",
     "CompanyProfile", "Department", "Position", "Shift",
-    "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip",
+    "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip", "EmployeeSalaryMaster",
     "EmployeeShiftAssignment", "ShiftChangeRequest",
     "Hospital", "EmployeeHospitalAssignment",
     "CoordinatorOTP",

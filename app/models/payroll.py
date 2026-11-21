@@ -107,3 +107,53 @@ class Payslip(BaseModel):
 
     def __repr__(self) -> str:
         return f"<Payslip id={self.id} emp={self.employee_id} run={self.run_id}>"
+
+
+class EmployeeSalaryMaster(BaseModel):
+    """
+    EmployeeSalaryMaster
+    ====================
+    Pre-configured salary structure for individual employees imported from Excel.
+    Columns:
+      - employee_code: Unique employee ID (e.g. E-2606026)
+      - employee_name: Full employee name
+      - salary_amount: Monthly Gross / CTC salary
+      - pf_amount: Provident Fund deduction
+      - tds_amount: Tax Deducted at Source
+      - pt_amount: Professional Tax deduction (default ₹200.0)
+      - net_salary: Monthly take-home pay after deductions
+    """
+    __tablename__ = "employee_salary_masters"
+
+    employee_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("employees.id"), nullable=True, index=True)
+    employee_code: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    employee_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    salary_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    pf_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    tds_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    pt_amount: Mapped[float] = mapped_column(Float, nullable=False, default=200.0)
+    net_salary: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee = relationship("Employee", foreign_keys=[employee_id], lazy="joined")
+
+    @property
+    def gross_display(self) -> str:
+        return f"₹{self.salary_amount:,.2f}"
+
+    @property
+    def net_display(self) -> str:
+        return f"₹{self.net_salary:,.2f}"
+
+    @property
+    def total_deductions(self) -> float:
+        return round((self.pf_amount or 0.0) + (self.tds_amount or 0.0) + (self.pt_amount or 0.0), 2)
+
+    def calculate_net(self) -> float:
+        self.net_salary = max(0.0, round(self.salary_amount - self.total_deductions, 2))
+        return self.net_salary
+
+    def __repr__(self) -> str:
+        return f"<EmployeeSalaryMaster {self.employee_code} ({self.employee_name}) Gross=₹{self.salary_amount:,.2f}>"
+

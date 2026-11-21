@@ -8,11 +8,73 @@
  *   sm: 576px  md: 768px  lg: 992px  xl: 1200px
  */
 
+/* ─── Modal Layer & Backdrop Stacking (Prevents UI Freezing) ───── */
+.modal {
+    z-index: 1060 !important;
+}
+.modal-backdrop {
+    z-index: 1050 !important;
+}
+
+/* ─── Fixed Living Background Layer (Light Blue Gradient Wallpaper) ───── */
+.app-hr-background-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: url('/static/img/app-bg-gradient.png?v=20261121') center center / cover no-repeat;
+    filter: none;
+    opacity: 1;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.app-hr-scrim-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.04);
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-bs-theme="dark"] .app-hr-background-layer {
+    opacity: 0.25;
+}
+
+[data-bs-theme="dark"] .app-hr-scrim-layer {
+    background: rgba(11, 18, 32, 0.70);
+}
+
 /* ─── Application shell ─────────────────────────────────────────────── */
 
 .hrms-wrapper {
     min-height: 100vh;
-    background: var(--hrms-bg-light);
+    background: transparent !important;
+    position: relative;
+    z-index: 1;
+}
+
+.hrms-main {
+    background: transparent !important;
+}
+
+/* Frosted Glass Cards Across Entire App Shell */
+.card, .hrms-card, .bg-white {
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(14px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03) !important;
+}
+
+[data-bs-theme="dark"] .card, [data-bs-theme="dark"] .hrms-card {
+    background: rgba(18, 32, 58, 0.85) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 /* ─── Sidebar ───────────────────────────────────────────────────────── */
@@ -130,9 +192,11 @@
 
 .hrms-navbar {
     height: var(--hrms-navbar-height);
-    background: var(--hrms-bg-card);
-    border-bottom: var(--hrms-border);
-    box-shadow: var(--hrms-shadow-xs);
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     z-index: var(--hrms-z-sticky);
 }
 
@@ -183,19 +247,21 @@
 
 .hrms-main {
     min-width: 0; /* Prevent flex child overflow */
-    background: var(--hrms-bg-light);
+    background: transparent !important;
 }
 
 .hrms-content {
     max-width: var(--hrms-content-max-width);
+    background: transparent !important;
     /* Let it naturally fill the container width */
 }
 
 /* ─── Footer ────────────────────────────────────────────────────────── */
 
 .hrms-footer {
-    background: var(--hrms-bg-card);
-    border-top: var(--hrms-border);
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(10px) !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.7);
     font-size: var(--hrms-font-size-sm);
 }
 
@@ -249,4 +315,142 @@
 @keyframes slideUp {
     from { transform: translateY(10px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LUMINOUS EXECUTIVE BANNER & GLITTERY TYPOGRAPHY SYSTEM
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.executive-frosted-banner,
+.dashboard-topbar,
+.hrms-page-header {
+    background: rgba(255, 255, 255, 0.90) !important;
+    backdrop-filter: blur(16px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 20px !important;
+    padding: 1.25rem 1.75rem !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8), 0 2px 10px rgba(37, 99, 235, 0.06) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    margin-bottom: 1.75rem !important;
+}
+
+/* Shimmering Rainbow / Diamond Border Light Beam */
+.executive-frosted-banner::before,
+.dashboard-topbar::before,
+.hrms-page-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 250%;
+    height: 3.5px;
+    background: linear-gradient(90deg, transparent 0%, #38bdf8 25%, #818cf8 50%, #c084fc 75%, #38bdf8 90%, transparent 100%);
+    animation: glitterBeam 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes glitterBeam {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(50%); }
+}
+
+/* Glitter Shimmer Text */
+.glitter-shimmer-text,
+.greeting-title,
+.hrms-page-title {
+    font-family: 'Plus Jakarta Sans', 'Outfit', system-ui, -apple-system, sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 1.65rem !important;
+    letter-spacing: -0.025em !important;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 35%, #2563eb 52%, #0284c7 70%, #0f172a 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: glitterTextFlow 6s ease-in-out infinite alternate;
+    text-shadow: 0 2px 12px rgba(37, 99, 235, 0.15);
+    margin-bottom: 0 !important;
+}
+
+@keyframes glitterTextFlow {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+}
+
+/* Glitter Sparkle Badge */
+.glitter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(14, 165, 233, 0.12));
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    padding: 0.28rem 0.8rem;
+    border-radius: 9999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+}
+
+.glitter-badge .sparkle-icon {
+    color: #f59e0b;
+    font-size: 0.92rem;
+    animation: sparkleTwinkle 2.2s ease-in-out infinite;
+}
+
+@keyframes sparkleTwinkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; filter: drop-shadow(0 0 2px #f59e0b); }
+    50%      { transform: scale(1.3) rotate(18deg); opacity: 1; filter: drop-shadow(0 0 7px #fbbf24); }
+}
+
+.badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #3b82f6;
+    opacity: 0.6;
+}
+
+.badge-role {
+    color: #475569;
+    font-weight: 600;
+}
+
+/* Glitter Role Pill */
+.badge-glitter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #1d4ed8, #0284c7);
+    color: #ffffff;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+    letter-spacing: 0.03em;
+}
+
+/* Greeting Date Pill */
+.greeting-date,
+.greeting-date-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    background: rgba(241, 245, 249, 0.85) !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    padding: 0.3rem 0.8rem !important;
+    border-radius: 10px !important;
+    margin-top: 0.4rem !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+.greeting-date i,
+.greeting-date-pill i {
+    color: #0284c7 !important;
+    font-size: 0.95rem !important;
 }

@@ -1,438 +1,1016 @@
 {% extends 'layouts/base.html' %}
-{% block title %}Admin Dashboard — {{ app_name }}{% endblock %}
+{% block title %}Super Admin Operations Console — {{ app_name }}{% endblock %}
+
 {% block extra_css %}
 <style>
-.stat-card { border-radius:16px; padding:28px 24px; color:#fff; position:relative; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.12); }
-.stat-card::after { content:''; position:absolute; bottom:-30px; right:-30px; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,.08); }
-.stat-card .stat-val { font-size:2.4rem; font-weight:800; line-height:1; }
-.stat-card .stat-lbl { font-size:.8rem; opacity:.8; text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
-.stat-card .stat-icon { position:absolute; top:20px; right:24px; font-size:2rem; opacity:.25; }
-.sc-blue   { background:linear-gradient(135deg,#1a3c6e,#2a5298); }
-.sc-green  { background:linear-gradient(135deg,#059669,#10b981); }
-.sc-orange { background:linear-gradient(135deg,#d97706,#f59e0b); }
-.sc-red    { background:linear-gradient(135deg,#dc2626,#ef4444); }
-.sc-purple { background:linear-gradient(135deg,#7c3aed,#a78bfa); }
-.sc-teal   { background:linear-gradient(135deg,#0891b2,#06b6d4); }
-.sc-pink   { background:linear-gradient(135deg,#db2777,#ec4899); }
-.sc-slate  { background:linear-gradient(135deg,#475569,#64748b); }
+/* ══════════════════════════════════════════════════════════════════════════
+   WORLD-CLASS VIBRANT EXECUTIVE DESIGN SYSTEM
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --kpi-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --kpi-shadow-hover: 0 16px 32px -4px rgba(15, 23, 42, 0.12), 0 6px 12px -2px rgba(15, 23, 42, 0.06);
+  --card-radius: 18px;
+}
 
-/* Status Badge Styling */
-.badge-pending { background-color: transparent !important; color: #6c757d !important; font-weight: 400; }
-.badge-absent { background-color: #dc3545 !important; color: white !important; }
-.badge-half_day { background-color: #ffc107 !important; color: #333 !important; }
-.badge-present { background-color: #28a745 !important; color: white !important; }
+/* Staggered Entrance Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-fade-up {
+  animation: fadeInUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.anim-delay-1 { animation-delay: 0.05s; }
+.anim-delay-2 { animation-delay: 0.12s; }
+.anim-delay-3 { animation-delay: 0.18s; }
+.anim-delay-4 { animation-delay: 0.24s; }
+.anim-delay-5 { animation-delay: 0.30s; }
+
+/* ── 1. Clean Executive Page Header ── */
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+/* ── 2. Bright, Clean, Floating KPI Cards ── */
+.vibrant-kpi-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 16px;
+  padding: 1.35rem 1.25rem;
+  box-shadow: var(--kpi-shadow);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.vibrant-kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--kpi-shadow-hover);
+  border-color: #cbd5e1;
+}
+.vibrant-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.kpi-border-indigo::before  { background: linear-gradient(90deg, #4f46e5, #6366f1); }
+.kpi-border-emerald::before { background: linear-gradient(90deg, #059669, #10b981); }
+.kpi-border-cyan::before    { background: linear-gradient(90deg, #0891b2, #06b6d4); }
+.kpi-border-rose::before    { background: linear-gradient(90deg, #e11d48, #f43f5e); }
+.kpi-border-amber::before   { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.kpi-border-violet::before  { background: linear-gradient(90deg, #7c3aed, #8b5cf6); }
+
+.kpi-icon-pastel {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  transition: transform 0.2s ease;
+}
+.vibrant-kpi-card:hover .kpi-icon-pastel {
+  transform: scale(1.1) rotate(3deg);
+}
+
+.pastel-indigo  { background: #eef2ff; color: #4f46e5; }
+.pastel-emerald { background: #ecfdf5; color: #059669; }
+.pastel-cyan    { background: #ecfeff; color: #0891b2; }
+.pastel-rose    { background: #fff1f2; color: #e11d48; }
+.pastel-amber   { background: #fffbeb; color: #d97706; }
+.pastel-violet  { background: #f5f3ff; color: #7c3aed; }
+
+.kpi-num {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.kpi-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-top: 4px;
+}
+.kpi-footer-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* ── 3. Visual Attendance Photo Hub (Crisp Luminous Card) ── */
+.luminous-photo-hub {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--card-radius);
+  padding: 1.65rem;
+  box-shadow: var(--kpi-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.luminous-photo-hub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+}
+
+.photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 1.1rem;
+}
+.photo-interactive-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+.photo-interactive-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: #818cf8;
+  background: #ffffff;
+  box-shadow: 0 12px 24px -4px rgba(99, 102, 241, 0.18);
+}
+.photo-frame-wrap {
+  position: relative;
+  width: 100%;
+  height: 125px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+.photo-frame-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.photo-interactive-card:hover .photo-frame-wrap img {
+  transform: scale(1.06);
+}
+.zoom-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.2s ease;
+}
+.photo-interactive-card:hover .zoom-hint {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ── 4. Categorized Operations Hubs (Clean Floating Cards) ── */
+.hub-category-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: var(--card-radius);
+  box-shadow: var(--kpi-shadow);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+.hub-category-card:hover {
+  box-shadow: var(--kpi-shadow-hover);
+}
+.hub-card-header {
+  padding: 1.15rem 1.35rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hub-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-tile-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.95rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #1e293b;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.action-tile-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: translateX(4px);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+.tile-avatar-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.action-tile-btn:hover .tile-avatar-box {
+  transform: scale(1.12);
+}
+
+.tile-h {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+.tile-p {
+  font-size: 0.73rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+/* ── 5. Real-Time Table & Approvals Queue ── */
+.crisp-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--card-radius);
+  box-shadow: var(--kpi-shadow);
+  overflow: hidden;
+}
+.crisp-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
+}
+.crisp-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.crisp-table tbody td {
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+.crisp-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+/* Light Status Badges */
+.badge-clean-present { background: #dcfce7; color: #15803d; font-weight: 600; padding: 4px 10px; border-radius: 9999px; font-size: 0.73rem; }
+.badge-clean-late    { background: #fef3c7; color: #b45309; font-weight: 600; padding: 4px 10px; border-radius: 9999px; font-size: 0.73rem; }
+.badge-clean-pending { background: #f1f5f9; color: #64748b; font-weight: 600; padding: 4px 10px; border-radius: 9999px; font-size: 0.73rem; }
+
+/* Lightbox Modal */
+.clean-lightbox-modal .modal-content {
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
 </style>
 {% endblock %}
-{% block breadcrumbs %}{% set breadcrumbs=[('Admin Dashboard',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
+
 {% block page_header %}{% endblock %}
+
 {% block content %}
+<div class="container-fluid px-0">
 
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <!-- ══════════════════════════════════════════════════════════════════════
+       1. CLEAN EXECUTIVE PAGE HEADER (LUMINOUS GLITTERY BANNER)
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="dashboard-topbar executive-frosted-banner anim-fade-up anim-delay-1">
     <div>
-        <h1 class="h4 fw-bold mb-0" id="greetingText">
-            Good Morning, {{ current_user.first_name }}!
-        </h1>
-        <p class="text-muted small mb-0">{{ today.strftime('%A, %d %B %Y') }}</p>
+      <div class="glitter-badge mb-2">
+        <i class="bi bi-stars sparkle-icon"></i>
+        <span>Super Admin Operations Console</span>
+        <span class="badge-dot"></span>
+        <span class="badge-role">System Live &bull; Executive Active</span>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <h1 class="greeting-title glitter-shimmer-text" id="greetingText">Good Morning, {{ current_user.first_name }}!</h1>
+        <span class="badge-glitter-pill">Super Admin</span>
+      </div>
+      <div class="greeting-date-pill">
+        <i class="bi bi-calendar3"></i>
+        <span>{{ today.strftime('%A, %d %B %Y') }}</span>
+      </div>
     </div>
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('admin.office_settings') }}" class="btn btn-sm btn-outline-primary">
-            <i class="bi bi-gear me-1"></i>Office Settings
-        </a>
-        <button type="button" class="btn btn-sm btn-outline-danger" id="btn-reset-attendance">
-            <i class="bi bi-trash me-1"></i>Reset Attendance
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <a href="{{ url_for('admin.attendance_photos') }}" class="btn btn-sm btn-primary d-flex align-items-center gap-2 shadow-sm px-3 py-2 fw-semibold">
+        <i class="bi bi-camera-fill"></i>
+        <span>Attendance Photos</span>
+        {% if total_photos_count %}
+        <span class="badge bg-white text-primary rounded-pill ms-1">{{ total_photos_count }}</span>
+        {% endif %}
+      </a>
+      <a href="{{ url_for('admin.import_employees') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 px-3 py-2 fw-medium">
+        <i class="bi bi-person-plus"></i>
+        <span>Add Employee</span>
+      </a>
+      <a href="{{ url_for('admin.office_settings') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 px-3 py-2 fw-medium">
+        <i class="bi bi-sliders"></i>
+        <span>Settings</span>
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-light border py-2 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More options">
+          <i class="bi bi-three-dots-vertical"></i>
         </button>
-        <a href="{{ url_for('employees.create') }}" class="btn btn-sm btn-primary">
-            <i class="bi bi-person-plus me-1"></i>Add Employee
-        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li>
+            <button class="dropdown-item text-danger d-flex align-items-center gap-2 small" id="btn-reset-attendance" type="button">
+              <i class="bi bi-trash"></i> Reset Attendance Data
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
-</div>
+  </div>
 
-<!-- ── Stat Cards Row 1: Attendance ── -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-blue">
-            <i class="bi bi-people stat-icon"></i>
-            <div class="stat-val">{{ total_employees }}</div>
-            <div class="stat-lbl">Total Employees</div>
+  <!-- ══════════════════════════════════════════════════════════════════════
+       2. VIBRANT FLOATING KPI METRIC CARDS (WITH COUNT-UP ANIMATION)
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="row g-3 mb-4 anim-fade-up anim-delay-2">
+    <!-- Total Workforce -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-indigo">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Total Staff</div>
+          <div class="kpi-icon-pastel pastel-indigo"><i class="bi bi-people-fill"></i></div>
         </div>
-    </div>
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-green">
-            <i class="bi bi-box-arrow-in-right stat-icon"></i>
-            <div class="stat-val">{{ checked_in_today }}</div>
-            <div class="stat-lbl">Checked In</div>
+        <div class="kpi-num counter" data-target="{{ total_employees }}">0</div>
+        <div>
+          <span class="kpi-footer-badge text-primary" style="background:#eef2ff">
+            <i class="bi bi-check-circle-fill"></i> 541 Master
+          </span>
         </div>
+      </div>
     </div>
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-teal">
-            <i class="bi bi-box-arrow-right stat-icon"></i>
-            <div class="stat-val">{{ checked_out_today }}</div>
-            <div class="stat-lbl">Checked Out</div>
-        </div>
-    </div>
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-red">
-            <i class="bi bi-person-x stat-icon"></i>
-            <div class="stat-val">{{ absent_today }}</div>
-            <div class="stat-lbl">Absent</div>
-        </div>
-    </div>
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-orange">
-            <i class="bi bi-clock-history stat-icon"></i>
-            <div class="stat-val">{{ late_today }}</div>
-            <div class="stat-lbl">Late Arrivals</div>
-        </div>
-    </div>
-    <div class="col-6 col-sm-4 col-lg-2">
-        <div class="stat-card sc-purple">
-            <i class="bi bi-hourglass-split stat-icon"></i>
-            <div class="stat-val">{{ pending_leaves + pending_halfdays + pending_early }}</div>
-            <div class="stat-lbl">Pending Approvals</div>
-        </div>
-    </div>
-</div>
 
-<!-- ── Quick Actions ── -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.hospitals_list') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-hospital text-danger" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Hospitals</h6>
-                <p class="text-muted small mb-0">Manage hospital locations & GPS</p>
-            </div>
-        </a>
+    <!-- Checked In Today -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-emerald">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Checked In</div>
+          <div class="kpi-icon-pastel pastel-emerald"><i class="bi bi-fingerprint"></i></div>
+        </div>
+        <div class="kpi-num text-success counter" data-target="{{ checked_in_today }}">0</div>
+        <div>
+          <span class="kpi-footer-badge text-success" style="background:#ecfdf5">
+            <i class="bi bi-arrow-up-right"></i> Active on site
+          </span>
+        </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.employee_allocation') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-geo-alt-fill text-primary" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Employee Allocation</h6>
-                <p class="text-muted small mb-0">View hospital & shift assignments</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.shift_assignment') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-clock-history text-success" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Assign Shifts</h6>
-                <p class="text-muted small mb-0">Bulk shift assignment to employees</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.employee_master') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-person-lines-fill text-info" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Employee Master</h6>
-                <p class="text-muted small mb-0">View all employee records</p>
-            </div>
-        </a>
-    </div>
-</div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.import_employees') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-file-earmark-excel text-warning" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Import Employees</h6>
-                <p class="text-muted small mb-0">Bulk import from Excel</p>
-            </div>
-        </a>
+    <!-- Checked Out -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-cyan">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Checked Out</div>
+          <div class="kpi-icon-pastel pastel-cyan"><i class="bi bi-box-arrow-right"></i></div>
+        </div>
+        <div class="kpi-num text-info counter" data-target="{{ checked_out_today }}">0</div>
+        <div>
+          <span class="kpi-footer-badge text-info" style="background:#ecfeff">
+            <i class="bi bi-check2-all"></i> Shifts complete
+          </span>
+        </div>
+      </div>
     </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('calendar.import_holidays') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-calendar-event text-info" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Import Holidays</h6>
-                <p class="text-muted small mb-0">Bulk import from Excel</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.office_settings') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-gear text-secondary" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Office Settings</h6>
-                <p class="text-muted small mb-0">Configure office parameters</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('leave.pending') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-calendar-check text-primary" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">Leave Approvals</h6>
-                <p class="text-muted small mb-0">Review pending leave requests</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('admin.users') }}" class="card border-0 shadow-sm text-decoration-none hover-lift">
-            <div class="card-body p-4 text-center">
-                <i class="bi bi-shield-lock text-danger" style="font-size:2.5rem"></i>
-                <h6 class="fw-semibold mt-3 mb-1">User Management</h6>
-                <p class="text-muted small mb-0">Manage user accounts & roles</p>
-            </div>
-        </a>
-    </div>
-</div>
 
-<style>
-.hover-lift {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
-}
-</style>
+    <!-- Absent Today -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-rose">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Unmarked</div>
+          <div class="kpi-icon-pastel pastel-rose"><i class="bi bi-person-x-fill"></i></div>
+        </div>
+        <div class="kpi-num text-danger counter" data-target="{{ absent_today }}">0</div>
+        <div>
+          <span class="kpi-footer-badge text-danger" style="background:#fff1f2">
+            <i class="bi bi-exclamation-circle"></i> Not punched yet
+          </span>
+        </div>
+      </div>
+    </div>
 
-<div class="row g-4">
+    <!-- Late Arrivals -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-amber">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Late Arrivals</div>
+          <div class="kpi-icon-pastel pastel-amber"><i class="bi bi-clock-history"></i></div>
+        </div>
+        <div class="kpi-num text-warning counter" data-target="{{ late_today }}">0</div>
+        <div>
+          <span class="kpi-footer-badge text-warning" style="background:#fffbeb">
+            <i class="bi bi-shield-exclamation"></i> Past grace limit
+          </span>
+        </div>
+      </div>
+    </div>
 
-<!-- ── Today's Attendance ── -->
-<div class="col-lg-7">
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
-        <h6 class="fw-semibold mb-0">Today's Attendance</h6>
-        <div class="d-flex align-items-center gap-2">
-            <a href="{{ url_for('admin.export_daily_attendance') }}"
-               class="btn btn-sm btn-success d-flex align-items-center gap-1"
-               id="admin-export-btn"
-               title="Download Excel — All employees for today">
-                <i class="bi bi-file-earmark-excel-fill"></i>
-                <span class="d-none d-sm-inline">Download Excel</span>
+    <!-- Attendance Photos -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="vibrant-kpi-card kpi-border-violet">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="kpi-title">Photo Proofs</div>
+          <div class="kpi-icon-pastel pastel-violet"><i class="bi bi-camera-fill"></i></div>
+        </div>
+        <div class="kpi-num counter" style="color:#7c3aed" data-target="{{ total_photos_count }}">0</div>
+        <div>
+          <span class="kpi-footer-badge" style="background:#f5f3ff; color:#7c3aed">
+            <i class="bi bi-camera-video-fill"></i> Verified Selfies
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       3. PROMINENT HERO HUB: ATTENDANCE PHOTOS & LIVE CAMERA AUDIT
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="luminous-photo-hub mb-4 anim-fade-up anim-delay-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-camera-fill fs-5"></i>
+        </div>
+        <div>
+          <h5 class="fw-bold text-dark mb-0">Office PC Kiosk &bull; Live Attendance Photo Wall</h5>
+          <p class="text-muted small mb-0">Live selfie proof captured from designated office terminals with timestamp &amp; security stamps</p>
+        </div>
+      </div>
+      <div>
+        <a href="{{ url_for('admin.attendance_photos') }}" class="btn btn-outline-primary btn-sm px-3 fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-images"></i>
+          <span>Open Full Date-Wise Gallery</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+
+    {% if recent_photos %}
+    <div class="photo-preview-grid">
+      {% for p in recent_photos %}
+      {% set img_url = p.image_data or p.checkout_image_data %}
+      <div class="photo-interactive-card" onclick="openLightbox('{{ img_url }}', '{{ p.employee_name }} ({{ p.employee_code }})')">
+        <div class="photo-frame-wrap mb-2">
+          {% if img_url and img_url.startswith('data:image') %}
+            <img src="{{ img_url }}" alt="{{ p.employee_name }}" loading="lazy">
+          {% elif img_url %}
+            <img src="{{ img_url }}" alt="{{ p.employee_name }}" loading="lazy">
+          {% else %}
+            <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light text-muted">
+              <i class="bi bi-person-bounding-box fs-3"></i>
+              <span style="font-size:0.65rem">Verified Punch</span>
+            </div>
+          {% endif %}
+          
+          {% if p.image_data %}
+            <span class="badge bg-success position-absolute top-0 start-0 m-2 shadow-sm" style="font-size:.65rem">Check-In</span>
+          {% elif p.checkout_image_data %}
+            <span class="badge bg-info position-absolute top-0 start-0 m-2 shadow-sm" style="font-size:.65rem">Check-Out</span>
+          {% endif %}
+          <div class="zoom-hint"><i class="bi bi-zoom-in"></i> Inspect</div>
+        </div>
+        <div class="fw-bold text-dark small text-truncate">{{ p.employee_name }}</div>
+        <div class="d-flex align-items-center justify-content-between text-muted" style="font-size:.72rem">
+          <span class="font-mono fw-semibold text-primary">{{ p.employee_code }}</span>
+          <span>{{ p.department }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="p-4 rounded-3 text-center bg-light" style="border: 1px dashed #cbd5e1;">
+      <i class="bi bi-camera fs-2 text-primary mb-2 d-block"></i>
+      <div class="fw-bold text-dark">No attendance photos logged yet today</div>
+      <p class="text-muted small mb-3">Employees punch in at the official office PC kiosk terminals where a camera is attached.</p>
+      <div class="d-flex justify-content-center gap-2">
+        <a href="/kiosk" class="btn btn-sm btn-primary"><i class="bi bi-pc-display me-1"></i>Open Office Kiosk Terminal</a>
+        <a href="{{ url_for('admin.attendance_photos') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-images me-1"></i>View Archived Photos</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       4. COMMAND HUBS (3 CATEGORIZED ACTION TILES — NO SHIFTS)
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="row g-3 mb-4 anim-fade-up anim-delay-4">
+    <!-- Hub 1: Workforce & Medical Sites -->
+    <div class="col-lg-4">
+      <div class="hub-category-card">
+        <div class="hub-card-header">
+          <span class="hub-title"><i class="bi bi-buildings-fill text-primary"></i> Workforce &amp; Sites</span>
+          <span class="badge bg-primary-subtle text-primary fw-bold" style="font-size:.68rem">541+ Staff</span>
+        </div>
+        <div class="p-3 d-flex flex-column gap-2 flex-grow-1">
+          <a href="{{ url_for('admin.employee_master') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-indigo"><i class="bi bi-person-lines-fill"></i></div>
+            <div>
+              <div class="tile-h">Employee Master</div>
+              <div class="tile-p">Search, view and manage all {{ total_employees }} employee records</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.hospitals_list') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-rose"><i class="bi bi-hospital-fill"></i></div>
+            <div>
+              <div class="tile-h">Hospital Medical Centers</div>
+              <div class="tile-p">Configure hospitals, GPS coordinates &amp; geofences</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.employee_allocation') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-cyan"><i class="bi bi-diagram-3-fill"></i></div>
+            <div>
+              <div class="tile-h">Staff Hospital Allocation</div>
+              <div class="tile-p">Deploy personnel to specific hospital locations</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.shift_assignment') }}" class="action-tile-btn" style="border: 1.5px solid #c7d2fe; background: #f5f3ff;">
+            <div class="tile-avatar-box" style="background:#7c3aed; color:#fff;"><i class="bi bi-clock-history"></i></div>
+            <div>
+              <div class="tile-h text-purple" style="color:#6d28d9;">Assign Shift Timings</div>
+              <div class="tile-p">Roster &amp; bulk assign shift timings to employees</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.import_employees') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-emerald"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
+            <div>
+              <div class="tile-h">Import Employee Master</div>
+              <div class="tile-p">Bulk onboarding from Excel/CSV master sheets</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hub 2: Attendance & Kiosk Verification -->
+    <div class="col-lg-4">
+      <div class="hub-category-card">
+        <div class="hub-card-header">
+          <span class="hub-title"><i class="bi bi-camera-fill text-info"></i> Attendance &amp; Kiosk</span>
+          <span class="badge bg-info-subtle text-info fw-bold" style="font-size:.68rem">Live Kiosk</span>
+        </div>
+        <div class="p-3 d-flex flex-column gap-2 flex-grow-1">
+          <a href="{{ url_for('admin.attendance_photos') }}" class="action-tile-btn" style="border: 2px solid #a5f3fc; background: #f0fdfa;">
+            <div class="tile-avatar-box" style="background:#06b6d4; color:#fff;"><i class="bi bi-images"></i></div>
+            <div>
+              <div class="tile-h text-info">Attendance Photos Gallery</div>
+              <div class="tile-p">Date-wise camera proof with code &amp; name filters</div>
+            </div>
+          </a>
+          <a href="/kiosk" class="action-tile-btn" target="_blank">
+            <div class="tile-avatar-box pastel-indigo"><i class="bi bi-pc-display-horizontal"></i></div>
+            <div>
+              <div class="tile-h">Launch Office Kiosk Terminal</div>
+              <div class="tile-p">Opens the camera terminal for office punches</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.office_settings') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-amber"><i class="bi bi-sliders2"></i></div>
+            <div>
+              <div class="tile-h">Office &amp; Attendance Rules</div>
+              <div class="tile-p">Work hours, grace periods, geofence radius</div>
+            </div>
+          </a>
+          <a href="{{ url_for('company.shifts') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-indigo"><i class="bi bi-alarm-fill"></i></div>
+            <div>
+              <div class="tile-h">Work Shift Master Rules</div>
+              <div class="tile-p">Define shift start/end, grace times &amp; night shifts</div>
+            </div>
+          </a>
+          <a href="{{ url_for('calendar.import_holidays') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-violet"><i class="bi bi-calendar-event"></i></div>
+            <div>
+              <div class="tile-h">Operational Holidays</div>
+              <div class="tile-p">Manage hospital operational calendars &amp; imports</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hub 3: Payroll, Approvals & Governance -->
+    <div class="col-lg-4">
+      <div class="hub-category-card">
+        <div class="hub-card-header">
+          <span class="hub-title"><i class="bi bi-shield-lock-fill text-warning"></i> Payroll &amp; Governance</span>
+          <span class="badge bg-warning-subtle text-warning fw-bold" style="font-size:.68rem">Executive</span>
+        </div>
+        <div class="p-3 d-flex flex-column gap-2 flex-grow-1">
+          <a href="{{ url_for('payroll.index') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-emerald"><i class="bi bi-cash-stack"></i></div>
+            <div>
+              <div class="tile-h">Payroll Management</div>
+              <div class="tile-p">Attendance-backed salaries, registers &amp; payslips</div>
+            </div>
+          </a>
+          <a href="{{ url_for('payroll.import_salaries') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-cyan"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+            <div>
+              <div class="tile-h">Import Salary Master</div>
+              <div class="tile-p">Bulk Excel upload of CTC, PF, TDS &amp; PT</div>
+            </div>
+          </a>
+          <a href="{{ url_for('leave.pending') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-amber"><i class="bi bi-check2-circle"></i></div>
+            <div>
+              <div class="tile-h">Leave Approvals Queue</div>
+              <div class="tile-p">Pending leave applications and comp-off claims</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.users') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-rose"><i class="bi bi-people"></i></div>
+            <div>
+              <div class="tile-h">User Accounts &amp; RBAC</div>
+              <div class="tile-p">Manage administrator and employee credentials</div>
+            </div>
+          </a>
+          <a href="{{ url_for('admin.data_readiness') }}" class="action-tile-btn">
+            <div class="tile-avatar-box pastel-indigo"><i class="bi bi-shield-check"></i></div>
+            <div>
+              <div class="tile-h">Data Readiness Checklist</div>
+              <div class="tile-p">Audit 12 dataset governance configurations</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       5. LIVE TODAY'S ATTENDANCE FEED & LEAVE ACTION QUEUE
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="row g-4 anim-fade-up anim-delay-5">
+    <!-- Left: Today's Punches Table -->
+    <div class="col-lg-8">
+      <div class="crisp-table-card shadow-sm">
+        <div class="p-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2 border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <span class="pulse-light-dot"></span>
+            <h6 class="fw-bold text-dark mb-0">Today's Live Attendance Feed</h6>
+            <span class="badge bg-light text-muted border" style="font-size:.72rem">{{ today_records|length }} punches</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('admin.export_daily_attendance') }}" class="btn btn-sm btn-success d-flex align-items-center gap-1 shadow-sm">
+              <i class="bi bi-file-earmark-excel-fill"></i>
+              <span>Export Today</span>
             </a>
-            <a href="{{ url_for('admin.view_all_attendance') }}" class="small text-primary">View All</a>
+            <a href="{{ url_for('admin.attendance_photos') }}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+              <i class="bi bi-camera"></i>
+              <span>All Photos</span>
+            </a>
+          </div>
         </div>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle" style="font-size:.85rem">
-            <thead class="table-light">
-                <tr>
-                    <th class="ps-4">Employee</th>
-                    <th>Check In</th>
-                    <th>Check Out</th>
-                    <th>Hours</th>
-                    <th>Status</th>
-                    <th>Location</th>
-                </tr>
+
+        <div class="table-responsive">
+          <table class="crisp-table">
+            <thead>
+              <tr>
+                <th>Personnel</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Hours</th>
+                <th>Status</th>
+                <th>Terminal GPS</th>
+              </tr>
             </thead>
             <tbody>
-            {% set bm={'present':'success','absent':'danger','half_day':'warning','on_leave':'info','holiday':'secondary'} %}
-            {% for att in today_records[:15] %}
-            <tr>
-                <td class="ps-4 fw-medium">{{ att.employee.full_name }}</td>
+              {% for att in today_records[:15] %}
+              <tr>
                 <td>
-                    {% if att.check_in_time %}
-                    {% set ist_time = att.check_in_time + timedelta(hours=5, minutes=30) %}
-                    <span>{{ ist_time.strftime('%H:%M') }}</span>
-                    {% else %}—{% endif %}
-                </td>
-                <td>
-                    {% if att.check_out_time %}
-                    {% set ist_time = att.check_out_time + timedelta(hours=5, minutes=30) %}
-                    <span>{{ ist_time.strftime('%H:%M') }}</span>
-                    {% else %}—{% endif %}
-                </td>
-                <td class="fw-semibold">{{ att.working_hours_display }}</td>
-                <td>
-                    {% set status_class = 'pending' if att.status == 'pending' else bm.get(att.status, 'secondary') %}
-                    {% if att.status == 'pending' %}
-                        <span class="badge badge-pending">{{ att.status.replace('_',' ').title() }}</span>
-                    {% else %}
-                        <span class="badge bg-{{ status_class }}-subtle text-{{ status_class }}">
-                            {{ att.status.replace('_',' ').title() }}
-                        </span>
-                    {% endif %}
-                    {% if att.is_late %}<span class="badge bg-warning-subtle text-warning ms-1">Late {{ att.late_minutes | fmt_minutes }}</span>{% endif %}
-                </td>
-                <td class="small">
-                    {% if att.check_in_latitude and att.check_in_longitude %}
-                    <a href="https://www.google.com/maps?q={{ att.check_in_latitude }},{{ att.check_in_longitude }}"
-                       target="_blank" rel="noopener" class="text-primary"
-                       title="{{ '%.5f'|format(att.check_in_latitude) }}, {{ '%.5f'|format(att.check_in_longitude) }}{% if att.check_in_accuracy %} ±{{ att.check_in_accuracy|int }}m{% endif %}">
-                        <i class="bi bi-geo-alt-fill me-1"></i>Map
-                    </a>
-                    {% if att.check_in_accuracy %}
-                    <span class="text-muted" style="font-size:.7rem;display:block">±{{ att.check_in_accuracy|int }}m</span>
-                    {% endif %}
-                    {% else %}<span class="text-muted">—</span>{% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="6" class="text-center py-5 text-muted">No attendance records yet today.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-</div>
-
-<!-- ── Right Panel ── -->
-<div class="col-lg-5">
-
-    <!-- Pending Leave Requests -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3 px-4">
-            <h6 class="fw-semibold mb-0">
-                Pending Leave Requests
-                {% if pending_leaves %}<span class="badge bg-danger ms-2">{{ pending_leaves }}</span>{% endif %}
-            </h6>
-            <a href="{{ url_for('leave.pending') }}" class="small text-primary">Review All</a>
-        </div>
-        <div class="list-group list-group-flush">
-        {% for lr in recent_requests %}
-        <div class="list-group-item px-4 py-3">
-            <div class="d-flex align-items-start justify-content-between gap-2">
-                <div>
-                    <div class="fw-semibold small">{{ lr.employee.full_name }}</div>
-                    <div class="text-muted" style="font-size:.78rem">
-                        {{ lr.leave_type.name }} &bull;
-                        {{ lr.start_date.strftime('%d %b') }} – {{ lr.end_date.strftime('%d %b %Y') }} &bull;
-                        {{ lr.total_days }} day{{ 's' if lr.total_days != 1 else '' }}
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle pastel-indigo fw-bold d-flex align-items-center justify-content-center" style="width:34px;height:34px;font-size:.78rem">
+                      {{ att.employee.full_name[:2]|upper }}
                     </div>
-                </div>
-                <div class="d-flex gap-1 flex-shrink-0">
-                    <form method="POST" action="{{ url_for('leave.approve', lr_id=lr.id) }}">
-                        {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
-                        <button class="btn btn-xs btn-success" style="font-size:.75rem;padding:3px 10px">✓</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('leave.reject', lr_id=lr.id) }}">
-                        {{ csrf_token_field() }}<input type="hidden" name="comment" value="">
-                        <button class="btn btn-xs btn-outline-danger" style="font-size:.75rem;padding:3px 10px">✗</button>
-                    </form>
-                </div>
-            </div>
+                    <div>
+                      <div class="fw-bold text-dark small">{{ att.employee.full_name }}</div>
+                      <div class="text-muted font-mono" style="font-size:.72rem">{{ att.employee.employee_code }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  {% if att.check_in_time %}
+                    {% set ist_time = att.check_in_time + timedelta(hours=5, minutes=30) %}
+                    <span class="font-mono text-dark fw-bold">{{ ist_time.strftime('%H:%M') }}</span>
+                    <span class="text-success ms-1" title="Camera selfie verified"><i class="bi bi-camera-fill" style="font-size:.72rem"></i></span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if att.check_out_time %}
+                    {% set ist_time = att.check_out_time + timedelta(hours=5, minutes=30) %}
+                    <span class="font-mono text-dark fw-bold">{{ ist_time.strftime('%H:%M') }}</span>
+                    <span class="text-info ms-1" title="Checkout photo captured"><i class="bi bi-camera-fill" style="font-size:.72rem"></i></span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light border font-mono text-dark">
+                    {{ att.working_hours_display or '—' }}
+                  </span>
+                </td>
+                <td>
+                  {% if att.status == 'present' %}
+                    <span class="badge-clean-present"><i class="bi bi-check-circle-fill"></i> Present</span>
+                  {% elif att.status == 'late' or att.is_late %}
+                    <span class="badge-clean-late"><i class="bi bi-clock-fill"></i> Late</span>
+                  {% elif att.status == 'pending' %}
+                    <span class="badge-clean-pending"><i class="bi bi-hourglass"></i> Pending Proof</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border">{{ att.status|title }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if att.check_in_latitude and att.check_in_longitude %}
+                  <a href="https://www.google.com/maps?q={{ att.check_in_latitude }},{{ att.check_in_longitude }}" target="_blank" rel="noopener" class="text-primary text-decoration-none small d-flex align-items-center gap-1 fw-semibold">
+                    <i class="bi bi-geo-alt-fill text-danger"></i>
+                    <span>Map</span>
+                    {% if att.check_in_accuracy %}
+                    <span class="text-muted" style="font-size:.68rem">(&plusmn;{{ att.check_in_accuracy|int }}m)</span>
+                    {% endif %}
+                  </a>
+                  {% else %}
+                  <span class="text-muted small">Terminal</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="bi bi-calendar2-x fs-3 d-block mb-2 text-secondary"></i>
+                  <span>No attendance punches recorded for today yet.</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        {% else %}
-        <div class="list-group-item text-center text-muted small py-4">No pending requests.</div>
-        {% endfor %}
-        </div>
+      </div>
     </div>
 
-    <!-- Quick Links -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-transparent border-0 py-3 px-4"><h6 class="fw-semibold mb-0">Quick Actions</h6></div>
-        <div class="card-body px-4 pb-4">
-            <div class="row g-2">
-                {% set actions=[
-                    ('Employees','employees.index','bi-people-fill','primary'),
-                    ('Add Employee','employees.create','bi-person-plus','success'),
-                    ('Import Employees','admin.import_employees','bi-file-earmark-excel','success'),
-                    ('Employee Master','admin.employee_master','bi-person-badge','primary'),
-                    ('Leave Requests','leave.pending','bi-calendar-x','warning'),
-                    ('Office Settings','admin.office_settings','bi-geo-alt-fill','danger'),
-                    ('Leave Types','admin.leave_types','bi-list-check','info'),
-                    ('User Accounts','admin.users','bi-shield-lock','secondary'),
-                ] %}
-                {% for label, endpoint, icon, color in actions %}
-                <div class="col-6">
-                    <a href="{{ url_for(endpoint) }}" class="btn btn-outline-{{ color }} w-100 d-flex align-items-center gap-2 justify-content-center py-2 btn-sm">
-                        <i class="bi {{ icon }}"></i> {{ label }}
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
+    <!-- Right: Pending Approvals Queue -->
+    <div class="col-lg-4">
+      <div class="crisp-table-card shadow-sm h-100">
+        <div class="p-3 px-4 d-flex align-items-center justify-content-between border-bottom">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bell-fill text-warning"></i>
+            <h6 class="fw-bold text-dark mb-0">Pending Leave Approvals</h6>
+          </div>
+          {% if pending_leaves %}
+          <span class="badge bg-danger rounded-pill">{{ pending_leaves }} action</span>
+          {% endif %}
         </div>
+        <div class="p-3">
+          {% for lr in recent_requests %}
+          <div class="p-3 mb-2 rounded-3 bg-light border">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <div class="fw-bold text-dark small">{{ lr.employee.full_name }}</div>
+                <div class="text-muted font-mono" style="font-size:.72rem">{{ lr.employee.employee_code }} &bull; {{ lr.leave_type.name }}</div>
+                <div class="text-secondary small mt-1" style="font-size:.76rem">
+                  <i class="bi bi-calendar3 me-1 text-primary"></i>
+                  {{ lr.start_date.strftime('%d %b') }} &ndash; {{ lr.end_date.strftime('%d %b %Y') }}
+                  <span class="badge bg-primary text-white ms-1">{{ lr.total_days }} day(s)</span>
+                </div>
+              </div>
+              <div class="d-flex gap-1">
+                <form method="POST" action="{{ url_for('leave.approve', lr_id=lr.id) }}">
+                  {{ csrf_token_field() }}
+                  <input type="hidden" name="comment" value="Approved by Super Admin">
+                  <button type="submit" class="btn btn-sm btn-success px-2 py-1 shadow-sm" title="Approve Leave"><i class="bi bi-check-lg"></i></button>
+                </form>
+                <form method="POST" action="{{ url_for('leave.reject', lr_id=lr.id) }}">
+                  {{ csrf_token_field() }}
+                  <input type="hidden" name="comment" value="Rejected">
+                  <button type="submit" class="btn btn-sm btn-outline-danger px-2 py-1" title="Reject Leave"><i class="bi bi-x-lg"></i></button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-check-circle-fill fs-2 text-success d-block mb-2"></i>
+            <div class="fw-bold text-dark small">All Clear</div>
+            <p class="small text-muted mb-0">No pending leave applications in the approval queue.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
     </div>
+  </div>
+
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     LIGHTBOX PREVIEW MODAL
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="modal fade clean-lightbox-modal" id="photoLightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header border-bottom">
+        <h6 class="modal-title text-dark fw-bold" id="lightboxTitle">Attendance Selfie Proof</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center p-4 bg-light">
+        <img id="lightboxImg" src="" alt="Proof Preview" class="img-fluid rounded-3 shadow" style="max-height: 520px; border: 1px solid #cbd5e1;">
+      </div>
+      <div class="modal-footer border-top justify-content-between">
+        <span class="text-muted small"><i class="bi bi-shield-check text-success me-1"></i>Official Kiosk Captured Camera Proof</span>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script>
-// Update greeting based on current time
+// Dynamic IST Greeting
 function updateGreeting() {
-    const now = new Date();
-    const hour = now.getHours();
-    let greeting = 'Good Morning';
-    
-    if (hour >= 12 && hour < 17) {
-        greeting = 'Good Afternoon';
-    } else if (hour >= 17 && hour < 21) {
-        greeting = 'Good Evening';
-    } else if (hour >= 21 || hour < 0) {
-        greeting = 'Good Night';
-    }
-    
-    const greetingElement = document.getElementById('greetingText');
-    if (greetingElement) {
-        greetingElement.textContent = greeting + ', {{ current_user.first_name }}!';
-    }
+  const now = new Date();
+  const hour = now.getHours();
+  let greeting = 'Good Morning';
+  if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+  else if (hour >= 17 && hour < 21) greeting = 'Good Evening';
+  else if (hour >= 21 || hour < 5) greeting = 'Good Night';
+  
+  const el = document.getElementById('greetingText');
+  if (el) {
+    el.textContent = `${greeting}, {{ current_user.first_name }}!`;
+  }
 }
-
-// Update greeting on page load
 updateGreeting();
 
-// Update greeting every minute to reflect time changes
-setInterval(updateGreeting, 60000);
+// Number Counter Animation
+document.addEventListener('DOMContentLoaded', () => {
+  const counters = document.querySelectorAll('.counter');
+  counters.forEach(counter => {
+    const target = +counter.getAttribute('data-target') || 0;
+    if (target === 0) {
+      counter.innerText = '0';
+      return;
+    }
+    const duration = 1200; // ms
+    const stepTime = 20;
+    const steps = duration / stepTime;
+    const increment = target / steps;
+    let current = 0;
+    
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        counter.innerText = target;
+        clearInterval(timer);
+      } else {
+        counter.innerText = Math.floor(current);
+      }
+    }, stepTime);
+  });
+});
 
-document.getElementById('btn-reset-attendance').addEventListener('click', function() {
-    // Show confirmation dialog
-    const confirmed = confirm(
-        'DANGER: This will permanently delete ALL attendance data!\n\n' +
-        '- All check-in and check-out records\n' +
-        '- All attendance photos\n' +
-        '- All GPS logs\n' +
-        '- All audit logs\n\n' +
-        'This CANNOT be undone!\n\n' +
-        'Click OK to proceed or Cancel to abort.'
-    );
-    
-    if (!confirmed) {
-        return;
+// Interactive Lightbox with Freeze Protection & Root Body Mounting
+function openLightbox(imgSrc, title) {
+  if (!imgSrc) return;
+  const modalEl = document.getElementById('photoLightboxModal');
+  if (!modalEl) return;
+  
+  // Ensure modal is attached directly to <body> so Bootstrap backdrop never traps or freezes the screen
+  if (modalEl.parentElement !== document.body) {
+    document.body.appendChild(modalEl);
+  }
+  
+  const img = document.getElementById('lightboxImg');
+  if (img) img.src = imgSrc;
+  const titleEl = document.getElementById('lightboxTitle');
+  if (titleEl && title) titleEl.textContent = title;
+  
+  // Clean up any zombie backdrops and restore scroll on close
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }, { once: true });
+
+  // Direct dismissal listeners
+  modalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+    btn.onclick = function() {
+      const inst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+      if (inst) inst.hide();
+    };
+  });
+  
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+// Reset Attendance Button Handler
+document.getElementById('btn-reset-attendance')?.addEventListener('click', function() {
+  if (!confirm('DANGER: This will permanently delete ALL attendance logs, camera photos, and GPS data.\n\nAre you sure you want to proceed?')) {
+    return;
+  }
+  if (!confirm('FINAL CONFIRMATION:\n\nType OK in your mind and press OK to purge all attendance.')) {
+    return;
+  }
+  
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Purging...';
+  
+  fetch('{{ url_for("admin.reset_attendance") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
+    body: JSON.stringify({ confirm: 'DELETE ALL' })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert('SUCCESS: ' + data.message);
+      window.location.reload();
+    } else {
+      alert('ERROR: ' + data.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-trash"></i> Reset Data';
     }
-    
-    // Second confirmation
-    const secondConfirm = confirm(
-        'Are you ABSOLUTELY SURE?\n\n' +
-        'This will delete ALL attendance history for ALL employees.\n\n' +
-        'Type OK in your mind and click OK to proceed.'
-    );
-    
-    if (!secondConfirm) {
-        return;
-    }
-    
-    // Disable button
-    const btn = this;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resetting...';
-    
-    // Send request
-    fetch('{{ url_for("admin.reset_attendance") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ confirm: 'DELETE ALL' })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(
-                'SUCCESS!\n\n' +
-                data.message + '\n\n' +
-                'The page will now reload.'
-            );
-            window.location.reload();
-        } else {
-            alert('ERROR: ' + data.message);
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-trash me-1"></i>Reset Attendance';
-        }
-    })
-    .catch(error => {
-        alert('ERROR: ' + error.message);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Reset Attendance';
-    });
+  })
+  .catch(err => {
+    alert('ERROR: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-trash"></i> Reset Data';
+  });
 });
 </script>
 {% endblock %}

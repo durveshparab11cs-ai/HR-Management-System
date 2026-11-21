@@ -14,6 +14,11 @@
 
     {# Favicon — add images/favicon.ico to static/images/ to enable #}
 
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+
     <!-- Bootstrap 5 CSS (CDN with local fallback) -->
     <link
         rel="stylesheet"
@@ -46,6 +51,10 @@
 <body class="hrms-body">
 
     {% if is_authenticated %}
+        <!-- Fixed Living Background Layer: Light Blue Gradient Wallpaper -->
+        <div class="app-hr-background-layer" aria-hidden="true" style="background-image: url('{{ url_for('static', filename='img/app-bg-gradient.png') }}?v=20261121');"></div>
+        <div class="app-hr-scrim-layer" aria-hidden="true"></div>
+
         <!-- Authenticated layout: sidebar + main content -->
         <div class="hrms-wrapper d-flex">
 
@@ -103,6 +112,7 @@
 
     <!-- Global modal container -->
     {% include 'shared/modal.html' %}
+    {% include 'shared/app_launcher.html' %}
 
     <!-- Bootstrap 5 JS bundle — no SRI so CDN updates don't break the app -->
     <script
@@ -111,6 +121,7 @@
     ></script>
 
     <!-- Application JavaScript -->
+    <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
 
     <!-- Page-specific JavaScript -->

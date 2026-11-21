@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Attendance Kiosk — CS Creative Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bg-base: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #ffffff;
+      --bg-glass: rgba(255, 255, 255, 0.95);
+      --border-subtle: #e2e8f0;
+      --border-focus: #0284c7;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --accent-cyan: #0284c7;
+      --accent-sky: #0ea5e9;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --shadow-glow: 0 0 35px rgba(2, 132, 199, 0.15);
+      --shadow-card: 0 15px 35px -10px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      background: radial-gradient(circle at 50% 0%, #e0f2fe 0%, #f1f5f9 65%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Kiosk Header */
+    .kiosk-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 28px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 10;
+    }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-cyan), #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+    }
+    .brand-info h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .brand-info span {
+      font-size: 0.78rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .time-status-section {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .clock-display {
+      text-align: right;
+    }
+    .clock-time {
+      font-family: var(--font-mono);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+    .clock-date {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .status-badge.offline {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--accent-amber);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulseDot 2s infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .action-icon-btn {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-icon-btn:hover {
+      color: #fff;
+      border-color: var(--border-focus);
+    }
+
+    /* Main Workspace */
+    .kiosk-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+
+    /* Step Container */
+    .kiosk-card {
+      width: 100%;
+      max-width: 580px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 36px 32px;
+      box-shadow: var(--shadow-card), var(--shadow-glow);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .step-view {
+      display: none;
+      animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .step-view.active {
+      display: block;
+    }
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.97) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Common Card Headers */
+    .view-title {
+      font-size: 1.55rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    .view-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* Step 1: Code Input & Keypad */
+    .code-display-wrap {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .code-display {
+      width: 100%;
+      height: 64px;
+      background: #ffffff;
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.15em;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .code-display:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+    .code-clear-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: var(--radius-sm);
+    }
+    .code-clear-btn:hover { color: var(--text-main); }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .key-btn {
+      background: #ffffff;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 1.55rem;
+      font-weight: 700;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .key-btn:hover {
+      background: #f0f9ff;
+      border-color: var(--accent-cyan);
+    }
+    .key-btn:active {
+      transform: scale(0.95);
+      background: rgba(2, 132, 199, 0.12);
+      border-color: var(--accent-cyan);
+    }
+    .key-btn.action-key {
+      font-size: 1.05rem;
+      font-family: var(--font-sans);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .key-btn.action-key.delete { color: var(--accent-rose); }
+    .key-btn.action-key.clear { color: var(--accent-amber); }
+
+    .submit-code-btn {
+      width: 100%;
+      height: 56px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-cyan), #2563eb);
+      color: #fff;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 18px rgba(6, 182, 212, 0.35);
+    }
+    .submit-code-btn:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .submit-code-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Step 2: Employee Profile Confirmation */
+    .profile-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .profile-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+    }
+    .profile-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .profile-code-pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: #e0f2fe;
+      color: #0284c7;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+    .profile-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 0.82rem;
+    }
+    .profile-detail-item {
+      color: var(--text-muted);
+    }
+    .profile-detail-item strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* Punch Type Selector Badge */
+    .punch-type-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      margin-bottom: 24px;
+    }
+    .punch-type-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .punch-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .punch-badge.in {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .punch-badge.out {
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--accent-rose);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    /* Repeat Punch Buffer Warning */
+    .buffer-warning-box {
+      display: none;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      color: var(--accent-amber);
+      font-size: 0.88rem;
+      line-height: 1.4;
+      align-items: center;
+      gap: 12px;
+    }
+    .buffer-warning-box.active {
+      display: flex;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .confirm-yes-btn {
+      flex: 2;
+      height: 56px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-emerald), #059669);
+      color: #fff;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+      transition: all 0.2s;
+    }
+    .confirm-yes-btn:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .confirm-yes-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .confirm-no-btn {
+      flex: 1;
+      height: 56px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .confirm-no-btn:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    /* Step 3: Camera & Auto-Capture */
+    .camera-viewport-wrap {
+      position: relative;
+      width: 100%;
+      height: 340px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: #000;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #camera-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* Mirror view */
+    }
+    #camera-canvas {
+      display: none;
+    }
+
+    /* Target Scanner Ring */
+    .scanner-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .target-ring {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      border: 2px dashed rgba(6, 182, 212, 0.7);
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
+      animation: rotateRing 14s linear infinite;
+    }
+    @keyframes rotateRing {
+      to { transform: rotate(360deg); }
+    }
+
+    .camera-controls {
+      display: flex;
+      gap: 12px;
+    }
+    .manual-snap-btn {
+      flex: 1;
+      height: 48px;
+      border-radius: var(--radius-md);
+      background: #f8fafc;
+      color: #0f172a;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .manual-snap-btn:hover { border-color: var(--border-focus); }
+
+    /* Step 4: Success Splash & Auto-Reset */
+    .success-view {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .success-icon-wrap {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.15);
+      border: 2px solid var(--accent-emerald);
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.2rem;
+      margin: 0 auto 24px auto;
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.35);
+      animation: successPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes successPop {
+      0% { transform: scale(0.4); opacity: 0; }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .success-headline {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .success-subtext {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    .punch-receipt-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      text-align: left;
+    }
+    .receipt-item label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .receipt-item span {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    /* Auto Reset Progress Bar */
+    .reset-progress-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .reset-progress-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+      border-radius: var(--radius-full);
+      transform-origin: left;
+    }
+    .reset-tip {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Toast Notification */
+    .kiosk-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px 24px;
+      border-radius: var(--radius-full);
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .kiosk-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    .kiosk-toast.error {
+      border-color: var(--accent-rose);
+      color: var(--accent-rose);
+      background: #1e1318;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .kiosk-header { padding: 12px 16px; }
+      .clock-time { font-size: 1.25rem; }
+      .kiosk-card { padding: 24px 18px; }
+      .key-btn { height: 50px; font-size: 1.3rem; }
+      .camera-viewport-wrap { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Kiosk Header -->
+  <header class="kiosk-header">
+    <div class="brand-section">
+      <div class="brand-logo-badge">CS</div>
+      <div class="brand-info">
+        <h1>CS Creative Solutions</h1>
+        <span>Attendance Kiosk Terminal</span>
+      </div>
+    </div>
+
+    <div class="time-status-section">
+      <div class="clock-display">
+        <div class="clock-time" id="server-clock">--:--:-- --</div>
+        <div class="clock-date" id="server-date">Syncing with server...</div>
+      </div>
+
+      <div class="header-actions">
+        <div class="status-badge" id="network-badge">
+          <span class="status-dot"></span>
+          <span id="network-text">Online</span>
+        </div>
+        <button class="action-icon-btn" id="fullscreen-toggle" title="Toggle Fullscreen">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Kiosk Body -->
+  <main class="kiosk-main">
+    <div class="kiosk-card">
+      
+      <!-- STEP 1: Enter Employee Code -->
+      <section class="step-view active" id="view-step1">
+        <h2 class="view-title">Welcome to Work</h2>
+        <p class="view-subtitle">Enter your Employee Code using the keypad or keyboard</p>
+
+        <div class="code-display-wrap">
+          <input type="text" class="code-display" id="emp-code-input" placeholder="E-XXXXXXX" autocomplete="off" autofocus>
+          <button type="button" class="code-clear-btn" id="btn-clear-code" title="Clear">
+            <i class="bi bi-x-circle-fill"></i>
+          </button>
+        </div>
+
+        <div class="keypad-grid">
+          <button class="key-btn" data-key="1">1</button>
+          <button class="key-btn" data-key="2">2</button>
+          <button class="key-btn" data-key="3">3</button>
+          <button class="key-btn" data-key="4">4</button>
+          <button class="key-btn" data-key="5">5</button>
+          <button class="key-btn" data-key="6">6</button>
+          <button class="key-btn" data-key="7">7</button>
+          <button class="key-btn" data-key="8">8</button>
+          <button class="key-btn" data-key="9">9</button>
+          <button class="key-btn action-key clear" data-action="clear">CLR</button>
+          <button class="key-btn" data-key="0">0</button>
+          <button class="key-btn action-key delete" data-action="delete">⌫</button>
+        </div>
+
+        <button type="button" class="submit-code-btn" id="btn-verify-code">
+          <span>Verify Employee Code</span>
+          <i class="bi bi-arrow-right"></i>
+        </button>
+      </section>
+
+      <!-- STEP 2: Profile Confirmation & Status -->
+      <section class="step-view" id="view-step2">
+        <h2 class="view-title">Confirm Identity</h2>
+        <p class="view-subtitle">Please verify your details before punching</p>
+
+        <div class="profile-card">
+          <div class="profile-avatar" id="emp-avatar">--</div>
+          <div class="profile-meta">
+            <div class="profile-name" id="emp-name">Loading...</div>
+            <div class="profile-code-pill" id="emp-code-pill">E-0000000</div>
+            <div class="profile-details-grid">
+              <div class="profile-detail-item">Dept: <strong id="emp-dept">--</strong></div>
+              <div class="profile-detail-item">Role: <strong id="emp-desig">--</strong></div>
+              <div class="profile-detail-item">Location: <strong id="emp-loc">--</strong></div>
+              <div class="profile-detail-item">Shift: <strong id="emp-shift">--</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="punch-type-indicator">
+          <span class="punch-type-text">Punch Action:</span>
+          <span class="punch-badge in" id="punch-action-badge">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span id="punch-action-label">CHECK IN</span>
+          </span>
+        </div>
+
+        <!-- Buffer Warning Box -->
+        <div class="buffer-warning-box" id="buffer-warning-box">
+          <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.3rem;"></i>
+          <span id="buffer-warning-text">Already punched recently. Please wait between punches.</span>
+        </div>
+
+        <div class="confirm-actions">
+          <button type="button" class="confirm-no-btn" id="btn-cancel-profile">
+            <i class="bi bi-x"></i> Not Me / Back
+          </button>
+          <button type="button" class="confirm-yes-btn" id="btn-confirm-profile">
+            <i class="bi bi-check-circle-fill"></i> Yes, It's Me
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 3: Camera Capture (Manual Click - No Forced Countdown) -->
+      <section class="step-view" id="view-step3">
+        <h2 class="view-title" id="camera-heading">Capture Attendance Photo</h2>
+        <p class="view-subtitle" id="camera-subheading">Position your face inside the frame and click "Take Photo".</p>
+
+        <div class="camera-viewport-wrap">
+          <video id="camera-video" autoplay playsinline muted></video>
+          <canvas id="camera-canvas" style="display: none; width: 100%; height: 100%; object-fit: cover;"></canvas>
+
+          <!-- Scanner Reticle -->
+          <div class="scanner-overlay" id="scanner-reticle">
+            <div class="target-ring"></div>
+          </div>
+        </div>
+
+        <!-- Live Controls (Before Capture) -->
+        <div class="camera-controls" id="live-camera-controls">
+          <button type="button" class="manual-snap-btn" id="btn-cancel-camera">
+            <i class="bi bi-arrow-left"></i> Back
+          </button>
+          <button type="button" class="manual-snap-btn" id="btn-snap-photo" style="background: linear-gradient(135deg, var(--accent-cyan), #0284c7); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">
+            <i class="bi bi-camera-fill"></i> Take Photo
+          </button>
+        </div>
+
+        <!-- Review Controls (After Clicking Take Photo) -->
+        <div class="camera-controls" id="review-camera-controls" style="display: none;">
+          <button type="button" class="manual-snap-btn" id="btn-retake-photo" style="flex: 1; height: 56px;">
+            <i class="bi bi-arrow-counterclockwise"></i> Retake
+          </button>
+          <button type="button" class="manual-snap-btn" id="btn-submit-punch" style="background: linear-gradient(135deg, var(--accent-emerald), #059669); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+            <i class="bi bi-check-circle-fill"></i> Submit Attendance
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 4: Success Splash & Auto-Reset -->
+      <section class="step-view" id="view-step4">
+        <div class="success-view">
+          <div class="success-icon-wrap">
+            <i class="bi bi-check2"></i>
+          </div>
+          <h2 class="success-headline" id="success-headline">Punch Recorded!</h2>
+          <p class="success-subtext" id="success-subtext">Have a productive day ahead.</p>
+
+          <div class="punch-receipt-card">
+            <div class="receipt-item">
+              <label>Employee</label>
+              <span id="receipt-emp-name">--</span>
+            </div>
+            <div class="receipt-item">
+              <label>Action</label>
+              <span id="receipt-action">CHECK IN</span>
+            </div>
+            <div class="receipt-item">
+              <label>Server Timestamp</label>
+              <span id="receipt-time">--:-- --</span>
+            </div>
+            <div class="receipt-item">
+              <label>Duration / Status</label>
+              <span id="receipt-status">Recorded</span>
+            </div>
+          </div>
+
+          <div class="reset-progress-wrap">
+            <div class="reset-progress-bar" id="reset-progress-bar"></div>
+          </div>
+          <div class="reset-tip">Kiosk resetting automatically in <span id="reset-seconds">4</span>s...</div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="kiosk-toast" id="kiosk-toast">
+    <i class="bi bi-info-circle-fill"></i>
+    <span id="toast-message">Notification message</span>
+  </div>
+
+  <script>
+    (function() {
+      // State
+      let currentStep = 1;
+      let employeeData = null;
+      let punchAction = 'checkin'; // 'checkin' | 'checkout'
+      let mediaStream = null;
+      let countdownTimer = null;
+      let resetTimer = null;
+      let resetProgressAnim = null;
+      let serverTimeOffsetMs = 0; // Local time + offset = Server Time
+
+      // Elements
+      const serverClockEl = document.getElementById('server-clock');
+      const serverDateEl = document.getElementById('server-date');
+      const networkBadge = document.getElementById('network-badge');
+      const networkText = document.getElementById('network-text');
+      const empCodeInput = document.getElementById('emp-code-input');
+      const btnVerifyCode = document.getElementById('btn-verify-code');
+      const btnClearCode = document.getElementById('btn-clear-code');
+      const btnCancelProfile = document.getElementById('btn-cancel-profile');
+      const btnConfirmProfile = document.getElementById('btn-confirm-profile');
+      const btnCancelCamera = document.getElementById('btn-cancel-camera');
+      const btnSnapPhoto = document.getElementById('btn-snap-photo');
+      const btnRetakePhoto = document.getElementById('btn-retake-photo');
+      const btnSubmitPunch = document.getElementById('btn-submit-punch');
+      const liveCameraControls = document.getElementById('live-camera-controls');
+      const reviewCameraControls = document.getElementById('review-camera-controls');
+      const scannerReticle = document.getElementById('scanner-reticle');
+      const cameraHeading = document.getElementById('camera-heading');
+      const cameraSubheading = document.getElementById('camera-subheading');
+      let capturedPhotoB64 = null;
+      const videoEl = document.getElementById('camera-video');
+      const canvasEl = document.getElementById('camera-canvas');
+      const bufferWarningBox = document.getElementById('buffer-warning-box');
+      const bufferWarningText = document.getElementById('buffer-warning-text');
+      const fullscreenToggle = document.getElementById('fullscreen-toggle');
+      const toastEl = document.getElementById('kiosk-toast');
+      const toastMsg = document.getElementById('toast-message');
+
+      // ── Step Navigation ──────────────────────────────────────────────
+      function showStep(stepNum) {
+        currentStep = stepNum;
+        document.querySelectorAll('.step-view').forEach(v => v.classList.remove('active'));
+        const activeView = document.getElementById(`view-step${stepNum}`);
+        if (activeView) activeView.classList.add('active');
+
+        if (stepNum === 1) {
+          stopCamera();
+          empCodeInput.value = '';
+          empCodeInput.focus();
+        } else if (stepNum === 3) {
+          startCamera();
+        }
+      }
+
+      // ── Server Time Sync ─────────────────────────────────────────────
+      async function syncServerTime() {
+        try {
+          const start = Date.now();
+          const res = await fetch('/api/v1/server-time');
+          const data = await res.json();
+          if (data.success && data.epoch_ms) {
+            const latency = (Date.now() - start) / 2;
+            serverTimeOffsetMs = (data.epoch_ms + latency) - Date.now();
+          }
+        } catch (e) {
+          console.warn('Server time sync failed, using local time fallback:', e);
+        }
+      }
+
+      function updateClock() {
+        const now = new Date(Date.now() + serverTimeOffsetMs);
+        const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' };
+        const optionsDate = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' };
+        serverClockEl.textContent = new Intl.DateTimeFormat('en-IN', optionsTime).format(now);
+        serverDateEl.textContent = new Intl.DateTimeFormat('en-IN', optionsDate).format(now);
+      }
+
+      // Sync every 5 minutes and tick every second
+      syncServerTime();
+      setInterval(syncServerTime, 300000);
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // ── Network / Online Status ──────────────────────────────────────
+      function updateNetworkStatus() {
+        if (navigator.onLine) {
+          networkBadge.className = 'status-badge';
+          networkText.textContent = 'Online';
+          flushOfflineQueue();
+        } else {
+          networkBadge.className = 'status-badge offline';
+          networkText.textContent = 'Offline';
+        }
+      }
+      window.addEventListener('online', updateNetworkStatus);
+      window.addEventListener('offline', updateNetworkStatus);
+      updateNetworkStatus();
+
+      // ── Fullscreen Toggle ────────────────────────────────────────────
+      fullscreenToggle.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            showToast('Fullscreen request was blocked: ' + err.message, true);
+          });
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+        }
+      });
+
+      // ── Toast Helper ─────────────────────────────────────────────────
+      let toastTimeout = null;
+      function showToast(msg, isError = false) {
+        clearTimeout(toastTimeout);
+        toastMsg.textContent = msg;
+        toastEl.className = 'kiosk-toast show' + (isError ? ' error' : '');
+        toastTimeout = setTimeout(() => {
+          toastEl.classList.remove('show');
+        }, 4000);
+      }
+
+      // ── Keypad Logic ─────────────────────────────────────────────────
+      document.querySelectorAll('.key-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.key;
+          const action = btn.dataset.action;
+          if (key !== undefined) {
+            empCodeInput.value += key;
+          } else if (action === 'delete') {
+            empCodeInput.value = empCodeInput.value.slice(0, -1);
+          } else if (action === 'clear') {
+            empCodeInput.value = '';
+          }
+          empCodeInput.focus();
+        });
+      });
+
+      btnClearCode.addEventListener('click', () => {
+        empCodeInput.value = '';
+        empCodeInput.focus();
+      });
+
+      empCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btnVerifyCode.click();
+        }
+      });
+
+      // ── Verify Employee Code (Step 1 -> Step 2) ──────────────────────
+      btnVerifyCode.addEventListener('click', async () => {
+        let code = empCodeInput.value.trim().toUpperCase();
+        if (!code) {
+          showToast('Please enter your employee code.', true);
+          empCodeInput.focus();
+          return;
+        }
+
+        // Auto prepend E- if only numbers entered
+        if (/^\d+$/.test(code)) {
+          code = 'E-' + code;
+        }
+
+        btnVerifyCode.disabled = true;
+        btnVerifyCode.innerHTML = '<span>Verifying...</span> <i class="bi bi-arrow-repeat spin"></i>';
+
+        try {
+          const res = await fetch(`/api/v1/kiosk/employee?code=${encodeURIComponent(code)}`);
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            showToast(data.message || `Employee code "${code}" not found.`, true);
+            btnVerifyCode.disabled = false;
+            btnVerifyCode.innerHTML = '<span>Verify Employee Code</span> <i class="bi bi-arrow-right"></i>';
+            empCodeInput.focus();
+            return;
+          }
+
+          employeeData = data.employee;
+          const status = data.today_status || {};
+
+          // Populate Profile
+          document.getElementById('emp-name').textContent = employeeData.name;
+          document.getElementById('emp-code-pill').textContent = employeeData.code;
+          document.getElementById('emp-dept').textContent = employeeData.department || 'General';
+          document.getElementById('emp-desig').textContent = employeeData.designation || 'Staff';
+          document.getElementById('emp-loc').textContent = employeeData.location || 'Hospital Site';
+          document.getElementById('emp-shift').textContent = employeeData.shift || 'Standard Shift';
+
+          // Avatar Initials
+          const parts = (employeeData.name || '').trim().split(' ');
+          const initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]) : (parts[0] ? parts[0].substring(0, 2) : 'EM');
+          document.getElementById('emp-avatar').textContent = initials.toUpperCase();
+
+          // Auto-detect Punch Action (IN or OUT)
+          const badgeEl = document.getElementById('punch-action-badge');
+          const labelEl = document.getElementById('punch-action-label');
+
+          if (status.suggested_action === 'checkout') {
+            punchAction = 'checkout';
+            badgeEl.className = 'punch-badge out';
+            labelEl.textContent = 'CHECK OUT';
+          } else {
+            punchAction = 'checkin';
+            badgeEl.className = 'punch-badge in';
+            labelEl.textContent = 'CHECK IN';
+          }
+
+          // Repeat punch buffer check
+          if (status.can_punch === false && status.buffer_warning) {
+            bufferWarningBox.classList.add('active');
+            bufferWarningText.textContent = status.buffer_warning;
+            btnConfirmProfile.disabled = true;
+            btnConfirmProfile.title = 'Please wait for buffer period before punching again';
+          } else {
+            bufferWarningBox.classList.remove('active');
+            btnConfirmProfile.disabled = false;
+            btnConfirmProfile.title = '';
+          }
+
+          showStep(2);
+
+        } catch (err) {
+          showToast('Network error while looking up employee: ' + err.message, true);
+        } finally {
+          btnVerifyCode.disabled = false;
+          btnVerifyCode.innerHTML = '<span>Verify Employee Code</span> <i class="bi bi-arrow-right"></i>';
+        }
+      });
+
+      // ── Step 2 Actions ───────────────────────────────────────────────
+      btnCancelProfile.addEventListener('click', () => {
+        showStep(1);
+      });
+
+      btnConfirmProfile.addEventListener('click', () => {
+        showStep(3);
+      });
+
+      // ── Step 3: Camera Stream & Manual Snapshot (No Countdown Timer) ──
+      async function startCamera() {
+        capturedPhotoB64 = null;
+        videoEl.style.display = 'block';
+        canvasEl.style.display = 'none';
+        scannerReticle.style.display = 'flex';
+        liveCameraControls.style.display = 'flex';
+        reviewCameraControls.style.display = 'none';
+        cameraHeading.textContent = 'Capture Attendance Photo';
+        cameraSubheading.textContent = 'Position your face inside the frame and click "Take Photo".';
+
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              facingMode: 'user'
+            },
+            audio: false
+          });
+          videoEl.srcObject = mediaStream;
+          videoEl.play();
+        } catch (err) {
+          console.warn('Camera access denied or unavailable:', err);
+          showToast('Camera unavailable. Using fallback photo capture.', true);
+          setTimeout(() => {
+            submitPunch(generateFallbackAvatarPhoto(employeeData.name));
+          }, 800);
+        }
+      }
+
+      function stopCamera() {
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(track => track.stop());
+          mediaStream = null;
+        }
+      }
+
+      btnSnapPhoto.addEventListener('click', () => {
+        const width = videoEl.videoWidth || 640;
+        const height = videoEl.videoHeight || 480;
+        canvasEl.width = width;
+        canvasEl.height = height;
+
+        const ctx = canvasEl.getContext('2d');
+        // Mirror photo horizontally to match preview
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoEl, 0, 0, width, height);
+
+        // Watermark with timestamp in Asia/Kolkata
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(10, height - 38, 380, 28);
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#06b6d4';
+        const nowStr = new Date(Date.now() + serverTimeOffsetMs).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        ctx.fillText(`CSCS KIOSK | ${employeeData.code} | ${nowStr}`, 18, height - 20);
+
+        capturedPhotoB64 = canvasEl.toDataURL('image/jpeg', 0.85);
+
+        // Switch to Review Mode: freeze photo and show submit/retake buttons
+        videoEl.style.display = 'none';
+        canvasEl.style.display = 'block';
+        scannerReticle.style.display = 'none';
+        liveCameraControls.style.display = 'none';
+        reviewCameraControls.style.display = 'flex';
+        cameraHeading.textContent = 'Review Your Photo';
+        cameraSubheading.textContent = "Click 'Submit Attendance' to record punch, or 'Retake' to try again.";
+      });
+
+      btnRetakePhoto.addEventListener('click', () => {
+        // Return to live camera mode
+        videoEl.style.display = 'block';
+        canvasEl.style.display = 'none';
+        scannerReticle.style.display = 'flex';
+        liveCameraControls.style.display = 'flex';
+        reviewCameraControls.style.display = 'none';
+        cameraHeading.textContent = 'Capture Attendance Photo';
+        cameraSubheading.textContent = 'Position your face inside the frame and click "Take Photo".';
+      });
+
+      btnSubmitPunch.addEventListener('click', () => {
+        if (!capturedPhotoB64) return;
+        btnSubmitPunch.disabled = true;
+        btnSubmitPunch.innerHTML = '<span class="loading-spinner"></span> <span>Recording Punch...</span>';
+        stopCamera();
+        submitPunch(capturedPhotoB64);
+      });
+
+      btnCancelCamera.addEventListener('click', () => {
+        stopCamera();
+        showStep(2);
+      });
+
+      function generateFallbackAvatarPhoto(name) {
+        canvasEl.width = 300;
+        canvasEl.height = 300;
+        const ctx = canvasEl.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 300, 300);
+        ctx.fillStyle = '#06b6d4';
+        ctx.font = 'bold 64px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        ctx.fillText(initials || 'CS', 150, 150);
+        return canvasEl.toDataURL('image/jpeg', 0.8);
+      }
+
+      // ── Submit Punch ─────────────────────────────────────────────────
+      async function submitPunch(photoB64) {
+        const payload = {
+          employee_code: employeeData.code,
+          check_type: punchAction,
+          photo_base64: photoB64,
+          latitude: 0.0,
+          longitude: 0.0,
+          accuracy: 10.0,
+          source: 'kiosk',
+          device_token: 'KIOSK_TERMINAL_OFFICE',
+          timestamp_ms: Date.now() + serverTimeOffsetMs
+        };
+
+        if (!navigator.onLine) {
+          queueOfflinePunch(payload);
+          renderSuccessScreen({
+            employee: employeeData,
+            check_type: punchAction,
+            message: 'Saved in offline queue (Will sync when back online)',
+            time: new Date(payload.timestamp_ms).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            duration: 'Offline Cached'
+          });
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/v1/kiosk/attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await res.json();
+
+          if (!res.ok || !result.success) {
+            showToast(result.message || 'Attendance submission failed.', true);
+            showStep(2);
+            return;
+          }
+
+          renderSuccessScreen(result);
+
+        } catch (err) {
+          console.warn('Network failed during punch submission, saving offline:', err);
+          queueOfflinePunch(payload);
+          renderSuccessScreen({
+            employee: employeeData,
+            check_type: punchAction,
+            message: 'Saved offline (Network dropped)',
+            time: new Date(payload.timestamp_ms).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            duration: 'Offline Queued'
+          });
+        }
+      }
+
+      // ── Offline Queue Management ─────────────────────────────────────
+      const OFFLINE_KEY = 'hrms_kiosk_offline_punches';
+      function queueOfflinePunch(payload) {
+        try {
+          const queue = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+          queue.push({ ...payload, queued_at: new Date().toISOString() });
+          localStorage.setItem(OFFLINE_KEY, JSON.stringify(queue));
+          showToast('Punch saved locally in offline queue.', false);
+        } catch (e) {
+          console.error('Failed to write to localStorage:', e);
+        }
+      }
+
+      async function flushOfflineQueue() {
+        try {
+          const queue = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]');
+          if (queue.length === 0) return;
+
+          console.log(`Flushing ${queue.length} offline punches...`);
+          const remaining = [];
+          for (const item of queue) {
+            try {
+              const res = await fetch('/api/v1/kiosk/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+              });
+              if (!res.ok) remaining.push(item);
+            } catch (e) {
+              remaining.push(item);
+            }
+          }
+          localStorage.setItem(OFFLINE_KEY, JSON.stringify(remaining));
+          if (remaining.length === 0) {
+            showToast('All offline punches synced successfully!');
+          }
+        } catch (e) {
+          console.error('Error syncing offline queue:', e);
+        }
+      }
+
+      // ── Step 4: Render Success & 4-Second Auto-Reset ──────────────────
+      function renderSuccessScreen(data) {
+        showStep(4);
+        const actionUpper = (data.check_type || punchAction).toUpperCase();
+        document.getElementById('success-headline').textContent = actionUpper === 'CHECKIN' ? 'Welcome, IN Recorded!' : 'Goodbye, OUT Recorded!';
+        document.getElementById('success-subtext').textContent = data.message || 'Have a great day!';
+        document.getElementById('receipt-emp-name').textContent = (data.employee && data.employee.name) || employeeData.name;
+        document.getElementById('receipt-action').textContent = actionUpper === 'CHECKIN' ? 'PUNCH IN' : 'PUNCH OUT';
+        document.getElementById('receipt-time').textContent = data.time || new Date(Date.now() + serverTimeOffsetMs).toLocaleTimeString('en-IN');
+        document.getElementById('receipt-status').textContent = data.duration || (actionUpper === 'CHECKIN' ? 'Present' : 'Completed');
+
+        // 4-second auto-reset with animated progress bar (< 8s total turnaround)
+        const progressBar = document.getElementById('reset-progress-bar');
+        const secondsEl = document.getElementById('reset-seconds');
+        let remainingSeconds = 4;
+        secondsEl.textContent = remainingSeconds;
+
+        progressBar.style.transition = 'none';
+        progressBar.style.transform = 'scaleX(1)';
+
+        // Start smooth bar shrink
+        setTimeout(() => {
+          progressBar.style.transition = 'transform 4s linear';
+          progressBar.style.transform = 'scaleX(0)';
+        }, 50);
+
+        const countdownInterval = setInterval(() => {
+          remainingSeconds--;
+          if (remainingSeconds > 0) {
+            secondsEl.textContent = remainingSeconds;
+          } else {
+            clearInterval(countdownInterval);
+          }
+        }, 1000);
+
+        resetTimer = setTimeout(() => {
+          clearInterval(countdownInterval);
+          showStep(1);
+        }, 4000);
+      }
+
+    })();
+  </script>
+</body>
+</html>

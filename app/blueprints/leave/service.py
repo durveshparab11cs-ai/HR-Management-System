@@ -5,7 +5,7 @@ Leave service — all business logic for leave, half-day, and early leave.
 """
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from app.extensions.database import db
@@ -73,21 +73,32 @@ class LeaveService:
         
         for lt in types:
             if lt.code == 'CO':
-                # COMP OFF Special Logic (90-day expiry, can use once)
-                # Find the latest comp off earned (when employee worked on holiday)
+                # COMP OFF Strict Business Policy:
+                # 1. Must be APPROVED by Reporting Manager (no auto-crediting)
+                # 2. Employee must have worked AT LEAST 8 hours 30 minutes on that Sunday/Holiday
+                # 3. Valid for 90 days, single use
+                from .comp_off_service import verify_comp_off_attendance
+                
+                # Check for approved earned comp off
                 comp_off_earned = LeaveRequest.query.filter(
                     and_(
                         LeaveRequest.employee_id == employee_id,
                         LeaveRequest.leave_type_id == lt.id,
-                        LeaveRequest.status == "approved",
-                        LeaveRequest.comp_off_work_date != None,  # Only comp offs earned
-                        LeaveRequest.comp_off_expiry_date >= today,  # Not expired
-                        LeaveRequest.comp_off_used_on == None,  # Not used yet
+                        LeaveRequest.status == "approved",  # Must be approved by manager!
+                        LeaveRequest.comp_off_work_date != None,
+                        LeaveRequest.comp_off_expiry_date >= today,
+                        LeaveRequest.comp_off_used_on == None,
+                        LeaveRequest.is_deleted == False,
                     )
                 ).first()
                 
+                is_eligible = False
+                att_msg = ""
                 if comp_off_earned:
-                    # Comp off available
+                    is_eligible, _, att_msg = verify_comp_off_attendance(employee_id, comp_off_earned.comp_off_work_date)
+                
+                if comp_off_earned and is_eligible:
+                    # Verified and Available to avail
                     balances.append({
                         "type": lt,
                         "max": 1,
@@ -96,9 +107,26 @@ class LeaveService:
                         "pct": 0,
                         "is_unlimited": False,
                         "comp_off_expiry": comp_off_earned.comp_off_expiry_date,
+                        "note": att_msg,
                     })
                 else:
-                    # No comp off or all used/expired
+                    # Check if there is a pending request or an approved request awaiting duty completion
+                    pending_request = LeaveRequest.query.filter(
+                        and_(
+                            LeaveRequest.employee_id == employee_id,
+                            LeaveRequest.leave_type_id == lt.id,
+                            LeaveRequest.comp_off_work_date != None,
+                            LeaveRequest.status == "pending",
+                            LeaveRequest.is_deleted == False,
+                        )
+                    ).first()
+
+                    status_note = ""
+                    if pending_request:
+                        status_note = f"Awaiting Manager Approval ({pending_request.comp_off_work_date.strftime('%d %b')})"
+                    elif comp_off_earned and not is_eligible:
+                        status_note = f"Manager Approved &bull; {att_msg}"
+
                     balances.append({
                         "type": lt,
                         "max": 1,
@@ -106,7 +134,8 @@ class LeaveService:
                         "available": 0,
                         "pct": 100,
                         "is_unlimited": False,
-                        "comp_off_expiry": None,
+                        "comp_off_expiry": comp_off_earned.comp_off_expiry_date if comp_off_earned else None,
+                        "note": status_note,
                     })
             
             elif lt.code in ['CL', 'SL']:
@@ -164,7 +193,8 @@ class LeaveService:
 
         total_days = self._count_working_days(start, end)
         if total_days <= 0:
-            return False, "Selected dates fall on weekends only.", None
+            # Fallback to calendar days for weekend / hospital shift duty
+            total_days = max(1, (end - start).days + 1)
 
         # ── PAID LEAVE (PL) VALIDATION ───────────────────────────────────
         if lt.code.upper() == "PL":
@@ -200,26 +230,89 @@ class LeaveService:
             except Exception as e:
                 logger.warning("Leave attachment upload failed: %s", e)
 
+        comp_off_work_date = form_data.get("comp_off_work_date")
+        user_reason = form_data.get("reason", "").strip()
+
+        if lt.code.upper() == "CO":
+            from .comp_off_service import CompOffService
+            comp_svc = CompOffService()
+            avail = comp_svc.get_available_comp_offs(employee_id)
+            if not avail:
+                return False, "You do not have any Comp Off available! Comp Off can only be availed after completing an approved Sunday/Holiday duty of at least 8 hours 30 minutes.", None
+
+            if not comp_off_work_date:
+                return False, "Please specify the Sunday or Holiday date on which you performed duty.", None
+            if (date.today() - comp_off_work_date).days > 90:
+                return False, f"Comp Off for {comp_off_work_date.strftime('%d %b %Y')} has expired (validity is 90 days from the work date).", None
+            if total_days > 1:
+                return False, "Comp Off can strictly be availed for 1 day per Sunday or Holiday worked.", None
+
+            from app.models.leave import LeaveRequest as LRModel
+
+            # 1. STRICT SINGLE-USE CHECK: Check if this work date was already availed
+            already_claimed = LRModel.query.filter(
+                LRModel.employee_id == employee_id,
+                LRModel.comp_off_work_date == comp_off_work_date,
+                LRModel.start_date != comp_off_work_date,
+                LRModel.status.in_(["pending", "approved"]),
+                LRModel.is_deleted == False
+            ).first()
+            if already_claimed:
+                return False, f"STRICT SINGLE-USE POLICY: The Comp Off for {comp_off_work_date.strftime('%d %b %Y')} has ALREADY been availed on {already_claimed.start_date.strftime('%d %b %Y')} and cannot be claimed again.", None
+
+            # 2. MANAGER APPROVAL CHECK on duty permission request
+            duty_req = LRModel.query.filter(
+                LRModel.employee_id == employee_id,
+                LRModel.comp_off_work_date == comp_off_work_date,
+                LRModel.start_date == comp_off_work_date,
+                LRModel.is_deleted == False
+            ).first()
+            if duty_req and duty_req.status != "approved":
+                return False, f"Comp Off for {comp_off_work_date.strftime('%d %b %Y')} cannot be credited until your Reporting Manager approves your Sunday/Holiday duty request (Current Status: {duty_req.status.capitalize()}).", None
+
+            # 3. ATTENDANCE VERIFICATION CHECK: Minimum 8h 30m required
+            from app.blueprints.leave.comp_off_service import verify_comp_off_attendance
+            is_eligible, mins, att_msg = verify_comp_off_attendance(employee_id, comp_off_work_date)
+            if not is_eligible:
+                return False, f"Comp Off credit requires at least 8 hours 30 minutes of completed duty on {comp_off_work_date.strftime('%d %b %Y')}. ({att_msg})", None
+
+            work_date_str = comp_off_work_date.strftime("%d %b %Y (%a)")
+            if f"Sunday/Holiday: {work_date_str}" not in user_reason:
+                user_reason = f"{user_reason} [Availing Comp Off for Sunday/Holiday worked on {work_date_str} - STRICT SINGLE-USE]"
+
         lr = LeaveRequest(
             employee_id=employee_id,
             leave_type_id=lt.id,
             start_date=start,
             end_date=end,
             total_days=total_days,
-            reason=form_data.get("reason", "").strip(),
+            reason=user_reason,
             attachment=attachment_path,
             reporting_manager_code=mgr_code,
             reporting_manager_name=mgr_name,
+            comp_off_work_date=comp_off_work_date if lt.code.upper() == "CO" else None,
+            comp_off_expiry_date=(comp_off_work_date + timedelta(days=90)) if (lt.code.upper() == "CO" and comp_off_work_date) else None,
+            comp_off_used_on=datetime.utcnow() if lt.code.upper() == "CO" else None,
             status="pending",
             applied_on=datetime.utcnow(),
             created_by=employee_id,
         )
         
         # ── COMP OFF USAGE TRACKING ───────────────────────────────────────
-        # When comp off leave is applied, mark when it's being used
-        if lt.code.upper() == "CO":
-            lr.comp_off_used_on = datetime.utcnow()
-            logger.info("COMP_OFF_USAGE_MARKED | emp=%s | comp_off_used_on=%s", employee_id, lr.comp_off_used_on)
+        # When comp off leave is applied, mark any matching earned credit record as used
+        if lt.code.upper() == "CO" and comp_off_work_date:
+            from app.models.leave import LeaveRequest as LRModel
+            earned_credit = LRModel.query.filter(
+                LRModel.employee_id == employee_id,
+                LRModel.comp_off_work_date == comp_off_work_date,
+                LRModel.comp_off_used_on == None,
+                LRModel.status == "approved",
+                LRModel.is_deleted == False
+            ).first()
+            if earned_credit:
+                earned_credit.comp_off_used_on = datetime.utcnow()
+                db.session.add(earned_credit)
+            logger.info("COMP_OFF_USAGE_MARKED | emp=%s | work_date=%s | comp_off_used_on=%s", employee_id, comp_off_work_date, lr.comp_off_used_on)
         
         leave_repo.create(lr)
 
@@ -234,6 +327,66 @@ class LeaveService:
         logger.info("LEAVE_APPLIED | emp=%s | type=%s | days=%s | from=%s to=%s | mgr=%s",
                     employee_id, lt.code, total_days, start, end, mgr_code)
         return True, f"{lt.name} leave applied for {total_days} day(s). Awaiting approval.", lr
+
+    def apply_holiday_work_permission(self, employee_id: int, form_data: dict) -> Tuple[bool, str]:
+        """
+        Record permission / notification to work on Sunday or Company Holiday.
+        Saves the Comp Off earned date into the employee's system/portal.
+        """
+        work_date = form_data.get("work_date")
+        reason = form_data.get("reason", "").strip()
+        mgr_code = (form_data.get("reporting_manager_code") or "").strip().upper()
+
+        if not work_date or not reason:
+            return False, "Work date and purpose of duty are required."
+        if not mgr_code:
+            return False, "Reporting manager is required."
+
+        # Validate manager
+        ok, mgr_name, mgr_err = self._validate_manager(employee_id, mgr_code)
+        if not ok:
+            return False, mgr_err
+
+        from app.models.leave import LeaveType, LeaveRequest
+        comp_off_type = LeaveType.query.filter_by(code='CO').first()
+        if not comp_off_type:
+            return False, "Comp Off leave type not configured in system."
+
+        # Check if already recorded
+        existing = LeaveRequest.query.filter(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.comp_off_work_date == work_date,
+            LeaveRequest.is_deleted == False
+        ).first()
+        if existing:
+            return False, f"Sunday/Holiday duty for {work_date.strftime('%d %b %Y')} is already saved in your portal."
+
+        # Create the Sunday/Holiday Work Permission Request in PENDING status
+        credit = LeaveRequest(
+            employee_id=employee_id,
+            leave_type_id=comp_off_type.id,
+            start_date=work_date,
+            end_date=work_date,
+            total_days=1,
+            reason=f"Sunday/Holiday Duty Permission: {reason}",
+            reporting_manager_code=mgr_code,
+            reporting_manager_name=mgr_name,
+            comp_off_work_date=work_date,
+            comp_off_expiry_date=work_date + timedelta(days=90),
+            status="pending",  # PENDING MANAGER APPROVAL
+            applied_on=datetime.utcnow(),
+            created_by=employee_id,
+        )
+        db.session.add(credit)
+        db.session.commit()
+
+        # Send notification to Reporting Manager & HR
+        try:
+            self._notify_manager(employee_id, mgr_code, "leave", work_date, credit.id)
+        except Exception as e:
+            logger.warning("Holiday work notification failed: %s", e)
+
+        return True, f"Permission request for Sunday/Holiday duty on {work_date.strftime('%d %b %Y')} submitted to {mgr_name}! Awaiting manager approval. (Comp Off will activate once approved by your manager AND at least 8 hours 30 minutes of duty is completed on that day)."
 
     def approve_leave(self, lr_id: int, reviewer_id: int, comment: str = "") -> Tuple[bool, str]:
         lr = leave_repo.get_by_id(lr_id)
@@ -484,20 +637,61 @@ class LeaveService:
         try:
             from app.models.employee import Employee  # noqa: PLC0415
             from app.models.notification import Notification  # noqa: PLC0415
-            mgr_emp = Employee.query.filter_by(employee_code=mgr_code, is_deleted=False).first()
-            if not mgr_emp:
-                return
+            from app.services.email_notification_service import send_leave_request_to_manager  # noqa: PLC0415
+            mgr_code_clean = (mgr_code or "").strip().upper()
+            mgr_emp = Employee.query.filter(Employee.employee_code.ilike(mgr_code_clean), Employee.is_deleted == False).first()
             emp = Employee.query.filter_by(id=employee_id, is_deleted=False).first()
             emp_name = emp.full_name if emp else f"Employee #{employee_id}"
-            type_label = "Half Day" if leave_type == "half_day" else "Early Leave"
-            notif = Notification(
-                user_id=mgr_emp.user_id,
-                title=f"New {type_label} Request",
-                message=f"You have a new {type_label.lower()} request from {emp_name} for {req_date.strftime('%d %b %Y')}.",
-                category="leave",
-            )
-            db.session.add(notif)
-            db.session.commit()
+            type_label = "Leave" if leave_type == "leave" else ("Half Day" if leave_type == "half_day" else "Early Leave")
+            
+            # In-App notification
+            if mgr_emp and mgr_emp.user_id:
+                notif = Notification(
+                    user_id=mgr_emp.user_id,
+                    title=f"New {type_label} Request",
+                    message=f"You have a new {type_label.lower()} request from {emp_name} for {req_date.strftime('%d %b %Y')}.",
+                    category="leave",
+                    action_url="/leave/my-approvals",
+                    action_label="Review Request",
+                )
+                db.session.add(notif)
+                db.session.commit()
+
+            # Retrieve request object for email
+            req_obj = None
+            if leave_type == "leave":
+                req_obj = LeaveRequest.query.get(request_id)
+            elif leave_type == "half_day":
+                req_obj = HalfDayRequest.query.get(request_id)
+            else:
+                req_obj = EarlyLeaveRequest.query.get(request_id)
+
+            if req_obj:
+                mgr_name = mgr_emp.full_name if mgr_emp else mgr_code
+                mgr_email = getattr(mgr_emp, "personal_email", None) if mgr_emp else None
+                if not mgr_email and mgr_emp and getattr(mgr_emp, "user", None):
+                    mgr_email = mgr_emp.user.email
+                
+                # Send email to reporting manager with one-click decision buttons
+                send_leave_request_to_manager(
+                    leave_req=req_obj,
+                    employee=emp,
+                    manager_name=mgr_name,
+                    manager_email=mgr_email,
+                    request_type=leave_type
+                )
+
+                # Send submission confirmation email to the employee applicant
+                try:
+                    from app.services.email_notification_service import send_leave_submission_to_employee
+                    send_leave_submission_to_employee(
+                        leave_req=req_obj,
+                        employee=emp,
+                        manager_name=mgr_name,
+                        request_type=leave_type
+                    )
+                except Exception as sub_err:
+                    logger.warning("Employee leave submission email failed: %s", sub_err)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Manager notification failed: %s", exc)
 
@@ -506,6 +700,7 @@ class LeaveService:
             from app.models.employee import Employee  # noqa: PLC0415
             from app.models.notification import Notification  # noqa: PLC0415
             from app.models.user import User  # noqa: PLC0415
+            from app.services.email_notification_service import send_leave_decision_to_employee  # noqa: PLC0415
             emp = Employee.query.filter_by(id=employee_id, is_deleted=False).first()
             if not emp:
                 return
@@ -525,9 +720,21 @@ class LeaveService:
                 title=f"{type_label} {action.title()}",
                 message=msg,
                 category=category,
+                action_url="/leave",
+                action_label="View Request",
             )
             db.session.add(notif)
             db.session.commit()
+
+            # Email notification to employee
+            send_leave_decision_to_employee(
+                leave_req=None,
+                employee=emp,
+                action=action,
+                reviewer_name=reviewer_name,
+                comment=comment,
+                request_type=leave_type
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Employee notification failed: %s", exc)
 
@@ -558,6 +765,8 @@ class LeaveService:
                     title="⏰ Compensatory Off Used",
                     message=f"{emp_name} ({emp_code}) has used their compensatory off.",
                     category="warning",
+                    action_url="/leave",
+                    action_label="View Leave Portal",
                 )
                 db.session.add(notif)
             
@@ -603,6 +812,20 @@ class LeaveService:
             db.session.commit()
             logger.info("LEAVE_NOTIFICATION | emp=%s | leave_type=%s | action=%s | reviewer=%s", 
                        employee_id, leave_type_name, action, reviewer_user_id)
+
+            # Send email to employee
+            try:
+                from app.services.email_notification_service import send_leave_decision_to_employee  # noqa: PLC0415
+                send_leave_decision_to_employee(
+                    leave_req=None,
+                    employee=emp,
+                    action=action,
+                    reviewer_name=reviewer_name,
+                    comment=comment,
+                    request_type="leave"
+                )
+            except Exception as mail_err:
+                logger.warning("Employee decision email failed: %s", mail_err)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Leave notification failed: %s", exc)
 

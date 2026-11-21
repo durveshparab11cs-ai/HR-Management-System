@@ -13,12 +13,15 @@
     <p class="text-muted small mb-0">{{ run.employee_count }} employees &bull; Created {{ run.created_at.strftime('%d %b %Y') if run.created_at else '' }}</p>
   </div>
   <div class="d-flex gap-2">
-    {% if run.status == 'draft' %}
+    {% if run.status in ('draft', 'processed') %}
     <form method="POST" action="{{ url_for('payroll.process_run', run_id=run.id) }}">
       {{ csrf_token_field() }}
-      <button class="btn btn-primary btn-sm"><i class="bi bi-play-circle me-1"></i>Process Payroll</button>
+      <button class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-arrow-repeat me-1"></i>{% if run.status == 'processed' %}Re-Calculate{% else %}Process Payroll{% endif %}
+      </button>
     </form>
-    {% elif run.status == 'processed' %}
+    {% endif %}
+    {% if run.status == 'processed' %}
     <form method="POST" action="{{ url_for('payroll.approve_run', run_id=run.id) }}">
       {{ csrf_token_field() }}
       <button class="btn btn-success btn-sm"><i class="bi bi-check-circle me-1"></i>Approve</button>

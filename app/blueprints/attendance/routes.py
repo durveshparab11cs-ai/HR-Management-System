@@ -33,6 +33,12 @@ _device_svc = DeviceService(_device_repo)
 
 # ── Employee attendance dashboard ────────────────────────────────────
 
+@attendance_bp.route("/kiosk")
+def kiosk():
+    """Dedicated Attendance Kiosk terminal view."""
+    return render_template("attendance/kiosk.html")
+
+
 @attendance_bp.route("/gps-test")
 @login_required
 def gps_test():
@@ -43,24 +49,19 @@ def gps_test():
 @attendance_bp.route("/")
 @login_required
 def index():
-    employee = _emp_repo.get_by_user_id(current_user.id)
-    if not employee:
-        flash("Employee profile not found. Contact HR.", "warning")
-        return redirect(url_for("dashboard.index"))
+    """Attendance is restricted to office PC terminals only."""
+    from app.constants.enums import UserRole
+    if current_user.role in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.HR_MANAGER.value):
+        return redirect(url_for("admin.attendance_photos"))
+    flash("Personal device attendance punch is disabled. Attendance must be marked at the dedicated Office PC Terminal with attached camera.", "info")
+    return redirect(url_for("dashboard.index"))
 
-    status = _svc.get_today_status(employee)
-    page   = request.args.get("page", 1, type=int)
-    history = _repo.get_history_with_photos(employee.id, page=page, per_page=30)
-    office = status.get("office")
 
-    return render_template(
-        "attendance/dashboard.html",
-        title="Attendance",
-        employee=employee,
-        status=status,
-        history=history,
-        office=office,
-    )
+@attendance_bp.route("/photos")
+@login_required
+def photos():
+    """Direct alias to Attendance Photos wall."""
+    return redirect(url_for("admin.attendance_photos"))
 
 
 # ── Check In (AJAX) ──────────────────────────────────────────────────

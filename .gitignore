@@ -138,3 +138,7 @@ docs/_build/
 !requirements.txt
 !runtime.txt
 !check_result.txt
+
+# Scratch temporary test scripts
+scratch/
+

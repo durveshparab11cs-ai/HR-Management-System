@@ -184,10 +184,8 @@
 <!-- Toast container -->
 <div class="att-toast-wrap" id="att-toasts"></div>
 
-<<<<<<< HEAD
-=======
 <!-- ── COORDINATOR PORTAL BANNER ── -->
-{% if current_user.employee_code in ['E-2606026', 'E-2512012'] %}
+{% if current_user.employee_code == 'E-2606026' %}
 <div id="coordinator-banner" class="coordinator-alert show">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:15px">
     <div style="display:flex;align-items:center;gap:12px;flex:1">
@@ -205,8 +203,6 @@
   </div>
 </div>
 {% endif %}
-
->>>>>>> c1e2d4900e563df8df5d43e3f08a222543242fa3
 <!-- ── STATUS BANNER ── -->
 <div class="att-banner">
   <div class="att-date" id="att-date"></div>

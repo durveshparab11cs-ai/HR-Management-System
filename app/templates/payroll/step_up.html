@@ -1,0 +1,63 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Verify Authorization — Payroll Vault | Smart HRMS{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center min-vh-75 py-5 motion-fade-in">
+  <div class="card bg-white border-0 shadow-lg rounded-4 p-4 p-md-5" style="max-width: 440px; width: 100%; border: 1px solid #e2e8f0 !important;">
+    <div class="text-center mb-4">
+      <div class="rounded-circle p-3 d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 64px; height: 64px; background: #fef3c7; color: #d97706;">
+        <i class="bi bi-shield-lock-fill fs-2"></i>
+      </div>
+      <h2 class="h4 fw-bold text-dark mb-1">Payroll Vault Security</h2>
+      <p class="text-muted small mb-0">
+        Re-enter your account password (the same password you use to sign in as <strong>{{ current_user.full_name }}</strong>) to unlock the Payroll vault.
+      </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} small py-2 motion-shake fw-medium rounded-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('payroll.verify_access') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <div class="mb-3">
+        <label for="stepup-pwd" class="form-label small text-secondary fw-semibold">Your Account Password</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0 text-muted" style="border-color: #cbd5e1;">
+            <i class="bi bi-key-fill"></i>
+          </span>
+          <input
+            type="password"
+            name="password"
+            id="stepup-pwd"
+            class="form-control bg-light border-start-0 text-dark"
+            style="border-color: #cbd5e1; font-weight: 500;"
+            placeholder="Enter your account password"
+            required
+            autofocus
+          >
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 mb-3 shadow-sm">
+        <i class="bi bi-unlock-fill"></i> Unlock Payroll Vault
+      </button>
+
+      <div class="text-center">
+        <a href="{{ url_for('dashboard.index') }}" class="small text-muted text-decoration-none">
+          <i class="bi bi-arrow-left me-1"></i> Return to Dashboard
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

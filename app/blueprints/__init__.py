@@ -59,10 +59,14 @@ def register_blueprints(app) -> None:
     Args:
         app: The Flask application instance.
     """
-    # Exempt coordinator from CSRF — it's a JSON API protected by
-    # @login_required + role check; form-based CSRF tokens don't apply.
-    from app.extensions.csrf import csrf  # noqa: PLC0415
-    csrf.exempt(coordinator_bp)
+    # Exempt coordinator from CSRF — if coordinator_bp exists
+    # (Coordinator routes use register_coordinator_routes directly)
+    try:
+        from app.blueprints.coordinator import coordinator_bp
+        from app.extensions.csrf import csrf
+        csrf.exempt(coordinator_bp)
+    except (ImportError, AttributeError):
+        pass
 
     for blueprint, url_prefix in _blueprints:
         if url_prefix:

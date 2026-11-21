@@ -56,8 +56,9 @@ class LoginForm(FlaskForm):
     )
     department = SelectField(
         "Department",
-        choices=[("", "— Select Your Department —")] + DEPARTMENT_CHOICES,
+        choices=[("", "— Select Your Department (Optional) —")] + DEPARTMENT_CHOICES,
         validators=[Opt()],   # Optional — validated in service so Super Admin can bypass
+        validate_choice=False,
         default="",
     )
     password = PasswordField(
@@ -74,9 +75,10 @@ class RegisterForm(FlaskForm):
 
     Flow:
         1. Employee enters their code
-        2. JS fetches their name from /auth/lookup-employee
-        3. They set a password
-        4. Submit creates their User account
+        2. JS fetches their name, department & designation from /auth/lookup-employee
+        3. They select/confirm Department and enter actual Designation
+        4. They set a password
+        5. Submit creates their User account & Employee profile
     """
 
     employee_code = StringField(
@@ -91,6 +93,20 @@ class RegisterForm(FlaskForm):
             "autocomplete": "off",
         },
     )
+    department = SelectField(
+        "Department",
+        choices=[("", "— Select Your Department —")] + DEPARTMENT_CHOICES,
+        validators=[DataRequired(message="Please select your department.")],
+        validate_choice=False,
+    )
+    designation = StringField(
+        "Actual Designation",
+        validators=[
+            DataRequired(message="Please enter your actual designation."),
+            Length(min=2, max=100, message="Designation must be between 2 and 100 characters."),
+        ],
+        render_kw={"placeholder": "e.g. Senior Operations Executive", "autocomplete": "organization-title"},
+    )
     password = PasswordField(
         "Password",
         validators=[
@@ -102,10 +118,7 @@ class RegisterForm(FlaskForm):
     )
     confirm_password = PasswordField(
         "Confirm Password",
-        validators=[
-            DataRequired(),
-            EqualTo("password", message="Passwords do not match."),
-        ],
+        validators=[Opt()],
         render_kw={"placeholder": "Repeat password"},
     )
 

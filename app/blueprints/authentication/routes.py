@@ -8,6 +8,7 @@ from flask import current_app, flash, jsonify, redirect, render_template, reques
 from flask_login import current_user, login_required, login_user
 
 from app.constants.limits import Limits
+from app.constants.enums import DEPARTMENT_CHOICES
 from app.extensions.limiter import limiter
 from app.blueprints.employees.repository import EmployeeRepository
 from .forms import ForgotPasswordForm, LoginForm, RegisterForm, ResetPasswordForm
@@ -51,6 +52,10 @@ def login():
                 error      = message
                 active_tab = "login"
             else:
+                first_err = next((errs[0] for field, errs in login_form.errors.items() if errs and field != 'csrf_token'), None)
+                if not first_err and 'csrf_token' in login_form.errors:
+                    first_err = "Session expired or invalid security token. Please refresh the page and try again."
+                error      = first_err or "Please check your inputs and try again."
                 active_tab = "login"
 
         elif action == "register":
@@ -58,6 +63,8 @@ def login():
                 ok, msg, user = _svc.register_by_code(
                     employee_code=register_form.employee_code.data,
                     password=register_form.password.data,
+                    department=register_form.department.data or request.form.get("department", ""),
+                    designation=register_form.designation.data or request.form.get("designation", ""),
                 )
                 if ok:
                     flash(msg, "success")
@@ -65,6 +72,8 @@ def login():
                 error      = msg
                 active_tab = "register"
             else:
+                first_err = next(iter(register_form.errors.values()))[0] if register_form.errors else None
+                error      = first_err or "Please check your inputs and try again."
                 active_tab = "register"
 
         elif action == "forgot":
@@ -89,6 +98,7 @@ def login():
         error=error,
         success_msg=success_msg,
         active_tab=active_tab,
+        department_choices=DEPARTMENT_CHOICES,
     )
 
 
@@ -99,7 +109,7 @@ def lookup_employee():
     """
     AJAX endpoint called by the registration form to fetch employee name.
     GET /auth/lookup-employee?code=E-2603028
-    Returns JSON {found, name, department, message}
+    Returns JSON {found, name, department, designation, message}
     """
     code = request.args.get("code", "").strip().upper()
     if not code:
@@ -107,8 +117,13 @@ def lookup_employee():
 
     found, message, data = _svc.lookup_employee(code)
     if found:
-        return jsonify(found=True, name=data["name"],
-                       department=data["department"], message=message)
+        return jsonify(
+            found=True,
+            name=data["name"],
+            department=data["department"],
+            designation=data.get("designation", ""),
+            message=message
+        )
     return jsonify(found=False, message=message)
 
 
