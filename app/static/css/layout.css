@@ -102,6 +102,58 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.hrms-brand-container {
+    transition: transform var(--hrms-transition-fast), opacity var(--hrms-transition-fast);
+}
+
+.hrms-brand-container:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.smart-logo-svg {
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    filter: drop-shadow(0 4px 10px rgba(56, 189, 248, 0.25));
+}
+
+.hrms-brand-container:hover .smart-logo-svg {
+    transform: scale(1.05) rotate(1deg);
+}
+
+.brand-title-smart {
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.brand-title-hrms {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.brand-badge-pro {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.38rem;
+    background: rgba(56, 189, 248, 0.15) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.brand-tagline {
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: rgba(224, 242, 254, 0.55);
+    margin-top: 3px;
+}
+
 .hrms-sidebar-brand-name {
     color: var(--hrms-white);
     white-space: nowrap;
@@ -235,6 +287,98 @@
 .hrms-notification-list {
     max-height: 300px;
     overflow-y: auto;
+}
+
+/* ─── Command Search Capsule ────────────────────────────────────────── */
+.hrms-navbar-search {
+    width: auto;
+}
+
+.hrms-search-capsule {
+    background: rgba(241, 245, 249, 0.88);
+    border: 1px solid rgba(203, 213, 225, 0.85);
+    border-radius: 9999px;
+    height: 38px;
+    width: 320px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+@media (min-width: 1200px) {
+    .hrms-search-capsule {
+        width: 360px;
+    }
+}
+
+.hrms-search-capsule:hover {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(148, 163, 184, 0.85);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.hrms-search-capsule.focused {
+    background: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.16), 0 4px 14px rgba(0, 0, 0, 0.06);
+    width: 420px;
+}
+
+.hrms-search-input {
+    font-size: 0.84rem;
+    color: #1e293b;
+    font-weight: 450;
+    line-height: 1.5;
+}
+
+.hrms-search-input::placeholder {
+    color: #94a3b8;
+    font-size: 0.82rem;
+}
+
+.hrms-search-input:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.hrms-search-badge .hrms-kbd {
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.hrms-kbd-mini {
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #cbd5e1;
+}
+
+.hrms-search-dropdown {
+    border-color: rgba(226, 232, 240, 0.9) !important;
+    animation: searchSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top center;
+}
+
+@keyframes searchSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .hrms-navbar-search .form-control:focus { box-shadow: none; }

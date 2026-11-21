@@ -40,20 +40,57 @@
             <span class="d-none d-md-inline small fw-semibold">Apps</span>
         </button>
 
-        <!-- Global search bar (desktop) -->
-        <div class="hrms-navbar-search d-none d-lg-block ms-2">
-            <div class="input-group input-group-sm">
-                <span class="input-group-text border-0 bg-transparent">
-                    <i class="bi bi-search text-muted" aria-hidden="true"></i>
-                </span>
+        <!-- Global Command Search (Desktop & Tablet) -->
+        <div class="hrms-navbar-search position-relative d-none d-md-block ms-2 flex-grow-1 flex-xl-grow-0">
+            <div class="hrms-search-capsule d-flex align-items-center" id="search-capsule">
+                <i class="bi bi-search text-primary ms-3 me-2 fs-6 flex-shrink-0" aria-hidden="true"></i>
                 <input
                     type="search"
-                    class="form-control border-0 bg-transparent"
-                    placeholder="Search employees, records…"
+                    class="form-control border-0 bg-transparent hrms-search-input p-0"
+                    placeholder="Search employees, records, departments…"
                     aria-label="Global search"
                     id="global-search-input"
                     autocomplete="off"
                 >
+                <div class="hrms-search-badge me-2 d-none d-lg-flex align-items-center gap-1 flex-shrink-0">
+                    <kbd class="hrms-kbd">Ctrl</kbd>
+                    <kbd class="hrms-kbd">K</kbd>
+                </div>
+            </div>
+
+            <!-- Instant Command & Navigation Dropdown -->
+            <div class="hrms-search-dropdown shadow-lg rounded-3 border bg-white position-absolute start-0 w-100 mt-2 d-none" id="global-search-dropdown" style="z-index: 1050; min-width: 360px;">
+                <div class="p-2 border-bottom bg-light rounded-top-3 d-flex justify-content-between align-items-center">
+                    <span class="text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.06em;">Quick Navigation</span>
+                    <span class="text-muted" style="font-size: 0.7rem;">Press <kbd class="hrms-kbd-mini">Enter</kbd> to search</span>
+                </div>
+                <div class="list-group list-group-flush p-1 small" id="search-quick-links">
+                    <a href="{{ url_for('employees.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3 border-0 rounded-2">
+                        <i class="bi bi-people-fill text-primary fs-6"></i>
+                        <span class="fw-medium text-dark">Employee Directory</span>
+                        <span class="badge bg-secondary-subtle text-secondary ms-auto">Directory</span>
+                    </a>
+                    <a href="{{ url_for('attendance.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3 border-0 rounded-2">
+                        <i class="bi bi-clock-history text-success fs-6"></i>
+                        <span class="fw-medium text-dark">Attendance & Timesheets</span>
+                        <span class="badge bg-secondary-subtle text-secondary ms-auto">Punches</span>
+                    </a>
+                    <a href="{{ url_for('leave.my_requests') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3 border-0 rounded-2">
+                        <i class="bi bi-calendar2-check-fill text-warning fs-6"></i>
+                        <span class="fw-medium text-dark">Leave & Half-Day Requests</span>
+                        <span class="badge bg-secondary-subtle text-secondary ms-auto">Leave</span>
+                    </a>
+                    <a href="{{ url_for('shift_change.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3 border-0 rounded-2">
+                        <i class="bi bi-clock-fill text-info fs-6"></i>
+                        <span class="fw-medium text-dark">Shift Timings</span>
+                        <span class="badge bg-secondary-subtle text-secondary ms-auto">Roster</span>
+                    </a>
+                    <a href="{{ url_for('attendance.kiosk_page') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-2 px-3 border-0 rounded-2">
+                        <i class="bi bi-camera-fill text-danger fs-6"></i>
+                        <span class="fw-medium text-dark">Office Attendance Kiosk</span>
+                        <span class="badge bg-danger-subtle text-danger ms-auto">Terminal</span>
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -291,8 +328,48 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
-// Initial poll on page load
+// Initial poll on page load & search bar setup
 document.addEventListener('DOMContentLoaded', function() {
   loadNotificationDrawer();
+
+  // Command palette search behavior
+  const searchInput = document.getElementById('global-search-input');
+  const searchCapsule = document.getElementById('search-capsule');
+  const searchDropdown = document.getElementById('global-search-dropdown');
+
+  if (searchInput && searchCapsule && searchDropdown) {
+    searchInput.addEventListener('focus', function() {
+      searchCapsule.classList.add('focused');
+      searchDropdown.classList.remove('d-none');
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!searchCapsule.contains(e.target) && !searchDropdown.contains(e.target)) {
+        searchDropdown.classList.add('d-none');
+        searchCapsule.classList.remove('focused');
+      }
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = searchInput.value.trim();
+        window.location.href = `/employees?q=${encodeURIComponent(q)}`;
+      } else if (e.key === 'Escape') {
+        searchDropdown.classList.add('d-none');
+        searchCapsule.classList.remove('focused');
+        searchInput.blur();
+      }
+    });
+
+    // Global shortcut Ctrl+K / Cmd+K
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+    });
+  }
 });
 </script>
