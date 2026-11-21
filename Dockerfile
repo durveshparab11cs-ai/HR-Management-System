@@ -76,11 +76,7 @@ USER hrms
 # Expose application port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
 # Default command — Start Gunicorn WSGI server
-# The app's _ensure_super_admin_roles() function runs automatically on startup
-# Note: --keep-alive (hyphenated), --max-requests, log to stdout for Render
-CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level warning --access-logfile - --error-logfile - run:app"]
+# Note: Render provides native health checks via the configured health check path (/health)
+# Docker-level HEALTHCHECK is omitted to prevent port collision with dynamic $PORT on Render
+CMD ["sh", "-c", "mkdir -p /tmp/hrms_sessions && gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --worker-class sync --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --log-level info --access-logfile - --error-logfile - run:app"]
