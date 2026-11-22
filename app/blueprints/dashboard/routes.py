@@ -42,8 +42,11 @@ def index():
         from flask import redirect, url_for
         return redirect(url_for("admin.index"), code=302)
 
+    from zoneinfo import ZoneInfo
+    tz_ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(tz_ist)
+    today = now_ist.date()
     employee = _emp.get_by_user_id(current_user.id)
-    today    = date.today()
     today_att = None
     office    = None
     balances  = []
@@ -91,6 +94,7 @@ def index():
         employee_master=employee_master,
         today_att=today_att,
         today=today,
+        now=now_ist,
         office=office,
         balances=balances,
         attendance_chart_data=attendance_chart_data,

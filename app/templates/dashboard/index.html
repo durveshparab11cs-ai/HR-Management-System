@@ -10,11 +10,12 @@
             <i class="bi bi-stars sparkle-icon"></i>
             <span>Employee Self-Service Portal</span>
             <span class="badge-dot"></span>
-            <span class="badge-role">{{ (employee.department or 'Head Office') if employee else 'Head Office' }}</span>
+            <span class="badge-role">{{ (employee.branch or employee.department or (employee_master.working_location if employee_master else 'Head Office')) if employee else 'Head Office' }}</span>
         </div>
         <div class="d-flex align-items-center gap-3">
-            <h1 class="greeting-title glitter-shimmer-text">
-                Good {% set hour = today.strftime('%H') | int %}{% if hour < 12 %}Morning{% elif hour < 17 %}Afternoon{% elif hour < 21 %}Evening{% else %}Night{% endif %}, {{ current_user.first_name }}!
+            <h1 class="greeting-title glitter-shimmer-text" id="employeeGreeting">
+                {% set cur_h = now.hour if now else 12 %}
+                {% if cur_h >= 4 and cur_h < 12 %}Good Morning{% elif cur_h >= 12 and cur_h < 17 %}Good Afternoon{% elif cur_h >= 17 and cur_h < 22 %}Good Evening{% else %}Good Evening{% endif %}, {{ current_user.first_name }}!
             </h1>
             <span class="badge-glitter-pill">Employee</span>
         </div>
@@ -128,7 +129,7 @@
 </div>
 
 <!-- ── Employee Master Information ── -->
-{% if employee_master %}
+{% if employee or employee_master %}
 <div class="row g-4 mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
@@ -146,24 +147,32 @@
                 <div class="row g-3">
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Employee Code</div>
-                        <div class="fw-semibold"><code>{{ employee_master.employee_code }}</code></div>
+                        <div class="fw-semibold"><code class="fs-6">{{ (employee.employee_code if employee else (employee_master.employee_code if employee_master else '—')) }}</code></div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Employee Name</div>
-                        <div class="fw-semibold">{{ employee_master.employee_name }}</div>
+                        <div class="fw-semibold">{{ current_user.full_name or (employee_master.employee_name if employee_master else '') }}</div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Department</div>
-                        <div class="fw-semibold">{{ employee_master.department or '—' }}</div>
+                        <div class="fw-semibold">{{ (employee.department if employee and employee.department else (employee_master.department if employee_master and employee_master.department else '—')) }}</div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Designation</div>
-                        <div class="fw-semibold">{{ employee_master.designation or '—' }}</div>
+                        <div class="fw-semibold">{{ (employee.designation if employee and employee.designation else (employee_master.designation if employee_master and employee_master.designation else '—')) }}</div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Work Location</div>
+                        <div class="fw-semibold text-primary">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ (employee.branch if employee and employee.branch else (employee_master.working_location if employee_master and employee_master.working_location else (office.name if office else 'Head Office'))) }}
+                        </div>
                     </div>
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Date of Joining</div>
                         <div class="fw-semibold">
-                            {% if employee_master.date_of_joining %}
+                            {% if employee and employee.date_joined %}
+                                {{ employee.date_joined.strftime('%d %b %Y') }}
+                            {% elif employee_master and employee_master.date_of_joining %}
                                 {{ employee_master.date_of_joining.strftime('%d %b %Y') }}
                             {% else %}
                                 —
@@ -171,17 +180,27 @@
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-4">
-                        <div class="small text-muted mb-1">Official Email</div>
-                        <div class="fw-semibold">{{ employee_master.official_email or '—' }}</div>
+                        <div class="small text-muted mb-1">Official / Primary Email</div>
+                        <div class="fw-semibold">{{ (employee.personal_email if employee and employee.personal_email else (employee_master.official_email if employee_master and employee_master.official_email else current_user.email)) }}</div>
                     </div>
-                    {% if employee_master.phone_number %}
+                    {% if employee_master and employee_master.phone_number %}
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Phone Number</div>
                         <div class="fw-semibold">{{ employee_master.phone_number }}</div>
                     </div>
                     {% endif %}
-                    {% if employee_master.reporting_manager_code %}
+                    {% if employee_master and employee_master.reporting_manager_code %}
                     <div class="col-md-6 col-lg-4">
+                        <div class="small text-muted mb-1">Reporting Manager Code</div>
+                        <div class="fw-semibold"><code>{{ employee_master.reporting_manager_code }}</code></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
                         <div class="small text-muted mb-1">Reporting Manager Code</div>
                         <div class="fw-semibold"><code>{{ employee_master.reporting_manager_code }}</code></div>
                     </div>
@@ -707,6 +726,23 @@
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Dynamic time-of-day greeting based on user device local time
+    try {
+        const hour = new Date().getHours();
+        let greeting = 'Good Evening';
+        if (hour >= 4 && hour < 12) {
+            greeting = 'Good Morning';
+        } else if (hour >= 12 && hour < 17) {
+            greeting = 'Good Afternoon';
+        } else {
+            greeting = 'Good Evening';
+        }
+        const greetEl = document.getElementById('employeeGreeting');
+        if (greetEl) {
+            greetEl.textContent = greeting + ', {{ current_user.first_name }}!';
+        }
+    } catch (e) {}
+
     document.querySelectorAll('.utc-to-ist').forEach(function (el) {
         const iso = el.textContent.trim();
         if (!iso) return;

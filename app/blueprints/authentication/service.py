@@ -307,10 +307,11 @@ class AuthService:
             return False, "Account already exists. Please Sign In.", None
 
         return True, "Employee found.", {
-            "name":        master.employee_name,
-            "department":  master.department or "",
-            "designation": master.designation or "",
-            "code":        master.employee_code,
+            "name":             master.employee_name,
+            "department":       master.department or "",
+            "designation":      master.designation or "",
+            "working_location": master.working_location or "",
+            "code":             master.employee_code,
         }
 
     def register_by_code(
@@ -319,6 +320,9 @@ class AuthService:
         password: str,
         department: str = "",
         designation: str = "",
+        working_location: str = "",
+        date_of_joining: str = "",
+        email: str = "",
     ) -> Tuple[bool, str, Optional[User]]:
         """
         Complete self-registration for an employee using their code.
@@ -391,41 +395,61 @@ class AuthService:
             # This ensures employee dashboard shows correct department
             # and GPS validation uses correct office coordinates
             
+            final_loc = working_location.strip() if working_location and working_location.strip() else (master.working_location or "Head Office")
+
             # Find office by working_location
             office_settings_id = None
-            if master.working_location:
+            if final_loc:
                 from app.models.office_settings import OfficeSettings  # noqa: PLC0415
                 office = OfficeSettings.query.filter(
                     OfficeSettings.is_deleted == False,
-                    OfficeSettings.name.ilike(master.working_location)
+                    OfficeSettings.name.ilike(final_loc)
                 ).first()
                 if office:
                     office_settings_id = office.id
                     office_name = office.get('name') if isinstance(office, dict) else (getattr(office, 'name', None) or 'Unknown')
                     logger.info("Found office %s for employee %s", office_name, code)
                 else:
-                    logger.warning("No office found for working_location=%s, using default", 
-                                 master.working_location)
-            
+                    logger.warning("No office found for working_location=%s, using default", final_loc)
+
             final_dept = department.strip() if department and department.strip() else (master.department or "General")
             final_desig = designation.strip() if designation and designation.strip() else (master.designation or "Employee")
+
+            # Parse date of joining if provided
+            parsed_doj = None
+            if date_of_joining and date_of_joining.strip():
+                try:
+                    parsed_doj = datetime.strptime(date_of_joining.strip(), "%Y-%m-%d").date()
+                except Exception:
+                    parsed_doj = None
+
+            # Handle custom email if provided
+            clean_email = email.strip().lower() if email and "@" in email else None
+            if clean_email:
+                user.email = clean_email
 
             employee = Employee(
                 user_id=user.id,
                 employee_code=code,
                 department=final_dept,
                 designation=final_desig,
+                branch=final_loc,
+                date_joined=parsed_doj,
+                personal_email=clean_email or user.email,
                 office_settings_id=office_settings_id,
                 created_by=user.id,
             )
             db.session.add(employee)
             db.session.flush()  # Flush to get employee.id
 
-            # Sync selected department & designation back to master
-            if department and department.strip():
-                master.department = department.strip()
-            if designation and designation.strip():
-                master.designation = designation.strip()
+            # Sync fields back to employee_master
+            master.department = final_dept
+            master.designation = final_desig
+            master.working_location = final_loc
+            if parsed_doj:
+                master.date_of_joining = parsed_doj
+            if clean_email:
+                master.official_email = clean_email
             
             # Mark as registered in master - now with explicit commit
             auth_repo.mark_registered(master, user.id)

@@ -361,7 +361,7 @@
       </div>
 
       <!-- Department Filter -->
-      <div class="col-lg-2 col-md-6 col-sm-6">
+      <div class="col-lg-2 col-md-4 col-sm-6">
         <label class="filter-label"><i class="bi bi-building text-primary"></i>Department</label>
         <select name="department" class="form-select form-select-sm filter-input-clean">
           <option value="">All Departments</option>
@@ -371,8 +371,19 @@
         </select>
       </div>
 
+      <!-- Location / Hospital Filter -->
+      <div class="col-lg-3 col-md-4 col-sm-6">
+        <label class="filter-label"><i class="bi bi-geo-alt-fill text-danger"></i>Work Location / Hospital</label>
+        <select name="location" class="form-select form-select-sm filter-input-clean">
+          <option value="">All Locations (Hospitals &amp; Head Office)</option>
+          {% for loc in location_choices %}
+            <option value="{{ loc }}" {% if q_loc == loc %}selected{% endif %}>{{ loc }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
       <!-- Action Buttons -->
-      <div class="col-lg-3 col-md-6 col-sm-12 d-flex gap-2">
+      <div class="col-lg-3 col-md-12 col-sm-12 d-flex gap-2">
         <button type="submit" class="btn btn-sm btn-primary flex-grow-1 fw-semibold py-2">
           <i class="bi bi-funnel-fill me-1"></i>Apply Filters
         </button>
@@ -380,7 +391,7 @@
           Today
         </a>
         <a href="{{ url_for('admin.attendance_photos', date='all') }}" class="btn btn-sm btn-outline-secondary fw-medium py-2 px-3" title="View All Dates">
-          All Dates
+          All
         </a>
       </div>
     </form>

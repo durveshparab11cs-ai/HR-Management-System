@@ -230,6 +230,7 @@ def attendance_photos():
     q_name = request.args.get("name", "").strip().lower()
     q_code = request.args.get("code", "").strip().upper()
     q_dept = request.args.get("department", "").strip()
+    q_loc = request.args.get("location", "").strip()
 
     view_date = None
     if raw_date and raw_date != "all":
@@ -258,6 +259,8 @@ def attendance_photos():
         query_master = query_master.filter(EmployeeMaster.employee_name.ilike(f"%{q_name}%"))
     if q_dept:
         query_master = query_master.filter(EmployeeMaster.department.ilike(f"%{q_dept}%"))
+    if q_loc:
+        query_master = query_master.filter(EmployeeMaster.working_location.ilike(f"%{q_loc}%"))
 
     for att_m, photo_m, emp_m in query_master.order_by(AttendanceMaster.date.desc(), AttendanceMaster.id.desc()).all():
         checkin_img = photo_m.image_data if photo_m else None
@@ -282,7 +285,7 @@ def attendance_photos():
             "employee_code": emp_m.employee_code,
             "employee_name": emp_m.employee_name,
             "department": emp_m.department or "General",
-            "location": emp_m.working_location or "Hospital Site",
+            "location": emp_m.working_location or "Head Office",
             "status": att_m.status or "present",
             "check_in_time": t_in,
             "check_in_photo": checkin_img,
@@ -310,6 +313,10 @@ def attendance_photos():
         )
     if q_dept:
         query_emp = query_emp.filter(Employee.department.ilike(f"%{q_dept}%"))
+    if q_loc:
+        query_emp = query_emp.filter(
+            (Employee.branch.ilike(f"%{q_loc}%")) | (Employee.department.ilike(f"%{q_loc}%"))
+        )
 
     for att, photo, emp in query_emp.order_by(Attendance.date.desc(), Attendance.id.desc()).all():
         checkin_img = photo.image_data if photo else None
@@ -334,7 +341,7 @@ def attendance_photos():
             "employee_code": emp.employee_code,
             "employee_name": emp.full_name,
             "department": emp.department or "General",
-            "location": getattr(emp, "location", None) or "Hospital Site",
+            "location": getattr(emp, "branch", None) or getattr(emp, "department", None) or "Head Office",
             "status": att.status or "present",
             "check_in_time": t_in,
             "check_in_photo": checkin_img,
@@ -343,6 +350,10 @@ def attendance_photos():
             "duration": duration,
             "source": "Office / Site"
         })
+
+    # Filter combined items by location if location filter is active
+    if q_loc:
+        combined_items = [x for x in combined_items if q_loc.lower() in (x.get("location") or "").lower()]
 
     # Sort all items date desc, then employee name
     combined_items.sort(key=lambda x: (x["date"], x["employee_name"]), reverse=True)
@@ -360,6 +371,16 @@ def attendance_photos():
     with_in_photo = sum(1 for x in combined_items if x["check_in_photo"])
     with_out_photo = sum(1 for x in combined_items if x["check_out_photo"])
 
+    # Build unique location choices for filtering (Head Office + active hospitals + master locations)
+    location_choices = ["Head Office"]
+    try:
+        from app.models.hospital import Hospital
+        hosp_names = [h.hospital_name for h in Hospital.query.filter_by(is_active=True).order_by(Hospital.hospital_name).all()]
+        master_locs = [l[0] for l in db.session.query(EmployeeMaster.working_location).distinct().all() if l[0]]
+        location_choices = sorted(list(set(["Head Office"] + hosp_names + master_locs)))
+    except Exception:
+        pass
+
     return render_template(
         "admin/attendance_photos.html",
         title="Attendance Photos",
@@ -371,7 +392,9 @@ def attendance_photos():
         q_name=q_name,
         q_code=q_code,
         q_dept=q_dept,
+        q_loc=q_loc,
         department_choices=DEPARTMENT_CHOICES,
+        location_choices=location_choices,
         today_str=today_kolkata.strftime("%Y-%m-%d")
     )
 

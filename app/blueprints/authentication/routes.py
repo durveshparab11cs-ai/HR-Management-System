@@ -65,6 +65,9 @@ def login():
                     password=register_form.password.data,
                     department=register_form.department.data or request.form.get("department", ""),
                     designation=register_form.designation.data or request.form.get("designation", ""),
+                    working_location=request.form.get("working_location", "").strip(),
+                    date_of_joining=request.form.get("date_of_joining", "").strip(),
+                    email=request.form.get("email", "").strip(),
                 )
                 if ok:
                     flash(msg, "success")
@@ -89,6 +92,15 @@ def login():
                 error = "Please enter a valid Employee Code."
                 active_tab = "forgot"
 
+    # Fetch available locations (Head Office + active hospitals)
+    location_choices = ["Head Office"]
+    try:
+        from app.models.hospital import Hospital
+        hosp_list = [h.hospital_name for h in Hospital.query.filter_by(is_active=True).order_by(Hospital.hospital_name).all()]
+        location_choices += [h for h in hosp_list if h != "Head Office"]
+    except Exception:
+        pass
+
     return render_template(
         "authentication/login.html",
         title="Sign In",
@@ -99,6 +111,7 @@ def login():
         success_msg=success_msg,
         active_tab=active_tab,
         department_choices=DEPARTMENT_CHOICES,
+        location_choices=location_choices,
     )
 
 

@@ -1083,6 +1083,21 @@
               <div class="lookup-name" id="reg-lookup-name">—</div>
             </div>
 
+            <!-- Work Location / Hospital Selection -->
+            <div class="floating-group">
+              <select name="working_location" id="reg-location" class="floating-select" required>
+                <option value="" selected>— Select Work Location / Hospital —</option>
+                {% if location_choices %}
+                  {% for loc in location_choices %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="Head Office">Head Office</option>
+                {% endif %}
+              </select>
+              <i class="bi bi-geo-alt-fill select-chevron text-danger" style="font-size: 0.95rem;"></i>
+            </div>
+
             <!-- Department Selection -->
             <div class="floating-group">
               <select name="department" id="reg-dept" class="floating-select" required>
@@ -1124,7 +1139,32 @@
                 autocomplete="organization-title"
                 value="{{ register_form.designation.data or '' }}"
               >
-              <label for="reg-designation" class="floating-label">Actual Designation (e.g. Senior Software Engineer)</label>
+              <label for="reg-designation" class="floating-label">Actual Designation (e.g. Senior Operations Executive)</label>
+            </div>
+
+            <!-- Date of Joining -->
+            <div class="floating-group">
+              <input
+                type="date"
+                name="date_of_joining"
+                id="reg-doj"
+                class="floating-input"
+                placeholder=" "
+              >
+              <label for="reg-doj" class="floating-label active">Date of Joining</label>
+            </div>
+
+            <!-- Official / Contact Email -->
+            <div class="floating-group">
+              <input
+                type="email"
+                name="email"
+                id="reg-email"
+                class="floating-input"
+                placeholder=" "
+                autocomplete="email"
+              >
+              <label for="reg-email" class="floating-label">Official / Contact Email (Optional)</label>
             </div>
 
             <!-- New Password -->
@@ -1369,6 +1409,10 @@
             if (data.designation) {
               const desigInput = document.getElementById('reg-designation');
               if (desigInput && !desigInput.value) desigInput.value = data.designation;
+            }
+            if (data.working_location) {
+              const locSelect = document.getElementById('reg-location');
+              if (locSelect) locSelect.value = data.working_location;
             }
           } else {
             card.style.display = 'none';

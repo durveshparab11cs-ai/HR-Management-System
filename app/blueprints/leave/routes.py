@@ -527,22 +527,37 @@ def get_employee_halfday_shift_info(emp):
     start_t = time(10, 0)
     end_t = time(19, 0)
 
-    # 1. Check active EmployeeShiftAssignment
+    # 1. Check active EmployeeShiftAssignment safely
     assignment = None
     if emp and getattr(emp, "id", None):
-        assignment = EmployeeShiftAssignment.query.filter_by(
-            employee_id=emp.id, is_active=True
-        ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
-        if not assignment:
-            assignment = EmployeeShiftAssignment.query.filter_by(
-                employee_id=emp.id
+        try:
+            assignment = EmployeeShiftAssignment.query.filter(
+                EmployeeShiftAssignment.employee_id == emp.id
             ).order_by(EmployeeShiftAssignment.effective_from.desc()).first()
+        except Exception:
+            assignment = None
 
-    if assignment and assignment.shift:
+    if assignment and getattr(assignment, "shift", None):
         shift = assignment.shift
-        shift_name = shift.name or f"Shift {shift.code}"
-        start_t = shift.start_time
-        end_t = shift.end_time
+        shift_name = getattr(shift, "name", None) or f"Shift {getattr(shift, 'code', '')}"
+        s_time = getattr(shift, "start_time", None)
+        e_time = getattr(shift, "end_time", None)
+        if isinstance(s_time, time):
+            start_t = s_time
+        elif isinstance(s_time, str):
+            try:
+                parts = s_time.split(":")
+                start_t = time(int(parts[0]), int(parts[1]))
+            except Exception:
+                pass
+        if isinstance(e_time, time):
+            end_t = e_time
+        elif isinstance(e_time, str):
+            try:
+                parts = e_time.split(":")
+                end_t = time(int(parts[0]), int(parts[1]))
+            except Exception:
+                pass
     elif emp and getattr(emp, "shift_start_time", None) and getattr(emp, "shift_end_time", None):
         try:
             parts_s = str(emp.shift_start_time).split(":")
