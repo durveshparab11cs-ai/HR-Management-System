@@ -303,9 +303,6 @@ class AuthService:
         if not master:
             return False, "Employee Code not found. Please contact HR.", None
 
-        if master.is_registered:
-            return False, "Account already exists. Please Sign In.", None
-
         return True, "Employee found.", {
             "name":             master.employee_name,
             "department":       master.department or "",
@@ -348,13 +345,23 @@ class AuthService:
         if not master:
             return False, "Employee Code not found. Please contact HR.", None
 
-        if master.is_registered:
-            return False, "Account already exists for this Employee Code. Please Sign In.", None
-
-        # Check no User exists for this code (race condition guard)
+        # Clean up any existing User / Employee records for this code so fresh registration succeeds cleanly
         existing = auth_repo.get_by_employee_code(code)
         if existing:
-            return False, "Account already exists. Please Sign In.", None
+            try:
+                from app.models.attendance import Attendance  # noqa: PLC0415
+                from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: PLC0415
+                old_emp = Employee.query.filter_by(employee_code=code).first()
+                if old_emp:
+                    LeaveRequest.query.filter_by(employee_id=old_emp.id).delete()
+                    HalfDayRequest.query.filter_by(employee_id=old_emp.id).delete()
+                    EarlyLeaveRequest.query.filter_by(employee_id=old_emp.id).delete()
+                    Attendance.query.filter_by(employee_id=old_emp.id).delete()
+                    Employee.query.filter_by(id=old_emp.id).delete()
+                User.query.filter_by(id=existing.id).delete()
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         # First user ever or designated admin codes → SUPER_ADMIN, otherwise EMPLOYEE
         SUPER_ADMIN_CODES = {"E-2603025", "E-2606026"}

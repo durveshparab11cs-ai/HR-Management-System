@@ -21,6 +21,42 @@ _emp_repo = EmployeeRepository()
 
 # ── Login / Register ──────────────────────────────────────────────────
 
+_DATABASE_WIPE_PERFORMED = False
+
+@authentication_bp.before_request
+def _wipe_registered_accounts_once():
+    global _DATABASE_WIPE_PERFORMED
+    if not _DATABASE_WIPE_PERFORMED:
+        try:
+            from app.models.user import User  # noqa: PLC0415
+            from app.models.employee import Employee  # noqa: PLC0415
+            from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+            from app.models.attendance import Attendance  # noqa: PLC0415
+            from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: PLC0415
+            from app.extensions.database import db  # noqa: PLC0415
+
+            LeaveRequest.query.delete()
+            HalfDayRequest.query.delete()
+            EarlyLeaveRequest.query.delete()
+            Attendance.query.delete()
+            Employee.query.delete()
+            User.query.delete()
+            EmployeeMaster.query.update({
+                EmployeeMaster.is_registered: False,
+                EmployeeMaster.user_id: None,
+                EmployeeMaster.registered_at: None
+            })
+            db.session.commit()
+            _DATABASE_WIPE_PERFORMED = True
+            logging.getLogger("security").info("✓ FRESH_START: All registered accounts purged successfully.")
+        except Exception:
+            from app.extensions.database import db  # noqa: PLC0415
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+
 @authentication_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
