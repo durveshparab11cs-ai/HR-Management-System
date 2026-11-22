@@ -704,15 +704,10 @@ def _register_request_handlers(app: Flask) -> None:
 
 def _auto_create_tables(app: Flask) -> None:
     """
-    Create all DB tables on first boot and auto-seed employee master data in development.
-    In production mode, schema is managed strictly via migrations / DDL scripts.
+    Create all DB tables on first boot, run safe column migrations,
+    and initialize essential records.
     """
     import os  # noqa: PLC0415
-    env_name = app.config.get("ENV") or os.environ.get("FLASK_ENV")
-    if env_name == "production":
-        app.logger.info("✓ Production mode detected: automatic DDL table creation and seeding bypassed.")
-        return
-
     try:
         with app.app_context():
             from app.extensions.database import db  # noqa: PLC0415
