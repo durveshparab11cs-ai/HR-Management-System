@@ -12,7 +12,7 @@ Leave Types (Fixed - Only 4 types):
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
-from wtforms import DateField, SelectField, StringField, TextAreaField, TimeField
+from wtforms import DateField, RadioField, SelectField, StringField, TextAreaField, TimeField
 from wtforms.validators import DataRequired, Length, Optional as Opt
 
 
@@ -106,8 +106,9 @@ class ReviewLeaveForm(FlaskForm):
 
 class ApplyHalfDayForm(FlaskForm):
     date = DateField("Date", validators=[DataRequired()])
-    half_type = SelectField("Half", choices=[("morning", "Morning Half"), ("afternoon", "Afternoon Half")],
-                            validators=[DataRequired()])
+    half_type = RadioField("Half", choices=[("morning", "Morning Half"), ("afternoon", "Afternoon Half")],
+                           default="morning",
+                           validators=[DataRequired(message="Please select Morning or Afternoon half.")])
     reason = TextAreaField("Reason", validators=[DataRequired(), Length(min=5, max=500)],
                            render_kw={"rows": 2})
     reporting_manager = SelectField(
