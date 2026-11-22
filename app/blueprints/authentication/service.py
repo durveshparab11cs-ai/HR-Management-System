@@ -372,40 +372,50 @@ class AuthService:
             role = UserRole.EMPLOYEE.value
 
         try:
+            from sqlalchemy import func  # noqa: PLC0415
             # Parse name from master (split on first space)
             name_parts = master.employee_name.strip().split(" ", 1)
             first_name = name_parts[0]
             last_name  = name_parts[1] if len(name_parts) > 1 else "."
 
-            # Generate a unique email placeholder (not used for login)
-            email = f"{code.lower().replace('-', '')}@hrms.internal"
             username = code.lower().replace("-", "")
+            default_email = f"{username}@hrms.internal"
+            clean_email = email.strip().lower() if email and "@" in email else default_email
 
-            # Ensure uniqueness
-            if User.query.filter_by(email=email).first():
-                email = f"{email}.{datetime.utcnow().strftime('%s')}"
-            if User.query.filter_by(username=username).first():
-                username = f"{username}_{datetime.utcnow().strftime('%f')}"
+            # Find existing User or create new
+            user = User.query.filter(
+                (func.upper(User.username) == username.upper()) |
+                (func.upper(User.email) == clean_email.upper()) |
+                (func.upper(User.email) == default_email.upper())
+            ).first()
 
-            user = User(
-                email=email,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                role=role,
-                status=UserStatus.ACTIVE.value,
-                email_verified=True,
-            )
-            user.set_password(password)
-            auth_repo.create_user(user)
+            if user:
+                user.first_name = first_name
+                user.last_name = last_name
+                user.role = role
+                user.status = UserStatus.ACTIVE.value
+                user.email = clean_email
+                user.email_verified = True
+                user.is_deleted = False
+                user.set_password(password)
+            else:
+                user = User(
+                    email=clean_email,
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role=role,
+                    status=UserStatus.ACTIVE.value,
+                    email_verified=True,
+                )
+                user.set_password(password)
+                db.session.add(user)
+
+            db.session.flush()
 
             # ══════════════════════════════════════════════════════════════
-            # CREATE EMPLOYEE PROFILE WITH DEPARTMENT FROM MASTER
+            # CREATE OR UPDATE EMPLOYEE PROFILE
             # ══════════════════════════════════════════════════════════════
-            # CRITICAL FIX: Populate department, designation, office from master data
-            # This ensures employee dashboard shows correct department
-            # and GPS validation uses correct office coordinates
-            
             final_loc = working_location.strip() if working_location and working_location.strip() else (master.working_location or "Head Office")
 
             # Find office by working_location
@@ -434,24 +444,32 @@ class AuthService:
                 except Exception:
                     parsed_doj = None
 
-            # Handle custom email if provided
-            clean_email = email.strip().lower() if email and "@" in email else None
-            if clean_email:
-                user.email = clean_email
-
-            employee = Employee(
-                user_id=user.id,
-                employee_code=code,
-                department=final_dept,
-                designation=final_desig,
-                branch=final_loc,
-                date_joined=parsed_doj,
-                personal_email=clean_email or user.email,
-                office_settings_id=office_settings_id,
-                created_by=user.id,
-            )
-            db.session.add(employee)
-            db.session.flush()  # Flush to get employee.id
+            # Upsert Employee record to prevent duplicate key violations
+            employee = Employee.query.filter(func.upper(Employee.employee_code) == code.upper()).first()
+            if employee:
+                employee.user_id = user.id
+                employee.department = final_dept
+                employee.designation = final_desig
+                employee.branch = final_loc
+                employee.date_joined = parsed_doj
+                employee.personal_email = clean_email
+                employee.office_settings_id = office_settings_id
+                employee.is_deleted = False
+                employee.updated_by = user.id
+            else:
+                employee = Employee(
+                    user_id=user.id,
+                    employee_code=code,
+                    department=final_dept,
+                    designation=final_desig,
+                    branch=final_loc,
+                    date_joined=parsed_doj,
+                    personal_email=clean_email,
+                    office_settings_id=office_settings_id,
+                    created_by=user.id,
+                )
+                db.session.add(employee)
+            db.session.flush()
 
             # Sync fields back to employee_master
             master.department = final_dept

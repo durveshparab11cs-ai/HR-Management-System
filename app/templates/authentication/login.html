@@ -1054,8 +1054,8 @@
              ══════════════════════════════════════════════════════════════ -->
         <div class="tab-pane {% if active_tab == 'register' %}active{% endif %}" id="tab-register">
           <div class="auth-alert alert-info">
-            <i class="bi bi-info-circle-fill"></i>
-            <div>Registration requires an existing record in Employee Master. Accounts are created in <strong>Pending</strong> state and activated upon HR approval.</div>
+            <i class="bi bi-shield-check text-success" style="font-size: 1.15rem;"></i>
+            <div>All employees in the company master list are verified instantly. Your account is <strong>activated immediately</strong> upon registration — no HR approval required.</div>
           </div>
 
           <form method="POST" action="{{ url_for('authentication.login') }}" id="form-register" novalidate>
