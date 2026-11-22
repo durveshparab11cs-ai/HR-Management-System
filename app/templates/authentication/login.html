@@ -1476,7 +1476,16 @@
           body: JSON.stringify({ password: password })
         });
 
-        const data = await response.json();
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (_) {
+          if (response.ok || response.redirected) {
+            window.location.href = '/kiosk';
+            return;
+          }
+        }
+
         if (response.ok && data.success) {
           submitBtn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Unlocked! Launching...';
           setTimeout(() => {
@@ -1496,7 +1505,7 @@
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Unlock &amp; Launch Terminal</span> <i class="bi bi-arrow-right"></i>';
         if (errorEl && errorText) {
-          errorText.textContent = 'Connection error. Please try again.';
+          errorText.textContent = 'Invalid Master Terminal Password. Access Denied.';
           errorEl.style.display = 'flex';
         }
       }

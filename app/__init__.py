@@ -615,13 +615,17 @@ def _register_root_redirect(app: Flask) -> None:
         """Convenience redirect to authentication.login"""
         return redirect(url_for("authentication.login"))
 
+    from app.extensions import csrf  # noqa: PLC0415
+
     @app.route("/kiosk", methods=["GET", "POST"])
+    @csrf.exempt
     def kiosk():
         """Dedicated Attendance Kiosk terminal view with password lock."""
         from app.blueprints.attendance.routes import handle_kiosk_request
         return handle_kiosk_request()
 
     @app.route("/kiosk/unlock", methods=["POST"])
+    @csrf.exempt
     def kiosk_unlock():
         """Unlock endpoint for Kiosk terminal."""
         from app.blueprints.attendance.routes import handle_kiosk_unlock
