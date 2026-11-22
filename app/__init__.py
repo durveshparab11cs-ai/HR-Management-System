@@ -913,6 +913,49 @@ def _migrate_add_columns(db) -> None:
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
 
+    # ── One-Time User & Master Reset for Fresh Registration ──────────────
+    if not col_exists('employee_master', 'fresh_reg_v2'):
+        try:
+            if dialect == 'postgresql':
+                db.session.execute(text('ALTER TABLE employee_master ADD COLUMN fresh_reg_v2 BOOLEAN DEFAULT FALSE'))
+            else:
+                db.session.execute(text('ALTER TABLE employee_master ADD COLUMN fresh_reg_v2 BOOLEAN DEFAULT 0'))
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+        try:
+            from app.models.user import User  # noqa: PLC0415
+            from app.models.employee import Employee  # noqa: PLC0415
+            from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
+            from app.models.attendance import Attendance  # noqa: PLC0415
+            from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: PLC0415
+
+            db.session.query(LeaveRequest).delete()
+            db.session.query(HalfDayRequest).delete()
+            db.session.query(EarlyLeaveRequest).delete()
+            db.session.query(Attendance).delete()
+            db.session.query(Employee).delete()
+            db.session.query(User).delete()
+
+            for m in EmployeeMaster.query.all():
+                m.is_registered = False
+                m.user_id = None
+                m.registered_at = None
+
+            db.session.execute(text('UPDATE employee_master SET fresh_reg_v2 = 1' if dialect != 'postgresql' else 'UPDATE employee_master SET fresh_reg_v2 = TRUE'))
+            db.session.commit()
+            logger.info("✓ FRESH_REGISTRATION: All users cleared. Everyone can now register from scratch!")
+        except Exception as e:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            logger.warning("Fresh registration reset failed: %s", e)
+
 
 def _auto_seed_hospitals(app: Flask) -> None:
     """Seed hospitals if not already present."""
@@ -1488,60 +1531,9 @@ def _ensure_super_admin_roles(app: Flask) -> None:
             )
             
             if user is None:
-                # User doesn't exist - need to create
-                app.logger.warning(f"ENSURE_ADMIN: User with employee code {emp_code} not found, attempting creation...")
-                
-                # Try to get employee info from EmployeeMaster
-                emp_master = EmployeeMaster.query.filter_by(employee_code=emp_code).first()
-                
-                if emp_master and emp_master.employee_name:
-                    app.logger.info(f"ENSURE_ADMIN: Found {emp_code} in EmployeeMaster: {emp_master.employee_name}")
-                    full_name = emp_master.employee_name
-                else:
-                    app.logger.info(f"ENSURE_ADMIN: No EmployeeMaster entry for {emp_code}, using fallback name")
-                    full_name = fallback_name
-                
-                # Split name into first and last
-                name_parts = full_name.split(' ', 1)
-                first_name = name_parts[0].strip() if len(name_parts) > 0 else 'Employee'
-                last_name = name_parts[1].strip() if len(name_parts) > 1 else 'Account'
-                
-                # Create username from employee code (lowercase, no dash)
-                username = emp_code.lower().replace('-', '')  # e.g. e2512012
-                
-                # Create placeholder email (internal format used by the system)
-                email = f"{username}@hrms.internal"
-                
-                # Create new user with super_admin role
-                app.logger.info(f"ENSURE_ADMIN: Creating user {username} ({first_name} {last_name}) for code {emp_code}...")
-                
-                new_user = User(
-                    username=username,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name,
-                    role='super_admin',
-                    status='active',
-                    email_verified=True,
-                )
-                
-                # Set temporary password (user will change on first login)
-                new_user.set_password('TempPassword@123')
-                
-                db.session.add(new_user)
-                db.session.flush()  # Flush to get the user.id
-                
-                # Create Employee record linking user to employee_code
-                emp_record = Employee(
-                    user_id=new_user.id,
-                    employee_code=emp_code,
-                    created_by=new_user.id,
-                )
-                db.session.add(emp_record)
-                
-                app.logger.info(f"ENSURE_ADMIN: ✅ User {username} staged for creation with role=super_admin and employee_code={emp_code}")
-                made_changes = True
-            
+                # Do NOT auto-create user accounts.
+                # Allow users/super-admins to register freshly via the self-registration form.
+                app.logger.info(f"ENSURE_ADMIN: User with employee code {emp_code} not yet registered. Will receive super_admin role upon registration.")
             else:
                 # User exists - check role
                 current_role = user.role

@@ -155,39 +155,40 @@ def kiosk_employee():
 
         # Try Employee table first
         employee = emp_repo.get_by_employee_code(code)
+        emp_master = EmployeeMaster.query.filter_by(employee_code=code).first()
+        if not emp_master and code.startswith("I-"):
+            e_code = code.replace("I-", "E-", 1)
+            emp_master = EmployeeMaster.query.filter_by(employee_code=e_code).first()
+        elif not emp_master and code.startswith("E-"):
+            i_code = code.replace("E-", "I-", 1)
+            emp_master = EmployeeMaster.query.filter_by(employee_code=i_code).first()
+
         if employee:
+            loc = getattr(employee, "working_location", None) or getattr(employee, "branch", None) or (emp_master.working_location if emp_master else None) or "Head Office"
+            desig = employee.designation or (emp_master.designation if emp_master else None) or "Staff"
+            dept = employee.department or (emp_master.department if emp_master else None) or "General"
             emp_info = {
                 "id": employee.id,
                 "code": employee.employee_code,
-                "name": employee.full_name,
-                "department": employee.department or "General",
-                "designation": employee.designation or "Staff",
-                "location": getattr(employee, "location", None) or "Hospital Site",
-                "shift": getattr(employee, "shift_timing", None) or "Standard Shift",
+                "name": employee.full_name or (emp_master.employee_name if emp_master else "Employee"),
+                "department": dept,
+                "designation": desig,
+                "location": loc,
+                "shift": getattr(employee, "shift_timing", None) or (emp_master.shift_timing if emp_master else None) or "Standard Shift",
             }
             att_record = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
-        else:
-            # Try EmployeeMaster table
-            emp_master = EmployeeMaster.query.filter_by(employee_code=code).first()
-            if not emp_master and code.startswith("I-"):
-                e_code = code.replace("I-", "E-", 1)
-                emp_master = EmployeeMaster.query.filter_by(employee_code=e_code).first()
-            elif not emp_master and code.startswith("E-"):
-                i_code = code.replace("E-", "I-", 1)
-                emp_master = EmployeeMaster.query.filter_by(employee_code=i_code).first()
-
-            if emp_master:
-                is_master = True
-                emp_info = {
-                    "id": emp_master.id,
-                    "code": emp_master.employee_code,
-                    "name": emp_master.employee_name,
-                    "department": emp_master.department or "General",
-                    "designation": emp_master.designation or "Staff",
-                    "location": emp_master.working_location or "Hospital Site",
-                    "shift": emp_master.shift_timing or "Standard Shift",
-                }
-                att_record = AttendanceMaster.query.filter_by(employee_master_id=emp_master.id, date=today).first()
+        elif emp_master:
+            is_master = True
+            emp_info = {
+                "id": emp_master.id,
+                "code": emp_master.employee_code,
+                "name": emp_master.employee_name,
+                "department": emp_master.department or "General",
+                "designation": emp_master.designation or "Staff",
+                "location": emp_master.working_location or "Head Office",
+                "shift": emp_master.shift_timing or "Standard Shift",
+            }
+            att_record = AttendanceMaster.query.filter_by(employee_master_id=emp_master.id, date=today).first()
 
         if not emp_info:
             return jsonify({

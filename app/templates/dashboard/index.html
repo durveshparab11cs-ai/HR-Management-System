@@ -195,32 +195,10 @@
                         <div class="fw-semibold"><code>{{ employee_master.reporting_manager_code }}</code></div>
                     </div>
                     {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-                        <div class="small text-muted mb-1">Reporting Manager Code</div>
-                        <div class="fw-semibold"><code>{{ employee_master.reporting_manager_code }}</code></div>
-                    </div>
-                    {% endif %}
-                    {% if employee_master.reporting_manager_name %}
+                    {% if employee_master and employee_master.reporting_manager_name %}
                     <div class="col-md-6 col-lg-4">
                         <div class="small text-muted mb-1">Reporting Manager Name</div>
                         <div class="fw-semibold">{{ employee_master.reporting_manager_name }}</div>
-                    </div>
-                    {% endif %}
-                    {% if employee_master.location %}
-                    <div class="col-md-6 col-lg-4">
-                        <div class="small text-muted mb-1">Location</div>
-                        <div class="fw-semibold">{{ employee_master.location }}</div>
-                    </div>
-                    {% endif %}
-                    {% if employee_master.employee_status %}
-                    <div class="col-md-6 col-lg-4">
-                        <div class="small text-muted mb-1">Employment Status</div>
-                        <div class="fw-semibold">{{ employee_master.employee_status }}</div>
                     </div>
                     {% endif %}
                 </div>

@@ -42,6 +42,15 @@ class Employee(BaseModel):
     department: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     designation: Mapped[str | None] = mapped_column(String(100), nullable=True)
     branch: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    
+    @property
+    def working_location(self) -> str | None:
+        """Alias for branch to standardize across Employee and EmployeeMaster."""
+        return self.branch
+
+    @working_location.setter
+    def working_location(self, value: str | None) -> None:
+        self.branch = value
     employment_type: Mapped[str] = mapped_column(String(30), nullable=False, default=EmploymentType.FULL_TIME.value)
     date_joined: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_of_leaving: Mapped[date | None] = mapped_column(Date, nullable=True)

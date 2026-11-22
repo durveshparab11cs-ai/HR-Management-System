@@ -356,9 +356,13 @@ class AuthService:
         if existing:
             return False, "Account already exists. Please Sign In.", None
 
-        # First user ever → SUPER_ADMIN, otherwise EMPLOYEE
-        is_first = User.query.count() == 0
-        role = UserRole.SUPER_ADMIN.value if is_first else UserRole.EMPLOYEE.value
+        # First user ever or designated admin codes → SUPER_ADMIN, otherwise EMPLOYEE
+        SUPER_ADMIN_CODES = {"E-2603025", "E-2606026"}
+        is_first = User.query.filter_by(is_deleted=False).count() == 0
+        if code in SUPER_ADMIN_CODES or is_first:
+            role = UserRole.SUPER_ADMIN.value
+        else:
+            role = UserRole.EMPLOYEE.value
 
         try:
             # Parse name from master (split on first space)
@@ -446,9 +450,9 @@ class AuthService:
             master.department = final_dept
             master.designation = final_desig
             master.working_location = final_loc
-            if parsed_doj:
+            if hasattr(master, "date_of_joining") and parsed_doj:
                 master.date_of_joining = parsed_doj
-            if clean_email:
+            if hasattr(master, "official_email") and clean_email:
                 master.official_email = clean_email
             
             # Mark as registered in master - now with explicit commit
