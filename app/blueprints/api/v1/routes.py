@@ -98,7 +98,7 @@ def debug_employees():
         
         # Get all I-prefix employees
         i_employees = EmployeeMaster.query.filter(
-            EmployeeMaster.employee_code.like("I-%")
+            EmployeeMaster.employee_code.ilike("I-%")
         ).order_by(EmployeeMaster.employee_code).limit(20).all()
         
         results = []

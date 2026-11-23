@@ -36,14 +36,15 @@ class BaseConfig:
     # --------------------------------------------------------------------------
     # SQLAlchemy
     # --------------------------------------------------------------------------
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL", "sqlite:///smart_hrms_dev.db"
-    )
+    _raw_db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
+    if _raw_db_url and _raw_db_url.startswith("postgres://"):
+        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI: str = _raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_RECORD_QUERIES: bool = False
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "pool_pre_ping": True,  # Detect stale connections
-        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 3600)),
+        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 1800)),
     }
 
     # --------------------------------------------------------------------------
@@ -252,9 +253,15 @@ class ProductionConfig(BaseConfig):
     _db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
     if _db_url and _db_url.startswith("postgres://"):
         _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    
+    # Enforce SSL for remote PostgreSQL hosts unless sslmode is already specified
+    if "postgresql" in _db_url and "sslmode" not in _db_url and "localhost" not in _db_url and "127.0.0.1" not in _db_url:
+        separator = "&" if "?" in _db_url else "?"
+        _db_url = f"{_db_url}{separator}sslmode=require"
+
     SQLALCHEMY_DATABASE_URI: str = _db_url
 
-    # Dynamic connection pool settings: PostgreSQL (RDS) vs SQLite fallback
+    # Dynamic connection pool settings: PostgreSQL vs SQLite fallback
     if "sqlite" in _db_url:
         SQLALCHEMY_ENGINE_OPTIONS: dict = {
             "pool_pre_ping": True,
@@ -262,10 +269,13 @@ class ProductionConfig(BaseConfig):
     else:
         SQLALCHEMY_ENGINE_OPTIONS: dict = {
             "pool_pre_ping": True,
-            "pool_size": int(os.environ.get("DB_POOL_SIZE", 10)),
-            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 20)),
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", 5)),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 10)),
             "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
-            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 3600)),
+            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 1800)),
+            "connect_args": {
+                "options": "-c statement_timeout=30000"
+            }
         }
 
     # Cache — use Redis if available, else SimpleCache

@@ -99,7 +99,7 @@ class EmployeeRepository:
     def get_next_employee_code(self, prefix: str = "EMP") -> str:
         last = (
             Employee.query
-            .filter(Employee.employee_code.like(f"{prefix}%"))
+            .filter(Employee.employee_code.ilike(f"{prefix}%"))
             .order_by(Employee.id.desc())
             .first()
         )
