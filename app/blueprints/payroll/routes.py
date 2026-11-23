@@ -151,20 +151,43 @@ def payslips():
 @login_required
 def payslip_detail(payslip_id: int):
     import json
+    import ast
     from app.models.payroll import Payslip
     payslip = Payslip.query.get_or_404(payslip_id)
     # Security: employee can only see their own payslip
     employee = _emp_repo.get_by_user_id(current_user.id)
-    if employee and payslip.employee_id != employee.id:
-        from app.core.security import admin_required
-        # If not HR, block
-        from app.constants.enums import UserRole
-        if current_user.role not in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value,
-                                     UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value):
-            flash("Access denied.", "danger")
-            return redirect(url_for("payroll.payslips"))
-    earnings   = json.loads(payslip.earnings_breakdown or "{}")
-    deductions = json.loads(payslip.deductions_breakdown or "{}")
+    from app.constants.enums import UserRole
+    is_admin_or_hr = current_user.role in (
+        UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value,
+        UserRole.HR_MANAGER.value, UserRole.HR_STAFF.value
+    )
+    if employee and payslip.employee_id != employee.id and not is_admin_or_hr:
+        flash("Access denied.", "danger")
+        return redirect(url_for("payroll.payslips"))
+    elif not employee and not is_admin_or_hr:
+        flash("Access denied.", "danger")
+        return redirect(url_for("payroll.payslips"))
+
+    earnings = {}
+    if payslip.earnings_breakdown:
+        try:
+            earnings = json.loads(payslip.earnings_breakdown) if isinstance(payslip.earnings_breakdown, str) else (payslip.earnings_breakdown or {})
+        except Exception:
+            try:
+                earnings = ast.literal_eval(payslip.earnings_breakdown)
+            except Exception:
+                earnings = {}
+
+    deductions = {}
+    if payslip.deductions_breakdown:
+        try:
+            deductions = json.loads(payslip.deductions_breakdown) if isinstance(payslip.deductions_breakdown, str) else (payslip.deductions_breakdown or {})
+        except Exception:
+            try:
+                deductions = ast.literal_eval(payslip.deductions_breakdown)
+            except Exception:
+                deductions = {}
+
     return render_template("payroll/payslip_detail.html", title="Payslip",
                            payslip=payslip, earnings=earnings, deductions=deductions)
 

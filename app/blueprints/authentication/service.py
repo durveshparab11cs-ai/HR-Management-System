@@ -470,7 +470,7 @@ class AuthService:
                 )
                 db.session.add(employee)
             db.session.flush()
-
+    
             # Sync fields back to employee_master
             master.department = final_dept
             master.designation = final_desig

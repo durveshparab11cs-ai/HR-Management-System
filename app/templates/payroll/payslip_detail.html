@@ -1,5 +1,5 @@
 {% extends 'layouts/base.html' %}
-{% block title %}Payslip — {{ payslip.run.period_label }}{% endblock %}
+{% block title %}Payslip — {{ payslip.run.period_label if (payslip.run and payslip.run.period_label) else 'Detail' }}{% endblock %}
 {% block breadcrumbs %}{% set breadcrumbs=[('Payroll',url_for('payroll.index')),('Payslips',url_for('payroll.payslips')),('Payslip',None)] %}{% include 'shared/breadcrumbs.html' %}{% endblock %}
 {% block page_header %}{% endblock %}
 {% block extra_css %}
@@ -21,7 +21,7 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <h4 class="fw-bold mb-1">{{ app_name }}</h4>
-          <div class="opacity-75 small">Payslip for {{ payslip.run.period_label }}</div>
+          <div class="opacity-75 small">Payslip for {{ payslip.run.period_label if (payslip.run and payslip.run.period_label) else 'Current Period' }}</div>
         </div>
         <div class="text-end">
           <div class="opacity-75 small">Net Payable</div>
@@ -33,21 +33,21 @@
     <div class="payslip-section">
       <div class="row g-3">
         {% macro field(l,v) %}<div class="col-sm-4"><div class="text-muted small">{{ l }}</div><div class="fw-medium small">{{ v or '—' }}</div></div>{% endmacro %}
-        {{ field('Employee Name', payslip.employee.full_name) }}
-        {{ field('Employee Code', payslip.employee.employee_code) }}
-        {{ field('Department', payslip.employee.department) }}
-        {{ field('Designation', payslip.employee.designation) }}
-        {{ field('Pay Period', payslip.run.period_label) }}
-        {{ field('Status', payslip.status.title()) }}
+        {{ field('Employee Name', payslip.employee.full_name if payslip.employee else '—') }}
+        {{ field('Employee Code', payslip.employee.employee_code if payslip.employee else '—') }}
+        {{ field('Department', payslip.employee.department if payslip.employee else '—') }}
+        {{ field('Designation', payslip.employee.designation if payslip.employee else '—') }}
+        {{ field('Pay Period', payslip.run.period_label if (payslip.run and payslip.run.period_label) else '—') }}
+        {{ field('Status', payslip.status.title() if payslip.status else 'Draft') }}
       </div>
     </div>
 
     <div class="payslip-section">
       <div class="row g-3 mb-2">
-        {% macro att(l,v,c='') %}<div class="col-4 text-center"><div class="text-muted small">{{ l }}</div><div class="fw-bold {{ c }}">{{ v }}</div></div>{% endmacro %}
-        {{ att('Working Days', payslip.working_days) }}
-        {{ att('Days Present', payslip.days_present, 'text-success') }}
-        {{ att('Days Absent', payslip.days_absent, 'text-danger' if payslip.days_absent else '') }}
+        {% macro att(l,v,c='') %}<div class="col-4 text-center"><div class="text-muted small">{{ l }}</div><div class="fw-bold {{ c }}">{{ v or 0 }}</div></div>{% endmacro %}
+        {{ att('Working Days', payslip.working_days or 0) }}
+        {{ att('Days Present', payslip.days_present or 0, 'text-success') }}
+        {{ att('Days Absent', payslip.days_absent or 0, 'text-danger' if payslip.days_absent else '') }}
       </div>
     </div>
 
@@ -55,16 +55,28 @@
       <div class="col-md-6 payslip-section">
         <h6 class="fw-semibold mb-3 text-success">Earnings</h6>
         {% for k, v in earnings.items() %}
-        <div class="payslip-row"><span>{{ k }}</span><span>₹{{ '{:,.2f}'.format(v) }}</span></div>
+        <div class="payslip-row">
+          <span>{{ k }}</span>
+          <span>{% if v is number %}₹{{ '{:,.2f}'.format(v) }}{% else %}{{ v }}{% endif %}</span>
+        </div>
         {% endfor %}
-        <div class="payslip-row fw-semibold border-top mt-2 pt-2"><span>Gross Salary</span><span>₹{{ '{:,.2f}'.format(payslip.gross_salary) }}</span></div>
+        <div class="payslip-row fw-semibold border-top mt-2 pt-2">
+          <span>Gross Salary</span>
+          <span>₹{{ '{:,.2f}'.format(payslip.gross_salary or 0.0) }}</span>
+        </div>
       </div>
       <div class="col-md-6 payslip-section">
         <h6 class="fw-semibold mb-3 text-danger">Deductions</h6>
         {% for k, v in deductions.items() %}
-        <div class="payslip-row"><span>{{ k }}</span><span class="text-danger">₹{{ '{:,.2f}'.format(v) }}</span></div>
+        <div class="payslip-row">
+          <span>{{ k }}</span>
+          <span class="text-danger">{% if v is number %}₹{{ '{:,.2f}'.format(v) }}{% else %}{{ v }}{% endif %}</span>
+        </div>
         {% endfor %}
-        <div class="payslip-row fw-semibold border-top mt-2 pt-2"><span>Total Deductions</span><span class="text-danger">₹{{ '{:,.2f}'.format(payslip.total_deductions) }}</span></div>
+        <div class="payslip-row fw-semibold border-top mt-2 pt-2">
+          <span>Total Deductions</span>
+          <span class="text-danger">₹{{ '{:,.2f}'.format(payslip.total_deductions or 0.0) }}</span>
+        </div>
       </div>
     </div>
 

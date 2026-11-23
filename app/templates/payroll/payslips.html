@@ -18,8 +18,8 @@
       <tr>
         <td class="ps-4 fw-semibold">{{ slip.run.period_label }}</td>
         <td class="small">{{ slip.days_present }} / {{ slip.working_days }}</td>
-        <td class="small">₹{{ '{:,.0f}'.format(slip.gross_salary) }}</td>
-        <td class="fw-bold">₹{{ '{:,.0f}'.format(slip.net_salary) }}</td>
+        <td class="small">₹{{ '{:,.0f}'.format(slip.gross_salary or 0) }}</td>
+        <td class="fw-bold">₹{{ '{:,.0f}'.format(slip.net_salary or 0) }}</td>
         <td><span class="badge bg-{{ sc.get(slip.status,'secondary') }}-subtle text-{{ sc.get(slip.status,'secondary') }} small">{{ slip.status.title() }}</span></td>
         <td class="pe-4"><a href="{{ url_for('payroll.payslip_detail', payslip_id=slip.id) }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:3px 9px"><i class="bi bi-eye me-1"></i>View</a></td>
       </tr>
