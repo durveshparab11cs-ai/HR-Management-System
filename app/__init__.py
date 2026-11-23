@@ -909,47 +909,8 @@ def _migrate_add_columns(db) -> None:
                 # Don't crash the app if migration fails — safe defaults in code will handle it
 
     # ── One-Time User & Master Reset for Fresh Registration ──────────────
-    if not col_exists('employee_master', 'fresh_reg_v2'):
-        try:
-            if dialect == 'postgresql':
-                db.session.execute(text('ALTER TABLE employee_master ADD COLUMN fresh_reg_v2 BOOLEAN DEFAULT FALSE'))
-            else:
-                db.session.execute(text('ALTER TABLE employee_master ADD COLUMN fresh_reg_v2 BOOLEAN DEFAULT 0'))
-            db.session.commit()
-        except Exception:
-            try:
-                db.session.rollback()
-            except Exception:
-                pass
-
-        try:
-            from app.models.user import User  # noqa: PLC0415
-            from app.models.employee import Employee  # noqa: PLC0415
-            from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
-            from app.models.attendance import Attendance  # noqa: PLC0415
-            from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: PLC0415
-
-            db.session.query(LeaveRequest).delete()
-            db.session.query(HalfDayRequest).delete()
-            db.session.query(EarlyLeaveRequest).delete()
-            db.session.query(Attendance).delete()
-            db.session.query(Employee).delete()
-            db.session.query(User).delete()
-
-            for m in EmployeeMaster.query.all():
-                m.is_registered = False
-                m.user_id = None
-                m.registered_at = None
-
-            db.session.execute(text('UPDATE employee_master SET fresh_reg_v2 = 1' if dialect != 'postgresql' else 'UPDATE employee_master SET fresh_reg_v2 = TRUE'))
-            db.session.commit()
-            logger.info("✓ FRESH_REGISTRATION: All users cleared. Everyone can now register from scratch!")
-        except Exception as e:
-            try:
-                db.session.rollback()
-            except Exception:
-                pass
-            logger.warning("Fresh registration reset failed: %s", e)
+    # PERMANENTLY DISABLED: Zero Data Loss policy strictly prohibits automatic wipes on boot.
+    pass
 
 
 def _auto_seed_hospitals(app: Flask) -> None:
