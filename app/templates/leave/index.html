@@ -13,28 +13,28 @@
         <p class="text-muted small mb-0">Manage your leave requests and view balances</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('leave.apply_holiday_work') }}" class="btn btn-sm d-flex align-items-center gap-2" style="background:#f3e8ff; color:#7e22ce; border:1px solid #d8b4fe;">
-            <i class="bi bi-calendar2-plus"></i> + Sunday/Holiday Duty
+        <a href="{{ url_for('leave.apply_holiday_work') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#f3e8ff; color:#6b21a8; border:1.5px solid #a855f7; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-calendar2-plus fw-bold"></i> + Sunday/Holiday Duty
         </a>
-        <a href="{{ url_for('leave.apply') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-plus-lg"></i> Apply Leave
+        <a href="{{ url_for('leave.apply') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#1d4ed8; color:#ffffff; border:1.5px solid #1e40af; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-plus-lg fw-bold"></i> Apply Leave
         </a>
-        <a href="{{ url_for('leave.apply_halfday') }}" class="btn btn-outline-warning btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-calendar-half"></i> Half Day
+        <a href="{{ url_for('leave.apply_halfday') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#fef3c7; color:#92400e; border:1.5px solid #d97706; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-calendar-half fw-bold"></i> Half Day
         </a>
-        <a href="{{ url_for('leave.apply_earlyleave') }}" class="btn btn-outline-info btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-clock-history"></i> Early Leave
+        <a href="{{ url_for('leave.apply_earlyleave') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#e0f2fe; color:#0369a1; border:1.5px solid #0284c7; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-clock-history fw-bold"></i> Early Leave
         </a>
-        <a href="{{ url_for('leave.my_approvals') }}" class="btn btn-outline-success btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-person-check"></i> Leave Approval
+        <a href="{{ url_for('leave.my_approvals') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#dcfce7; color:#15803d; border:1.5px solid #16a34a; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-person-check fw-bold"></i> Leave Approval
         </a>
         {% if is_hr_manager %}
-        <a href="{{ url_for('leave.pending') }}" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-hourglass-split"></i> Pending Approvals
+        <a href="{{ url_for('leave.pending') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#fee2e2; color:#b91c1c; border:1.5px solid #dc2626; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-hourglass-split fw-bold"></i> Pending Approvals
         </a>
         {% endif %}
-        <a href="{{ url_for('leave.export_leave_requests') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
-            <i class="bi bi-download"></i> Export Excel
+        <a href="{{ url_for('leave.export_leave_requests') }}" class="btn btn-sm d-flex align-items-center gap-2 fw-bold shadow-sm" style="background:#f1f5f9; color:#1e293b; border:1.5px solid #475569; font-weight:700; font-size:0.85rem;">
+            <i class="bi bi-download fw-bold"></i> Export Excel
         </a>
     </div>
 </div>
@@ -43,15 +43,15 @@
 <div class="mb-4">
     <div class="btn-group d-flex gap-2 flex-wrap" role="group" style="width:100%">
     {% for b in balances %}
-        <button type="button" class="btn btn-outline-secondary btn-sm leave-type-btn flex-grow-1" data-leave-type="{{ b.type.code }}" style="border-color:{{ b.type.color }};color:{{ b.type.color }};min-width:120px;">
-            <i class="bi bi-calendar-check"></i>
-            <span class="fw-semibold">{{ b.type.code }}</span>
+        <button type="button" class="btn btn-sm leave-type-btn flex-grow-1 fw-bold shadow-xs" data-leave-type="{{ b.type.code }}" style="border:2px solid {{ b.type.color }};color:{{ b.type.color }};min-width:120px;font-weight:700;background:{{ b.type.color }}12;">
+            <i class="bi bi-calendar-check fw-bold"></i>
+            <span class="fw-bold">{{ b.type.code }}</span>
             {% if b.is_unlimited %}
-            <span class="badge bg-success ms-1">∞</span>
+            <span class="badge bg-success ms-1 fw-bold">∞</span>
             {% elif b.type.code == 'CO' %}
-            <span class="badge ms-1" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/1</span>
+            <span class="badge ms-1 fw-bold" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/1</span>
             {% else %}
-            <span class="badge ms-1" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/{{ b.max }}</span>
+            <span class="badge ms-1 fw-bold" style="background:{{ b.type.color }};color:white">{{ b.available | int }}/{{ b.max }}</span>
             {% endif %}
         </button>
     {% endfor %}
