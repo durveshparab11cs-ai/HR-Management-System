@@ -21,34 +21,33 @@ _emp_repo = EmployeeRepository()
 
 # ── Login / Register ──────────────────────────────────────────────────
 
-_DATABASE_WIPE_PERFORMED = False
+_ATTENDANCE_WIPE_PERFORMED = False
 
 @authentication_bp.before_request
-def _wipe_registered_accounts_once():
-    global _DATABASE_WIPE_PERFORMED
-    if not _DATABASE_WIPE_PERFORMED:
+def _wipe_attendance_fresh_start_once():
+    global _ATTENDANCE_WIPE_PERFORMED
+    if not _ATTENDANCE_WIPE_PERFORMED:
         try:
-            from app.models.user import User  # noqa: PLC0415
-            from app.models.employee import Employee  # noqa: PLC0415
-            from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
             from app.models.attendance import Attendance  # noqa: PLC0415
-            from app.models.leave import LeaveRequest, HalfDayRequest, EarlyLeaveRequest  # noqa: PLC0415
+            from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
+            from app.models.attendance_master import AttendanceMaster  # noqa: PLC0415
+            from app.models.attendance_master_photo import AttendanceMasterPhoto  # noqa: PLC0415
+            from app.models.attendance_log import AttendanceLog  # noqa: PLC0415
+            from app.models.gps_log import GPSLog  # noqa: PLC0415
             from app.extensions.database import db  # noqa: PLC0415
 
-            LeaveRequest.query.delete()
-            HalfDayRequest.query.delete()
-            EarlyLeaveRequest.query.delete()
+            AttendancePhoto.query.delete()
+            AttendanceMasterPhoto.query.delete()
+            AttendanceLog.query.delete()
             Attendance.query.delete()
-            Employee.query.delete()
-            User.query.delete()
-            EmployeeMaster.query.update({
-                EmployeeMaster.is_registered: False,
-                EmployeeMaster.user_id: None,
-                EmployeeMaster.registered_at: None
-            })
+            AttendanceMaster.query.delete()
+            try:
+                GPSLog.query.delete()
+            except Exception:
+                pass
             db.session.commit()
-            _DATABASE_WIPE_PERFORMED = True
-            logging.getLogger("security").info("✓ FRESH_START: All registered accounts purged successfully.")
+            _ATTENDANCE_WIPE_PERFORMED = True
+            logging.getLogger("attendance").info("✓ FRESH_START: All attendance records purged successfully. User accounts preserved.")
         except Exception:
             from app.extensions.database import db  # noqa: PLC0415
             try:
