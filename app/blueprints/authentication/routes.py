@@ -21,40 +21,6 @@ _emp_repo = EmployeeRepository()
 
 # ── Login / Register ──────────────────────────────────────────────────
 
-_ATTENDANCE_WIPE_PERFORMED = False
-
-@authentication_bp.before_request
-def _wipe_attendance_fresh_start_once():
-    global _ATTENDANCE_WIPE_PERFORMED
-    if not _ATTENDANCE_WIPE_PERFORMED:
-        try:
-            from app.models.attendance import Attendance  # noqa: PLC0415
-            from app.models.attendance_photo import AttendancePhoto  # noqa: PLC0415
-            from app.models.attendance_master import AttendanceMaster  # noqa: PLC0415
-            from app.models.attendance_master_photo import AttendanceMasterPhoto  # noqa: PLC0415
-            from app.models.attendance_log import AttendanceLog  # noqa: PLC0415
-            from app.models.gps_log import GPSLog  # noqa: PLC0415
-            from app.extensions.database import db  # noqa: PLC0415
-
-            AttendancePhoto.query.delete()
-            AttendanceMasterPhoto.query.delete()
-            AttendanceLog.query.delete()
-            Attendance.query.delete()
-            AttendanceMaster.query.delete()
-            try:
-                GPSLog.query.delete()
-            except Exception:
-                pass
-            db.session.commit()
-            _ATTENDANCE_WIPE_PERFORMED = True
-            logging.getLogger("attendance").info("✓ FRESH_START: All attendance records purged successfully. User accounts preserved.")
-        except Exception:
-            from app.extensions.database import db  # noqa: PLC0415
-            try:
-                db.session.rollback()
-            except Exception:
-                pass
-
 
 @authentication_bp.route("/login", methods=["GET", "POST"])
 def login():
