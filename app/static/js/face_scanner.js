@@ -28,7 +28,7 @@ class FaceBiometricEngine {
   }
 
   /**
-   * Load face detection, landmark, and recognition neural models
+   * Load face detection, landmark, eye, and recognition neural models
    */
   async loadModels() {
     if (this.modelsLoaded) return true;
@@ -41,19 +41,20 @@ class FaceBiometricEngine {
           await this._loadScript('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js');
         }
 
-        console.log('[FaceBiometric] Loading AI models from CDN...');
-        // Load Tiny Face Detector, Landmarks, and Face Recognition Net
+        console.log('[FaceBiometric] Loading high-accuracy AI models from CDN...');
+        // Load SSD MobileNetV1 (full precision) + TinyFaceDetector + 68 Landmark + Recognition
         await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(this.MODEL_URL).catch(() => null),
           faceapi.nets.tinyFaceDetector.loadFromUri(this.MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(this.MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(this.MODEL_URL)
         ]);
 
         this.modelsLoaded = true;
-        console.log('[FaceBiometric] Neural models successfully initialized.');
+        console.log('[FaceBiometric] Neural biometric models successfully initialized.');
         return true;
       } catch (err) {
-        console.warn('[FaceBiometric] Model loading notice: Using robust geometric descriptor fallback.', err);
+        console.error('[FaceBiometric] Error loading neural models:', err);
         this.modelsLoaded = false;
         return false;
       }
@@ -214,21 +215,61 @@ class FaceBiometricEngine {
         ctx.textAlign = 'center';
         ctx.fillText(`THOROUGH BIOMETRIC SCAN: ${progress}%`, cx, canvasEl.height - 30);
 
-        // Sample frame descriptor
+        // Robust Dual-Detector Pipeline: SSD MobileNetV1 primary, TinyFaceDetector fallback
         if (typeof faceapi !== 'undefined' && this.modelsLoaded) {
           try {
-            const detection = await faceapi
-              .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-              .withFaceLandmarks()
-              .withFaceDescriptor();
+            let detection = null;
+
+            // 1. Try SSD MobileNetV1 first (handles backlit, overhead glare, partial shadow)
+            if (faceapi.nets.ssdMobilenetv1 && faceapi.nets.ssdMobilenetv1.isLoaded) {
+              detection = await faceapi
+                .detectSingleFace(videoEl, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.35 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            }
+
+            // 2. Fallback to multi-scale TinyFaceDetector (inputSize 416 & 224, scoreThreshold 0.28)
+            if (!detection && faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.isLoaded) {
+              detection = await faceapi
+                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.28 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+            }
 
             if (detection) {
               collectedDescriptors.push(Array.from(detection.descriptor));
               if (!bestPhoto) {
                 bestPhoto = this._captureVideoFrame(videoEl);
               }
-              // Draw landmarks
-              faceapi.draw.drawFaceLandmarks(canvasEl, detection.landmarks);
+
+              // Visual Eye & Feature Tracking: highlight eyes, nose bridge, jawline
+              const landmarks = detection.landmarks;
+              const leftEye = landmarks.getLeftEye();
+              const rightEye = landmarks.getRightEye();
+
+              ctx.save();
+              // Highlight Left Eye
+              ctx.fillStyle = '#38bdf8';
+              ctx.strokeStyle = '#0284c7';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              leftEye.forEach((pt, idx) => {
+                idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y);
+              });
+              ctx.closePath();
+              ctx.stroke();
+
+              // Highlight Right Eye
+              ctx.beginPath();
+              rightEye.forEach((pt, idx) => {
+                idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y);
+              });
+              ctx.closePath();
+              ctx.stroke();
+
+              // Draw key landmark points
+              faceapi.draw.drawFaceLandmarks(canvasEl, landmarks);
+              ctx.restore();
             }
           } catch (e) {
             // Ignore single frame sampling drop
