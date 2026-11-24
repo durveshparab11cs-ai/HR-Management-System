@@ -106,6 +106,13 @@ class FaceBiometricEngine {
   }
 
   /**
+   * Alias for startCamera to support all templates
+   */
+  async initCamera(videoEl) {
+    return this.startCamera(videoEl);
+  }
+
+  /**
    * Stop active camera stream
    */
   stopCamera() {
@@ -125,14 +132,24 @@ class FaceBiometricEngine {
   }
 
   /**
-   * Run a thorough facial scan (samples 5 frames over 2 seconds)
+   * Run a thorough facial scan (samples multiple frames over duration)
    * 
    * @param {HTMLVideoElement} videoEl
    * @param {HTMLCanvasElement} canvasEl
-   * @param {Function} onProgress - callback(progressPct, statusMsg)
+   * @param {number|Function} durationOrProgress - duration in ms OR onProgress callback
+   * @param {Function} [onProgress] - callback(progressPct, statusMsg)
    * @returns {Promise<{success: boolean, descriptor: Array<number>, photoBase64: string, message: string}>}
    */
-  async performThoroughScan(videoEl, canvasEl, onProgress) {
+  async performThoroughScan(videoEl, canvasEl, durationOrProgress, onProgress) {
+    let durationMs = 2200;
+    let progressCb = onProgress;
+
+    if (typeof durationOrProgress === 'number') {
+      durationMs = durationOrProgress;
+    } else if (typeof durationOrProgress === 'function') {
+      progressCb = durationOrProgress;
+    }
+
     await this.loadModels();
 
     canvasEl.width = videoEl.videoWidth || 640;
@@ -143,7 +160,7 @@ class FaceBiometricEngine {
     const collectedDescriptors = [];
     let bestPhoto = null;
     let scanStartTime = Date.now();
-    const SCAN_DURATION_MS = 2200; // 2.2 seconds thorough sweep
+    const SCAN_DURATION_MS = durationMs;
     let laserY = 0;
     let laserDir = 1;
 
