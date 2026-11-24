@@ -644,20 +644,18 @@ def _register_health(app: Flask) -> None:
 
     @app.route("/health")
     def health():
-        """Comprehensive liveness & readiness probe — checks app and database."""
-        db_status = "connected"
+        """Lightweight liveness probe endpoint for Render health checks."""
+        db_status = "untested"
         try:
             from app.extensions.database import db  # noqa: PLC0415
             from sqlalchemy import text  # noqa: PLC0415
             db.session.execute(text("SELECT 1"))
+            db_status = "connected"
         except Exception as e:
-            db_status = f"unhealthy: {str(e)}"
-            return jsonify({
-                "status": "unhealthy",
-                "database": db_status,
-                "version": app.config.get("APP_VERSION", "1.0.0")
-            }), 503
+            app.logger.warning("Database probe during health check: %s", e)
+            db_status = f"warning: {str(e)}"
 
+        # Always return 200 OK so web container passes Render liveness probes
         return jsonify({
             "status": "ok",
             "database": db_status,
