@@ -88,21 +88,32 @@ class FaceBiometricEngine {
     const constraints = {
       video: {
         facingMode: 'user',
-        width: { ideal: 640 },
-        height: { ideal: 480 }
+        width: { ideal: 640, min: 320 },
+        height: { ideal: 480, min: 240 }
       },
       audio: false
     };
 
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    videoEl.srcObject = stream;
     this.activeStream = stream;
+    videoEl.srcObject = stream;
+    videoEl.muted = true;
+    videoEl.setAttribute('playsinline', 'true');
 
     return new Promise((resolve) => {
-      videoEl.onloadedmetadata = () => {
-        videoEl.play();
+      const onReady = () => {
+        videoEl.play().catch(e => console.warn('video.play() caught:', e));
         resolve(stream);
       };
+
+      if (videoEl.readyState >= 2) {
+        onReady();
+      } else {
+        videoEl.onloadedmetadata = () => onReady();
+        videoEl.oncanplay = () => onReady();
+        // Fallback resolve after 400ms to guarantee execution
+        setTimeout(onReady, 400);
+      }
     });
   }
 
@@ -142,7 +153,7 @@ class FaceBiometricEngine {
    * @returns {Promise<{success: boolean, descriptor: Array<number>, photoBase64: string, message: string}>}
    */
   async performThoroughScan(videoEl, canvasEl, durationOrProgress, onProgress) {
-    let durationMs = 2200;
+    let durationMs = 3000;
     let progressCb = onProgress;
 
     if (typeof durationOrProgress === 'number') {
@@ -161,7 +172,7 @@ class FaceBiometricEngine {
     const collectedDescriptors = [];
     let bestPhoto = null;
     let scanStartTime = Date.now();
-    const SCAN_DURATION_MS = durationMs;
+    let maxWaitTimeMs = 12000; // allow up to 12s for employee to position face
     let laserY = 0;
     let laserDir = 1;
 
@@ -172,7 +183,10 @@ class FaceBiometricEngine {
         ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
         const elapsed = Date.now() - scanStartTime;
-        const progress = Math.min(100, Math.round((elapsed / SCAN_DURATION_MS) * 100));
+        // Progress advances once samples start collecting, or loops until face found
+        const sampleCount = collectedDescriptors.length;
+        const targetSamples = 3;
+        const progress = Math.min(100, Math.round((sampleCount / targetSamples) * 100));
 
         // Animate laser sweep line
         laserY += 4 * laserDir;
@@ -189,9 +203,9 @@ class FaceBiometricEngine {
         ctx.save();
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#06b6d4';
+        ctx.strokeStyle = sampleCount > 0 ? '#10b981' : '#06b6d4';
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#06b6d4';
+        ctx.shadowColor = sampleCount > 0 ? '#10b981' : '#06b6d4';
         ctx.shadowBlur = 15;
         ctx.stroke();
 
@@ -199,9 +213,9 @@ class FaceBiometricEngine {
         ctx.beginPath();
         ctx.moveTo(cx - rx * 0.95, laserY);
         ctx.lineTo(cx + rx * 0.95, laserY);
-        ctx.strokeStyle = '#10b981';
+        ctx.strokeStyle = sampleCount > 0 ? '#10b981' : '#38bdf8';
         ctx.lineWidth = 2.5;
-        ctx.shadowColor = '#10b981';
+        ctx.shadowColor = sampleCount > 0 ? '#10b981' : '#38bdf8';
         ctx.shadowBlur = 12;
         ctx.stroke();
         ctx.restore();
@@ -213,25 +227,29 @@ class FaceBiometricEngine {
         ctx.font = 'bold 15px -apple-system, sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText(`THOROUGH BIOMETRIC SCAN: ${progress}%`, cx, canvasEl.height - 30);
+        if (sampleCount === 0) {
+          ctx.fillText('LOOK DIRECTLY AT CAMERA...', cx, canvasEl.height - 30);
+        } else {
+          ctx.fillText(`LOCKING BIOMETRIC MESH: ${progress}%`, cx, canvasEl.height - 30);
+        }
 
-        // Robust Dual-Detector Pipeline: SSD MobileNetV1 primary, TinyFaceDetector fallback
+        // Robust Detection Pipeline
         if (typeof faceapi !== 'undefined' && this.modelsLoaded) {
           try {
             let detection = null;
 
-            // 1. Try SSD MobileNetV1 first (handles backlit, overhead glare, partial shadow)
-            if (faceapi.nets.ssdMobilenetv1 && faceapi.nets.ssdMobilenetv1.isLoaded) {
+            // 1. Try TinyFaceDetector with flexible threshold for fast real-time tracking
+            if (faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.isLoaded) {
               detection = await faceapi
-                .detectSingleFace(videoEl, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.35 }))
+                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
             }
 
-            // 2. Fallback to multi-scale TinyFaceDetector (inputSize 416 & 224, scoreThreshold 0.28)
-            if (!detection && faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.isLoaded) {
+            // 2. Try SSD MobileNetV1 if tiny detector missed
+            if (!detection && faceapi.nets.ssdMobilenetv1 && faceapi.nets.ssdMobilenetv1.isLoaded) {
               detection = await faceapi
-                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.28 }))
+                .detectSingleFace(videoEl, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
             }
@@ -242,71 +260,65 @@ class FaceBiometricEngine {
                 bestPhoto = this._captureVideoFrame(videoEl);
               }
 
-              // Visual Eye & Feature Tracking: highlight eyes, nose bridge, jawline
+              // Visual Eye & Feature Tracking
               const landmarks = detection.landmarks;
               const leftEye = landmarks.getLeftEye();
               const rightEye = landmarks.getRightEye();
 
               ctx.save();
-              // Highlight Left Eye
               ctx.fillStyle = '#38bdf8';
               ctx.strokeStyle = '#0284c7';
-              ctx.lineWidth = 1.5;
+              ctx.lineWidth = 2;
+              
+              // Eye rings
               ctx.beginPath();
-              leftEye.forEach((pt, idx) => {
-                idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y);
-              });
+              leftEye.forEach((pt, idx) => idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
               ctx.closePath();
               ctx.stroke();
 
-              // Highlight Right Eye
               ctx.beginPath();
-              rightEye.forEach((pt, idx) => {
-                idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y);
-              });
+              rightEye.forEach((pt, idx) => idx === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
               ctx.closePath();
               ctx.stroke();
 
-              // Draw key landmark points
               faceapi.draw.drawFaceLandmarks(canvasEl, landmarks);
               ctx.restore();
             }
           } catch (e) {
-            // Ignore single frame sampling drop
+            console.warn('Frame detection step error:', e);
           }
         }
 
-        if (onProgress) {
-          onProgress(progress, `Scanning facial structure & mesh (${progress}%)...`);
-        }
-
-        if (elapsed < SCAN_DURATION_MS) {
-          this.animFrameId = requestAnimationFrame(renderScanReticle);
-        } else {
-          // Finished thorough scan
-          this.isScanning = false;
-          if (!bestPhoto) {
-            bestPhoto = this._captureVideoFrame(videoEl);
-          }
-
-          let finalDescriptor = null;
-          if (collectedDescriptors.length > 0) {
-            finalDescriptor = this._averageDescriptors(collectedDescriptors);
-            resolve({
-              success: true,
-              descriptor: finalDescriptor,
-              photoBase64: bestPhoto,
-              message: 'Facial biometric profile scanned with deep neural accuracy.'
-            });
+        if (progressCb) {
+          if (sampleCount === 0) {
+            progressCb(10, 'Looking for face... Please align in oval');
           } else {
-            // Strict biometric enforcement: Never allow dummy or unverified scans!
-            resolve({
-              success: false,
-              descriptor: null,
-              photoBase64: null,
-              message: 'No clear human face detected. Please face the camera directly in good lighting.'
-            });
+            progressCb(progress, `Scanning facial landmarks (${progress}%)...`);
           }
+        }
+
+        // Complete when target samples collected OR timeout after maxWaitTimeMs
+        if (sampleCount >= targetSamples) {
+          this.isScanning = false;
+          if (!bestPhoto) bestPhoto = this._captureVideoFrame(videoEl);
+          const finalDescriptor = this._averageDescriptors(collectedDescriptors);
+
+          resolve({
+            success: true,
+            descriptor: finalDescriptor,
+            photoBase64: bestPhoto,
+            message: 'Facial biometric profile successfully scanned and verified.'
+          });
+        } else if (elapsed > maxWaitTimeMs) {
+          this.isScanning = false;
+          resolve({
+            success: false,
+            descriptor: null,
+            photoBase64: null,
+            message: 'Face scan timed out. Please ensure good lighting and look directly into the camera.'
+          });
+        } else {
+          this.animFrameId = requestAnimationFrame(renderScanReticle);
         }
       };
 
