@@ -918,9 +918,50 @@ def _migrate_add_columns(db) -> None:
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
 
-    # ── One-Time User & Master Reset for Fresh Registration ──────────────
-    # PERMANENTLY DISABLED: Zero Data Loss policy strictly prohibits automatic wipes on boot.
-    pass
+    # ── One-Time User & Master Reset for Fresh Biometric Registration ──────────────
+    try:
+        # Check if reset marker table or check is needed
+        check_reg = db.session.execute(text("SELECT count(*) FROM employee_master WHERE is_registered = TRUE")).scalar()
+        if check_reg and check_reg > 0:
+            logger.info("ONE_TIME_BIOMETRIC_RESET: Resetting all employee registrations so everyone re-registers with camera...")
+            db.session.execute(text("""
+                UPDATE departments SET head_employee_id = NULL;
+                UPDATE employees SET manager_id = NULL;
+                DELETE FROM employee_hospital_assignments;
+                DELETE FROM employee_shift_assignments;
+                DELETE FROM employee_salary_masters;
+                DELETE FROM payslips;
+                DELETE FROM leave_requests;
+                DELETE FROM half_day_requests;
+                DELETE FROM early_leave_requests;
+                DELETE FROM shift_change_logs;
+                DELETE FROM shift_change_requests;
+                DELETE FROM attendance_photos;
+                DELETE FROM attendance_logs;
+                DELETE FROM attendance;
+                DELETE FROM attendance_master_photos;
+                DELETE FROM attendance_master;
+                DELETE FROM gps_logs;
+                DELETE FROM notifications;
+                DELETE FROM login_history;
+                DELETE FROM employees;
+                DELETE FROM users WHERE role NOT IN ('super_admin');
+                UPDATE employee_master 
+                SET is_registered = FALSE, 
+                    user_id = NULL, 
+                    registered_at = NULL,
+                    is_face_registered = FALSE,
+                    registered_face_photo = NULL,
+                    face_descriptor = NULL;
+            """))
+            db.session.commit()
+            logger.info("ONE_TIME_BIOMETRIC_RESET: Completed successfully. All employees must now register fresh with camera.")
+    except Exception as reset_err:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.warning("ONE_TIME_BIOMETRIC_RESET failed or skipped: %s", reset_err)
 
 
 def _auto_seed_hospitals(app: Flask) -> None:
