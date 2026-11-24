@@ -409,10 +409,10 @@ class FaceBiometricEngine {
    * 
    * @param {Array<number>|string} desc1
    * @param {Array<number>|string} desc2
-   * @param {number} threshold - Match threshold (default 0.50)
+   * @param {number} threshold - Strict match threshold (default 0.35)
    * @returns {{isMatch: boolean, matched: boolean, distance: number, similarity: number, score: number}}
    */
-  compareDescriptors(desc1, desc2, threshold = 0.50) {
+  compareDescriptors(desc1, desc2, threshold = 0.35) {
     let d1 = desc1;
     let d2 = desc2;
 
@@ -437,11 +437,19 @@ class FaceBiometricEngine {
     const distance = Math.sqrt(sum);
 
     let similarity = 0;
-    if (distance <= 0) similarity = 100;
-    else if (distance >= 0.65) similarity = Math.max(0, Math.round((1 - distance / 1.0) * 100));
-    else similarity = Math.round(Math.max(0, (1 - distance / 0.70)) * 100);
+    if (distance <= 0.15) {
+      similarity = Math.round(100 - (distance / 0.15) * 8);
+    } else if (distance <= 0.35) {
+      similarity = Math.round(92 - ((distance - 0.15) / 0.20) * 22);
+    } else if (distance <= 0.50) {
+      similarity = Math.round(70 - ((distance - 0.35) / 0.15) * 50);
+    } else {
+      similarity = Math.max(0, Math.round(20 - ((distance - 0.50) / 0.20) * 20));
+    }
+    similarity = Math.max(0, Math.min(100, similarity));
 
-    const isMatch = distance <= threshold;
+    // Strict biometric match requires distance <= 0.35 AND similarity >= 70%
+    const isMatch = (distance <= threshold) && (similarity >= 70);
 
     return {
       isMatch,

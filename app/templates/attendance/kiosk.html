@@ -1228,16 +1228,16 @@
         let matchScore = 0;
 
         if (registeredDesc && capturedFaceDescriptor) {
-          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.48);
-          isFaceMatched = matchResult.matched;
+          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.35);
+          isFaceMatched = matchResult.matched && matchResult.score >= 70;
           matchScore = matchResult.score;
 
           if (!isFaceMatched) {
             // FACE DOES NOT MATCH! STRICTLY REJECT PUNCH!
             statusPill.style.background = 'rgba(239, 68, 68, 0.95)';
             statusPill.style.borderColor = '#ef4444';
-            statusPillText.innerHTML = `⚠️ Biometric Mismatch! Live face is NOT ${employeeData.name}`;
-            showToast(`ACCESS DENIED: Facial verification failed. Live face does not match ${employeeData.name}. Attendance cannot be recorded!`, true);
+            statusPillText.innerHTML = `⚠️ Biometric Mismatch! (${matchScore}% match) — Face is NOT ${employeeData.name}`;
+            showToast(`ACCESS DENIED: Facial verification failed (${matchScore}% confidence). Live face does not match ${employeeData.name}. Attendance cannot be recorded!`, true);
 
             btnSnapPhoto.disabled = false;
             snapBtnText.textContent = 'Retry Face Verification';
