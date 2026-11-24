@@ -72,7 +72,7 @@ class Employee(BaseModel):
     )
 
     # ── Photo ─────────────────────────────────────────────────────────
-    profile_photo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    profile_photo: Mapped[str | None] = mapped_column(Text, nullable=True, doc="Profile photo, can store filename or base64 data URL.")
 
     # ── Biometric Face Recognition ───────────────────────────────────────
     registered_face_photo: Mapped[str | None] = mapped_column(

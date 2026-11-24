@@ -918,11 +918,26 @@ def _migrate_add_columns(db) -> None:
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
 
+    # Ensure profile_photo columns can store full Base64 photos
+    try:
+        if dialect == 'postgresql':
+            db.session.execute(text("ALTER TABLE employees ALTER COLUMN profile_photo TYPE TEXT"))
+            db.session.execute(text("ALTER TABLE users ALTER COLUMN profile_photo TYPE TEXT"))
+            db.session.commit()
+            logger.info("Migrated profile_photo columns to TEXT")
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.warning("Could not alter profile_photo to TEXT: %s", e)
+
     # ── One-Time User & Master Reset for Fresh Biometric Registration ──────────────
     try:
-        # Check if reset marker table or check is needed
-        check_reg = db.session.execute(text("SELECT count(*) FROM employee_master WHERE is_registered = TRUE")).scalar()
-        if check_reg and check_reg > 0:
+        db.session.execute(text("CREATE TABLE IF NOT EXISTS system_migrations (migration_key VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
+        db.session.commit()
+        has_reset = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'biometric_reset_v1'")).scalar()
+        if not has_reset:
             logger.info("ONE_TIME_BIOMETRIC_RESET: Resetting all employee registrations so everyone re-registers with camera...")
             db.session.execute(text("""
                 UPDATE departments SET head_employee_id = NULL;
@@ -953,6 +968,7 @@ def _migrate_add_columns(db) -> None:
                     is_face_registered = FALSE,
                     registered_face_photo = NULL,
                     face_descriptor = NULL;
+                INSERT INTO system_migrations (migration_key) VALUES ('biometric_reset_v1');
             """))
             db.session.commit()
             logger.info("ONE_TIME_BIOMETRIC_RESET: Completed successfully. All employees must now register fresh with camera.")

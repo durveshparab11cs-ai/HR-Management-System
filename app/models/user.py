@@ -22,7 +22,7 @@ Security practices:
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base_model import BaseModel
@@ -167,9 +167,9 @@ class User(UserMixin, BaseModel):
     # Profile Fields
     # ------------------------------------------------------------------
     profile_photo: Mapped[str | None] = mapped_column(
-        String(Limits.String.LONG),
+        Text,
         nullable=True,
-        doc="Relative path to the user's profile photo.",
+        doc="Relative path or base64 data URL to the user's profile photo.",
     )
 
     phone: Mapped[str | None] = mapped_column(
