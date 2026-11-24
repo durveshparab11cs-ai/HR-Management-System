@@ -979,6 +979,42 @@ def _migrate_add_columns(db) -> None:
             pass
         logger.warning("ONE_TIME_BIOMETRIC_RESET failed or skipped: %s", reset_err)
 
+    # ── Reset E-2606026 so Durvesh Parab can re-register freshly with camera ──
+    try:
+        has_reset_d = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'reset_durvesh_v2'")).scalar()
+        if not has_reset_d:
+            logger.info("RESETTING REGISTRATION FOR E-2606026...")
+            db.session.execute(text("""
+                UPDATE departments SET head_employee_id = NULL WHERE head_employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                UPDATE employees SET manager_id = NULL WHERE manager_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM attendance_photos WHERE attendance_id IN (SELECT id FROM attendance WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026'));
+                DELETE FROM attendance_logs WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM attendance WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM half_day_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM early_leave_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM shift_change_requests WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
+                DELETE FROM employees WHERE employee_code = 'E-2606026';
+                DELETE FROM users WHERE username = 'e2606026' OR email LIKE '%e2606026%';
+                UPDATE employee_master 
+                SET is_registered = FALSE, 
+                    user_id = NULL, 
+                    registered_at = NULL, 
+                    is_face_registered = FALSE, 
+                    registered_face_photo = NULL, 
+                    face_descriptor = NULL 
+                WHERE employee_code = 'E-2606026';
+                INSERT INTO system_migrations (migration_key) VALUES ('reset_durvesh_v2');
+            """))
+            db.session.commit()
+            logger.info("Successfully reset registration for E-2606026.")
+    except Exception as reset_e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.warning("Could not reset registration for E-2606026: %s", reset_e)
+
 
 def _auto_seed_hospitals(app: Flask) -> None:
     """Seed hospitals if not already present."""
