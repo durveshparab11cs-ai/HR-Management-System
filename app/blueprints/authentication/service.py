@@ -303,17 +303,8 @@ class AuthService:
         if not master:
             return False, "Employee Code not found. Please contact HR.", None
 
-        from app.models.user import User  # noqa: PLC0415
-        from app.models.employee import Employee  # noqa: PLC0415
-
-        username = code.lower().replace("-", "")
-        user_exists = User.query.filter(
-            ((User.employee_code == code) | (User.username == username)),
-            User.is_deleted == False
-        ).first()
-        emp_exists = Employee.query.filter_by(employee_code=code, is_deleted=False).first()
-
-        is_reg = bool(master.is_registered or (user_exists and user_exists.is_active) or emp_exists)
+        existing_user = auth_repo.get_by_employee_code(code)
+        is_reg = bool(master.is_registered or existing_user)
         msg = f"{master.employee_name} is already registered." if is_reg else "Employee found."
 
         return True, msg, {
