@@ -23,8 +23,8 @@ class FaceBiometricEngine {
     this.animFrameId = null;
     this.isScanning = false;
     
-    // High-speed reliable GitHub CDN model repository
-    this.MODEL_URL = 'https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/';
+    // Local self-hosted model repository (zero CDN/network dependency)
+    this.MODEL_URL = '/static/models';
   }
 
   /**
@@ -38,10 +38,15 @@ class FaceBiometricEngine {
       try {
         // Ensure face-api library is present in global scope
         if (typeof faceapi === 'undefined') {
-          await this._loadScript('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js');
+          try {
+            await this._loadScript('/static/js/face-api.min.js');
+          } catch (e) {
+            console.warn('Local face-api load failed, using fallback CDN:', e);
+            await this._loadScript('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.min.js');
+          }
         }
 
-        console.log('[FaceBiometric] Loading high-accuracy AI models from CDN...');
+        console.log('[FaceBiometric] Loading high-accuracy AI models from local static repository...');
         // Load SSD MobileNetV1 (full precision) + TinyFaceDetector + 68 Landmark + Recognition
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri(this.MODEL_URL).catch(() => null),

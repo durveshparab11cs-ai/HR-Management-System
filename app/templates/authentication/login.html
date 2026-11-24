@@ -1205,9 +1205,9 @@
               </div>
 
               <!-- Camera Viewport with Scanner UI -->
-              <div id="reg-scanner-viewport" style="display: none; position: relative; width: 100%; height: 260px; background: #020617; border-radius: 12px; overflow: hidden; margin-bottom: 0.85rem; border: 1px solid rgba(56, 189, 248, 0.4);">
-                <video id="reg-scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
-                <canvas id="reg-scanner-canvas" style="display: none; width: 100%; height: 100%; object-fit: cover;"></canvas>
+              <div id="reg-scanner-viewport" style="display: none; position: relative; width: 100%; height: 260px; background: #020617; border-radius: 12px; overflow: hidden; margin-bottom: 0.85rem; border: 1.5px solid rgba(56, 189, 248, 0.45); box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                <video id="reg-scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block;"></video>
+                <canvas id="reg-scanner-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none;"></canvas>
 
                 <!-- Scanner Reticle & Sweeping Laser -->
                 <div id="reg-reticle-overlay" style="position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -1216,7 +1216,7 @@
                 </div>
 
                 <!-- Live Prompt Overlay -->
-                <div id="reg-scanner-prompt" style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: #38bdf8; font-size: 0.78rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; white-space: nowrap; border: 1px solid rgba(56, 189, 248, 0.3);">
+                <div id="reg-scanner-prompt" style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #38bdf8; font-size: 0.78rem; font-weight: 700; padding: 5px 14px; border-radius: 20px; white-space: nowrap; border: 1px solid rgba(56, 189, 248, 0.4);">
                   Align face in oval
                 </div>
               </div>
@@ -1633,16 +1633,16 @@
           startLaserAnimation();
           promptEl.textContent = 'Hold still. Scanning biometric facial profile...';
 
-          // Perform thorough multi-frame burst scan
-          const scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 2200, (p) => {
-            promptEl.textContent = `Thoroughly scanning facial landmarks... ${p}%`;
+          // Perform thorough multi-frame burst scan (adaptive sampling with 12s positioning window)
+          const scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 12000, (p, msg) => {
+            promptEl.textContent = msg || `Align face in oval (${p}%)...`;
           });
 
           stopLaserAnimation();
           window.faceBiometric.stopCamera();
 
-          if (!scanResult || !scanResult.photoBase64) {
-            promptEl.textContent = 'Face scan timed out or no face found. Please retry.';
+          if (!scanResult || !scanResult.success || !scanResult.descriptor) {
+            promptEl.textContent = (scanResult && scanResult.message) || 'Face scan timed out or no face found. Please retry.';
             startBtn.disabled = false;
             isScanning = false;
             return;
