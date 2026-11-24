@@ -23,8 +23,8 @@ class FaceBiometricEngine {
     this.animFrameId = null;
     this.isScanning = false;
     
-    // Default CDN model repository
-    this.MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+    // High-speed reliable GitHub CDN model repository
+    this.MODEL_URL = 'https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/';
   }
 
   /**
@@ -251,17 +251,21 @@ class FaceBiometricEngine {
           let finalDescriptor = null;
           if (collectedDescriptors.length > 0) {
             finalDescriptor = this._averageDescriptors(collectedDescriptors);
+            resolve({
+              success: true,
+              descriptor: finalDescriptor,
+              photoBase64: bestPhoto,
+              message: 'Facial biometric profile scanned with deep neural accuracy.'
+            });
           } else {
-            // Generate robust geometric structural descriptor from captured frame
-            finalDescriptor = this._generateCanvasStructuralDescriptor(videoEl);
+            // Strict biometric enforcement: Never allow dummy or unverified scans!
+            resolve({
+              success: false,
+              descriptor: null,
+              photoBase64: null,
+              message: 'No clear human face detected. Please face the camera directly in good lighting.'
+            });
           }
-
-          resolve({
-            success: true,
-            descriptor: finalDescriptor,
-            photoBase64: bestPhoto,
-            message: 'Facial scan completed successfully.'
-          });
         }
       };
 
@@ -345,19 +349,31 @@ class FaceBiometricEngine {
   /**
    * Compare two 128-d face descriptors using Euclidean distance
    * 
-   * @param {Array<number>} desc1
-   * @param {Array<number>} desc2
-   * @param {number} threshold - Match threshold (default 0.55)
-   * @returns {{isMatch: boolean, distance: number, similarity: number}}
+   * @param {Array<number>|string} desc1
+   * @param {Array<number>|string} desc2
+   * @param {number} threshold - Match threshold (default 0.50)
+   * @returns {{isMatch: boolean, matched: boolean, distance: number, similarity: number, score: number}}
    */
-  compareDescriptors(desc1, desc2, threshold = 0.55) {
-    if (!desc1 || !desc2 || desc1.length !== desc2.length) {
-      return { isMatch: false, distance: 999, similarity: 0 };
+  compareDescriptors(desc1, desc2, threshold = 0.50) {
+    let d1 = desc1;
+    let d2 = desc2;
+
+    try {
+      if (typeof d1 === 'string') d1 = JSON.parse(d1);
+      if (typeof d2 === 'string') d2 = JSON.parse(d2);
+    } catch (e) {
+      console.warn('[FaceBiometric] JSON parse error in compareDescriptors', e);
+      return { isMatch: false, matched: false, distance: 999, similarity: 0, score: 0 };
+    }
+
+    if (!Array.isArray(d1) || !Array.isArray(d2) || d1.length !== d2.length || d1.length < 64) {
+      console.warn('[FaceBiometric] Invalid descriptor dimensions:', d1?.length, d2?.length);
+      return { isMatch: false, matched: false, distance: 999, similarity: 0, score: 0 };
     }
 
     let sum = 0;
-    for (let i = 0; i < desc1.length; i++) {
-      const diff = desc1[i] - desc2[i];
+    for (let i = 0; i < d1.length; i++) {
+      const diff = Number(d1[i]) - Number(d2[i]);
       sum += diff * diff;
     }
     const distance = Math.sqrt(sum);
@@ -371,8 +387,10 @@ class FaceBiometricEngine {
 
     return {
       isMatch,
+      matched: isMatch,
       distance: Number(distance.toFixed(4)),
-      similarity
+      similarity,
+      score: similarity
     };
   }
 }

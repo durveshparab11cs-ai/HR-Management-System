@@ -1228,38 +1228,43 @@
         let matchScore = 0;
 
         if (registeredDesc && capturedFaceDescriptor) {
-          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.55);
+          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.48);
           isFaceMatched = matchResult.matched;
           matchScore = matchResult.score;
 
           if (!isFaceMatched) {
-            // FACE DOES NOT MATCH! REJECT PUNCH!
-            statusPill.style.background = 'rgba(239, 68, 68, 0.9)';
+            // FACE DOES NOT MATCH! STRICTLY REJECT PUNCH!
+            statusPill.style.background = 'rgba(239, 68, 68, 0.95)';
             statusPill.style.borderColor = '#ef4444';
-            statusPillText.innerHTML = `⚠️ Face Mismatch (${matchScore}% match). Attendance Denied!`;
-            showToast(`Biometric verification failed: Live face does not match ${employeeData.name}. Attendance cannot be recorded.`, true);
+            statusPillText.innerHTML = `⚠️ Biometric Mismatch! Live face is NOT ${employeeData.name}`;
+            showToast(`ACCESS DENIED: Facial verification failed. Live face does not match ${employeeData.name}. Attendance cannot be recorded!`, true);
 
             btnSnapPhoto.disabled = false;
             snapBtnText.textContent = 'Retry Face Verification';
             return;
           } else {
-            statusPill.style.background = 'rgba(16, 185, 129, 0.9)';
+            statusPill.style.background = 'rgba(16, 185, 129, 0.95)';
             statusPill.style.borderColor = '#10b981';
-            statusPillText.innerHTML = `✓ Face Verified (${matchScore}% match)`;
+            statusPillText.innerHTML = `✓ Face Identity Confirmed (${matchScore}% confidence)`;
           }
-        } else if (employeeData.is_face_registered && !capturedFaceDescriptor) {
-          // Employee is enrolled, but live scanner couldn't detect a clear face
-          statusPill.style.background = 'rgba(239, 68, 68, 0.9)';
+        } else if (!capturedFaceDescriptor) {
+          // No live face detected
+          statusPill.style.background = 'rgba(239, 68, 68, 0.95)';
           statusPill.style.borderColor = '#ef4444';
-          statusPillText.innerHTML = `⚠️ No Face Detected. Look directly at camera.`;
-          showToast(`Face detection failed. Please look straight into the camera and try again.`, true);
+          statusPillText.innerHTML = `⚠️ No Human Face Detected`;
+          showToast(`Face detection failed: Please look directly into the camera and ensure good lighting.`, true);
           btnSnapPhoto.disabled = false;
           snapBtnText.textContent = 'Retry Scan';
           return;
-        } else {
-          statusPill.style.background = 'rgba(14, 165, 233, 0.9)';
-          statusPill.style.borderColor = '#0284c7';
-          statusPillText.innerHTML = `✓ Photo Captured`;
+        } else if (!registeredDesc) {
+          // Employee has no registered biometric profile
+          statusPill.style.background = 'rgba(239, 68, 68, 0.95)';
+          statusPill.style.borderColor = '#ef4444';
+          statusPillText.innerHTML = `⚠️ Unregistered Face Profile`;
+          showToast(`Biometric enrollment required: ${employeeData.name} has not registered their face. Please enroll on the registration page first.`, true);
+          btnSnapPhoto.disabled = false;
+          snapBtnText.textContent = 'Enrollment Required';
+          return;
         }
 
         // Switch to Review Mode: freeze photo and show submit/retake buttons

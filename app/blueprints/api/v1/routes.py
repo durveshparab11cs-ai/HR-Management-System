@@ -360,20 +360,22 @@ def kiosk_attendance():
         face_score = 0.0
 
         if registered_desc or registered_photo:
-            # Employee has a registered face profile
+            # Employee has a registered face profile - STRICT BIOMETRIC ENFORCEMENT
             is_match = False
             distance = 1.0
 
-            # 1. Try vector descriptor comparison first
+            if not live_face_descriptor:
+                logger.warning("REJECTED_PUNCH_NO_LIVE_DESCRIPTOR | code=%s | name=%s", code, emp_name)
+                return jsonify({
+                    "success": False,
+                    "biometric_failure": True,
+                    "message": f"Biometric verification required: No live facial scan detected for {emp_name}. Please face the camera and try again."
+                }), 403
+
+            # 1. High-accuracy 128-dimensional deep neural descriptor verification
             if registered_desc and live_face_descriptor:
-                is_match, distance, score = FaceVerificationService.verify_descriptors(live_face_descriptor, registered_desc)
+                is_match, distance, score = FaceVerificationService.verify_descriptors(live_face_descriptor, registered_desc, threshold=0.48)
                 face_score = score
-            # 2. Dual fallback to visual image cross-correlation
-            if not is_match and registered_photo and photo_b64:
-                img_match, img_score = FaceVerificationService.verify_images(photo_b64, registered_photo)
-                if img_match:
-                    is_match = True
-                    face_score = max(face_score, img_score)
 
             if not is_match:
                 logger.warning(
@@ -383,15 +385,18 @@ def kiosk_attendance():
                 return jsonify({
                     "success": False,
                     "biometric_failure": True,
-                    "message": f"Biometric verification failed: live face does not match registered biometric profile for {emp_name}. Attendance cannot be recorded."
+                    "message": f"Biometric verification failed: live face does not match registered employee profile for {emp_name} (Distance: {distance:.2f}). Attendance strictly denied."
                 }), 403
 
             face_verified = True
         else:
-            # If no face is enrolled yet, check whether system requires immediate enrollment
-            logger.info("FACIAL_UNENROLLED_PASS_OR_FIRST_TIME | code=%s", code)
-            face_verified = False
-            face_score = 100.0
+            # Employee has not enrolled face yet - REJECT kiosk attendance until enrolled
+            logger.warning("FACIAL_UNENROLLED_BLOCKED | code=%s", code)
+            return jsonify({
+                "success": False,
+                "biometric_failure": True,
+                "message": f"Biometric enrollment required: {emp_name} has not registered their face profile yet. Please complete registration with camera scan first."
+            }), 403
 
         # Determine check_type if 'auto'
         if check_type not in ("checkin", "checkout"):
