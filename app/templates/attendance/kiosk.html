@@ -787,41 +787,47 @@
         </div>
       </section>
 
-      <!-- STEP 3: Camera Capture (Manual Click - No Forced Countdown) -->
-      <section class="step-view" id="view-step3">
-        <h2 class="view-title" id="camera-heading">Capture Attendance Photo</h2>
-        <p class="view-subtitle" id="camera-subheading">Position your face inside the frame and click "Take Photo".</p>
+        <!-- STEP 3: Camera Capture (Biometric Verification) -->
+        <section class="step-view" id="view-step3">
+          <h2 class="view-title" id="camera-heading">Biometric Facial Verification</h2>
+          <p class="view-subtitle" id="camera-subheading">Position your face inside the frame and click "Verify Face &amp; Punch".</p>
 
-        <div class="camera-viewport-wrap">
-          <video id="camera-video" autoplay playsinline muted></video>
-          <canvas id="camera-canvas" style="display: none; width: 100%; height: 100%; object-fit: cover;"></canvas>
+          <div class="camera-viewport-wrap">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <canvas id="camera-canvas" style="display: none; width: 100%; height: 100%; object-fit: cover;"></canvas>
 
-          <!-- Scanner Reticle -->
-          <div class="scanner-overlay" id="scanner-reticle">
-            <div class="target-ring"></div>
+            <!-- Scanner Reticle & Sweeping Laser -->
+            <div class="scanner-overlay" id="scanner-reticle">
+              <div class="target-ring"></div>
+              <div id="kiosk-scanner-laser" style="display: none; position: absolute; width: 220px; height: 3px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); box-shadow: 0 0 15px #38bdf8;"></div>
+            </div>
+
+            <!-- Real-time Verification Prompt & Biometric Status -->
+            <div id="kiosk-face-status-pill" style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.85); color: #38bdf8; font-size: 0.82rem; font-weight: 700; padding: 6px 16px; border-radius: 20px; white-space: nowrap; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+              <i class="bi bi-person-bounding-box me-1"></i> <span id="kiosk-face-status-text">Position face inside oval</span>
+            </div>
           </div>
-        </div>
 
-        <!-- Live Controls (Before Capture) -->
-        <div class="camera-controls" id="live-camera-controls">
-          <button type="button" class="manual-snap-btn" id="btn-cancel-camera">
-            <i class="bi bi-arrow-left"></i> Back
-          </button>
-          <button type="button" class="manual-snap-btn" id="btn-snap-photo" style="background: linear-gradient(135deg, var(--accent-cyan), #0284c7); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">
-            <i class="bi bi-camera-fill"></i> Take Photo
-          </button>
-        </div>
+          <!-- Live Controls (Before Capture) -->
+          <div class="camera-controls" id="live-camera-controls">
+            <button type="button" class="manual-snap-btn" id="btn-cancel-camera">
+              <i class="bi bi-arrow-left"></i> Back
+            </button>
+            <button type="button" class="manual-snap-btn" id="btn-snap-photo" style="background: linear-gradient(135deg, var(--accent-cyan), #0284c7); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">
+              <i class="bi bi-camera-fill"></i> <span id="btn-snap-photo-text">Verify Face &amp; Punch</span>
+            </button>
+          </div>
 
-        <!-- Review Controls (After Clicking Take Photo) -->
-        <div class="camera-controls" id="review-camera-controls" style="display: none;">
-          <button type="button" class="manual-snap-btn" id="btn-retake-photo" style="flex: 1; height: 56px;">
-            <i class="bi bi-arrow-counterclockwise"></i> Retake
-          </button>
-          <button type="button" class="manual-snap-btn" id="btn-submit-punch" style="background: linear-gradient(135deg, var(--accent-emerald), #059669); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
-            <i class="bi bi-check-circle-fill"></i> Submit Attendance
-          </button>
-        </div>
-      </section>
+          <!-- Review Controls (After Verification) -->
+          <div class="camera-controls" id="review-camera-controls" style="display: none;">
+            <button type="button" class="manual-snap-btn" id="btn-retake-photo" style="flex: 1; height: 56px;">
+              <i class="bi bi-arrow-counterclockwise"></i> Retry Scan
+            </button>
+            <button type="button" class="manual-snap-btn" id="btn-submit-punch" style="background: linear-gradient(135deg, var(--accent-emerald), #059669); color: #fff; font-weight: 700; flex: 2; height: 56px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">
+              <i class="bi bi-check-circle-fill"></i> Submit Attendance
+            </button>
+          </div>
+        </section>
 
       <!-- STEP 4: Success Splash & Auto-Reset -->
       <section class="step-view" id="view-step4">
@@ -1145,7 +1151,52 @@
         }
       }
 
-      btnSnapPhoto.addEventListener('click', () => {
+      let capturedFaceDescriptor = null;
+      let kioskLaserAnimId = null;
+
+      function startKioskLaserAnimation() {
+        const laser = document.getElementById('kiosk-scanner-laser');
+        if (!laser) return;
+        laser.style.display = 'block';
+        let top = 10;
+        let dir = 1;
+        function stepLaser() {
+          top += dir * 2.5;
+          if (top > 200) dir = -1;
+          if (top < 10) dir = 1;
+          laser.style.top = top + 'px';
+          kioskLaserAnimId = requestAnimationFrame(stepLaser);
+        }
+        stepLaser();
+      }
+
+      function stopKioskLaserAnimation() {
+        if (kioskLaserAnimId) cancelAnimationFrame(kioskLaserAnimId);
+        const laser = document.getElementById('kiosk-scanner-laser');
+        if (laser) laser.style.display = 'none';
+      }
+
+      btnSnapPhoto.addEventListener('click', async () => {
+        const statusPillText = document.getElementById('kiosk-face-status-text');
+        const statusPill = document.getElementById('kiosk-face-status-pill');
+        const snapBtnText = document.getElementById('btn-snap-photo-text');
+
+        btnSnapPhoto.disabled = true;
+        snapBtnText.textContent = 'Scanning Face...';
+        startKioskLaserAnimation();
+
+        // 1. Thoroughly scan live face using FaceBiometricEngine
+        let scanResult = null;
+        try {
+          scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 2000, (p) => {
+            statusPillText.textContent = `Analyzing facial landmarks... ${p}%`;
+          });
+        } catch (scanErr) {
+          console.warn('Face biometric scan failed:', scanErr);
+        }
+
+        stopKioskLaserAnimation();
+
         const width = videoEl.videoWidth || 640;
         const height = videoEl.videoHeight || 480;
         canvasEl.width = width;
@@ -1168,6 +1219,48 @@
         ctx.fillText(`CSCS KIOSK | ${employeeData.code} | ${nowStr}`, 18, height - 20);
 
         capturedPhotoB64 = canvasEl.toDataURL('image/jpeg', 0.85);
+        capturedFaceDescriptor = scanResult ? scanResult.descriptor : null;
+
+        // 2. Strict Biometric Comparison Check
+        // If employee has a registered face descriptor, verify match
+        const registeredDesc = employeeData.face_descriptor;
+        let isFaceMatched = false;
+        let matchScore = 0;
+
+        if (registeredDesc && capturedFaceDescriptor) {
+          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.55);
+          isFaceMatched = matchResult.matched;
+          matchScore = matchResult.score;
+
+          if (!isFaceMatched) {
+            // FACE DOES NOT MATCH! REJECT PUNCH!
+            statusPill.style.background = 'rgba(239, 68, 68, 0.9)';
+            statusPill.style.borderColor = '#ef4444';
+            statusPillText.innerHTML = `⚠️ Face Mismatch (${matchScore}% match). Attendance Denied!`;
+            showToast(`Biometric verification failed: Live face does not match ${employeeData.name}. Attendance cannot be recorded.`, true);
+
+            btnSnapPhoto.disabled = false;
+            snapBtnText.textContent = 'Retry Face Verification';
+            return;
+          } else {
+            statusPill.style.background = 'rgba(16, 185, 129, 0.9)';
+            statusPill.style.borderColor = '#10b981';
+            statusPillText.innerHTML = `✓ Face Verified (${matchScore}% match)`;
+          }
+        } else if (employeeData.is_face_registered && !capturedFaceDescriptor) {
+          // Employee is enrolled, but live scanner couldn't detect a clear face
+          statusPill.style.background = 'rgba(239, 68, 68, 0.9)';
+          statusPill.style.borderColor = '#ef4444';
+          statusPillText.innerHTML = `⚠️ No Face Detected. Look directly at camera.`;
+          showToast(`Face detection failed. Please look straight into the camera and try again.`, true);
+          btnSnapPhoto.disabled = false;
+          snapBtnText.textContent = 'Retry Scan';
+          return;
+        } else {
+          statusPill.style.background = 'rgba(14, 165, 233, 0.9)';
+          statusPill.style.borderColor = '#0284c7';
+          statusPillText.innerHTML = `✓ Photo Captured`;
+        }
 
         // Switch to Review Mode: freeze photo and show submit/retake buttons
         videoEl.style.display = 'none';
@@ -1175,8 +1268,10 @@
         scannerReticle.style.display = 'none';
         liveCameraControls.style.display = 'none';
         reviewCameraControls.style.display = 'flex';
-        cameraHeading.textContent = 'Review Your Photo';
-        cameraSubheading.textContent = "Click 'Submit Attendance' to record punch, or 'Retake' to try again.";
+        cameraHeading.textContent = 'Biometric Verification Passed';
+        cameraSubheading.textContent = "Click 'Submit Attendance' to record punch, or 'Retry' to scan again.";
+        btnSnapPhoto.disabled = false;
+        snapBtnText.textContent = 'Verify Face & Punch';
       });
 
       btnRetakePhoto.addEventListener('click', () => {
@@ -1186,8 +1281,13 @@
         scannerReticle.style.display = 'flex';
         liveCameraControls.style.display = 'flex';
         reviewCameraControls.style.display = 'none';
-        cameraHeading.textContent = 'Capture Attendance Photo';
-        cameraSubheading.textContent = 'Position your face inside the frame and click "Take Photo".';
+        cameraHeading.textContent = 'Biometric Facial Verification';
+        cameraSubheading.textContent = 'Position your face inside the frame and click "Verify Face & Punch".';
+        const statusPill = document.getElementById('kiosk-face-status-pill');
+        const statusPillText = document.getElementById('kiosk-face-status-text');
+        statusPill.style.background = 'rgba(15, 23, 42, 0.85)';
+        statusPill.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+        statusPillText.textContent = 'Position face inside oval';
       });
 
       btnSubmitPunch.addEventListener('click', () => {
@@ -1224,6 +1324,7 @@
           employee_code: employeeData.code,
           check_type: punchAction,
           photo_base64: photoB64,
+          live_face_descriptor: capturedFaceDescriptor,
           latitude: 0.0,
           longitude: 0.0,
           accuracy: 10.0,
@@ -1357,5 +1458,8 @@
 
     })();
   </script>
+
+  <!-- Face Biometrics Engine Script for Kiosk Verification -->
+  <script src="{{ url_for('static', filename='js/face_scanner.js') }}"></script>
 </body>
 </html>

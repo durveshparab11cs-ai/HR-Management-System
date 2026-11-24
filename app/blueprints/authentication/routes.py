@@ -61,20 +61,29 @@ def login():
 
         elif action == "register":
             if register_form.validate_on_submit():
-                ok, msg, user = _svc.register_by_code(
-                    employee_code=register_form.employee_code.data,
-                    password=register_form.password.data,
-                    department=register_form.department.data or request.form.get("department", ""),
-                    designation=register_form.designation.data or request.form.get("designation", ""),
-                    working_location=request.form.get("working_location", "").strip(),
-                    date_of_joining=request.form.get("date_of_joining", "").strip(),
-                    email=request.form.get("email", "").strip(),
-                )
-                if ok:
-                    flash(msg, "success")
-                    return redirect(url_for("authentication.login") + "?tab=login")
-                error      = msg
-                active_tab = "register"
+                face_photo = request.form.get("face_photo_base64", "").strip()
+                face_desc = request.form.get("face_descriptor_json", "").strip()
+
+                if not face_photo or not face_desc:
+                    error = "Mandatory biometric face scan required. Please open your camera and complete the face scan to register."
+                    active_tab = "register"
+                else:
+                    ok, msg, user = _svc.register_by_code(
+                        employee_code=register_form.employee_code.data,
+                        password=register_form.password.data,
+                        department=register_form.department.data or request.form.get("department", ""),
+                        designation=register_form.designation.data or request.form.get("designation", ""),
+                        working_location=request.form.get("working_location", "").strip(),
+                        date_of_joining=request.form.get("date_of_joining", "").strip(),
+                        email=request.form.get("email", "").strip(),
+                        face_photo_base64=face_photo,
+                        face_descriptor_json=face_desc,
+                    )
+                    if ok:
+                        flash(msg, "success")
+                        return redirect(url_for("authentication.login") + "?tab=login")
+                    error      = msg
+                    active_tab = "register"
             else:
                 first_err = next(iter(register_form.errors.values()))[0] if register_form.errors else None
                 error      = first_err or "Please check your inputs and try again."

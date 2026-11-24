@@ -889,6 +889,18 @@ def _migrate_add_columns(db) -> None:
         ('leave_requests',       'comp_off_notified',          'comp_off_notified BOOLEAN'),
         # Leave type ordering for UI - NO DEFAULT CLAUSE
         ('leave_types',          'leave_order',                'leave_order INTEGER'),
+        # Biometric Face Registration fields
+        ('employee_master',      'registered_face_photo',      'registered_face_photo TEXT'),
+        ('employee_master',      'face_descriptor',            'face_descriptor TEXT'),
+        ('employee_master',      'is_face_registered',         'is_face_registered BOOLEAN DEFAULT FALSE'),
+        ('employees',            'registered_face_photo',      'registered_face_photo TEXT'),
+        ('employees',            'face_descriptor',            'face_descriptor TEXT'),
+        ('employees',            'is_face_registered',         'is_face_registered BOOLEAN DEFAULT FALSE'),
+        # Attendance biometric verification metadata
+        ('attendance',           'face_verified',              'face_verified BOOLEAN DEFAULT FALSE'),
+        ('attendance',           'face_match_score',           'face_match_score FLOAT'),
+        ('attendance_master',    'face_verified',              'face_verified BOOLEAN DEFAULT FALSE'),
+        ('attendance_master',    'face_match_score',           'face_match_score FLOAT'),
     ]
 
     for table, col, col_type in new_cols:

@@ -5,7 +5,7 @@ AttendanceMaster — daily attendance record for EmployeeMaster (I-prefix) emplo
 """
 
 from datetime import date, datetime
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions.database import db
@@ -41,6 +41,10 @@ class AttendanceMaster(db.Model):
     check_out_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_out_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_out_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Biometric Face Verification
+    face_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    face_match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow

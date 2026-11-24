@@ -1184,10 +1184,67 @@
               </button>
             </div>
 
+            <!-- ══════════════════════════════════════════════════════════════
+                 MANDATORY BIOMETRIC FACIAL ENROLLMENT SCANNER
+                 ══════════════════════════════════════════════════════════════ -->
+            <input type="hidden" name="face_photo_base64" id="reg-face-photo" required>
+            <input type="hidden" name="face_descriptor_json" id="reg-face-descriptor" required>
+
+            <div class="biometric-enrollment-card" id="reg-face-scan-box" style="margin: 1.25rem 0; padding: 1.25rem; background: rgba(15, 23, 42, 0.7); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: var(--radius-md);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <i class="bi bi-person-bounding-box" style="font-size: 1.3rem; color: #38bdf8;"></i>
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">Mandatory Face Enrollment</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8;">Face must be scanned to enable kiosk &amp; check-in verification</div>
+                  </div>
+                </div>
+                <span id="face-scan-status-badge" style="padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+                  <i class="bi bi-shield-x"></i> Not Enrolled
+                </span>
+              </div>
+
+              <!-- Camera Viewport with Scanner UI -->
+              <div id="reg-scanner-viewport" style="display: none; position: relative; width: 100%; height: 260px; background: #020617; border-radius: 12px; overflow: hidden; margin-bottom: 0.85rem; border: 1px solid rgba(56, 189, 248, 0.4);">
+                <video id="reg-scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+                <canvas id="reg-scanner-canvas" style="display: none; width: 100%; height: 100%; object-fit: cover;"></canvas>
+
+                <!-- Scanner Reticle & Sweeping Laser -->
+                <div id="reg-reticle-overlay" style="position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                  <div style="width: 160px; height: 190px; border-radius: 50%; border: 2px dashed rgba(56, 189, 248, 0.85); box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);"></div>
+                  <div id="reg-scanner-laser" style="display: none; position: absolute; width: 180px; height: 3px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); box-shadow: 0 0 15px #38bdf8;"></div>
+                </div>
+
+                <!-- Live Prompt Overlay -->
+                <div id="reg-scanner-prompt" style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: #38bdf8; font-size: 0.78rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; white-space: nowrap; border: 1px solid rgba(56, 189, 248, 0.3);">
+                  Align face in oval
+                </div>
+              </div>
+
+              <!-- Photo Snapshot Preview (after scan) -->
+              <div id="reg-photo-preview-wrap" style="display: none; align-items: center; gap: 1rem; margin-bottom: 0.85rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px;">
+                <img id="reg-enrolled-photo-img" src="" alt="Enrolled Face" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;">
+                <div>
+                  <div style="font-weight: 700; color: #10b981; font-size: 0.88rem;"><i class="bi bi-patch-check-fill"></i> Facial Biometrics Enrolled</div>
+                  <div style="font-size: 0.75rem; color: #94a3b8;">128-d descriptor vector successfully calculated</div>
+                </div>
+              </div>
+
+              <!-- Trigger Buttons -->
+              <div style="display: flex; gap: 0.5rem;">
+                <button type="button" id="btn-start-face-scan" class="btn-auth-primary" style="flex: 2; height: 42px; background: linear-gradient(135deg, #0284c7, #2563eb); font-size: 0.88rem;">
+                  <i class="bi bi-camera"></i> <span id="btn-face-scan-text">Start Face Scan</span>
+                </button>
+                <button type="button" id="btn-cancel-face-scan" class="btn-auth-primary" style="display: none; flex: 1; height: 42px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.88rem;">
+                  Cancel
+                </button>
+              </div>
+            </div>
+
             <!-- Submit Button -->
-            <button type="submit" class="btn-auth-primary" id="btn-reg-submit">
+            <button type="submit" class="btn-auth-primary" id="btn-reg-submit" disabled style="opacity: 0.6; cursor: not-allowed;" title="Complete facial scan to enable registration">
               <span class="spinner-border-sm" id="spin-reg"></span>
-              <span id="text-reg">Submit for HR Approval</span>
+              <span id="text-reg">Complete Registration</span>
             </button>
           </form>
         </div>
@@ -1510,6 +1567,132 @@
         }
       }
     }
+  </script>
+
+  <!-- Face Biometrics Engine Script for Registration & Kiosk -->
+  <script src="{{ url_for('static', filename='js/face_scanner.js') }}"></script>
+  <script>
+    (function initRegistrationFaceScanner() {
+      const startBtn = document.getElementById('btn-start-face-scan');
+      const cancelBtn = document.getElementById('btn-cancel-face-scan');
+      const videoEl = document.getElementById('reg-scanner-video');
+      const canvasEl = document.getElementById('reg-scanner-canvas');
+      const viewport = document.getElementById('reg-scanner-viewport');
+      const promptEl = document.getElementById('reg-scanner-prompt');
+      const statusBadge = document.getElementById('face-scan-status-badge');
+      const photoPreviewWrap = document.getElementById('reg-photo-preview-wrap');
+      const photoImg = document.getElementById('reg-enrolled-photo-img');
+      const submitBtn = document.getElementById('btn-reg-submit');
+      const facePhotoInput = document.getElementById('reg-face-photo');
+      const faceDescInput = document.getElementById('reg-face-descriptor');
+      const laserEl = document.getElementById('reg-scanner-laser');
+
+      if (!startBtn || !videoEl) return;
+
+      let isScanning = false;
+      let laserAnimId = null;
+
+      function startLaserAnimation() {
+        if (!laserEl) return;
+        laserEl.style.display = 'block';
+        let top = 40;
+        let direction = 1;
+        function stepLaser() {
+          top += direction * 2.5;
+          if (top > 210) direction = -1;
+          if (top < 40) direction = 1;
+          laserEl.style.top = top + 'px';
+          laserAnimId = requestAnimationFrame(stepLaser);
+        }
+        stepLaser();
+      }
+
+      function stopLaserAnimation() {
+        if (laserAnimId) cancelAnimationFrame(laserAnimId);
+        if (laserEl) laserEl.style.display = 'none';
+      }
+
+      startBtn.addEventListener('click', async () => {
+        if (isScanning) return;
+        isScanning = true;
+        startBtn.disabled = true;
+        cancelBtn.style.display = 'inline-block';
+        viewport.style.display = 'block';
+        promptEl.textContent = 'Initializing biometric camera...';
+
+        try {
+          // Initialize camera
+          const streamStarted = await window.faceBiometric.initCamera(videoEl);
+          if (!streamStarted) {
+            promptEl.textContent = 'Camera access denied or unavailable.';
+            startBtn.disabled = false;
+            isScanning = false;
+            return;
+          }
+
+          startLaserAnimation();
+          promptEl.textContent = 'Hold still. Scanning biometric facial profile...';
+
+          // Perform thorough multi-frame burst scan
+          const scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 2200, (p) => {
+            promptEl.textContent = `Thoroughly scanning facial landmarks... ${p}%`;
+          });
+
+          stopLaserAnimation();
+          window.faceBiometric.stopCamera();
+
+          if (!scanResult || !scanResult.photoBase64) {
+            promptEl.textContent = 'Face scan timed out or no face found. Please retry.';
+            startBtn.disabled = false;
+            isScanning = false;
+            return;
+          }
+
+          // Enrollment succeeded!
+          facePhotoInput.value = scanResult.photoBase64;
+          faceDescInput.value = JSON.stringify(scanResult.descriptor);
+
+          // Update UI
+          viewport.style.display = 'none';
+          cancelBtn.style.display = 'none';
+          photoImg.src = scanResult.photoBase64;
+          photoPreviewWrap.style.display = 'flex';
+
+          statusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+          statusBadge.style.color = '#10b981';
+          statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill"></i> Face Enrolled';
+
+          startBtn.disabled = false;
+          startBtn.style.background = 'rgba(14, 165, 233, 0.2)';
+          startBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          document.getElementById('btn-face-scan-text').textContent = 'Re-Scan Face';
+
+          // Unlock registration submit button
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+          submitBtn.removeAttribute('title');
+          isScanning = false;
+
+        } catch (err) {
+          stopLaserAnimation();
+          window.faceBiometric.stopCamera();
+          promptEl.textContent = 'Face scan failed: ' + (err.message || 'Unknown error');
+          startBtn.disabled = false;
+          isScanning = false;
+        }
+      });
+
+      cancelBtn.addEventListener('click', () => {
+        stopLaserAnimation();
+        window.faceBiometric.stopCamera();
+        viewport.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        startBtn.disabled = false;
+        isScanning = false;
+      });
+    })();
   </script>
 </body>
 </html>

@@ -48,6 +48,19 @@ class Attendance(BaseModel):
     overtime_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     late_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_late: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # ── Biometric Face Verification ────────────────────────────────────
+    face_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        doc="True if live face was verified against registered face profile."
+    )
+    face_match_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        doc="Face matching confidence percentage (e.g. 96.5%)."
+    )
     is_half_day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_early_leave: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

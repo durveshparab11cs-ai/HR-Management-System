@@ -74,6 +74,24 @@ class Employee(BaseModel):
     # ── Photo ─────────────────────────────────────────────────────────
     profile_photo: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # ── Biometric Face Recognition ───────────────────────────────────────
+    registered_face_photo: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Base64 encoded reference face photo captured during employee registration."
+    )
+    face_descriptor: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        doc="JSON array string of 128-dimensional biometric face descriptor vector."
+    )
+    is_face_registered: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        doc="True if the employee's face has been thoroughly scanned and enrolled."
+    )
+
     # ── Relationships ─────────────────────────────────────────────────
     # uselist=False on the backref makes user.employee return a single
     # Employee object instead of an InstrumentedList — required because

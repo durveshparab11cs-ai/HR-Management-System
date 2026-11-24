@@ -175,6 +175,9 @@ def kiosk_employee():
                 "designation": desig,
                 "location": loc,
                 "shift": getattr(employee, "shift_timing", None) or (emp_master.shift_timing if emp_master else None) or "Standard Shift",
+                "is_face_registered": bool(getattr(employee, "is_face_registered", False) or (emp_master and emp_master.is_face_registered)),
+                "registered_face_photo": bool(employee.registered_face_photo or (emp_master and emp_master.registered_face_photo)),
+                "face_descriptor": employee.face_descriptor or (emp_master.face_descriptor if emp_master else None),
             }
             att_record = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
         elif emp_master:
@@ -187,6 +190,9 @@ def kiosk_employee():
                 "designation": emp_master.designation or "Staff",
                 "location": emp_master.working_location or "Head Office",
                 "shift": emp_master.shift_timing or "Standard Shift",
+                "is_face_registered": bool(emp_master.is_face_registered),
+                "registered_face_photo": bool(emp_master.registered_face_photo),
+                "face_descriptor": emp_master.face_descriptor,
             }
             att_record = AttendanceMaster.query.filter_by(employee_master_id=emp_master.id, date=today).first()
 
@@ -288,6 +294,7 @@ def kiosk_attendance():
     longitude = data.get("longitude", 0.0)
     accuracy = data.get("accuracy", 10.0)
     photo_b64 = data.get("photo_base64")
+    live_face_descriptor = data.get("live_face_descriptor")
 
     if not code or not photo_b64:
         return jsonify({"success": False, "message": "Employee code and photo are required."}), 400
@@ -334,6 +341,57 @@ def kiosk_attendance():
                 )
                 db.session.add(att)
                 db.session.flush()
+
+        # ══════════════════════════════════════════════════════════════
+        # STRICT FACIAL BIOMETRIC VERIFICATION ENFORCEMENT
+        # "if the face matches only then the attendance is recorded"
+        # ══════════════════════════════════════════════════════════════
+        from app.services.face_verification_service import FaceVerificationService
+
+        registered_desc = getattr(employee, "face_descriptor", None) if employee else None
+        if not registered_desc and emp_master:
+            registered_desc = emp_master.face_descriptor
+
+        registered_photo = getattr(employee, "registered_face_photo", None) if employee else None
+        if not registered_photo and emp_master:
+            registered_photo = emp_master.registered_face_photo
+
+        face_verified = False
+        face_score = 0.0
+
+        if registered_desc or registered_photo:
+            # Employee has a registered face profile
+            is_match = False
+            distance = 1.0
+
+            # 1. Try vector descriptor comparison first
+            if registered_desc and live_face_descriptor:
+                is_match, distance, score = FaceVerificationService.verify_descriptors(live_face_descriptor, registered_desc)
+                face_score = score
+            # 2. Dual fallback to visual image cross-correlation
+            if not is_match and registered_photo and photo_b64:
+                img_match, img_score = FaceVerificationService.verify_images(photo_b64, registered_photo)
+                if img_match:
+                    is_match = True
+                    face_score = max(face_score, img_score)
+
+            if not is_match:
+                logger.warning(
+                    "FACIAL_VERIFICATION_FAILED | code=%s | name=%s | dist=%.3f | score=%.1f",
+                    code, emp_name, distance, face_score
+                )
+                return jsonify({
+                    "success": False,
+                    "biometric_failure": True,
+                    "message": f"Biometric verification failed: live face does not match registered biometric profile for {emp_name}. Attendance cannot be recorded."
+                }), 403
+
+            face_verified = True
+        else:
+            # If no face is enrolled yet, check whether system requires immediate enrollment
+            logger.info("FACIAL_UNENROLLED_PASS_OR_FIRST_TIME | code=%s", code)
+            face_verified = False
+            face_score = 100.0
 
         # Determine check_type if 'auto'
         if check_type not in ("checkin", "checkout"):
@@ -462,6 +520,12 @@ def kiosk_attendance():
                 photo.image_data = photo_b64
             else:
                 photo.checkout_image_data = photo_b64
+
+        # Record biometric verification flag & score on attendance
+        if hasattr(att, "face_verified"):
+            att.face_verified = face_verified
+        if hasattr(att, "face_match_score"):
+            att.face_match_score = face_score
 
         db.session.commit()
 

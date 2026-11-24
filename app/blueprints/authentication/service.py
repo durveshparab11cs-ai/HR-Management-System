@@ -320,6 +320,8 @@ class AuthService:
         working_location: str = "",
         date_of_joining: str = "",
         email: str = "",
+        face_photo_base64: str = "",
+        face_descriptor_json: str = "",
     ) -> Tuple[bool, str, Optional[User]]:
         """
         Complete self-registration for an employee using their code.
@@ -446,6 +448,8 @@ class AuthService:
 
             # Upsert Employee record to prevent duplicate key violations
             employee = Employee.query.filter(func.upper(Employee.employee_code) == code.upper()).first()
+            has_face = bool(face_photo_base64 and face_descriptor_json)
+
             if employee:
                 employee.user_id = user.id
                 employee.department = final_dept
@@ -456,6 +460,11 @@ class AuthService:
                 employee.office_settings_id = office_settings_id
                 employee.is_deleted = False
                 employee.updated_by = user.id
+                if has_face:
+                    employee.registered_face_photo = face_photo_base64
+                    employee.face_descriptor = face_descriptor_json
+                    employee.is_face_registered = True
+                    employee.profile_photo = face_photo_base64
             else:
                 employee = Employee(
                     user_id=user.id,
@@ -467,6 +476,10 @@ class AuthService:
                     personal_email=clean_email,
                     office_settings_id=office_settings_id,
                     created_by=user.id,
+                    registered_face_photo=face_photo_base64 if has_face else None,
+                    face_descriptor=face_descriptor_json if has_face else None,
+                    is_face_registered=has_face,
+                    profile_photo=face_photo_base64 if has_face else None,
                 )
                 db.session.add(employee)
             db.session.flush()
@@ -479,6 +492,10 @@ class AuthService:
                 master.date_of_joining = parsed_doj
             if hasattr(master, "official_email") and clean_email:
                 master.official_email = clean_email
+            if has_face:
+                master.registered_face_photo = face_photo_base64
+                master.face_descriptor = face_descriptor_json
+                master.is_face_registered = True
             
             # Mark as registered in master - now with explicit commit
             auth_repo.mark_registered(master, user.id)
