@@ -271,15 +271,18 @@ class ProductionConfig(BaseConfig):
             "pool_pre_ping": True,
         }
     else:
+        # Dynamic connect_args: Neon / PgBouncer pooled connections reject statement_timeout in startup options
+        _connect_args = {}
+        if "pooler" not in _db_url and "neon.tech" not in _db_url:
+            _connect_args["options"] = "-c statement_timeout=30000"
+
         SQLALCHEMY_ENGINE_OPTIONS: dict = {
             "pool_pre_ping": True,
             "pool_size": int(os.environ.get("DB_POOL_SIZE", 5)),
             "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 10)),
             "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
             "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 1800)),
-            "connect_args": {
-                "options": "-c statement_timeout=30000"
-            }
+            "connect_args": _connect_args
         }
 
     # Cache — use Redis if available, else SimpleCache
