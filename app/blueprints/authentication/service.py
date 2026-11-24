@@ -303,12 +303,26 @@ class AuthService:
         if not master:
             return False, "Employee Code not found. Please contact HR.", None
 
-        return True, "Employee found.", {
+        from app.models.user import User  # noqa: PLC0415
+        from app.models.employee import Employee  # noqa: PLC0415
+
+        username = code.lower().replace("-", "")
+        user_exists = User.query.filter(
+            ((User.employee_code == code) | (User.username == username)),
+            User.is_deleted == False
+        ).first()
+        emp_exists = Employee.query.filter_by(employee_code=code, is_deleted=False).first()
+
+        is_reg = bool(master.is_registered or (user_exists and user_exists.is_active) or emp_exists)
+        msg = f"{master.employee_name} is already registered." if is_reg else "Employee found."
+
+        return True, msg, {
             "name":             master.employee_name,
             "department":       master.department or "",
             "designation":      master.designation or "",
             "working_location": master.working_location or "",
             "code":             master.employee_code,
+            "is_registered":    is_reg,
         }
 
     def register_by_code(
@@ -347,8 +361,12 @@ class AuthService:
         if not master:
             return False, "Employee Code not found. Please contact HR.", None
 
-        # Clean up any existing User / Employee records for this code so fresh registration succeeds cleanly
+        # Prevent duplicate registration if already registered
         existing = auth_repo.get_by_employee_code(code)
+        if master.is_registered and existing:
+            return False, f"{master.employee_name} ({code}) is already registered. Please sign in with your password.", None
+
+        # Clean up any existing User / Employee records for this code so fresh registration succeeds cleanly
         if existing:
             try:
                 from app.models.attendance import Attendance  # noqa: PLC0415

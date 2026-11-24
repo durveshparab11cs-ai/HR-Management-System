@@ -655,6 +655,21 @@
       padding: 0.75rem 1rem;
       margin-bottom: 1.25rem;
       display: none;
+      transition: all 0.25s ease;
+    }
+
+    .lookup-status-card.already-registered {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.45);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+    }
+
+    .lookup-status-card.already-registered .lookup-label {
+      color: #f87171;
+    }
+
+    .lookup-status-card.already-registered .lookup-name {
+      color: #ffffff;
     }
 
     .lookup-label {
@@ -1077,13 +1092,23 @@
               <label for="reg-code" class="floating-label">Enter Employee Code</label>
             </div>
 
-            <!-- Verified Employee Name Card -->
+            <!-- Verified / Already Registered Employee Name Card -->
             <div class="lookup-status-card" id="reg-lookup-card">
-              <div class="lookup-label"><i class="bi bi-check-circle"></i> Verified Master Record</div>
+              <div class="lookup-label" id="reg-lookup-label"><i class="bi bi-check-circle"></i> Verified Master Record</div>
               <div class="lookup-name" id="reg-lookup-name">—</div>
+              <div id="reg-already-registered-alert" style="display: none; margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px solid rgba(239, 68, 68, 0.25);">
+                <div style="color: #fca5a5; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                  <i class="bi bi-shield-lock-fill"></i> An account is already active with this employee code.
+                </div>
+                <button type="button" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-weight: 700; font-size: 0.85rem; padding: 0.45rem 1rem; border-radius: 8px; border: none; box-shadow: 0 4px 12px rgba(37,99,235,0.3);" onclick="switchToSignIn(document.getElementById('reg-code').value.trim())">
+                  <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Your Account
+                </button>
+              </div>
             </div>
 
-            <!-- Work Location / Hospital Selection -->
+            <!-- Registration Form Fields (Hidden if already registered) -->
+            <div id="reg-form-fields">
+              <!-- Work Location / Hospital Selection -->
             <div class="floating-group">
               <select name="working_location" id="reg-location" class="floating-select" required>
                 <option value="" selected>— Select Work Location / Hospital —</option>
@@ -1246,6 +1271,7 @@
               <span class="spinner-border-sm" id="spin-reg"></span>
               <span id="text-reg">Complete Registration</span>
             </button>
+            </div> <!-- /#reg-form-fields -->
           </form>
         </div>
 
@@ -1444,11 +1470,19 @@
     let lookupTimer = null;
     function lookupEmployee(code) {
       const card = document.getElementById('reg-lookup-card');
+      const labelEl = document.getElementById('reg-lookup-label');
       const nameEl = document.getElementById('reg-lookup-name');
+      const alertEl = document.getElementById('reg-already-registered-alert');
+      const fieldsWrap = document.getElementById('reg-form-fields');
+      const submitBtn = document.getElementById('btn-reg-submit');
+      const scanBtn = document.getElementById('btn-start-face-scan');
       clearTimeout(lookupTimer);
 
       if (!code || code.trim().length < 3) {
         card.style.display = 'none';
+        card.classList.remove('already-registered');
+        if (alertEl) alertEl.style.display = 'none';
+        if (fieldsWrap) fieldsWrap.style.display = 'block';
         return;
       }
 
@@ -1457,27 +1491,68 @@
           const res = await fetch('/auth/lookup-employee?code=' + encodeURIComponent(code.trim()));
           const data = await res.json();
           if (data.found) {
-            nameEl.textContent = data.name;
             card.style.display = 'block';
-            if (data.department) {
-              const deptSelect = document.getElementById('reg-dept');
-              if (deptSelect) deptSelect.value = data.department;
-            }
-            if (data.designation) {
-              const desigInput = document.getElementById('reg-designation');
-              if (desigInput && !desigInput.value) desigInput.value = data.designation;
-            }
-            if (data.working_location) {
-              const locSelect = document.getElementById('reg-location');
-              if (locSelect) locSelect.value = data.working_location;
+            if (data.is_registered) {
+              card.classList.add('already-registered');
+              if (labelEl) labelEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Already Registered';
+              nameEl.innerHTML = `<span style="color: #fca5a5;">${data.name}</span> is already registered`;
+              if (alertEl) alertEl.style.display = 'block';
+              if (fieldsWrap) fieldsWrap.style.display = 'none';
+              if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.6';
+                submitBtn.style.cursor = 'not-allowed';
+              }
+              if (scanBtn) scanBtn.disabled = true;
+            } else {
+              card.classList.remove('already-registered');
+              if (labelEl) labelEl.innerHTML = '<i class="bi bi-check-circle"></i> Verified Master Record';
+              nameEl.textContent = data.name;
+              if (alertEl) alertEl.style.display = 'none';
+              if (fieldsWrap) fieldsWrap.style.display = 'block';
+              if (scanBtn) scanBtn.disabled = false;
+              if (data.department) {
+                const deptSelect = document.getElementById('reg-dept');
+                if (deptSelect) deptSelect.value = data.department;
+              }
+              if (data.designation) {
+                const desigInput = document.getElementById('reg-designation');
+                if (desigInput && !desigInput.value) desigInput.value = data.designation;
+              }
+              if (data.working_location) {
+                const locSelect = document.getElementById('reg-location');
+                if (locSelect) locSelect.value = data.working_location;
+              }
             }
           } else {
             card.style.display = 'none';
+            card.classList.remove('already-registered');
+            if (alertEl) alertEl.style.display = 'none';
+            if (fieldsWrap) fieldsWrap.style.display = 'block';
           }
         } catch (err) {
           card.style.display = 'none';
+          card.classList.remove('already-registered');
+          if (alertEl) alertEl.style.display = 'none';
+          if (fieldsWrap) fieldsWrap.style.display = 'block';
         }
-      }, 400);
+      }, 300);
+    }
+
+    function switchToSignIn(code) {
+      const loginTabBtn = document.querySelector('#auth-tabs [data-target="tab-login"]');
+      if (loginTabBtn) loginTabBtn.click();
+      const loginCodeInput = document.getElementById('login-code');
+      if (loginCodeInput) {
+        if (code) loginCodeInput.value = code;
+        loginCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+        loginCodeInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const loginPassword = document.getElementById('login-password');
+      if (loginPassword) {
+        setTimeout(() => loginPassword.focus(), 150);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     // ── Kiosk Terminal Unlock Modal Logic ──

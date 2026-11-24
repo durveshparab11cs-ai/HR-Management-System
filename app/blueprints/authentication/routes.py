@@ -143,8 +143,11 @@ def lookup_employee():
         return jsonify(
             found=True,
             name=data["name"],
+            code=data.get("code", code),
             department=data["department"],
             designation=data.get("designation", ""),
+            working_location=data.get("working_location", ""),
+            is_registered=data.get("is_registered", False),
             message=message
         )
     return jsonify(found=False, message=message)

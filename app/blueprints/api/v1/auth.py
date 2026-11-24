@@ -460,5 +460,7 @@ def lookup_employee():
         "name": data.get("name"),
         "department": data.get("department"),
         "designation": data.get("designation", ""),
+        "working_location": data.get("working_location", ""),
+        "is_registered": data.get("is_registered", False),
         "message": message
     })
