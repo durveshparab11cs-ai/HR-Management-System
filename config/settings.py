@@ -22,15 +22,35 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def is_postgres_alive(uri: str) -> bool:
+    """Tests if PostgreSQL URI can actually connect and execute a ping query."""
+    if not uri or not uri.startswith("postgresql"):
+        return False
+    try:
+        import psycopg2
+        dsn = uri
+        if "sslmode" not in dsn and "localhost" not in dsn and "127.0.0.1" not in dsn:
+            sep = "&" if "?" in dsn else "?"
+            dsn = f"{dsn}{sep}sslmode=require"
+        conn = psycopg2.connect(dsn, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        conn.close()
+        return True
+    except Exception:
+        return False
+
+
 def resolve_database_uri(raw_url: str) -> str:
     """
     Validates and normalizes database URI:
     1. Fixes postgres:// -> postgresql:// for SQLAlchemy 2.x compatibility.
-    2. Tests if the PostgreSQL host is resolvable by DNS.
-       If it is a Render internal short hostname (e.g. dpg-xxxx-a) that fails resolution,
-       tries regional suffixes (e.g. .singapore-postgres.render.com).
-    3. If the host is unresolvable or dead, safely falls back to local SQLite so
-       the application boots and functions cleanly instead of crashing with Name or service not known.
+    2. Tests if the PostgreSQL host is alive and accepting queries.
+    3. If the host is a Render internal short hostname (e.g. dpg-xxxx-a),
+       tests regional candidates (e.g. .singapore-postgres.render.com).
+    4. If no PostgreSQL connection succeeds (e.g. host unreachable, SSL connection closed unexpectedly,
+       or suspended database), safely falls back to local SQLite so the application boots cleanly.
     """
     if not raw_url:
         return "sqlite:///smart_hrms_dev.db"
@@ -39,42 +59,35 @@ def resolve_database_uri(raw_url: str) -> str:
         raw_url = raw_url.replace("postgres://", "postgresql://", 1)
 
     if raw_url.startswith("postgresql://"):
-        import re, socket
+        import re
+
+        # If it's already alive and working, return it!
+        if is_postgres_alive(raw_url):
+            if "sslmode" not in raw_url and "localhost" not in raw_url and "127.0.0.1" not in raw_url:
+                sep = "&" if "?" in raw_url else "?"
+                raw_url = f"{raw_url}{sep}sslmode=require"
+            return raw_url
+
         m = re.search(r'@([^:/]+)(?::(\d+))?(/[^?]*)(.*)', raw_url)
         if m:
             host = m.group(1)
             port = int(m.group(2) or 5432)
             db_path = m.group(3)
-            query = m.group(4) or ""
             auth = raw_url[:m.start(1)]
 
-            reachable = False
-            try:
-                socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
-                reachable = True
-            except Exception:
-                if host.startswith("dpg-") and "." not in host:
-                    for region in ["singapore", "oregon", "frankfurt", "ohio"]:
-                        cand = f"{host}.{region}-postgres.render.com"
-                        try:
-                            socket.getaddrinfo(cand, port, proto=socket.IPPROTO_TCP)
-                            host = cand
-                            raw_url = f"{auth}{host}:{port}{db_path}{query}"
-                            reachable = True
-                            break
-                        except Exception:
-                            pass
+            # Check candidate regional hosts if this is a Render dpg host
+            if host.startswith("dpg-") and "." not in host:
+                for region in ["singapore", "oregon", "frankfurt", "ohio"]:
+                    cand_host = f"{host}.{region}-postgres.render.com"
+                    cand_url = f"{auth}{cand_host}:{port}{db_path}?sslmode=require"
+                    if is_postgres_alive(cand_url):
+                        return cand_url
 
-            if not reachable:
-                # Safe SQLite fallback when remote PostgreSQL host is unreachable
-                instance_dir = os.path.abspath("instance")
-                os.makedirs(instance_dir, exist_ok=True)
-                db_path = os.path.join(instance_dir, "smart_hrms.db").replace("\\", "/")
-                return f"sqlite:///{db_path}"
-
-            if "sslmode" not in raw_url and "localhost" not in host and "127.0.0.1" not in host:
-                sep = "&" if "?" in raw_url else "?"
-                raw_url = f"{raw_url}{sep}sslmode=require"
+        # Safe SQLite fallback when remote PostgreSQL host is unreachable or rejected connection
+        instance_dir = os.path.abspath("instance")
+        os.makedirs(instance_dir, exist_ok=True)
+        db_path = os.path.join(instance_dir, "smart_hrms.db").replace("\\", "/")
+        return f"sqlite:///{db_path}"
 
     return raw_url
 
