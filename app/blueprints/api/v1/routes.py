@@ -153,15 +153,9 @@ def kiosk_employee():
         is_master = False
         att_record = None
 
-        # Try Employee table first
+        # Lookup employee by exact code
         employee = emp_repo.get_by_employee_code(code)
         emp_master = EmployeeMaster.query.filter_by(employee_code=code).first()
-        if not emp_master and code.startswith("I-"):
-            e_code = code.replace("I-", "E-", 1)
-            emp_master = EmployeeMaster.query.filter_by(employee_code=e_code).first()
-        elif not emp_master and code.startswith("E-"):
-            i_code = code.replace("E-", "I-", 1)
-            emp_master = EmployeeMaster.query.filter_by(employee_code=i_code).first()
 
         if employee:
             loc = getattr(employee, "working_location", None) or getattr(employee, "branch", None) or (emp_master.working_location if emp_master else None) or "Head Office"
@@ -595,11 +589,6 @@ def kiosk_enroll_and_punch():
 
     try:
         master = EmployeeMaster.query.filter_by(employee_code=code).first()
-        if not master and code.startswith("I-"):
-            master = EmployeeMaster.query.filter_by(employee_code=code.replace("I-", "E-", 1)).first()
-        elif not master and code.startswith("E-"):
-            master = EmployeeMaster.query.filter_by(employee_code=code.replace("E-", "I-", 1)).first()
-
         if not master:
             return jsonify({
                 "success": False,
@@ -779,13 +768,6 @@ def kiosk_attendance():
                 db.session.flush()
         else:
             emp_master = EmployeeMaster.query.filter_by(employee_code=code).first()
-            if not emp_master and code.startswith("I-"):
-                e_code = code.replace("I-", "E-", 1)
-                emp_master = EmployeeMaster.query.filter_by(employee_code=e_code).first()
-            elif not emp_master and code.startswith("E-"):
-                i_code = code.replace("E-", "I-", 1)
-                emp_master = EmployeeMaster.query.filter_by(employee_code=i_code).first()
-
             if not emp_master:
                 return jsonify({"success": False, "message": f"Employee {code} not found."}), 404
 
