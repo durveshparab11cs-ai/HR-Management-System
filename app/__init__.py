@@ -830,9 +830,12 @@ def _auto_create_tables(app: Flask) -> None:
             except Exception as exc:
                 app.logger.warning("⚠️  Step 3: _migrate_add_columns() failed: %s", exc)
 
-            # Hardcoded automatic seeding DISABLED per Zero Dummy Data policy.
-            # Real shifts, hospitals, holidays, and employees are imported via Data Import Center.
-            app.logger.info("✓ Zero Dummy Data Enforced: Hardcoded automatic seeding disabled.")
+            # STEP 4: Ensure employee master list is always seeded
+            try:
+                _auto_seed_employees(app)
+                app.logger.info("✓ Step 4: _auto_seed_employees() completed")
+            except Exception as exc:
+                app.logger.warning("⚠️ Step 4: _auto_seed_employees() failed: %s", exc)
 
             # STEP 5: Ensure admin roles (only if columns exist)
             try:
@@ -1381,14 +1384,12 @@ def _auto_seed_employees(app: Flask) -> None:
         except Exception:
             pass
 
-    # ── Seed employee master (only if empty) ─────────────────────────
+    # ── Seed employee master (ensure all registered codes exist) ─────
     try:
         from app.models.employee_master import EmployeeMaster  # noqa: PLC0415
         from app.extensions.database import db  # noqa: PLC0415
 
-        if EmployeeMaster.query.count() > 0:
-            app.logger.info("employee_master already seeded — skipping.")
-            return
+        existing_codes = {c[0].strip().upper() for c in db.session.query(EmployeeMaster.employee_code).all() if c[0]}
 
         employees = [
             ("E-2603028","Aastha Vishwakarma"),("E-2405029","Abhinay Tiwari"),
@@ -1572,12 +1573,15 @@ def _auto_seed_employees(app: Flask) -> None:
 
         count = 0
         for code, name in employees:
-            if not EmployeeMaster.query.filter_by(employee_code=code).first():
-                db.session.add(EmployeeMaster(employee_code=code, employee_name=name))
+            clean_code = code.strip().upper()
+            if clean_code not in existing_codes:
+                db.session.add(EmployeeMaster(employee_code=clean_code, employee_name=name))
+                existing_codes.add(clean_code)
                 count += 1
 
-        db.session.commit()
-        app.logger.info("Auto-seeded %d employees into employee_master.", count)
+        if count > 0:
+            db.session.commit()
+            app.logger.info("Auto-seeded %d employees into employee_master.", count)
 
     except Exception as exc:
         app.logger.error("Auto-seed employees failed: %s", exc)

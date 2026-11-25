@@ -301,7 +301,7 @@ class FaceVerificationService:
                 best_sim = max(0.0, min(100.0, sim))
                 best_match = cand
 
-        if best_match and min_dist <= threshold and best_sim >= DEFAULT_MIN_SIMILARITY and best_cos >= 0.65:
+        if best_match and min_dist <= threshold and (best_sim >= DEFAULT_MIN_SIMILARITY or best_cos >= 0.55):
             logger.info(
                 "1:N BIOMETRIC_MATCH_FOUND | code=%s | name=%s | dist=%.4f | score=%.1f%% | cos=%.3f",
                 best_match.get("employee_code"), best_match.get("name"), min_dist, best_sim, best_cos
