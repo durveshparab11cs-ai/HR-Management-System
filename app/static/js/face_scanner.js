@@ -188,6 +188,8 @@ class FaceBiometricEngine {
 
     this.isScanning = true;
     const collectedSamples = [];
+    const earHistory = [];
+    const landmarkHistory = [];
     let lastSampleTime = 0;
     let scanStartTime = Date.now();
     let maxWaitTimeMs = 12000; // allow up to 12s for employee to position face
@@ -279,7 +281,14 @@ class FaceBiometricEngine {
 
               const earLeft = this._getEAR(leftEye);
               const earRight = this._getEAR(rightEye);
-              const eyesOpen = ((earLeft + earRight) / 2.0) >= 0.16;
+              const avgEAR = (earLeft + earRight) / 2.0;
+              const eyesOpen = avgEAR >= 0.16;
+
+              earHistory.push(avgEAR);
+              if (landmarks.getNose() && landmarks.getNose().length > 0) {
+                const noseTip = landmarks.getNose()[0];
+                landmarkHistory.push({ x: noseTip.x, y: noseTip.y });
+              }
 
               // Visual Eye & Feature Tracking Rings
               ctx.save();
@@ -357,10 +366,26 @@ class FaceBiometricEngine {
             chosenPhoto = pool[0]?.photo || this._captureVideoFrame(videoEl);
           }
 
+          let earDelta = 0.05;
+          let landmarkVariance = 0.01;
+          if (earHistory.length >= 2) {
+            earDelta = Math.max(...earHistory) - Math.min(...earHistory);
+          }
+          if (landmarkHistory.length >= 2) {
+            const avgX = landmarkHistory.reduce((s, p) => s + p.x, 0) / landmarkHistory.length;
+            const avgY = landmarkHistory.reduce((s, p) => s + p.y, 0) / landmarkHistory.length;
+            landmarkVariance = landmarkHistory.reduce((s, p) => s + Math.hypot(p.x - avgX, p.y - avgY), 0) / (landmarkHistory.length * (canvasEl.width || 640));
+          }
+
           resolve({
             success: true,
             descriptor: chosenDescriptor,
             photoBase64: chosenPhoto,
+            livenessMetrics: {
+              ear_delta: earDelta,
+              landmark_variance: landmarkVariance,
+              sample_count: earHistory.length
+            },
             message: 'Facial biometric profile successfully scanned and verified.'
           });
         } else if (elapsed > maxWaitTimeMs) {

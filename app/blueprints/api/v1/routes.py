@@ -269,6 +269,287 @@ def kiosk_employee():
         return jsonify({"success": False, "message": f"Lookup failed: {str(e)}"}), 500
 
 
+@api_bp.route("/kiosk/identify-and-punch", methods=["POST"])
+def kiosk_identify_and_punch():
+    """
+    Face-First Automatic Attendance Punching & Profile Retrieval.
+    
+    1. Anti-Spoofing / Presentation Attack Detection (PAD):
+       - Detects digital screen subpixel grids (Moire effect via 2D FFT).
+       - Detects glass screen specular reflection hotspots.
+       - Validates dynamic temporal micro-liveness (EAR change across 6s window).
+       - Strictly blocks photo-on-phone, tablet, or printed paper attacks!
+    2. 1:N Facial Biometric Identification:
+       - Compares live 128-d descriptor against all registered employee profiles.
+       - Enforces Euclidean distance <= 0.385 and Cosine similarity >= 60%.
+    3. Attendance Punch Execution:
+       - Records Check-In or Check-Out based on today's status.
+       - Enforces 2-minute repeat punch buffer warning.
+       - Saves audit photo to database.
+    4. Full Profile Retrieval:
+       - Returns all registration details: Name, Code, Official Email, Department,
+         Designation, Work Location/Hospital, Date of Joining, and Punch summary.
+    """
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    from app.models.employee import Employee
+    from app.models.employee_master import EmployeeMaster
+    from app.models.user import User
+    from app.models.attendance import Attendance
+    from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_master import AttendanceMaster
+    from app.models.attendance_master_photo import AttendanceMasterPhoto
+    from app.services.face_verification_service import FaceVerificationService
+    from app.extensions.database import db
+
+    data = request.get_json() or {}
+    live_face_descriptor = data.get("live_face_descriptor")
+    photo_b64 = data.get("photo_base64")
+    liveness_metrics = data.get("liveness_metrics") or {}
+    latitude = data.get("latitude", 0.0)
+    longitude = data.get("longitude", 0.0)
+    accuracy = data.get("accuracy", 10.0)
+
+    if not live_face_descriptor or not photo_b64:
+        return jsonify({
+            "success": False,
+            "message": "Biometric face scan and photo are required."
+        }), 400
+
+    try:
+        # 1. Presentation Attack Detection (Anti-Spoofing)
+        is_spoof, spoof_reason, details = FaceVerificationService.detect_presentation_attack(
+            image_b64=photo_b64,
+            liveness_metrics=liveness_metrics
+        )
+        if is_spoof:
+            return jsonify({
+                "success": False,
+                "spoof_detected": True,
+                "message": f"Biometric Security Alert: Screen or static photo detected ({spoof_reason}). A live person must face the camera.",
+                "details": details
+            }), 403
+
+        # 2. Gather candidate face profiles across Employee and EmployeeMaster tables
+        candidates = []
+        registered_emps = Employee.query.filter(
+            Employee.is_face_registered == True,
+            Employee.face_descriptor != None,
+            Employee.is_deleted == False
+        ).all()
+        for emp in registered_emps:
+            candidates.append({
+                "source": "employee",
+                "id": emp.id,
+                "user_id": emp.user_id,
+                "employee_code": emp.employee_code,
+                "name": emp.full_name or "Employee",
+                "department": emp.department,
+                "designation": emp.designation,
+                "working_location": emp.branch,
+                "date_of_joining": str(emp.date_joined) if emp.date_joined else "",
+                "personal_email": emp.personal_email,
+                "registered_face_photo": emp.registered_face_photo,
+                "face_descriptor": emp.face_descriptor,
+            })
+
+        seen_codes = {c["employee_code"].upper() for c in candidates}
+        registered_masters = EmployeeMaster.query.filter(
+            EmployeeMaster.is_face_registered == True,
+            EmployeeMaster.face_descriptor != None
+        ).all()
+        for m in registered_masters:
+            if m.employee_code.upper() not in seen_codes:
+                candidates.append({
+                    "source": "master",
+                    "id": m.id,
+                    "user_id": m.user_id,
+                    "employee_code": m.employee_code,
+                    "name": m.employee_name or "Employee",
+                    "department": m.department,
+                    "designation": m.designation,
+                    "working_location": m.working_location,
+                    "date_of_joining": "",
+                    "personal_email": getattr(m, "official_email", "") or "",
+                    "registered_face_photo": m.registered_face_photo,
+                    "face_descriptor": m.face_descriptor,
+                })
+
+        if not candidates:
+            return jsonify({
+                "success": False,
+                "match_found": False,
+                "message": "No registered face profiles found in the system. Please register your face first."
+            }), 404
+
+        # 3. 1:N Facial Biometric Identification
+        match_result = FaceVerificationService.identify_face_1_to_n(
+            live_descriptor=live_face_descriptor,
+            candidates=candidates,
+            threshold=0.385
+        )
+
+        if not match_result:
+            return jsonify({
+                "success": False,
+                "match_found": False,
+                "message": "Face not recognized. Please face the camera directly, ensure good lighting, or complete face registration."
+            }), 404
+
+        cand = match_result["candidate"]
+        code = cand["employee_code"]
+        name = cand["name"]
+        score = match_result["similarity"]
+        distance = match_result["distance"]
+
+        # Resolve Official Email
+        official_email = cand.get("personal_email") or ""
+        user = None
+        if cand.get("user_id"):
+            user = User.query.get(cand["user_id"])
+        if not user:
+            from app.blueprints.authentication.repository import AuthRepository
+            auth_repo = AuthRepository()
+            user = auth_repo.get_by_employee_code(code)
+        if user and user.email:
+            official_email = user.email
+
+        # 4. Record Attendance Punch (Asia/Kolkata)
+        tz = ZoneInfo("Asia/Kolkata")
+        now_kolkata = datetime.now(tz)
+        today = now_kolkata.date()
+
+        use_master = (cand.get("source") == "master")
+        att = None
+        emp_record = None
+
+        if not use_master:
+            emp_record = Employee.query.get(cand["id"])
+            att = Attendance.query.filter_by(employee_id=emp_record.id, date=today).first()
+            if not att:
+                att = Attendance(employee_id=emp_record.id, date=today, status="present")
+                db.session.add(att)
+                db.session.flush()
+        else:
+            att = AttendanceMaster.query.filter_by(employee_master_id=cand["id"], date=today).first()
+            if not att:
+                att = AttendanceMaster(
+                    employee_master_id=cand["id"],
+                    employee_code=code,
+                    date=today,
+                    status="present"
+                )
+                db.session.add(att)
+                db.session.flush()
+
+        # Determine Punch Action: IN or OUT
+        action_type = "CHECK-IN"
+        buffer_warning = False
+        buffer_message = ""
+
+        if not att.check_in_time:
+            action_type = "CHECK-IN"
+            att.check_in_time = now_kolkata
+            if hasattr(att, "check_in_latitude"):
+                att.check_in_latitude = latitude
+                att.check_in_longitude = longitude
+                att.check_in_accuracy = accuracy
+        elif att.check_in_time and not att.check_out_time:
+            dt_in = att.check_in_time
+            if dt_in.tzinfo is None:
+                dt_in = dt_in.replace(tzinfo=tz)
+            elapsed_since_in = (now_kolkata - dt_in).total_seconds()
+            if elapsed_since_in < 120:
+                buffer_warning = True
+                wait_sec = int(120 - elapsed_since_in)
+                buffer_message = f"Notice: Checked IN {int(elapsed_since_in)}s ago ({dt_in.strftime('%I:%M %p')}). Please wait {wait_sec}s before checking OUT."
+                action_type = "CHECK-IN (REPEAT)"
+            else:
+                action_type = "CHECK-OUT"
+                att.check_out_time = now_kolkata
+                if hasattr(att, "check_out_latitude"):
+                    att.check_out_latitude = latitude
+                    att.check_out_longitude = longitude
+                    att.check_out_accuracy = accuracy
+                if hasattr(att, "working_minutes"):
+                    diff_mins = int((now_kolkata - dt_in).total_seconds() // 60)
+                    att.working_minutes = max(1, diff_mins)
+        else:
+            # Already checked out today: update latest checkout
+            dt_out = att.check_out_time
+            if dt_out.tzinfo is None:
+                dt_out = dt_out.replace(tzinfo=tz)
+            elapsed_since_out = (now_kolkata - dt_out).total_seconds()
+            if elapsed_since_out < 120:
+                buffer_warning = True
+                buffer_message = f"Notice: Check-out recorded {int(elapsed_since_out)}s ago. 2-minute buffer active."
+            action_type = "CHECK-OUT"
+            att.check_out_time = now_kolkata
+
+        # Store Photo Audit Record
+        if not use_master:
+            photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+            if not photo:
+                photo = AttendancePhoto(attendance_id=att.id, employee_id=emp_record.id)
+                db.session.add(photo)
+            if action_type.startswith("CHECK-IN"):
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
+        else:
+            photo = AttendanceMasterPhoto.query.filter_by(attendance_master_id=att.id).first()
+            if not photo:
+                photo = AttendanceMasterPhoto(
+                    attendance_master_id=att.id,
+                    employee_master_id=cand["id"]
+                )
+                db.session.add(photo)
+            if action_type.startswith("CHECK-IN"):
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
+
+        db.session.commit()
+
+        # 5. Return Full Profile & Punch Details
+        return jsonify({
+            "success": True,
+            "match_found": True,
+            "employee": {
+                "id": cand["id"],
+                "employee_code": code,
+                "name": name,
+                "department": cand.get("department") or "General",
+                "designation": cand.get("designation") or "Staff",
+                "working_location": cand.get("working_location") or "Head Office",
+                "date_of_joining": cand.get("date_of_joining") or "Not Specified",
+                "official_email": official_email or "Not Provided",
+                "registered_photo": cand.get("registered_face_photo") or "",
+                "captured_photo": photo_b64,
+                "confidence_score": round(score, 1),
+                "euclidean_distance": round(distance, 4)
+            },
+            "punch": {
+                "action": action_type,
+                "time": now_kolkata.strftime("%I:%M:%S %p"),
+                "date": now_kolkata.strftime("%A, %d %B %Y"),
+                "status": "Verified & Recorded",
+                "buffer_warning": buffer_warning,
+                "buffer_message": buffer_message,
+                "message": f"Biometric Identity Verified ({score:.1f}% confidence). {action_type} recorded successfully."
+            }
+        }), 200
+
+    except Exception as exc:
+        db.session.rollback()
+        import traceback, sys
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({
+            "success": False,
+            "message": f"Biometric attendance processing failed: {str(exc)}"
+        }), 500
+
+
 @api_bp.route("/kiosk/attendance", methods=["POST"])
 def kiosk_attendance():
     """

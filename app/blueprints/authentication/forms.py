@@ -9,7 +9,7 @@ Login and Registration now use Employee Code instead of Email.
 import re
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, SelectField, StringField
-from wtforms.validators import DataRequired, EqualTo, Length, Optional as Opt, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional as Opt, ValidationError
 from app.constants.enums import DEPARTMENT_CHOICES
 
 
@@ -106,6 +106,15 @@ class RegisterForm(FlaskForm):
             Length(min=2, max=100, message="Designation must be between 2 and 100 characters."),
         ],
         render_kw={"placeholder": "e.g. Senior Operations Executive", "autocomplete": "organization-title"},
+    )
+    email = StringField(
+        "Official Email",
+        validators=[
+            DataRequired(message="Official Email is strictly required for registration."),
+            Email(message="Please enter a valid official email address."),
+            Length(max=120, message="Email address is too long."),
+        ],
+        render_kw={"placeholder": "e.g. name@company.com", "autocomplete": "email"},
     )
     password = PasswordField(
         "Password",

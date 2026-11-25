@@ -390,8 +390,9 @@ class AuthService:
             last_name  = name_parts[1] if len(name_parts) > 1 else "."
 
             username = code.lower().replace("-", "")
-            default_email = f"{username}@hrms.internal"
-            clean_email = email.strip().lower() if email and "@" in email else default_email
+            clean_email = (email or "").strip().lower()
+            if not clean_email or "@" not in clean_email or "." not in clean_email.split("@")[-1]:
+                return False, "Official / Office Email is strictly compulsory. Please enter a valid email address.", None
 
             # Find existing User or create new
             user = User.query.filter(

@@ -75,7 +75,7 @@ def login():
                         designation=register_form.designation.data or request.form.get("designation", ""),
                         working_location=request.form.get("working_location", "").strip(),
                         date_of_joining=request.form.get("date_of_joining", "").strip(),
-                        email=request.form.get("email", "").strip(),
+                        email=register_form.email.data or request.form.get("email", "").strip(),
                         face_photo_base64=face_photo,
                         face_descriptor_json=face_desc,
                     )
