@@ -1015,6 +1015,56 @@ def _migrate_add_columns(db) -> None:
             pass
         logger.warning("Could not reset registration for E-2606026: %s", reset_e)
 
+    # ── Reset ALL registrations so everyone can register fresh ──
+    try:
+        has_reset_all = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'reset_all_registered_employees_v2'")).scalar()
+        if not has_reset_all:
+            logger.info("RESETTING ALL REGISTERED EMPLOYEES FOR FRESH ENROLLMENT...")
+            db.session.execute(text("""
+                UPDATE departments SET head_employee_id = NULL;
+                UPDATE employees SET manager_id = NULL;
+                
+                DELETE FROM employee_hospital_assignments;
+                DELETE FROM employee_shift_assignments;
+                DELETE FROM shift_change_logs;
+                DELETE FROM shift_change_requests;
+                DELETE FROM payslips;
+                DELETE FROM employee_salary_masters;
+                DELETE FROM payroll_runs;
+                DELETE FROM attendance_photos;
+                DELETE FROM attendance_logs;
+                DELETE FROM attendance;
+                DELETE FROM gps_logs;
+                DELETE FROM leave_requests;
+                DELETE FROM half_day_requests;
+                DELETE FROM early_leave_requests;
+                DELETE FROM notifications;
+                DELETE FROM login_history;
+                DELETE FROM attendance_master_photos;
+                DELETE FROM attendance_master;
+
+                DELETE FROM employees;
+                DELETE FROM users;
+
+                UPDATE employee_master 
+                SET is_registered = FALSE, 
+                    user_id = NULL, 
+                    registered_at = NULL, 
+                    is_face_registered = FALSE, 
+                    registered_face_photo = NULL, 
+                    face_descriptor = NULL;
+
+                INSERT INTO system_migrations (migration_key) VALUES ('reset_all_registered_employees_v2');
+            """))
+            db.session.commit()
+            logger.info("Successfully reset all registered employees. Everyone can now register fresh.")
+    except Exception as reset_all_e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.warning("Could not reset all registered employees: %s", reset_all_e)
+
 
 def _auto_seed_hospitals(app: Flask) -> None:
     """Seed hospitals if not already present."""
