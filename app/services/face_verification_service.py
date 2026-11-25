@@ -35,7 +35,7 @@ class FaceVerificationService:
 
     @staticmethod
     def parse_descriptor(descriptor_input) -> Optional[np.ndarray]:
-        """Convert JSON string, list, or ndarray into a normalized numpy vector."""
+        """Convert JSON string, list, tuple, dict, or ndarray into a normalized numpy vector."""
         if descriptor_input is None:
             return None
         try:
@@ -45,10 +45,25 @@ class FaceVerificationService:
                 data = json.loads(descriptor_input)
             elif isinstance(descriptor_input, (list, tuple)):
                 data = descriptor_input
+            elif isinstance(descriptor_input, dict):
+                # Float32Array serialized by JSON.stringify produces {"0": v0, "1": v1, ...}
+                try:
+                    sorted_keys = sorted(descriptor_input.keys(), key=lambda k: int(k))
+                    data = [float(descriptor_input[k]) for k in sorted_keys]
+                except Exception:
+                    data = list(descriptor_input.values())
             elif isinstance(descriptor_input, np.ndarray):
                 return descriptor_input.astype(np.float32)
             else:
                 return None
+
+            # Handle case where json.loads returned a dict
+            if isinstance(data, dict):
+                try:
+                    sorted_keys = sorted(data.keys(), key=lambda k: int(k))
+                    data = [float(data[k]) for k in sorted_keys]
+                except Exception:
+                    data = list(data.values())
 
             arr = np.array(data, dtype=np.float32)
             if arr.ndim != 1 or len(arr) < 64:

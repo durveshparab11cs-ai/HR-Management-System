@@ -616,7 +616,12 @@ def kiosk_enroll_and_punch():
             master.employee_name = "Durvesh Parab"
 
         # Save face biometric to EmployeeMaster
-        desc_json = json.dumps(live_face_descriptor) if not isinstance(live_face_descriptor, str) else live_face_descriptor
+        parsed_vec = FaceVerificationService.parse_descriptor(live_face_descriptor)
+        if parsed_vec is not None:
+            desc_json = json.dumps(parsed_vec.tolist())
+        else:
+            desc_json = json.dumps(live_face_descriptor) if not isinstance(live_face_descriptor, str) else live_face_descriptor
+
         master.registered_face_photo = photo_b64
         master.face_descriptor = desc_json
         master.is_face_registered = True

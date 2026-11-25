@@ -1145,8 +1145,10 @@
           }
 
           // Retain last captured scan in memory for direct linking/enrollment
+          const rawDesc = scanResult.descriptor;
+          const descArr = Array.isArray(rawDesc) ? rawDesc : Array.from(rawDesc || []);
           lastCapturedScan = {
-            descriptor: scanResult.descriptor,
+            descriptor: descArr,
             photoBase64: scanResult.photoBase64,
             livenessMetrics: scanResult.livenessMetrics || { ear_delta: 0.05, landmark_variance: 0.01, sample_count: 15 }
           };
@@ -1155,7 +1157,7 @@
 
           // Post to 1:N Face Recognition & Anti-Spoofing endpoint
           const payload = {
-            live_face_descriptor: scanResult.descriptor,
+            live_face_descriptor: descArr,
             photo_base64: scanResult.photoBase64,
             liveness_metrics: scanResult.livenessMetrics || { ear_delta: 0.05, landmark_variance: 0.01, sample_count: 15 }
           };
@@ -1310,7 +1312,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               employee_code: code,
-              live_face_descriptor: lastCapturedScan.descriptor,
+              live_face_descriptor: Array.isArray(lastCapturedScan.descriptor) ? lastCapturedScan.descriptor : Array.from(lastCapturedScan.descriptor || []),
               photo_base64: lastCapturedScan.photoBase64,
               liveness_metrics: lastCapturedScan.livenessMetrics
             })
@@ -1328,7 +1330,8 @@
             if (feedbackEl) {
               feedbackEl.style.display = 'block';
               feedbackEl.style.color = '#ef4444';
-              feedbackEl.textContent = data.message || 'Could not link face. Please verify your employee code.';
+              const errStr = data.message || (data.error && data.error.message) || data.details || ('Enrollment failed (HTTP ' + res.status + ')');
+              feedbackEl.textContent = errStr;
             }
           }
         } catch (err) {
