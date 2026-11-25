@@ -162,6 +162,20 @@ def _load_config(app: Flask, env: str) -> None:
     config_class = config_registry.get(env, config_registry["default"])
     app.config.from_object(config_class)
 
+    # Dynamic fallback check: ensure database URI is valid and resolvable
+    from config.settings import resolve_database_uri  # noqa: PLC0415
+    curr_db = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    resolved_db = resolve_database_uri(curr_db)
+    if resolved_db != curr_db:
+        app.config["SQLALCHEMY_DATABASE_URI"] = resolved_db
+        if "sqlite" in resolved_db:
+            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+        app.logger.warning(
+            "⚠️ Database host in %s was unresolvable. Safe fallback applied: %s",
+            curr_db.split("@")[-1] if "@" in curr_db else curr_db,
+            "sqlite" if "sqlite" in resolved_db else resolved_db.split("@")[-1]
+        )
+
     # Allow an optional instance/config.py to override without source changes
     instance_cfg = os.path.join(app.instance_path, "config.py")
     if os.path.exists(instance_cfg):
@@ -775,7 +789,11 @@ def _auto_create_tables(app: Flask) -> None:
                             CREATE INDEX IF NOT EXISTS idx_emp_hosp_assign_hospital_id ON employee_hospital_assignments(hospital_id);
                         """)
                     
-                    db.session.execute(create_sql)
+                    # Execute statements individually for universal SQLite and PostgreSQL compatibility
+                    for raw_stmt in str(create_sql.text).strip().split(";"):
+                        stmt = raw_stmt.strip()
+                        if stmt:
+                            db.session.execute(text(stmt))
                     db.session.commit()
                     app.logger.info("✓ Step 1.5: Created employee_hospital_assignments table explicitly")
                 else:
@@ -945,6 +963,14 @@ def _migrate_add_columns(db) -> None:
             pass
         logger.warning("Could not alter photo/descriptor columns to TEXT: %s", e)
 
+    def _run_sql_script(db_session, sql_script: str) -> None:
+        """Execute raw SQL statements safely across both PostgreSQL and SQLite."""
+        for raw_stmt in sql_script.strip().split(";"):
+            stmt = raw_stmt.strip()
+            if stmt:
+                db_session.execute(text(stmt))
+        db_session.commit()
+
     # ── One-Time User & Master Reset for Fresh Biometric Registration ──────────────
     try:
         db.session.execute(text("CREATE TABLE IF NOT EXISTS system_migrations (migration_key VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"))
@@ -952,7 +978,7 @@ def _migrate_add_columns(db) -> None:
         has_reset = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'biometric_reset_v1'")).scalar()
         if not has_reset:
             logger.info("ONE_TIME_BIOMETRIC_RESET: Resetting all employee registrations so everyone re-registers with camera...")
-            db.session.execute(text("""
+            _run_sql_script(db.session, """
                 UPDATE departments SET head_employee_id = NULL;
                 UPDATE employees SET manager_id = NULL;
                 DELETE FROM employee_hospital_assignments;
@@ -982,8 +1008,7 @@ def _migrate_add_columns(db) -> None:
                     registered_face_photo = NULL,
                     face_descriptor = NULL;
                 INSERT INTO system_migrations (migration_key) VALUES ('biometric_reset_v1');
-            """))
-            db.session.commit()
+            """)
             logger.info("ONE_TIME_BIOMETRIC_RESET: Completed successfully. All employees must now register fresh with camera.")
     except Exception as reset_err:
         try:
@@ -997,7 +1022,7 @@ def _migrate_add_columns(db) -> None:
         has_reset_d = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'reset_durvesh_v2'")).scalar()
         if not has_reset_d:
             logger.info("RESETTING REGISTRATION FOR E-2606026...")
-            db.session.execute(text("""
+            _run_sql_script(db.session, """
                 UPDATE departments SET head_employee_id = NULL WHERE head_employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
                 UPDATE employees SET manager_id = NULL WHERE manager_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026');
                 DELETE FROM attendance_photos WHERE attendance_id IN (SELECT id FROM attendance WHERE employee_id IN (SELECT id FROM employees WHERE employee_code = 'E-2606026'));
@@ -1018,8 +1043,7 @@ def _migrate_add_columns(db) -> None:
                     face_descriptor = NULL 
                 WHERE employee_code = 'E-2606026';
                 INSERT INTO system_migrations (migration_key) VALUES ('reset_durvesh_v2');
-            """))
-            db.session.commit()
+            """)
             logger.info("Successfully reset registration for E-2606026.")
     except Exception as reset_e:
         try:
@@ -1033,7 +1057,7 @@ def _migrate_add_columns(db) -> None:
         has_reset_all = db.session.execute(text("SELECT 1 FROM system_migrations WHERE migration_key = 'reset_all_registered_employees_v2'")).scalar()
         if not has_reset_all:
             logger.info("RESETTING ALL REGISTERED EMPLOYEES FOR FRESH ENROLLMENT...")
-            db.session.execute(text("""
+            _run_sql_script(db.session, """
                 UPDATE departments SET head_employee_id = NULL;
                 UPDATE employees SET manager_id = NULL;
                 
@@ -1068,8 +1092,7 @@ def _migrate_add_columns(db) -> None:
                     face_descriptor = NULL;
 
                 INSERT INTO system_migrations (migration_key) VALUES ('reset_all_registered_employees_v2');
-            """))
-            db.session.commit()
+            """)
             logger.info("Successfully reset all registered employees. Everyone can now register fresh.")
     except Exception as reset_all_e:
         try:

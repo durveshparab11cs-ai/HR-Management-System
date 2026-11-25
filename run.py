@@ -14,10 +14,12 @@ if str(PROJECT_ROOT) not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(override=False)
 
-# Normalize postgres:// -> postgresql:// for SQLAlchemy 2.x compatibility
-db_url = os.environ.get("DATABASE_URL", "")
-if db_url.startswith("postgres://"):
-    os.environ["DATABASE_URL"] = db_url.replace("postgres://", "postgresql://", 1)
+# Normalize and auto-resolve DATABASE_URL
+from config.settings import resolve_database_uri
+raw_db = os.environ.get("DATABASE_URL", "")
+resolved_db = resolve_database_uri(raw_db)
+if raw_db != resolved_db:
+    os.environ["DATABASE_URL"] = resolved_db
 
 env = os.environ.get("FLASK_ENV", "production")
 from app import create_app

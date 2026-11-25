@@ -22,6 +22,63 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def resolve_database_uri(raw_url: str) -> str:
+    """
+    Validates and normalizes database URI:
+    1. Fixes postgres:// -> postgresql:// for SQLAlchemy 2.x compatibility.
+    2. Tests if the PostgreSQL host is resolvable by DNS.
+       If it is a Render internal short hostname (e.g. dpg-xxxx-a) that fails resolution,
+       tries regional suffixes (e.g. .singapore-postgres.render.com).
+    3. If the host is unresolvable or dead, safely falls back to local SQLite so
+       the application boots and functions cleanly instead of crashing with Name or service not known.
+    """
+    if not raw_url:
+        return "sqlite:///smart_hrms_dev.db"
+
+    if raw_url.startswith("postgres://"):
+        raw_url = raw_url.replace("postgres://", "postgresql://", 1)
+
+    if raw_url.startswith("postgresql://"):
+        import re, socket
+        m = re.search(r'@([^:/]+)(?::(\d+))?(/[^?]*)(.*)', raw_url)
+        if m:
+            host = m.group(1)
+            port = int(m.group(2) or 5432)
+            db_path = m.group(3)
+            query = m.group(4) or ""
+            auth = raw_url[:m.start(1)]
+
+            reachable = False
+            try:
+                socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+                reachable = True
+            except Exception:
+                if host.startswith("dpg-") and "." not in host:
+                    for region in ["singapore", "oregon", "frankfurt", "ohio"]:
+                        cand = f"{host}.{region}-postgres.render.com"
+                        try:
+                            socket.getaddrinfo(cand, port, proto=socket.IPPROTO_TCP)
+                            host = cand
+                            raw_url = f"{auth}{host}:{port}{db_path}{query}"
+                            reachable = True
+                            break
+                        except Exception:
+                            pass
+
+            if not reachable:
+                # Safe SQLite fallback when remote PostgreSQL host is unreachable
+                instance_dir = os.path.abspath("instance")
+                os.makedirs(instance_dir, exist_ok=True)
+                db_path = os.path.join(instance_dir, "smart_hrms.db").replace("\\", "/")
+                return f"sqlite:///{db_path}"
+
+            if "sslmode" not in raw_url and "localhost" not in host and "127.0.0.1" not in host:
+                sep = "&" if "?" in raw_url else "?"
+                raw_url = f"{raw_url}{sep}sslmode=require"
+
+    return raw_url
+
+
 class BaseConfig:
     """
     Base configuration shared by all environments.
@@ -40,9 +97,7 @@ class BaseConfig:
     # --------------------------------------------------------------------------
     # SQLAlchemy
     # --------------------------------------------------------------------------
-    _raw_db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
-    if _raw_db_url and _raw_db_url.startswith("postgres://"):
-        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+    _raw_db_url = resolve_database_uri(os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db"))
     SQLALCHEMY_DATABASE_URI: str = _raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_RECORD_QUERIES: bool = False
@@ -253,16 +308,8 @@ class ProductionConfig(BaseConfig):
     # Stronger CSRF timeout in production
     WTF_CSRF_TIME_LIMIT: int = 1800
 
-    # PostgreSQL — fix postgres:// → postgresql:// for SQLAlchemy 2.x
-    _db_url = os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db")
-    if _db_url and _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-    
-    # Enforce SSL for remote PostgreSQL hosts unless sslmode is already specified
-    if "postgresql" in _db_url and "sslmode" not in _db_url and "localhost" not in _db_url and "127.0.0.1" not in _db_url:
-        separator = "&" if "?" in _db_url else "?"
-        _db_url = f"{_db_url}{separator}sslmode=require"
-
+    # PostgreSQL / SQLite with Smart Auto-Resolution
+    _db_url = resolve_database_uri(os.environ.get("DATABASE_URL", "sqlite:///smart_hrms_dev.db"))
     SQLALCHEMY_DATABASE_URI: str = _db_url
 
     # Dynamic connection pool settings: PostgreSQL vs SQLite fallback
