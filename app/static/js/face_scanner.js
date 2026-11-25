@@ -90,6 +90,7 @@ class FaceBiometricEngine {
       this.stopCamera();
     }
 
+    let stream = null;
     const constraints = {
       video: {
         facingMode: 'user',
@@ -99,14 +100,24 @@ class FaceBiometricEngine {
       audio: false
     };
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      console.warn('[FaceBiometric] Constrained camera failed, falling back to basic video:', err);
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+
     this.activeStream = stream;
     videoEl.srcObject = stream;
     videoEl.muted = true;
     videoEl.setAttribute('playsinline', 'true');
+    videoEl.setAttribute('autoplay', 'true');
 
     return new Promise((resolve) => {
+      let resolved = false;
       const onReady = () => {
+        if (resolved) return;
+        resolved = true;
         videoEl.play().catch(e => console.warn('video.play() caught:', e));
         resolve(stream);
       };
@@ -114,10 +125,9 @@ class FaceBiometricEngine {
       if (videoEl.readyState >= 2) {
         onReady();
       } else {
-        videoEl.onloadedmetadata = () => onReady();
-        videoEl.oncanplay = () => onReady();
-        // Fallback resolve after 400ms to guarantee execution
-        setTimeout(onReady, 400);
+        videoEl.onloadedmetadata = onReady;
+        videoEl.oncanplay = onReady;
+        setTimeout(onReady, 500);
       }
     });
   }
@@ -204,7 +214,8 @@ class FaceBiometricEngine {
 
         const elapsed = Date.now() - scanStartTime;
         const sampleCount = collectedSamples.length;
-        const targetSamples = 4;
+        const isEnrollment = !registeredDesc;
+        const targetSamples = isEnrollment ? 6 : 4;
         const progress = Math.min(100, Math.round((sampleCount / targetSamples) * 100));
 
         // Animate laser sweep line
@@ -247,9 +258,9 @@ class FaceBiometricEngine {
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         if (sampleCount === 0) {
-          ctx.fillText('ALIGN FACE & KEEP EYES OPEN...', cx, canvasEl.height - 30);
+          ctx.fillText('LOOK DIRECTLY AT CAMERA WITH EYES OPEN', cx, canvasEl.height - 30);
         } else {
-          ctx.fillText(`CAPTURING BIOMETRICS: ${progress}%`, cx, canvasEl.height - 30);
+          ctx.fillText(`CAPTURING BIOMETRICS: ${progress}% (HOLD STEADY)`, cx, canvasEl.height - 30);
         }
 
         // Robust Detection Pipeline
@@ -257,10 +268,10 @@ class FaceBiometricEngine {
           try {
             let detection = null;
 
-            // 1. Try TinyFaceDetector with higher input resolution (416) for crisp landmark tracking
+            // 1. Try TinyFaceDetector with sensitive threshold (0.18) for backlight / glasses tolerance
             if (faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.isLoaded) {
               detection = await faceapi
-                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.25 }))
+                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.18 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
             }
@@ -268,7 +279,7 @@ class FaceBiometricEngine {
             // 2. Try SSD MobileNetV1 if tiny detector missed
             if (!detection && faceapi.nets.ssdMobilenetv1 && faceapi.nets.ssdMobilenetv1.isLoaded) {
               detection = await faceapi
-                .detectSingleFace(videoEl, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+                .detectSingleFace(videoEl, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.18 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
             }
@@ -282,7 +293,7 @@ class FaceBiometricEngine {
               const earLeft = this._getEAR(leftEye);
               const earRight = this._getEAR(rightEye);
               const avgEAR = (earLeft + earRight) / 2.0;
-              const eyesOpen = avgEAR >= 0.16;
+              const eyesOpen = avgEAR >= 0.12;
 
               earHistory.push(avgEAR);
               if (landmarks.getNose() && landmarks.getNose().length > 0) {
@@ -315,6 +326,7 @@ class FaceBiometricEngine {
                 lastSampleTime = now;
                 const desc = Array.from(detection.descriptor);
                 const photo = this._captureVideoFrame(videoEl);
+                const detScore = (detection.detection && detection.detection.score) ? detection.detection.score : (eyesOpen ? 0.95 : 0.6);
 
                 let frameScore = 0;
                 let frameDistance = 999;
@@ -329,6 +341,7 @@ class FaceBiometricEngine {
                   photo: photo,
                   eyesOpen: eyesOpen,
                   score: frameScore,
+                  detectionScore: detScore,
                   distance: frameDistance
                 });
               }
@@ -340,9 +353,9 @@ class FaceBiometricEngine {
 
         if (progressCb) {
           if (sampleCount === 0) {
-            progressCb(10, 'Looking for face... Please look directly at camera');
+            progressCb(10, 'Looking for face... Please look directly at camera with eyes open');
           } else {
-            progressCb(progress, `Scanning facial landmarks (${progress}%)...`);
+            progressCb(progress, `Scanning facial biometrics: ${progress}% (Keep steady)...`);
           }
         }
 
@@ -359,11 +372,16 @@ class FaceBiometricEngine {
             chosenDescriptor = collectedSamples[0].descriptor;
             chosenPhoto = collectedSamples[0].photo;
           } else {
-            // For enrollment: prefer samples where eyes were open
-            const openSamples = collectedSamples.filter(s => s.eyesOpen);
-            const pool = openSamples.length > 0 ? openSamples : collectedSamples;
-            chosenDescriptor = this._averageDescriptors(pool.map(s => s.descriptor));
-            chosenPhoto = pool[0]?.photo || this._captureVideoFrame(videoEl);
+            // For enrollment: sort valid samples with eyes open by detection confidence
+            let validSamples = collectedSamples.filter(s => s.eyesOpen);
+            if (validSamples.length === 0) validSamples = collectedSamples;
+
+            // Pick the sharpest, highest-confidence frame as the official photo!
+            validSamples.sort((a, b) => (b.detectionScore || 0) - (a.detectionScore || 0));
+            chosenPhoto = validSamples[0].photo;
+
+            // Average the descriptors across all valid open-eye samples for a pristine 128-d biometric template
+            chosenDescriptor = this._averageDescriptors(validSamples.map(s => s.descriptor));
           }
 
           let earDelta = 0.05;
