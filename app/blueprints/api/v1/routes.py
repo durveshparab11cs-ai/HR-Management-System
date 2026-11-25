@@ -547,25 +547,29 @@ def kiosk_identify_and_punch():
 @api_bp.route("/kiosk/enroll-and-punch", methods=["POST"])
 def kiosk_enroll_and_punch():
     """
-    Direct Kiosk Face Enrollment & Immediate Punch:
-    Enables un-enrolled employees to link their live camera scan to their employee code
-    directly on the Kiosk terminal and immediately records their attendance with full profile display.
+    Direct Kiosk Face Biometric Enrollment & Immediate Punch:
+    Assigns the live camera face photo and 128-d biometric descriptor to the EmployeeMaster record.
+    When the employee later registers on the web portal, their face is already linked and automatically loaded!
     """
+    import re
     from zoneinfo import ZoneInfo
     from datetime import datetime
     import json
+    from sqlalchemy import func
     from app.models.employee import Employee
     from app.models.employee_master import EmployeeMaster
-    from app.models.user import User
     from app.models.attendance import Attendance
     from app.models.attendance_photo import AttendancePhoto
+    from app.models.attendance_master import AttendanceMaster
+    from app.models.attendance_master_photo import AttendanceMasterPhoto
     from app.extensions.database import db
 
     data = request.get_json() or {}
-    code = (data.get("employee_code") or "").strip().upper()
+    raw_code = (data.get("employee_code") or "").strip()
+    # Strip any "E.G.", "EG", "EXAMPLE", colons, leading spaces
+    code = re.sub(r'^(?:E\.?G\.?|EXAMPLE)\s*[:\-]?\s*', '', raw_code, flags=re.IGNORECASE).strip().upper()
     live_face_descriptor = data.get("live_face_descriptor")
     photo_b64 = data.get("photo_base64")
-    official_email_input = (data.get("official_email") or "").strip().lower()
 
     if not code or not live_face_descriptor or not photo_b64:
         return jsonify({
@@ -588,11 +592,14 @@ def kiosk_enroll_and_punch():
         }), 403
 
     try:
-        master = EmployeeMaster.query.filter_by(employee_code=code).first()
+        master = EmployeeMaster.query.filter(
+            func.upper(func.trim(EmployeeMaster.employee_code)) == code
+        ).first()
+
         if not master:
             return jsonify({
                 "success": False,
-                "message": f"Employee code '{code}' not found in company master record."
+                "message": f"Employee code '{code}' not found in company master list. Please check your code."
             }), 404
 
         # Save face biometric to EmployeeMaster
@@ -600,81 +607,90 @@ def kiosk_enroll_and_punch():
         master.registered_face_photo = photo_b64
         master.face_descriptor = desc_json
         master.is_face_registered = True
-        master.is_registered = True
+        # NOTE: Do NOT set master.is_registered = True here!
+        # The employee will complete password & registration details on the registration page.
 
-        # Find or create Employee record
-        employee = Employee.query.filter_by(employee_code=code).first()
-        if not employee:
-            employee = Employee(
-                employee_code=code,
-                department=master.department or "General",
-                designation=master.designation or "Employee",
-                branch=master.working_location or "Head Office",
-                registered_face_photo=photo_b64,
-                face_descriptor=desc_json,
-                is_face_registered=True,
-                profile_photo=photo_b64
-            )
-            db.session.add(employee)
-            db.session.flush()
-        else:
+        # If Employee profile already exists, sync face to it as well
+        employee = Employee.query.filter(
+            func.upper(func.trim(Employee.employee_code)) == code
+        ).first()
+        if employee:
             employee.registered_face_photo = photo_b64
             employee.face_descriptor = desc_json
             employee.is_face_registered = True
             employee.profile_photo = photo_b64
 
-        # Find or create User record
-        username = code.lower().replace("-", "")
-        clean_email = official_email_input if (official_email_input and "@" in official_email_input) else (employee.personal_email or f"{username}@hrms.internal")
-        employee.personal_email = clean_email
-
-        user = User.query.filter_by(username=username).first()
-        if not user:
-            name_parts = (master.employee_name or "Employee").split(" ", 1)
-            user = User(
-                username=username,
-                email=clean_email,
-                first_name=name_parts[0],
-                last_name=name_parts[1] if len(name_parts) > 1 else ".",
-                role="SUPER_ADMIN" if code in ("E-2606026", "E-2603025") else "EMPLOYEE",
-                status="active",
-                email_verified=True
-            )
-            user.set_password("Admin@123" if code in ("E-2606026", "E-2603025") else "Company@123")
-            db.session.add(user)
-            db.session.flush()
-
-        employee.user_id = user.id
-        master.user_id = user.id
-
-        # Record Attendance for today
+        # Record Attendance Punch for today (Asia/Kolkata)
         tz = ZoneInfo("Asia/Kolkata")
         now_kolkata = datetime.now(tz)
         today = now_kolkata.date()
-
-        att = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
         action_type = "CHECK-IN"
-        if not att:
-            att = Attendance(employee_id=employee.id, date=today, status="present", check_in_time=now_kolkata)
-            db.session.add(att)
-            db.session.flush()
-        else:
-            if not att.check_in_time:
-                att.check_in_time = now_kolkata
-                action_type = "CHECK-IN"
-            else:
-                att.check_out_time = now_kolkata
-                action_type = "CHECK-OUT"
 
-        # Save photo record
-        photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
-        if not photo:
-            photo = AttendancePhoto(attendance_id=att.id, employee_id=employee.id)
-            db.session.add(photo)
-        if action_type.startswith("CHECK-IN"):
-            photo.image_data = photo_b64
+        if employee:
+            att = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
+            if not att:
+                att = Attendance(
+                    employee_id=employee.id,
+                    date=today,
+                    status="present",
+                    check_in_time=now_kolkata,
+                    face_verified=True,
+                    face_match_score=100.0
+                )
+                db.session.add(att)
+                db.session.flush()
+            else:
+                if not att.check_in_time:
+                    att.check_in_time = now_kolkata
+                    action_type = "CHECK-IN"
+                else:
+                    att.check_out_time = now_kolkata
+                    action_type = "CHECK-OUT"
+                att.face_verified = True
+                att.face_match_score = 100.0
+
+            photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+            if not photo:
+                photo = AttendancePhoto(attendance_id=att.id, employee_id=employee.id)
+                db.session.add(photo)
+            if action_type.startswith("CHECK-IN"):
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
+
         else:
-            photo.checkout_image_data = photo_b64
+            # Employee has not yet registered on web portal: punch in AttendanceMaster
+            att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
+            if not att:
+                att = AttendanceMaster(
+                    employee_master_id=master.id,
+                    employee_code=code,
+                    date=today,
+                    status="present",
+                    check_in_time=now_kolkata,
+                    face_verified=True,
+                    face_match_score=100.0
+                )
+                db.session.add(att)
+                db.session.flush()
+            else:
+                if not att.check_in_time:
+                    att.check_in_time = now_kolkata
+                    action_type = "CHECK-IN"
+                else:
+                    att.check_out_time = now_kolkata
+                    action_type = "CHECK-OUT"
+                att.face_verified = True
+                att.face_match_score = 100.0
+
+            photo = AttendanceMasterPhoto.query.filter_by(attendance_master_id=att.id).first()
+            if not photo:
+                photo = AttendanceMasterPhoto(attendance_master_id=att.id, employee_master_id=master.id)
+                db.session.add(photo)
+            if action_type.startswith("CHECK-IN"):
+                photo.image_data = photo_b64
+            else:
+                photo.checkout_image_data = photo_b64
 
         db.session.commit()
 
@@ -684,14 +700,14 @@ def kiosk_enroll_and_punch():
             "match_found": True,
             "enrolled_new": True,
             "employee": {
-                "id": employee.id,
+                "id": master.id,
                 "employee_code": code,
                 "name": master.employee_name or "Employee",
-                "department": employee.department or master.department or "General",
-                "designation": employee.designation or master.designation or "Staff",
-                "working_location": employee.branch or master.working_location or "Head Office",
-                "date_of_joining": str(employee.date_joined) if employee.date_joined else "2024-01-15",
-                "official_email": clean_email,
+                "department": getattr(employee, "department", None) or master.department or "General",
+                "designation": getattr(employee, "designation", None) or master.designation or "Staff",
+                "working_location": getattr(employee, "branch", None) or master.working_location or "Head Office",
+                "date_of_joining": str(getattr(employee, "date_joined", "")) if getattr(employee, "date_joined", None) else "Pending Registration",
+                "official_email": getattr(master, "official_email", "") or getattr(employee, "personal_email", "") or "Pending Web Registration",
                 "registered_photo": photo_b64,
                 "captured_photo": photo_b64,
                 "confidence_score": 100.0,
@@ -701,10 +717,10 @@ def kiosk_enroll_and_punch():
                 "action": action_type,
                 "time": now_kolkata.strftime("%I:%M:%S %p"),
                 "date": now_kolkata.strftime("%A, %d %B %Y"),
-                "status": "Face Enrolled & Punch Verified",
+                "status": "Face Assigned & Punch Verified",
                 "buffer_warning": False,
                 "buffer_message": "",
-                "message": f"Biometric Face Successfully Enrolled! {action_type} recorded."
+                "message": f"Biometric Face Successfully Assigned to {code}! {action_type} recorded."
             }
         }), 200
 

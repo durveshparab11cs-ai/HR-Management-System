@@ -834,7 +834,7 @@
               First time scanning or new registration? Enter your Employee Code below to link your live face, mark attendance, and display all your details immediately!
             </p>
             <div style="display: flex; gap: 8px; max-width: 420px; margin: 0 auto;">
-              <input type="text" id="kiosk-enroll-code-input" placeholder="e.g. E-2606026" style="flex: 1; height: 46px; font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; text-align: center; border: 2px solid #86efac; border-radius: var(--radius-sm); text-transform: uppercase; background: #fff; color: #0f172a;">
+              <input type="text" id="kiosk-enroll-code-input" placeholder="Enter Code (e.g. E-2606026)" style="flex: 1; height: 46px; font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; text-align: center; border: 2px solid #86efac; border-radius: var(--radius-sm); text-transform: uppercase; background: #fff; color: #0f172a;">
               <button id="btn-kiosk-enroll-submit" class="btn-snap-now" style="background: linear-gradient(135deg, #16a34a, #15803d); padding: 0 20px; font-size: 0.9rem; white-space: nowrap; border: none; border-radius: var(--radius-sm);">
                 <i class="bi bi-link-45deg"></i> Link Face
               </button>
@@ -1275,7 +1275,8 @@
         const enrollInput = document.getElementById('kiosk-enroll-code-input');
         const feedbackEl = document.getElementById('kiosk-enroll-feedback');
         const submitBtn = document.getElementById('btn-kiosk-enroll-submit');
-        const code = (enrollInput ? enrollInput.value : '').trim().toUpperCase();
+        let code = (enrollInput ? enrollInput.value : '').trim().toUpperCase();
+        code = code.replace(/^(?:E\.?G\.?|EXAMPLE)\s*[:\-]?\s*/i, '').trim();
 
         if (!code) {
           if (feedbackEl) {

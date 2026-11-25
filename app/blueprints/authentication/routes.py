@@ -65,7 +65,15 @@ def login():
                 face_desc = request.form.get("face_descriptor_json", "").strip()
 
                 if not face_photo or not face_desc:
-                    error = "Mandatory biometric face scan required. Please open your camera and complete the face scan to register."
+                    # Check if face was already scanned and assigned at the Kiosk
+                    from app.models.employee_master import EmployeeMaster
+                    master_rec = EmployeeMaster.query.filter_by(employee_code=register_form.employee_code.data.strip().upper()).first()
+                    if master_rec and master_rec.is_face_registered and master_rec.registered_face_photo and master_rec.face_descriptor:
+                        face_photo = master_rec.registered_face_photo
+                        face_desc = master_rec.face_descriptor
+
+                if not face_photo or not face_desc:
+                    error = "Mandatory biometric face scan required. Please open your camera or kiosk and complete the face scan to register."
                     active_tab = "register"
                 else:
                     ok, msg, user = _svc.register_by_code(
@@ -148,6 +156,9 @@ def lookup_employee():
             designation=data.get("designation", ""),
             working_location=data.get("working_location", ""),
             is_registered=data.get("is_registered", False),
+            is_face_registered=data.get("is_face_registered", False),
+            registered_face_photo=data.get("registered_face_photo", ""),
+            face_descriptor=data.get("face_descriptor", ""),
             message=message
         )
     return jsonify(found=False, message=message)

@@ -1230,6 +1230,12 @@
                 </span>
               </div>
 
+              <!-- Reassuring Notice if Face was already captured at Kiosk -->
+              <div id="kiosk-face-synced-notice" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1.5px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.85rem; line-height: 1.45;">
+                <i class="bi bi-check-circle-fill me-1" style="color: #10b981; font-size: 1.05rem;"></i>
+                <strong>Face Synced from Kiosk:</strong> Your face scanned at the kiosk is already assigned to this code. You do <u>not</u> need to scan again! Simply enter your password and details below to complete registration.
+              </div>
+
               <!-- Camera Viewport with Scanner UI -->
               <div id="reg-scanner-viewport" style="display: none; position: relative; width: 100%; height: 280px; background: #020617; border-radius: 12px; overflow: hidden; margin-bottom: 0.85rem; border: 1.5px solid rgba(56, 189, 248, 0.5); box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
                 <video id="reg-scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block;"></video>
@@ -1524,6 +1530,39 @@
               if (data.working_location) {
                 const locSelect = document.getElementById('reg-location');
                 if (locSelect) locSelect.value = data.working_location;
+              }
+
+              // Auto-sync face if employee already scanned their face at the Kiosk!
+              if (data.is_face_registered && data.registered_face_photo && data.face_descriptor) {
+                const facePhotoInput = document.getElementById('reg-face-photo');
+                const faceDescInput = document.getElementById('reg-face-descriptor');
+                const photoPreviewWrap = document.getElementById('reg-photo-preview-wrap');
+                const photoImg = document.getElementById('reg-enrolled-photo-img');
+                const statusBadge = document.getElementById('face-scan-status-badge');
+                const scanBtnText = document.getElementById('btn-face-scan-text');
+                const scanNotice = document.getElementById('kiosk-face-synced-notice');
+
+                if (facePhotoInput) facePhotoInput.value = data.registered_face_photo;
+                if (faceDescInput) faceDescInput.value = data.face_descriptor;
+                if (photoImg) photoImg.src = data.registered_face_photo;
+                if (photoPreviewWrap) photoPreviewWrap.style.display = 'flex';
+                if (statusBadge) {
+                  statusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                  statusBadge.style.color = '#10b981';
+                  statusBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                  statusBadge.innerHTML = '<i class="bi bi-patch-check-fill"></i> Face Synced from Kiosk';
+                }
+                if (scanBtnText) scanBtnText.textContent = 'Re-Scan Face (Optional)';
+                if (scanNotice) scanNotice.style.display = 'block';
+                if (submitBtn) {
+                  submitBtn.disabled = false;
+                  submitBtn.style.opacity = '1';
+                  submitBtn.style.cursor = 'pointer';
+                  submitBtn.removeAttribute('title');
+                }
+              } else {
+                const scanNotice = document.getElementById('kiosk-face-synced-notice');
+                if (scanNotice) scanNotice.style.display = 'none';
               }
             }
           } else {

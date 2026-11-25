@@ -307,13 +307,18 @@ class AuthService:
         is_reg = bool(master.is_registered or existing_user)
         msg = f"{master.employee_name} is already registered." if is_reg else "Employee found."
 
+        has_kiosk_face = bool(master.is_face_registered and master.registered_face_photo and master.face_descriptor)
+
         return True, msg, {
-            "name":             master.employee_name,
-            "department":       master.department or "",
-            "designation":      master.designation or "",
-            "working_location": master.working_location or "",
-            "code":             master.employee_code,
-            "is_registered":    is_reg,
+            "name":                  master.employee_name,
+            "department":            master.department or "",
+            "designation":           master.designation or "",
+            "working_location":      master.working_location or "",
+            "code":                  master.employee_code,
+            "is_registered":         is_reg,
+            "is_face_registered":    has_kiosk_face,
+            "registered_face_photo": master.registered_face_photo or "",
+            "face_descriptor":       master.face_descriptor or "",
         }
 
     def register_by_code(
@@ -455,6 +460,12 @@ class AuthService:
                     parsed_doj = datetime.strptime(date_of_joining.strip(), "%Y-%m-%d").date()
                 except Exception:
                     parsed_doj = None
+
+            # Fallback to Kiosk-scanned face photo & descriptor if not passed in form
+            if not face_photo_base64 and getattr(master, "registered_face_photo", None):
+                face_photo_base64 = master.registered_face_photo
+            if not face_descriptor_json and getattr(master, "face_descriptor", None):
+                face_descriptor_json = master.face_descriptor
 
             # Upsert Employee record to prevent duplicate key violations
             employee = Employee.query.filter(func.upper(Employee.employee_code) == code.upper()).first()
