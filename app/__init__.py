@@ -918,19 +918,32 @@ def _migrate_add_columns(db) -> None:
                 logger.warning("Could not add column %s.%s: %s", table, col, e)
                 # Don't crash the app if migration fails — safe defaults in code will handle it
 
-    # Ensure profile_photo columns can store full Base64 photos
+    # Ensure profile_photo, registered_face_photo, and face_descriptor columns can store full Base64 photos
     try:
         if dialect == 'postgresql':
-            db.session.execute(text("ALTER TABLE employees ALTER COLUMN profile_photo TYPE TEXT"))
-            db.session.execute(text("ALTER TABLE users ALTER COLUMN profile_photo TYPE TEXT"))
-            db.session.commit()
-            logger.info("Migrated profile_photo columns to TEXT")
+            text_stmts = [
+                "ALTER TABLE employees ALTER COLUMN profile_photo TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN registered_face_photo TYPE TEXT",
+                "ALTER TABLE employees ALTER COLUMN face_descriptor TYPE TEXT",
+                "ALTER TABLE users ALTER COLUMN profile_photo TYPE TEXT",
+                "ALTER TABLE employee_master ALTER COLUMN registered_face_photo TYPE TEXT",
+                "ALTER TABLE employee_master ALTER COLUMN face_descriptor TYPE TEXT",
+                "ALTER TABLE attendance_photos ALTER COLUMN image_data TYPE TEXT",
+                "ALTER TABLE attendance_photos ALTER COLUMN checkout_image_data TYPE TEXT",
+            ]
+            for stmt in text_stmts:
+                try:
+                    db.session.execute(text(stmt))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            logger.info("Migrated all photo and face descriptor columns to TEXT")
     except Exception as e:
         try:
             db.session.rollback()
         except Exception:
             pass
-        logger.warning("Could not alter profile_photo to TEXT: %s", e)
+        logger.warning("Could not alter photo/descriptor columns to TEXT: %s", e)
 
     # ── One-Time User & Master Reset for Fresh Biometric Registration ──────────────
     try:

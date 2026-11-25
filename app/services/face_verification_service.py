@@ -22,9 +22,11 @@ import base64
 
 logger = logging.getLogger("face_verification")
 
-# Match threshold for 128-d Euclidean distance (FaceNet standard)
-# Strict enterprise threshold: distance <= 0.385 and similarity >= 60%
-DEFAULT_DISTANCE_THRESHOLD = 0.385
+# Match threshold for 128-d Euclidean distance (FaceNet/face-api standard)
+# Enterprise threshold calibrated for office webcam lighting & spectacles/glasses tolerance:
+# True employee match typically falls in 0.20 - 0.44 distance range.
+# Impostor / different person distance is typically > 0.60.
+DEFAULT_DISTANCE_THRESHOLD = 0.44
 DEFAULT_MIN_SIMILARITY = 60.0
 
 
@@ -89,21 +91,24 @@ class FaceVerificationService:
         cos_sim = float(np.dot(vec_live, vec_reg) / (norm_live * norm_reg))
 
         # Calibrated similarity percentage:
-        # d <= 0.15: 92-100%
-        # d <= 0.385 (threshold): 60-92%
-        # d <= 0.50 (mismatch): 20-60%
-        # d > 0.50: 0-20%
+        # d <= 0.15: 95-100%
+        # d <= 0.35: 80-95%
+        # d <= 0.44 (threshold): 65-80%
+        # d <= 0.55: 35-65%
+        # d > 0.55: 0-35%
         if distance <= 0.15:
-            similarity = round(100.0 - (distance / 0.15) * 8.0, 1)
-        elif distance <= 0.385:
-            similarity = round(92.0 - ((distance - 0.15) / 0.235) * 32.0, 1)
-        elif distance <= 0.50:
-            similarity = round(60.0 - ((distance - 0.385) / 0.115) * 40.0, 1)
+            similarity = round(100.0 - (distance / 0.15) * 5.0, 1)
+        elif distance <= 0.35:
+            similarity = round(95.0 - ((distance - 0.15) / 0.20) * 15.0, 1)
+        elif distance <= 0.44:
+            similarity = round(80.0 - ((distance - 0.35) / 0.09) * 15.0, 1)
+        elif distance <= 0.55:
+            similarity = round(65.0 - ((distance - 0.44) / 0.11) * 30.0, 1)
         else:
-            similarity = max(0.0, round(20.0 - ((distance - 0.50) / 0.20) * 20.0, 1))
+            similarity = max(0.0, round(35.0 - ((distance - 0.55) / 0.20) * 35.0, 1))
 
         similarity = max(0.0, min(100.0, similarity))
-        is_match = (distance <= threshold) and (similarity >= DEFAULT_MIN_SIMILARITY) and (cos_sim >= 0.70)
+        is_match = (distance <= threshold) and (similarity >= DEFAULT_MIN_SIMILARITY) and (cos_sim >= 0.65)
 
         logger.info(
             "Biometric Verification: match=%s | distance=%.4f (th=%.3f) | cos_sim=%.3f | similarity=%.1f%%",
@@ -283,18 +288,20 @@ class FaceVerificationService:
 
                 # Calibrated similarity %
                 if dist <= 0.15:
-                    sim = round(100.0 - (dist / 0.15) * 8.0, 1)
-                elif dist <= 0.385:
-                    sim = round(92.0 - ((dist - 0.15) / 0.235) * 32.0, 1)
-                elif dist <= 0.50:
-                    sim = round(60.0 - ((dist - 0.385) / 0.115) * 40.0, 1)
+                    sim = round(100.0 - (dist / 0.15) * 5.0, 1)
+                elif dist <= 0.35:
+                    sim = round(95.0 - ((dist - 0.15) / 0.20) * 15.0, 1)
+                elif dist <= 0.44:
+                    sim = round(80.0 - ((dist - 0.35) / 0.09) * 15.0, 1)
+                elif dist <= 0.55:
+                    sim = round(65.0 - ((dist - 0.44) / 0.11) * 30.0, 1)
                 else:
-                    sim = max(0.0, round(20.0 - ((dist - 0.50) / 0.20) * 20.0, 1))
+                    sim = max(0.0, round(35.0 - ((dist - 0.55) / 0.20) * 35.0, 1))
 
                 best_sim = max(0.0, min(100.0, sim))
                 best_match = cand
 
-        if best_match and min_dist <= threshold and best_sim >= DEFAULT_MIN_SIMILARITY and best_cos >= 0.70:
+        if best_match and min_dist <= threshold and best_sim >= DEFAULT_MIN_SIMILARITY and best_cos >= 0.65:
             logger.info(
                 "1:N BIOMETRIC_MATCH_FOUND | code=%s | name=%s | dist=%.4f | score=%.1f%% | cos=%.3f",
                 best_match.get("employee_code"), best_match.get("name"), min_dist, best_sim, best_cos
