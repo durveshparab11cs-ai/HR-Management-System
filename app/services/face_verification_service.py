@@ -19,9 +19,9 @@ import base64
 logger = logging.getLogger("face_verification")
 
 # Match threshold for 128-d Euclidean distance (FaceNet standard)
-# Strict enterprise threshold: distance <= 0.35 and similarity >= 70%
-DEFAULT_DISTANCE_THRESHOLD = 0.35
-DEFAULT_MIN_SIMILARITY = 70.0
+# Strict enterprise threshold: distance <= 0.385 and similarity >= 60%
+DEFAULT_DISTANCE_THRESHOLD = 0.385
+DEFAULT_MIN_SIMILARITY = 60.0
 
 class FaceVerificationService:
     """Enterprise facial recognition verification service."""
@@ -81,15 +81,15 @@ class FaceVerificationService:
 
         # Calculate calibrated similarity percentage
         # d <= 0.15: 92-100%
-        # d <= 0.35 (threshold): 70-92%
-        # d <= 0.50 (mismatch): 20-70%
+        # d <= 0.385 (threshold): 60-92%
+        # d <= 0.50 (mismatch): 20-60%
         # d > 0.50: 0-20%
         if distance <= 0.15:
             similarity = round(100.0 - (distance / 0.15) * 8.0, 1)
-        elif distance <= 0.35:
-            similarity = round(92.0 - ((distance - 0.15) / 0.20) * 22.0, 1)
+        elif distance <= 0.385:
+            similarity = round(92.0 - ((distance - 0.15) / 0.235) * 32.0, 1)
         elif distance <= 0.50:
-            similarity = round(70.0 - ((distance - 0.35) / 0.15) * 50.0, 1)
+            similarity = round(60.0 - ((distance - 0.385) / 0.115) * 40.0, 1)
         else:
             similarity = max(0.0, round(20.0 - ((distance - 0.50) / 0.20) * 20.0, 1))
 

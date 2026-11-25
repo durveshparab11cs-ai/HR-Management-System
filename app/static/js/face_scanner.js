@@ -157,7 +157,20 @@ class FaceBiometricEngine {
    * @param {Function} [onProgress] - callback(progressPct, statusMsg)
    * @returns {Promise<{success: boolean, descriptor: Array<number>, photoBase64: string, message: string}>}
    */
-  async performThoroughScan(videoEl, canvasEl, durationOrProgress, onProgress) {
+  _getEAR(eye) {
+    if (!eye || eye.length < 6) return 0.25;
+    const p1 = eye[0], p2 = eye[1], p3 = eye[2], p4 = eye[3], p5 = eye[4], p6 = eye[5];
+    const v1 = Math.hypot(p2.x - p6.x, p2.y - p6.y);
+    const v2 = Math.hypot(p3.x - p5.x, p3.y - p5.y);
+    const h = Math.hypot(p1.x - p4.x, p1.y - p4.y) || 1;
+    return (v1 + v2) / (2.0 * h);
+  }
+
+  /**
+   * Perform thorough multi-frame biometric face scan with eye-tracking
+   * and Best-of-N frame optimization.
+   */
+  async performThoroughScan(videoEl, canvasEl, durationOrProgress, onProgress, registeredDesc = null) {
     let durationMs = 3000;
     let progressCb = onProgress;
 
@@ -174,8 +187,8 @@ class FaceBiometricEngine {
     const ctx = canvasEl.getContext('2d');
 
     this.isScanning = true;
-    const collectedDescriptors = [];
-    let bestPhoto = null;
+    const collectedSamples = [];
+    let lastSampleTime = 0;
     let scanStartTime = Date.now();
     let maxWaitTimeMs = 12000; // allow up to 12s for employee to position face
     let laserY = 0;
@@ -188,9 +201,8 @@ class FaceBiometricEngine {
         ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
         const elapsed = Date.now() - scanStartTime;
-        // Progress advances once samples start collecting, or loops until face found
-        const sampleCount = collectedDescriptors.length;
-        const targetSamples = 3;
+        const sampleCount = collectedSamples.length;
+        const targetSamples = 4;
         const progress = Math.min(100, Math.round((sampleCount / targetSamples) * 100));
 
         // Animate laser sweep line
@@ -233,9 +245,9 @@ class FaceBiometricEngine {
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         if (sampleCount === 0) {
-          ctx.fillText('LOOK DIRECTLY AT CAMERA...', cx, canvasEl.height - 30);
+          ctx.fillText('ALIGN FACE & KEEP EYES OPEN...', cx, canvasEl.height - 30);
         } else {
-          ctx.fillText(`LOCKING BIOMETRIC MESH: ${progress}%`, cx, canvasEl.height - 30);
+          ctx.fillText(`CAPTURING BIOMETRICS: ${progress}%`, cx, canvasEl.height - 30);
         }
 
         // Robust Detection Pipeline
@@ -243,10 +255,10 @@ class FaceBiometricEngine {
           try {
             let detection = null;
 
-            // 1. Try TinyFaceDetector with flexible threshold for fast real-time tracking
+            // 1. Try TinyFaceDetector with higher input resolution (416) for crisp landmark tracking
             if (faceapi.nets.tinyFaceDetector && faceapi.nets.tinyFaceDetector.isLoaded) {
               detection = await faceapi
-                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 }))
+                .detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.25 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
             }
@@ -260,19 +272,19 @@ class FaceBiometricEngine {
             }
 
             if (detection) {
-              collectedDescriptors.push(Array.from(detection.descriptor));
-              if (!bestPhoto) {
-                bestPhoto = this._captureVideoFrame(videoEl);
-              }
-
-              // Visual Eye & Feature Tracking
+              const now = Date.now();
               const landmarks = detection.landmarks;
               const leftEye = landmarks.getLeftEye();
               const rightEye = landmarks.getRightEye();
 
+              const earLeft = this._getEAR(leftEye);
+              const earRight = this._getEAR(rightEye);
+              const eyesOpen = ((earLeft + earRight) / 2.0) >= 0.16;
+
+              // Visual Eye & Feature Tracking Rings
               ctx.save();
-              ctx.fillStyle = '#38bdf8';
-              ctx.strokeStyle = '#0284c7';
+              ctx.fillStyle = eyesOpen ? '#10b981' : '#f59e0b';
+              ctx.strokeStyle = eyesOpen ? '#059669' : '#d97706';
               ctx.lineWidth = 2;
               
               // Eye rings
@@ -288,6 +300,29 @@ class FaceBiometricEngine {
 
               faceapi.draw.drawFaceLandmarks(canvasEl, landmarks);
               ctx.restore();
+
+              // Collect sample if spaced at least 150ms apart
+              if (now - lastSampleTime >= 150) {
+                lastSampleTime = now;
+                const desc = Array.from(detection.descriptor);
+                const photo = this._captureVideoFrame(videoEl);
+
+                let frameScore = 0;
+                let frameDistance = 999;
+                if (registeredDesc) {
+                  const cmp = this.compareDescriptors(desc, registeredDesc, 0.385);
+                  frameScore = cmp.score;
+                  frameDistance = cmp.distance;
+                }
+
+                collectedSamples.push({
+                  descriptor: desc,
+                  photo: photo,
+                  eyesOpen: eyesOpen,
+                  score: frameScore,
+                  distance: frameDistance
+                });
+              }
             }
           } catch (e) {
             console.warn('Frame detection step error:', e);
@@ -296,7 +331,7 @@ class FaceBiometricEngine {
 
         if (progressCb) {
           if (sampleCount === 0) {
-            progressCb(10, 'Looking for face... Please align in oval');
+            progressCb(10, 'Looking for face... Please look directly at camera');
           } else {
             progressCb(progress, `Scanning facial landmarks (${progress}%)...`);
           }
@@ -305,13 +340,27 @@ class FaceBiometricEngine {
         // Complete when target samples collected OR timeout after maxWaitTimeMs
         if (sampleCount >= targetSamples) {
           this.isScanning = false;
-          if (!bestPhoto) bestPhoto = this._captureVideoFrame(videoEl);
-          const finalDescriptor = this._averageDescriptors(collectedDescriptors);
+
+          let chosenDescriptor = null;
+          let chosenPhoto = null;
+
+          if (registeredDesc && collectedSamples.length > 0) {
+            // Sort by score descending - Best-of-N matching!
+            collectedSamples.sort((a, b) => b.score - a.score);
+            chosenDescriptor = collectedSamples[0].descriptor;
+            chosenPhoto = collectedSamples[0].photo;
+          } else {
+            // For enrollment: prefer samples where eyes were open
+            const openSamples = collectedSamples.filter(s => s.eyesOpen);
+            const pool = openSamples.length > 0 ? openSamples : collectedSamples;
+            chosenDescriptor = this._averageDescriptors(pool.map(s => s.descriptor));
+            chosenPhoto = pool[0]?.photo || this._captureVideoFrame(videoEl);
+          }
 
           resolve({
             success: true,
-            descriptor: finalDescriptor,
-            photoBase64: bestPhoto,
+            descriptor: chosenDescriptor,
+            photoBase64: chosenPhoto,
             message: 'Facial biometric profile successfully scanned and verified.'
           });
         } else if (elapsed > maxWaitTimeMs) {
@@ -409,10 +458,10 @@ class FaceBiometricEngine {
    * 
    * @param {Array<number>|string} desc1
    * @param {Array<number>|string} desc2
-   * @param {number} threshold - Strict match threshold (default 0.35)
+   * @param {number} threshold - Strict match threshold (default 0.385)
    * @returns {{isMatch: boolean, matched: boolean, distance: number, similarity: number, score: number}}
    */
-  compareDescriptors(desc1, desc2, threshold = 0.35) {
+  compareDescriptors(desc1, desc2, threshold = 0.385) {
     let d1 = desc1;
     let d2 = desc2;
 
@@ -439,17 +488,17 @@ class FaceBiometricEngine {
     let similarity = 0;
     if (distance <= 0.15) {
       similarity = Math.round(100 - (distance / 0.15) * 8);
-    } else if (distance <= 0.35) {
-      similarity = Math.round(92 - ((distance - 0.15) / 0.20) * 22);
+    } else if (distance <= 0.385) {
+      similarity = Math.round(92 - ((distance - 0.15) / 0.235) * 32);
     } else if (distance <= 0.50) {
-      similarity = Math.round(70 - ((distance - 0.35) / 0.15) * 50);
+      similarity = Math.round(60 - ((distance - 0.385) / 0.115) * 40);
     } else {
       similarity = Math.max(0, Math.round(20 - ((distance - 0.50) / 0.20) * 20));
     }
     similarity = Math.max(0, Math.min(100, similarity));
 
-    // Strict biometric match requires distance <= 0.35 AND similarity >= 70%
-    const isMatch = (distance <= threshold) && (similarity >= 70);
+    // Strict biometric match requires distance <= 0.385 AND similarity >= 60%
+    const isMatch = (distance <= threshold) && (similarity >= 60);
 
     return {
       isMatch,

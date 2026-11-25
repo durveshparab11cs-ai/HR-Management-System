@@ -374,10 +374,10 @@ def kiosk_attendance():
 
             # 1. High-accuracy 128-dimensional deep neural descriptor verification
             if registered_desc and live_face_descriptor:
-                is_match, distance, score = FaceVerificationService.verify_descriptors(live_face_descriptor, registered_desc, threshold=0.35)
+                is_match, distance, score = FaceVerificationService.verify_descriptors(live_face_descriptor, registered_desc, threshold=0.385)
                 face_score = score
 
-            if not is_match or face_score < 70.0:
+            if not is_match or face_score < 60.0:
                 logger.warning("REJECTED_PUNCH_FACE_MISMATCH | code=%s | name=%s | distance=%.4f | score=%.1f%%", code, emp_name, distance, face_score)
                 return jsonify({
                     "success": False,

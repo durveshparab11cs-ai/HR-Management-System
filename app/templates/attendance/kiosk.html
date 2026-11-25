@@ -1188,48 +1188,74 @@
         // 1. Thoroughly scan live face using FaceBiometricEngine
         let scanResult = null;
         try {
-          scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 2000, (p) => {
-            statusPillText.textContent = `Analyzing facial landmarks... ${p}%`;
-          });
+          scanResult = await window.faceBiometric.performThoroughScan(videoEl, canvasEl, 2500, (p, msg) => {
+            statusPillText.textContent = msg || `Analyzing facial landmarks... ${p}%`;
+          }, employeeData.face_descriptor);
         } catch (scanErr) {
           console.warn('Face biometric scan failed:', scanErr);
         }
 
         stopKioskLaserAnimation();
 
-        const width = videoEl.videoWidth || 640;
-        const height = videoEl.videoHeight || 480;
-        canvasEl.width = width;
-        canvasEl.height = height;
+        // 2. Render verified high-accuracy frame or video snapshot
+        if (scanResult && scanResult.photoBase64) {
+          capturedPhotoB64 = scanResult.photoBase64;
+          capturedFaceDescriptor = scanResult.descriptor;
 
-        const ctx = canvasEl.getContext('2d');
-        // Mirror photo horizontally to match preview
-        ctx.translate(width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(videoEl, 0, 0, width, height);
+          const img = new Image();
+          await new Promise((resolve) => {
+            img.onload = () => {
+              canvasEl.width = img.width;
+              canvasEl.height = img.height;
+              const ctx = canvasEl.getContext('2d');
+              ctx.drawImage(img, 0, 0);
 
-        // Watermark with timestamp in Asia/Kolkata
-        ctx.translate(width, 0);
-        ctx.scale(-1, 1);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(10, height - 38, 380, 28);
-        ctx.font = 'bold 12px "JetBrains Mono", monospace';
-        ctx.fillStyle = '#06b6d4';
-        const nowStr = new Date(Date.now() + serverTimeOffsetMs).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        ctx.fillText(`CSCS KIOSK | ${employeeData.code} | ${nowStr}`, 18, height - 20);
+              // Watermark with timestamp in Asia/Kolkata
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+              ctx.fillRect(10, img.height - 38, 380, 28);
+              ctx.font = 'bold 12px "JetBrains Mono", monospace';
+              ctx.fillStyle = '#06b6d4';
+              const nowStr = new Date(Date.now() + serverTimeOffsetMs).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+              ctx.fillText(`CSCS KIOSK | ${employeeData.code} | ${nowStr}`, 18, img.height - 20);
+              capturedPhotoB64 = canvasEl.toDataURL('image/jpeg', 0.85);
+              resolve();
+            };
+            img.onerror = resolve;
+            img.src = scanResult.photoBase64;
+          });
+        } else {
+          const width = videoEl.videoWidth || 640;
+          const height = videoEl.videoHeight || 480;
+          canvasEl.width = width;
+          canvasEl.height = height;
 
-        capturedPhotoB64 = canvasEl.toDataURL('image/jpeg', 0.85);
-        capturedFaceDescriptor = scanResult ? scanResult.descriptor : null;
+          const ctx = canvasEl.getContext('2d');
+          ctx.translate(width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(videoEl, 0, 0, width, height);
 
-        // 2. Strict Biometric Comparison Check
-        // If employee has a registered face descriptor, verify match
+          // Watermark with timestamp in Asia/Kolkata
+          ctx.translate(width, 0);
+          ctx.scale(-1, 1);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(10, height - 38, 380, 28);
+          ctx.font = 'bold 12px "JetBrains Mono", monospace';
+          ctx.fillStyle = '#06b6d4';
+          const nowStr = new Date(Date.now() + serverTimeOffsetMs).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+          ctx.fillText(`CSCS KIOSK | ${employeeData.code} | ${nowStr}`, 18, height - 20);
+
+          capturedPhotoB64 = canvasEl.toDataURL('image/jpeg', 0.85);
+          capturedFaceDescriptor = scanResult ? scanResult.descriptor : null;
+        }
+
+        // 3. Strict Biometric Comparison Check
         const registeredDesc = employeeData.face_descriptor;
         let isFaceMatched = false;
         let matchScore = 0;
 
         if (registeredDesc && capturedFaceDescriptor) {
-          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.35);
-          isFaceMatched = matchResult.matched && matchResult.score >= 70;
+          const matchResult = window.faceBiometric.compareDescriptors(capturedFaceDescriptor, registeredDesc, 0.385);
+          isFaceMatched = matchResult.matched && matchResult.score >= 60;
           matchScore = matchResult.score;
 
           if (!isFaceMatched) {
