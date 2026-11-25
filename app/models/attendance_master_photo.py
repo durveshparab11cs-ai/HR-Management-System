@@ -28,7 +28,7 @@ class AttendanceMasterPhoto(db.Model):
     )
 
     # File path (kept for backward compatibility)
-    file_path: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    file_path: Mapped[str] = mapped_column(String(255), nullable=True, default="")
     original_filename: Mapped[str] = mapped_column(String(255), nullable=True)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str] = mapped_column(String(50), nullable=True)

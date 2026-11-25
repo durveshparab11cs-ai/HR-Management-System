@@ -374,11 +374,11 @@ def kiosk_identify_and_punch():
                 "message": "No registered face profiles found in the system. Please register your face first."
             }), 404
 
-        # 3. 1:N Facial Biometric Identification
+        # 3. 1:N Facial Biometric Identification (Enterprise tolerance threshold: 0.52)
         match_result = FaceVerificationService.identify_face_1_to_n(
             live_descriptor=live_face_descriptor,
             candidates=candidates,
-            threshold=0.48
+            threshold=0.52
         )
 
         if not match_result:
@@ -482,7 +482,7 @@ def kiosk_identify_and_punch():
         if not use_master:
             photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
             if not photo:
-                photo = AttendancePhoto(attendance_id=att.id, employee_id=emp_record.id)
+                photo = AttendancePhoto(attendance_id=att.id, employee_id=emp_record.id, file_path="")
                 db.session.add(photo)
             if action_type.startswith("CHECK-IN"):
                 photo.image_data = photo_b64
@@ -493,7 +493,8 @@ def kiosk_identify_and_punch():
             if not photo:
                 photo = AttendanceMasterPhoto(
                     attendance_master_id=att.id,
-                    employee_master_id=cand["id"]
+                    employee_master_id=cand["id"],
+                    file_path=""
                 )
                 db.session.add(photo)
             if action_type.startswith("CHECK-IN"):
@@ -533,13 +534,16 @@ def kiosk_identify_and_punch():
         }), 200
 
     except Exception as exc:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         import traceback, sys
         traceback.print_exc(file=sys.stderr)
         return jsonify({
             "success": False,
-            "message": f"Biometric attendance processing failed: {str(exc)}"
-        }), 500
+            "message": f"Biometric attendance error: {str(exc)}"
+        }), 400
 
 
 @api_bp.route("/kiosk/enroll-and-punch", methods=["POST"])
@@ -615,7 +619,7 @@ def kiosk_enroll_and_punch():
         elif code == "E-2606026" and (not master.employee_name or master.employee_name.startswith("Employee")):
             master.employee_name = "Durvesh Parab"
 
-        # Save face biometric to EmployeeMaster
+        # 1. Save and commit face biometric to EmployeeMaster (and Employee if exists) FIRST
         parsed_vec = FaceVerificationService.parse_descriptor(live_face_descriptor)
         if parsed_vec is not None:
             desc_json = json.dumps(parsed_vec.tolist())
@@ -633,81 +637,99 @@ def kiosk_enroll_and_punch():
             employee.is_face_registered = True
             employee.profile_photo = photo_b64
 
-        # Record Attendance Punch for today (Asia/Kolkata)
+        # Commit face enrollment immediately so face is permanently registered
+        db.session.commit()
+
+        # 2. Record Attendance Punch for today (Asia/Kolkata) in a safe isolated try-except
         tz = ZoneInfo("Asia/Kolkata")
         now_kolkata = datetime.now(tz)
         today = now_kolkata.date()
         action_type = "CHECK-IN"
+        punch_recorded = True
 
-        if employee:
-            att = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
-            if not att:
-                att = Attendance(
-                    employee_id=employee.id,
-                    date=today,
-                    status="present",
-                    check_in_time=now_kolkata,
-                    face_verified=True,
-                    face_match_score=100.0
-                )
-                db.session.add(att)
-                db.session.flush()
-            else:
-                if not att.check_in_time:
-                    att.check_in_time = now_kolkata
-                    action_type = "CHECK-IN"
+        try:
+            if employee:
+                att = Attendance.query.filter_by(employee_id=employee.id, date=today).first()
+                if not att:
+                    att = Attendance(
+                        employee_id=employee.id,
+                        date=today,
+                        status="present",
+                        check_in_time=now_kolkata,
+                        face_verified=True,
+                        face_match_score=100.0
+                    )
+                    db.session.add(att)
+                    db.session.flush()
                 else:
-                    att.check_out_time = now_kolkata
-                    action_type = "CHECK-OUT"
-                att.face_verified = True
-                att.face_match_score = 100.0
+                    if not att.check_in_time:
+                        att.check_in_time = now_kolkata
+                        action_type = "CHECK-IN"
+                    else:
+                        att.check_out_time = now_kolkata
+                        action_type = "CHECK-OUT"
+                    att.face_verified = True
+                    att.face_match_score = 100.0
 
-            photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
-            if not photo:
-                photo = AttendancePhoto(attendance_id=att.id, employee_id=employee.id)
-                db.session.add(photo)
-            if action_type.startswith("CHECK-IN"):
-                photo.image_data = photo_b64
-            else:
-                photo.checkout_image_data = photo_b64
-
-        else:
-            # Employee has not yet registered on web portal: punch in AttendanceMaster
-            att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
-            if not att:
-                att = AttendanceMaster(
-                    employee_master_id=master.id,
-                    employee_code=code,
-                    date=today,
-                    status="present",
-                    check_in_time=now_kolkata,
-                    face_verified=True,
-                    face_match_score=100.0
-                )
-                db.session.add(att)
-                db.session.flush()
-            else:
-                if not att.check_in_time:
-                    att.check_in_time = now_kolkata
-                    action_type = "CHECK-IN"
+                photo = AttendancePhoto.query.filter_by(attendance_id=att.id).first()
+                if not photo:
+                    photo = AttendancePhoto(attendance_id=att.id, employee_id=employee.id, file_path="")
+                    db.session.add(photo)
+                if action_type.startswith("CHECK-IN"):
+                    photo.image_data = photo_b64
                 else:
-                    att.check_out_time = now_kolkata
-                    action_type = "CHECK-OUT"
-                att.face_verified = True
-                att.face_match_score = 100.0
+                    photo.checkout_image_data = photo_b64
 
-            photo = AttendanceMasterPhoto.query.filter_by(attendance_master_id=att.id).first()
-            if not photo:
-                photo = AttendanceMasterPhoto(attendance_master_id=att.id, employee_master_id=master.id)
-                db.session.add(photo)
-            if action_type.startswith("CHECK-IN"):
-                photo.image_data = photo_b64
             else:
-                photo.checkout_image_data = photo_b64
+                # Employee has not yet registered on web portal: punch in AttendanceMaster
+                att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
+                if not att:
+                    att = AttendanceMaster(
+                        employee_master_id=master.id,
+                        employee_code=code,
+                        date=today,
+                        status="present",
+                        check_in_time=now_kolkata,
+                        face_verified=True,
+                        face_match_score=100.0
+                    )
+                    db.session.add(att)
+                    db.session.flush()
+                else:
+                    if not att.check_in_time:
+                        att.check_in_time = now_kolkata
+                        action_type = "CHECK-IN"
+                    else:
+                        att.check_out_time = now_kolkata
+                        action_type = "CHECK-OUT"
+                    att.face_verified = True
+                    att.face_match_score = 100.0
 
-        db.session.commit()
+                photo = AttendanceMasterPhoto.query.filter_by(attendance_master_id=att.id).first()
+                if not photo:
+                    photo = AttendanceMasterPhoto(
+                        attendance_master_id=att.id,
+                        employee_master_id=master.id,
+                        file_path=""
+                    )
+                    db.session.add(photo)
+                if action_type.startswith("CHECK-IN"):
+                    photo.image_data = photo_b64
+                else:
+                    photo.checkout_image_data = photo_b64
+
+            db.session.commit()
+        except Exception as punch_err:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            punch_recorded = False
+            import logging
+            logging.getLogger("kiosk").warning("Attendance punch failed during enrollment: %s", punch_err)
 
         # Return comprehensive profile
+        punch_msg = f"Biometric Face Successfully Assigned to {code}! {action_type} recorded." if punch_recorded else f"Biometric Face Successfully Assigned to {code}!"
         return jsonify({
             "success": True,
             "match_found": True,
@@ -730,21 +752,24 @@ def kiosk_enroll_and_punch():
                 "action": action_type,
                 "time": now_kolkata.strftime("%I:%M:%S %p"),
                 "date": now_kolkata.strftime("%A, %d %B %Y"),
-                "status": "Face Assigned & Punch Verified",
+                "status": "Face Assigned & Verified",
                 "buffer_warning": False,
                 "buffer_message": "",
-                "message": f"Biometric Face Successfully Assigned to {code}! {action_type} recorded."
+                "message": punch_msg
             }
         }), 200
 
     except Exception as exc:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         import traceback, sys
         traceback.print_exc(file=sys.stderr)
         return jsonify({
             "success": False,
-            "message": f"Enrollment failed: {str(exc)}"
-        }), 500
+            "message": f"Enrollment error: {str(exc)}"
+        }), 400
 
 
 @api_bp.route("/kiosk/attendance", methods=["POST"])
