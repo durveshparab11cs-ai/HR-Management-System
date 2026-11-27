@@ -36,6 +36,7 @@ from app.models.hospital_assignment import EmployeeHospitalAssignment  # noqa: F
 from app.models.coordinator_otp import CoordinatorOTP  # noqa: F401
 from app.models.company_holiday import CompanyHoliday  # noqa: F401
 from app.models.shift_change_log import ShiftChangeLog  # noqa: F401
+from app.models.biometric_audit_log import BiometricAuditLog  # noqa: F401
 
 __all__ = [
     "User", "OfficeSettings", "OfficeDevice", "Employee", "EmployeeMaster", "LoginHistory",
@@ -46,5 +47,5 @@ __all__ = [
     "SalaryStructure", "SalaryComponent", "PayrollRun", "Payslip", "EmployeeSalaryMaster",
     "EmployeeShiftAssignment", "ShiftChangeRequest", "ShiftChangeLog",
     "Hospital", "EmployeeHospitalAssignment",
-    "CoordinatorOTP",
+    "CoordinatorOTP", "BiometricAuditLog",
 ]

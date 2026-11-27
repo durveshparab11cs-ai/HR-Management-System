@@ -22,6 +22,7 @@
       --accent-cyan: #0284c7;
       --accent-sky: #0ea5e9;
       --accent-emerald: #10b981;
+      --accent-emerald-dark: #059669;
       --accent-amber: #f59e0b;
       --accent-rose: #f43f5e;
       --radius-sm: 8px;
@@ -176,11 +177,11 @@
 
     .kiosk-card {
       width: 100%;
-      max-width: 640px;
+      max-width: 680px;
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      padding: 32px;
+      padding: 28px 32px;
       box-shadow: var(--shadow-card), var(--shadow-glow);
       position: relative;
       overflow: hidden;
@@ -189,13 +190,13 @@
 
     .step-view {
       display: none;
-      animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: fadeInScale 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     .step-view.active {
       display: block;
     }
     @keyframes fadeInScale {
-      from { opacity: 0; transform: scale(0.97) translateY(8px); }
+      from { opacity: 0; transform: scale(0.98) translateY(6px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
     }
 
@@ -211,7 +212,7 @@
     .view-subtitle {
       font-size: 0.88rem;
       color: var(--text-muted);
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       text-align: center;
     }
 
@@ -219,7 +220,7 @@
     .camera-viewport-wrap {
       position: relative;
       width: 100%;
-      height: 360px;
+      height: 350px;
       border-radius: var(--radius-lg);
       overflow: hidden;
       background: #000;
@@ -229,13 +230,13 @@
       align-items: center;
       justify-content: center;
     }
-    #camera-video {
+    #camera-video, #wizard-camera-video {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transform: scaleX(-1);
     }
-    #camera-canvas {
+    #camera-canvas, #wizard-camera-canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -245,8 +246,8 @@
       transform: scaleX(-1);
     }
 
-    /* Floating 6s Countdown Badge */
-    .countdown-floating-badge {
+    /* Frame multi-sampling badge */
+    .frame-sample-badge {
       position: absolute;
       top: 14px;
       right: 14px;
@@ -259,53 +260,47 @@
       align-items: center;
       gap: 8px;
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
       z-index: 5;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .countdown-number {
-      font-family: var(--font-mono);
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: #38bdf8;
+    .frame-sample-dots {
+      display: flex;
+      gap: 4px;
+    }
+    .frame-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      transition: all 0.2s;
+    }
+    .frame-dot.filled {
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
     }
 
-    /* Scanner Reticle & Laser */
+    /* Reticle & Scanner Pill */
     .scanner-reticle {
       position: absolute;
       width: 220px;
-      height: 280px;
+      height: 270px;
       border: 2px dashed rgba(56, 189, 248, 0.65);
       border-radius: 50% / 50%;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.36);
       pointer-events: none;
-      transition: all 0.3s;
+      transition: all 0.25s;
     }
     .scanner-reticle.locked {
       border-color: #10b981;
       border-style: solid;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25), 0 0 25px rgba(16, 185, 129, 0.5);
     }
-    .scanner-laser {
-      position: absolute;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #38bdf8, transparent);
-      box-shadow: 0 0 12px #38bdf8;
-      pointer-events: none;
-      display: none;
-    }
-    .scanner-laser.active {
-      display: block;
-    }
 
-    /* Face Status Bar */
     .scanner-status-pill {
       position: absolute;
       bottom: 14px;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.88);
       backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: var(--radius-full);
@@ -320,28 +315,22 @@
       transition: all 0.25s;
     }
     .scanner-status-pill.success {
-      background: rgba(16, 185, 129, 0.9);
+      background: rgba(16, 185, 129, 0.95);
       border-color: rgba(16, 185, 129, 0.4);
-      color: #fff;
     }
     .scanner-status-pill.warning {
-      background: rgba(245, 158, 11, 0.9);
+      background: rgba(245, 158, 11, 0.95);
       border-color: rgba(245, 158, 11, 0.4);
-      color: #fff;
     }
     .scanner-status-pill.danger {
-      background: rgba(244, 63, 94, 0.9);
+      background: rgba(244, 63, 94, 0.95);
       border-color: rgba(244, 63, 94, 0.4);
-      color: #fff;
     }
 
-    /* Flash Effect */
+    /* Flash */
     .shutter-flash {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0; width: 100%; height: 100%;
       background: #ffffff;
       opacity: 0;
       pointer-events: none;
@@ -353,7 +342,6 @@
       transition: none;
     }
 
-    /* Camera Actions & Manual Switch */
     .camera-bottom-actions {
       display: flex;
       align-items: center;
@@ -399,7 +387,9 @@
       transform: translateY(-1px);
     }
 
-    /* Verified Employee Profile Card (Full Details View) */
+    /* ══════════════════════════════════════════════════════════════════
+       VIEW: RECOGNIZED EMPLOYEE PROFILE & EXPLICIT PUNCH ACTIONS
+       ══════════════════════════════════════════════════════════════════ */
     .verified-header-badge {
       display: flex;
       align-items: center;
@@ -408,7 +398,7 @@
       border: 1px solid rgba(16, 185, 129, 0.3);
       border-radius: var(--radius-md);
       padding: 12px 18px;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
     .verified-title {
       display: flex;
@@ -421,37 +411,37 @@
     .confidence-pill {
       background: #10b981;
       color: #fff;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 800;
-      padding: 3px 10px;
+      padding: 4px 12px;
       border-radius: var(--radius-full);
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
     .photos-comparison-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 22px;
+      gap: 14px;
+      margin-bottom: 18px;
     }
     .photo-card {
       background: #f8fafc;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 10px;
+      padding: 8px;
       text-align: center;
     }
     .photo-card-label {
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .photo-card-img {
       width: 100%;
-      height: 140px;
+      height: 130px;
       object-fit: cover;
       border-radius: var(--radius-sm);
       border: 1px solid #e2e8f0;
@@ -462,86 +452,265 @@
       background: #f8fafc;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 16px 20px;
-      margin-bottom: 20px;
+      padding: 14px 18px;
+      margin-bottom: 18px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px 18px;
+      gap: 12px 16px;
     }
     .info-field-group {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
     }
     .info-field-label {
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
     .info-field-val {
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 700;
       color: var(--text-main);
-      word-break: break-all;
+      word-break: break-word;
     }
     .info-field-val.primary-highlight {
       font-size: 1.15rem;
       color: #0284c7;
     }
 
-    /* Punch Action Confirmation Box */
-    .punch-result-banner {
-      background: linear-gradient(135deg, #0284c7, #0369a1);
-      color: #fff;
+    /* Today Attendance Status Strip */
+    .today-status-strip {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
       border-radius: var(--radius-md);
-      padding: 16px 20px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.25);
+      font-size: 0.85rem;
     }
-    .punch-action-badge {
-      font-size: 1.25rem;
+    .today-status-label {
+      color: #1e40af;
+      font-weight: 700;
+    }
+    .today-status-val {
       font-weight: 800;
+      color: #1d4ed8;
+      font-family: var(--font-mono);
+    }
+
+    /* ── TWO CLEAR ACTION BUTTONS ───────────────────────────────────────── */
+    .punch-actions-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .btn-action-punch {
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 16px 14px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-action-punch i {
+      font-size: 1.6rem;
+    }
+    .btn-action-punch span.action-sub {
+      font-size: 0.72rem;
+      font-weight: 600;
+      opacity: 0.9;
+      text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-    .punch-time-display {
-      text-align: right;
+    .btn-punch-checkin {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    .btn-punch-checkin:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    }
+    .btn-punch-checkout {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+    }
+    .btn-punch-checkout:hover {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(2, 132, 199, 0.35);
+    }
+    .btn-action-punch:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .cancel-session-row {
+      text-align: center;
+      margin-top: 8px;
+    }
+    .btn-cancel-session {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .btn-cancel-session:hover {
+      color: #0f172a;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       VIEW: PUNCH CONFIRMATION SCREEN
+       ══════════════════════════════════════════════════════════════════ */
+    .confirmation-banner {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      border-radius: var(--radius-md);
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.25);
+    }
+    .confirmation-icon {
+      font-size: 3.2rem;
+      margin-bottom: 10px;
+      animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.4); opacity: 0; }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .confirmation-action-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+    .confirmation-time {
       font-family: var(--font-mono);
       font-size: 1.15rem;
       font-weight: 700;
+      opacity: 0.95;
     }
 
-    /* Auto Reset Countdown Bar */
-    .auto-reset-bar-wrap {
-      margin-top: 10px;
-      text-align: center;
-    }
-    .auto-reset-label {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-    .auto-reset-btn {
-      background: var(--bg-surface-elevated);
+    /* ══════════════════════════════════════════════════════════════════
+       VIEW: FIRST-TIME REGISTRATION & ENROLLMENT WIZARD
+       ══════════════════════════════════════════════════════════════════ */
+    .enrollment-wizard-card {
+      background: #f8fafc;
       border: 1px solid var(--border-subtle);
-      color: var(--text-main);
-      padding: 8px 18px;
-      border-radius: var(--radius-full);
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 18px;
     }
-    .auto-reset-btn:hover {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
+    .wizard-steps-indicator {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .wizard-steps-indicator::before {
+      content: '';
+      position: absolute;
+      top: 15px; left: 10%; right: 10%;
+      height: 2px;
+      background: #e2e8f0;
+      z-index: 1;
+    }
+    .wizard-step-node {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      color: #64748b;
+      font-weight: 800;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s;
+    }
+    .wizard-step-node.active .step-circle {
+      border-color: #0284c7;
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+    }
+    .wizard-step-node.completed .step-circle {
+      border-color: #10b981;
+      background: #10b981;
+      color: #fff;
+    }
+    .step-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    /* Security / Spoofing Alert Modal/Card */
+    .form-group-kiosk {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .form-label-kiosk {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-input-kiosk {
+      width: 100%;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      border: 2px solid #cbd5e1;
+      padding: 0 14px;
+      font-size: 1.05rem;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input-kiosk:focus {
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    /* Security / Spoofing Alert */
     .security-alert-card {
       background: #fff1f2;
       border: 2px solid #f43f5e;
@@ -557,7 +726,7 @@
       margin-bottom: 12px;
     }
 
-    /* Manual Employee Code Entry (Fallback) */
+    /* Manual Employee Code Entry */
     .manual-keypad-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -582,6 +751,32 @@
     .key-btn:active {
       transform: scale(0.96);
       background: #e2e8f0;
+    }
+
+    /* Auto Reset Countdown Bar */
+    .auto-reset-bar-wrap {
+      margin-top: 14px;
+      text-align: center;
+    }
+    .auto-reset-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .auto-reset-btn {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auto-reset-btn:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
     }
 
     /* Toast Notification */
@@ -626,8 +821,9 @@
       .brand-info h1 { font-size: 1rem; }
       .clock-time { font-size: 1.25rem; }
       .kiosk-card { padding: 20px 16px; }
-      .camera-viewport-wrap { height: 300px; }
+      .camera-viewport-wrap { height: 280px; }
       .profile-info-table { grid-template-columns: 1fr; }
+      .punch-actions-container { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -671,7 +867,7 @@
       <div class="step-view active" id="view-face-scanner">
         <h2 class="view-title">Biometric Face Recognition</h2>
         <p class="view-subtitle" id="scanner-instruction-text">
-          Position your face inside the oval. Auto-capturing attendance in 6 seconds...
+          Position your face inside the oval to recognize identity
         </p>
 
         <div class="camera-viewport-wrap">
@@ -679,16 +875,19 @@
           <canvas id="camera-canvas"></canvas>
           <div class="shutter-flash" id="shutter-flash"></div>
 
-          <!-- 6-Second Radial/Digital Countdown Badge -->
-          <div class="countdown-floating-badge" id="countdown-badge">
-            <i class="bi bi-stopwatch"></i>
-            <span>Auto-Capture:</span>
-            <span class="countdown-number" id="countdown-seconds">6s</span>
+          <!-- Multi-frame Sampling Badge -->
+          <div class="frame-sample-badge" id="frame-sample-badge">
+            <i class="bi bi-camera-fill"></i>
+            <span id="frame-sample-label">Frames:</span>
+            <div class="frame-sample-dots">
+              <span class="frame-dot" id="fdot-1"></span>
+              <span class="frame-dot" id="fdot-2"></span>
+              <span class="frame-dot" id="fdot-3"></span>
+            </div>
           </div>
 
-          <!-- Oval Biometric Reticle & Laser Sweep -->
+          <!-- Biometric Oval Reticle -->
           <div class="scanner-reticle" id="scanner-reticle"></div>
-          <div class="scanner-laser" id="scanner-laser"></div>
 
           <!-- Live Dynamic Status Pill -->
           <div class="scanner-status-pill" id="kiosk-status-pill">
@@ -705,36 +904,22 @@
 
           <button class="btn-snap-now" id="btn-snap-immediate">
             <i class="bi bi-camera-fill"></i>
-            <span>Capture Now</span>
+            <span>Scan Now</span>
           </button>
         </div>
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════
-           VIEW 2: VERIFIED EMPLOYEE PROFILE & ATTENDANCE CARD
+           VIEW 2: VERIFIED EMPLOYEE PROFILE & EXPLICIT PUNCH ACTIONS
+           (Does NOT auto-punch: User MUST choose Check In or Check Out)
            ══════════════════════════════════════════════════════════════ -->
-      <div class="step-view" id="view-profile-success">
+      <div class="step-view" id="view-profile-recognized">
         <div class="verified-header-badge">
           <div class="verified-title">
             <i class="bi bi-patch-check-fill text-success" style="font-size: 1.4rem;"></i>
             <span>Identity Confirmed</span>
           </div>
-          <div class="confidence-pill" id="match-confidence-badge">94.8% MATCH</div>
-        </div>
-
-        <!-- Punch Summary Banner -->
-        <div class="punch-result-banner" id="punch-result-box">
-          <div>
-            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85;">Attendance Recorded</div>
-            <div class="punch-action-badge" id="punch-action-name">CHECK-IN RECORDED</div>
-          </div>
-          <div class="punch-time-display" id="punch-time-text">12:30:15 PM</div>
-        </div>
-
-        <!-- Buffer Notice if punched within 2 minutes -->
-        <div id="punch-buffer-alert" style="display:none; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; border-radius:var(--radius-md); padding:10px 14px; margin-bottom:16px; font-size:0.85rem; font-weight:600;">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <span id="punch-buffer-msg">Notice: 2-minute buffer active.</span>
+          <div class="confidence-pill" id="match-confidence-badge">95.0% MATCH</div>
         </div>
 
         <!-- Side-by-Side Face Comparison -->
@@ -749,41 +934,82 @@
           </div>
         </div>
 
-        <!-- Full Registration Details Grid -->
+        <!-- Full Profile Details Grid -->
         <div class="profile-info-table">
           <div class="info-field-group" style="grid-column: span 2;">
             <span class="info-field-label">Employee Full Name</span>
-            <span class="info-field-val primary-highlight" id="card-emp-name">Durvesh Parab</span>
+            <span class="info-field-val primary-highlight" id="card-emp-name">Employee Name</span>
           </div>
           <div class="info-field-group">
             <span class="info-field-label">Employee Code</span>
             <span class="info-field-val" id="card-emp-code">E-2606026</span>
           </div>
           <div class="info-field-group">
-            <span class="info-field-label">Official / Office Email</span>
-            <span class="info-field-val" id="card-emp-email" style="font-size: 0.88rem;">name@company.com</span>
-          </div>
-          <div class="info-field-group">
             <span class="info-field-label">Department</span>
-            <span class="info-field-val" id="card-emp-dept">IT Software</span>
+            <span class="info-field-val" id="card-emp-dept">General</span>
           </div>
           <div class="info-field-group">
-            <span class="info-field-label">Actual Designation</span>
-            <span class="info-field-val" id="card-emp-desig">Senior software executive</span>
+            <span class="info-field-label">Designation</span>
+            <span class="info-field-val" id="card-emp-desig">Staff</span>
           </div>
           <div class="info-field-group">
-            <span class="info-field-label">Work Location / Hospital</span>
-            <span class="info-field-val" id="card-emp-loc">Head Office</span>
-          </div>
-          <div class="info-field-group">
-            <span class="info-field-label">Date of Joining</span>
-            <span class="info-field-val" id="card-emp-doj">2024-01-15</span>
+            <span class="info-field-label">Assigned Shift</span>
+            <span class="info-field-val" id="card-emp-shift" style="color: #0284c7;">10:00 AM - 07:00 PM</span>
           </div>
         </div>
 
-        <!-- Auto Reset Progress & Action -->
+        <!-- Today's Attendance State Strip -->
+        <div class="today-status-strip">
+          <div class="today-status-label">
+            <i class="bi bi-calendar2-check"></i> Today's Status:
+            <span id="today-status-text" style="font-weight: 800; color: #1e40af; margin-left: 4px;">Not Punched</span>
+          </div>
+          <div class="today-status-val" id="today-last-punch-time"></div>
+        </div>
+
+        <!-- Two Prominent Action Buttons: Check In & Check Out -->
+        <div class="punch-actions-container">
+          <button class="btn-action-punch btn-punch-checkin" id="btn-action-checkin">
+            <i class="bi bi-fingerprint"></i>
+            <span>CHECK IN</span>
+            <span class="action-sub">Start Work Shift</span>
+          </button>
+
+          <button class="btn-action-punch btn-punch-checkout" id="btn-action-checkout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>CHECK OUT</span>
+            <span class="action-sub">Complete Work Shift</span>
+          </button>
+        </div>
+
+        <div class="cancel-session-row">
+          <button class="btn-cancel-session" id="btn-cancel-session">
+            <i class="bi bi-x-circle"></i> Cancel / Not Me
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           VIEW 3: PUNCH CONFIRMED SCREEN (SUCCESS STATE)
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="step-view" id="view-punch-confirmed">
+        <div class="confirmation-banner" id="punch-confirm-banner">
+          <div class="confirmation-icon">
+            <i class="bi bi-check-circle-fill"></i>
+          </div>
+          <div class="confirmation-action-title" id="confirmed-action-title">CHECK-IN RECORDED</div>
+          <div class="confirmation-time" id="confirmed-action-time">10:15:32 AM</div>
+          <div style="font-size: 0.88rem; margin-top: 6px; opacity: 0.9;" id="confirmed-emp-name">Durvesh Parab (E-2606026)</div>
+        </div>
+
+        <!-- Buffer notice if applicable -->
+        <div id="punch-buffer-alert" style="display:none; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; border-radius:var(--radius-md); padding:10px 14px; margin-bottom:16px; font-size:0.85rem; font-weight:600; text-align:center;">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="punch-buffer-msg">Notice: Repeated punch buffer active.</span>
+        </div>
+
         <div class="auto-reset-bar-wrap">
-          <div class="auto-reset-label" id="auto-reset-timer-label">Ready for next employee in 6s...</div>
+          <div class="auto-reset-label" id="confirmed-reset-label">Ready for next employee in 5s...</div>
           <button class="auto-reset-btn" id="btn-reset-next-employee">
             <i class="bi bi-arrow-repeat"></i> Scan Next Employee Now
           </button>
@@ -791,16 +1017,128 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════
-           VIEW 3: ANTI-SPOOFING / PRESENTATION ATTACK BLOCKED
+           VIEW 4: FACE NOT RECOGNIZED — FIRST-TIME REGISTRATION REQUIRED
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="step-view" id="view-not-recognized">
+        <div style="text-align: center; padding: 6px 0;">
+          <div style="width: 58px; height: 58px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 10px;">
+            <i class="bi bi-person-x"></i>
+          </div>
+          <h2 class="view-title">Face Not Recognized</h2>
+          <p class="view-subtitle" style="color: #b91c1c; font-weight: 700; margin-bottom: 16px;">
+            First-Time Registration Required
+          </p>
+
+          <!-- First-Time Enrollment Card -->
+          <div class="enrollment-wizard-card">
+            <p style="font-size: 0.86rem; color: var(--text-muted); margin-bottom: 14px;">
+              Your face is not registered in the system yet. Enter your official Employee Code to verify your master profile and start biometric enrollment.
+            </p>
+
+            <div class="form-group-kiosk">
+              <label class="form-label-kiosk">Official Employee Code</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="enroll-code-input" class="form-input-kiosk" placeholder="E-2606026">
+                <button id="btn-verify-enroll-code" class="btn-snap-now" style="white-space: nowrap; padding: 0 18px;">
+                  <i class="bi bi-search"></i> Verify
+                </button>
+              </div>
+            </div>
+
+            <!-- Employee Master Preview (Revealed on lookup) -->
+            <div id="enroll-preview-box" style="display: none; background: #fff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 14px; margin-top: 14px; text-align: left;">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: #1e40af; font-weight: 700; margin-bottom: 6px;">
+                <i class="bi bi-check-circle-fill text-success"></i> Master Record Found
+              </div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a;" id="preview-emp-name">Durvesh Parab</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;" id="preview-emp-details">IT Software • Senior Executive • Head Office</div>
+
+              <!-- Coordinator Verification Section -->
+              <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; margin-top: 8px;">
+                <label class="form-label-kiosk" style="color: #b45309;">
+                  <i class="bi bi-shield-lock-fill"></i> Supervisor / Coordinator Authorization
+                </label>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
+                  Authorized coordinator verification required to bind biometric identity.
+                </p>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" id="coordinator-pin-input" class="form-input-kiosk" placeholder="Coordinator PIN or Password" style="height: 42px; font-size: 0.95rem;">
+                  <button id="btn-start-multi-pose" class="btn-snap-now" style="background: linear-gradient(135deg, #10b981, #059669); white-space: nowrap; padding: 0 16px;">
+                    <i class="bi bi-camera-fill"></i> Begin 3-Pose Capture
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="enroll-error-msg" style="display: none; margin-top: 10px; color: #ef4444; font-size: 0.85rem; font-weight: 700;"></div>
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button class="btn-manual-code" id="btn-retry-scan">
+              <i class="bi bi-arrow-repeat"></i> Retry Face Scan
+            </button>
+            <button class="btn-manual-code" id="btn-goto-manual">
+              <i class="bi bi-keyboard"></i> Lookup Code Manually
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           VIEW 5: MULTI-SAMPLE BIOMETRIC CAPTURE WIZARD (3 POSES)
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="step-view" id="view-multi-pose-wizard">
+        <h2 class="view-title">Multi-Pose Face Enrollment</h2>
+        <p class="view-subtitle" id="wizard-instruction-text">
+          Step 1: Look straight directly into the camera
+        </p>
+
+        <!-- 3-Step Indicator -->
+        <div class="wizard-steps-indicator">
+          <div class="wizard-step-node active" id="wnode-1">
+            <div class="step-circle" id="wcircle-1">1</div>
+            <span class="step-label">Front</span>
+          </div>
+          <div class="wizard-step-node" id="wnode-2">
+            <div class="step-circle" id="wcircle-2">2</div>
+            <span class="step-label">Slight Left</span>
+          </div>
+          <div class="wizard-step-node" id="wnode-3">
+            <div class="step-circle" id="wcircle-3">3</div>
+            <span class="step-label">Slight Right</span>
+          </div>
+        </div>
+
+        <div class="camera-viewport-wrap" style="height: 310px;">
+          <video id="wizard-camera-video" autoplay playsinline muted></video>
+          <canvas id="wizard-camera-canvas"></canvas>
+          <div class="scanner-reticle" id="wizard-reticle"></div>
+          <div class="scanner-status-pill" id="wizard-status-pill">
+            <span id="wizard-status-text">Position face inside guide...</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: space-between; align-items: center; margin-top: 14px;">
+          <button class="btn-manual-code" id="btn-wizard-cancel">
+            <i class="bi bi-x"></i> Cancel Enrollment
+          </button>
+          <button class="btn-snap-now" id="btn-wizard-capture-step" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <i class="bi bi-camera"></i> <span id="wizard-btn-label">Capture Front Pose</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           VIEW 6: ANTI-SPOOFING / PRESENTATION ATTACK BLOCKED
            ══════════════════════════════════════════════════════════════ -->
       <div class="step-view" id="view-spoof-blocked">
         <div class="security-alert-card">
           <div class="security-icon">
             <i class="bi bi-shield-slash-fill"></i>
           </div>
-          <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">Security Violation: Spoofing Detected</h2>
+          <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">Security Alert: Presentation Attack Detected</h2>
           <p id="spoof-details-text" style="font-size: 0.92rem; font-weight: 600; line-height: 1.5; margin-bottom: 16px;">
-            A photo on a screen or static picture was detected in front of the camera. Attendance punch strictly denied.
+            A photo on a screen or static image was detected. Attendance punch strictly denied.
           </p>
           <div style="font-size: 0.82rem; color: #881337; margin-bottom: 20px;">
             A live, physical person must be present in front of the camera to verify attendance.
@@ -812,53 +1150,11 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════
-           VIEW 4: FACE NOT RECOGNIZED / UNENROLLED VIEW
-           ══════════════════════════════════════════════════════════════ -->
-      <div class="step-view" id="view-not-recognized">
-        <div style="text-align: center; padding: 12px 0;">
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 12px;">
-            <i class="bi bi-person-x"></i>
-          </div>
-          <h2 class="view-title">Face Not Recognized</h2>
-          <p class="view-subtitle" id="not-recognized-msg" style="max-width: 440px; margin: 0 auto 16px auto;">
-            Face not matched with registered employee list.
-          </p>
-
-          <!-- Direct Kiosk Face Linking / Instant Registration Box -->
-          <div class="kiosk-enroll-box" style="margin: 0 auto 20px auto; max-width: 500px; padding: 18px 20px; background: #f0fdf4; border: 2px dashed #22c55e; border-radius: var(--radius-md); text-align: center; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.08);">
-            <div style="font-weight: 800; color: #15803d; font-size: 1.05rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <i class="bi bi-person-check-fill" style="font-size: 1.25rem;"></i>
-              <span>Link Face & Show Full Profile Instantly</span>
-            </div>
-            <p style="font-size: 0.84rem; color: #166534; margin-bottom: 14px; line-height: 1.4;">
-              First time scanning or new registration? Enter your Employee Code below to link your live face, mark attendance, and display all your details immediately!
-            </p>
-            <div style="display: flex; gap: 8px; max-width: 420px; margin: 0 auto;">
-              <input type="text" id="kiosk-enroll-code-input" placeholder="Enter Code (e.g. E-2606026)" style="flex: 1; height: 46px; font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; text-align: center; border: 2px solid #86efac; border-radius: var(--radius-sm); text-transform: uppercase; background: #fff; color: #0f172a;">
-              <button id="btn-kiosk-enroll-submit" class="btn-snap-now" style="background: linear-gradient(135deg, #16a34a, #15803d); padding: 0 20px; font-size: 0.9rem; white-space: nowrap; border: none; border-radius: var(--radius-sm);">
-                <i class="bi bi-link-45deg"></i> Link Face
-              </button>
-            </div>
-            <div id="kiosk-enroll-feedback" style="display:none; margin-top: 10px; font-size: 0.86rem; font-weight: 700;"></div>
-          </div>
-
-          <div style="display: flex; gap: 12px; justify-content: center;">
-            <button class="btn-snap-now" id="btn-retry-scan">
-              <i class="bi bi-camera"></i> Retry Face Scan
-            </button>
-            <button class="btn-manual-code" id="btn-goto-manual">
-              <i class="bi bi-keyboard"></i> Enter Code Manually
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══════════════════════════════════════════════════════════════
-           VIEW 5: MANUAL EMPLOYEE CODE KEYPAD (FALLBACK)
+           VIEW 7: MANUAL EMPLOYEE CODE KEYPAD (FALLBACK)
            ══════════════════════════════════════════════════════════════ -->
       <div class="step-view" id="view-manual-code">
         <h2 class="view-title">Manual Employee Lookup</h2>
-        <p class="view-subtitle">Enter your employee code to check status</p>
+        <p class="view-subtitle">Enter your employee code to verify identity</p>
 
         <div style="position: relative; margin-bottom: 20px;">
           <input type="text" id="manual-code-input" class="code-display" placeholder="E-2606026" readonly style="width:100%; height:60px; font-family:var(--font-mono); font-size:1.8rem; text-align:center; border:2px solid var(--border-subtle); border-radius:var(--radius-md);">
@@ -898,7 +1194,7 @@
     <span id="toast-msg">Notification</span>
   </div>
 
-  <!-- Audio feedback synthesizers (Zero external assets dependency) -->
+  <!-- Audio synthesizers -->
   <script>
     const KioskAudio = {
       ctx: null,
@@ -977,8 +1273,9 @@
       // ── DOM References ────────────────────────────────────────────────
       const videoEl = document.getElementById('camera-video');
       const canvasEl = document.getElementById('camera-canvas');
+      const wizardVideoEl = document.getElementById('wizard-camera-video');
+      const wizardCanvasEl = document.getElementById('wizard-camera-canvas');
       const shutterFlash = document.getElementById('shutter-flash');
-      const countdownSecsEl = document.getElementById('countdown-seconds');
       const statusPillEl = document.getElementById('kiosk-status-pill');
       const statusTextEl = document.getElementById('kiosk-status-text');
       const scannerReticle = document.getElementById('scanner-reticle');
@@ -987,42 +1284,65 @@
       const toastEl = document.getElementById('kiosk-toast');
       const toastMsgEl = document.getElementById('toast-msg');
 
+      // Frame dots
+      const fdot1 = document.getElementById('fdot-1');
+      const fdot2 = document.getElementById('fdot-2');
+      const fdot3 = document.getElementById('fdot-3');
+
       // Views
       const viewFaceScanner = document.getElementById('view-face-scanner');
-      const viewProfileSuccess = document.getElementById('view-profile-success');
-      const viewSpoofBlocked = document.getElementById('view-spoof-blocked');
+      const viewProfileRecognized = document.getElementById('view-profile-recognized');
+      const viewPunchConfirmed = document.getElementById('view-punch-confirmed');
       const viewNotRecognized = document.getElementById('view-not-recognized');
+      const viewMultiPoseWizard = document.getElementById('view-multi-pose-wizard');
+      const viewSpoofBlocked = document.getElementById('view-spoof-blocked');
       const viewManualCode = document.getElementById('view-manual-code');
 
       // Profile View Elements
       const cardEmpName = document.getElementById('card-emp-name');
       const cardEmpCode = document.getElementById('card-emp-code');
-      const cardEmpEmail = document.getElementById('card-emp-email');
       const cardEmpDept = document.getElementById('card-emp-dept');
       const cardEmpDesig = document.getElementById('card-emp-desig');
-      const cardEmpLoc = document.getElementById('card-emp-loc');
-      const cardEmpDoj = document.getElementById('card-emp-doj');
+      const cardEmpShift = document.getElementById('card-emp-shift');
       const profileRegPhoto = document.getElementById('profile-reg-photo');
       const profileLivePhoto = document.getElementById('profile-live-photo');
       const matchConfidenceBadge = document.getElementById('match-confidence-badge');
-      const punchActionName = document.getElementById('punch-action-name');
-      const punchTimeText = document.getElementById('punch-time-text');
+      const todayStatusText = document.getElementById('today-status-text');
+      const todayLastPunchTime = document.getElementById('today-last-punch-time');
+      const btnActionCheckIn = document.getElementById('btn-action-checkin');
+      const btnActionCheckOut = document.getElementById('btn-action-checkout');
+
+      // Confirmation View Elements
+      const confirmedActionTitle = document.getElementById('confirmed-action-title');
+      const confirmedActionTime = document.getElementById('confirmed-action-time');
+      const confirmedEmpName = document.getElementById('confirmed-emp-name');
+      const confirmedResetLabel = document.getElementById('confirmed-reset-label');
       const punchBufferAlert = document.getElementById('punch-buffer-alert');
       const punchBufferMsg = document.getElementById('punch-buffer-msg');
-      const autoResetTimerLabel = document.getElementById('auto-reset-timer-label');
 
-      // Manual Input Elements
+      // Manual Code Elements
       const manualCodeInput = document.getElementById('manual-code-input');
 
       // ── State Variables ──────────────────────────────────────────────
       const biometricEngine = new FaceBiometricEngine();
       let serverTimeOffsetMs = 0;
-      let countdownTimer = null;
-      let secondsLeft = 6;
+      let consecutiveFrames = 0;
       let isCapturing = false;
       let autoResetInterval = null;
       let cameraActive = false;
-      let lastCapturedScan = null;
+      let activePunchSession = null; // { employee_code, punch_token, photo_base64 }
+      let lastScannedLiveFace = null; // { descriptor, photoBase64, livenessMetrics }
+
+      // Multi-Pose Wizard State
+      let wizardPoseStep = 1; // 1: Front, 2: Left, 3: Right
+      let wizardSamples = {
+        code: '',
+        token: '',
+        frontDesc: null, frontPhoto: null,
+        leftDesc: null, leftPhoto: null,
+        rightDesc: null, rightPhoto: null,
+        liveness: null
+      };
 
       function switchView(viewElement) {
         document.querySelectorAll('.step-view').forEach(v => v.classList.remove('active'));
@@ -1035,7 +1355,13 @@
         setTimeout(() => toastEl.classList.remove('show'), 3500);
       }
 
-      // ── Server Time Sync ─────────────────────────────────────────────
+      function updateFrameDots(count) {
+        if (fdot1) fdot1.className = count >= 1 ? 'frame-dot filled' : 'frame-dot';
+        if (fdot2) fdot2.className = count >= 2 ? 'frame-dot filled' : 'frame-dot';
+        if (fdot3) fdot3.className = count >= 3 ? 'frame-dot filled' : 'frame-dot';
+      }
+
+      // ── Server Time Sync (Asia/Kolkata) ───────────────────────────────
       async function syncServerTime() {
         try {
           const t0 = Date.now();
@@ -1060,7 +1386,7 @@
       setInterval(updateClock, 1000);
       syncServerTime();
 
-      // ── Face-First Automatic Camera & 6s Countdown ──────────────────
+      // ── Face-First Automatic Camera Scanning ─────────────────────────
       async function startFaceScannerSession() {
         if (autoResetInterval) {
           clearInterval(autoResetInterval);
@@ -1069,8 +1395,10 @@
 
         switchView(viewFaceScanner);
         isCapturing = false;
-        secondsLeft = 6;
-        countdownSecsEl.textContent = '6s';
+        consecutiveFrames = 0;
+        updateFrameDots(0);
+        activePunchSession = null;
+
         statusPillEl.className = 'scanner-status-pill';
         statusTextEl.textContent = 'Position your face inside the oval...';
         scannerReticle.classList.remove('locked');
@@ -1087,129 +1415,208 @@
           return;
         }
 
-        // Start 6-second countdown
-        if (countdownTimer) clearInterval(countdownTimer);
-        countdownTimer = setInterval(() => {
-          secondsLeft--;
-          if (secondsLeft > 0) {
-            countdownSecsEl.textContent = secondsLeft + 's';
-            if (secondsLeft <= 3) {
-              statusPillEl.className = 'scanner-status-pill success';
-              statusTextEl.textContent = `Auto-capturing in ${secondsLeft}s — please stay still...`;
-              scannerReticle.classList.add('locked');
-            }
-          } else {
-            clearInterval(countdownTimer);
-            countdownTimer = null;
-            countdownSecsEl.textContent = '0s';
-            triggerAutoCaptureAndPunch();
-          }
-        }, 1000);
+        // Auto-scan loop
+        runScanLoop();
       }
 
-      // ── Trigger Auto-Capture & Post to 1:N Identification API ────────
-      async function triggerAutoCaptureAndPunch() {
+      async function runScanLoop() {
+        if (isCapturing || !cameraActive || !viewFaceScanner.classList.contains('active')) return;
+
+        try {
+          // Detect face presence & landmarks
+          if (typeof faceapi !== 'undefined' && biometricEngine.modelsLoaded) {
+            const detection = await faceapi.detectSingleFace(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+              .withFaceLandmarks(true);
+
+            if (detection) {
+              consecutiveFrames++;
+              updateFrameDots(consecutiveFrames);
+              statusPillEl.className = 'scanner-status-pill success';
+              statusTextEl.textContent = `Face locked (frame ${consecutiveFrames}/3) — please hold still...`;
+              scannerReticle.classList.add('locked');
+
+              if (consecutiveFrames >= 3) {
+                // 3 consecutive confirmed frames: trigger high-precision recognition
+                triggerBiometricIdentification();
+                return;
+              }
+            } else {
+              consecutiveFrames = 0;
+              updateFrameDots(0);
+              statusPillEl.className = 'scanner-status-pill';
+              statusTextEl.textContent = 'Align face inside oval...';
+              scannerReticle.classList.remove('locked');
+            }
+          }
+        } catch (e) {
+          // Keep loop alive
+        }
+
+        setTimeout(() => {
+          if (!isCapturing && viewFaceScanner.classList.contains('active')) {
+            runScanLoop();
+          }
+        }, 300);
+      }
+
+      // ── Trigger High-Precision 1:N Facial Identification ─────────────
+      async function triggerBiometricIdentification() {
         if (isCapturing) return;
         isCapturing = true;
 
-        if (countdownTimer) {
-          clearInterval(countdownTimer);
-          countdownTimer = null;
-        }
-
-        // Visual flash & audio shutter
         shutterFlash.classList.add('flash');
         KioskAudio.shutterClick();
         setTimeout(() => shutterFlash.classList.remove('flash'), 120);
 
         statusPillEl.className = 'scanner-status-pill';
-        statusTextEl.textContent = 'Analyzing face biometrics & security...';
+        statusTextEl.textContent = 'Analyzing biometric embedding...';
 
         try {
-          // Perform high-precision burst scan and extract descriptor + micro-liveness
           const scanResult = await biometricEngine.performThoroughScan(
             videoEl,
             canvasEl,
-            1200, // fast burst scan
-            (pct, msg) => {
-              statusTextEl.textContent = msg;
-            }
+            1200,
+            (pct, msg) => { statusTextEl.textContent = msg; }
           );
 
           if (!scanResult || !scanResult.success || !scanResult.descriptor) {
             statusPillEl.className = 'scanner-status-pill danger';
-            statusTextEl.textContent = 'No face detected. Please adjust position.';
+            statusTextEl.textContent = 'No clear face detected. Please try again.';
             KioskAudio.warningAlert();
-            setTimeout(startFaceScannerSession, 2500);
+            setTimeout(startFaceScannerSession, 2000);
             return;
           }
 
-          // Retain last captured scan in memory for direct linking/enrollment
           const rawDesc = scanResult.descriptor;
           const descArr = Array.isArray(rawDesc) ? rawDesc : Array.from(rawDesc || []);
-          lastCapturedScan = {
+
+          lastScannedLiveFace = {
             descriptor: descArr,
             photoBase64: scanResult.photoBase64,
             livenessMetrics: scanResult.livenessMetrics || { ear_delta: 0.05, landmark_variance: 0.01, sample_count: 15 }
           };
 
-          statusTextEl.textContent = 'Verifying identity across employee master...';
+          statusTextEl.textContent = 'Matching identity across employee master...';
 
-          // Post to 1:N Face Recognition & Anti-Spoofing endpoint
-          const payload = {
-            live_face_descriptor: descArr,
-            photo_base64: scanResult.photoBase64,
-            liveness_metrics: scanResult.livenessMetrics || { ear_delta: 0.05, landmark_variance: 0.01, sample_count: 15 }
-          };
-
-          const response = await fetch('/api/v1/kiosk/identify-and-punch', {
+          const res = await fetch('/api/v1/kiosk/identify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+              live_face_descriptor: descArr,
+              photo_base64: scanResult.photoBase64,
+              liveness_metrics: lastScannedLiveFace.livenessMetrics
+            })
           });
 
-          const result = await response.json();
+          const data = await res.json();
 
-          if (response.ok && result.success) {
-            // Biometric Identity Confirmed!
+          if (res.ok && data.success && data.match_found) {
+            // Identity Confirmed!
             KioskAudio.successChime();
-            renderProfileSuccess(result);
-          } else if (result.spoof_detected) {
-            // Anti-spoofing alert (photo on phone / screen detected)
+            renderProfileRecognized(data);
+          } else if (data.spoof_detected) {
             KioskAudio.warningAlert();
-            renderSpoofBlocked(result.message);
+            renderSpoofBlocked(data.message);
           } else {
-            // Face not recognized (distance > 0.385)
+            // Unrecognized face
             KioskAudio.warningAlert();
-            renderNotRecognized(result.message || 'Face not matched with registered employee list.');
+            renderNotRecognized(data.message || 'Face Not Recognized — First-Time Registration Required.');
           }
 
         } catch (err) {
-          console.error('Identification API error:', err);
-          showToast('Network error during face verification: ' + err.message, 'danger');
+          console.error('Biometric identify error:', err);
+          showToast('Network error during recognition: ' + err.message, 'danger');
           setTimeout(startFaceScannerSession, 3000);
         }
       }
 
-      // ── Render Profile & Attendance Success View ─────────────────────
-      function renderProfileSuccess(data) {
+      // ── Render Recognized Profile Screen (Requires User to Tap Action) ─
+      function renderProfileRecognized(data) {
         const emp = data.employee;
-        const punch = data.punch;
+        const attState = data.attendance_state || {};
+
+        activePunchSession = {
+          employee_code: emp.employee_code,
+          punch_token: data.punch_token,
+          photo_base64: emp.captured_photo
+        };
 
         cardEmpName.textContent = emp.name || 'Employee';
         cardEmpCode.textContent = emp.employee_code || '';
-        cardEmpEmail.textContent = emp.official_email || 'Not Provided';
         cardEmpDept.textContent = emp.department || 'General';
         cardEmpDesig.textContent = emp.designation || 'Staff';
-        cardEmpLoc.textContent = emp.working_location || 'Head Office';
-        cardEmpDoj.textContent = emp.date_of_joining || 'Not Specified';
+        cardEmpShift.textContent = emp.shift_timing || '10:00 AM - 07:00 PM';
 
         profileRegPhoto.src = emp.registered_photo || emp.captured_photo;
         profileLivePhoto.src = emp.captured_photo;
-        matchConfidenceBadge.textContent = `${emp.confidence_score || 92}% MATCH`;
+        matchConfidenceBadge.textContent = `${emp.confidence_score || 95}% MATCH`;
 
-        punchActionName.textContent = `${punch.action} RECORDED`;
-        punchTimeText.textContent = punch.time || '';
+        // Attendance state formatting
+        if (attState.is_checked_in && !attState.is_checked_out) {
+          todayStatusText.textContent = `Checked In at ${attState.check_in_time}`;
+          todayStatusText.style.color = '#059669';
+          btnActionCheckIn.classList.remove('pulse');
+          btnActionCheckOut.classList.add('pulse');
+          btnActionCheckOut.disabled = false;
+        } else if (attState.is_checked_in && attState.is_checked_out) {
+          todayStatusText.textContent = `Shift Complete (Out: ${attState.check_out_time})`;
+          todayStatusText.style.color = '#0284c7';
+          btnActionCheckOut.disabled = false;
+        } else {
+          todayStatusText.textContent = 'Not Checked In Today';
+          todayStatusText.style.color = '#b45309';
+          btnActionCheckOut.disabled = true; // Prevent check-out before check-in
+        }
+
+        switchView(viewProfileRecognized);
+      }
+
+      // ── Handle Explicit Punch Action (Check In or Check Out) ──────────
+      async function executePunchAction(actionType) {
+        if (!activePunchSession || !activePunchSession.employee_code) {
+          showToast('Session expired. Please scan your face again.', 'danger');
+          startFaceScannerSession();
+          return;
+        }
+
+        btnActionCheckIn.disabled = true;
+        btnActionCheckOut.disabled = true;
+
+        try {
+          const res = await fetch('/api/v1/kiosk/punch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employee_code: activePunchSession.employee_code,
+              action: actionType,
+              punch_token: activePunchSession.punch_token,
+              photo_base64: activePunchSession.photo_base64
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            KioskAudio.successChime();
+            renderPunchConfirmed(data.punch);
+          } else {
+            KioskAudio.warningAlert();
+            showToast(data.message || 'Punch failed. Please try again.', 'danger');
+            btnActionCheckIn.disabled = false;
+            btnActionCheckOut.disabled = false;
+          }
+        } catch (err) {
+          showToast('Network error while recording punch: ' + err.message, 'danger');
+          btnActionCheckIn.disabled = false;
+          btnActionCheckOut.disabled = false;
+        }
+      }
+
+      // ── Render Punch Confirmation Screen ─────────────────────────────
+      function renderPunchConfirmed(punch) {
+        confirmedActionTitle.textContent = `${punch.action} RECORDED`;
+        confirmedActionTime.textContent = punch.time || '';
+        confirmedEmpName.textContent = `${punch.employee_name} (${punch.employee_code})`;
 
         if (punch.buffer_warning) {
           punchBufferAlert.style.display = 'block';
@@ -1218,15 +1625,15 @@
           punchBufferAlert.style.display = 'none';
         }
 
-        switchView(viewProfileSuccess);
+        switchView(viewPunchConfirmed);
 
-        // Auto-reset countdown (6 seconds) for next employee
-        let resetSecs = 6;
-        autoResetTimerLabel.textContent = `Ready for next employee in ${resetSecs}s...`;
+        // Auto-reset countdown (5 seconds)
+        let resetSecs = 5;
+        confirmedResetLabel.textContent = `Ready for next employee in ${resetSecs}s...`;
         autoResetInterval = setInterval(() => {
           resetSecs--;
           if (resetSecs > 0) {
-            autoResetTimerLabel.textContent = `Ready for next employee in ${resetSecs}s...`;
+            confirmedResetLabel.textContent = `Ready for next employee in ${resetSecs}s...`;
           } else {
             clearInterval(autoResetInterval);
             autoResetInterval = null;
@@ -1235,9 +1642,206 @@
         }, 1000);
       }
 
+      // ── Render Not Recognized / First-Time Enrollment View ────────────
+      function renderNotRecognized(message) {
+        const enrollInput = document.getElementById('enroll-code-input');
+        if (enrollInput) {
+          enrollInput.value = '';
+          setTimeout(() => enrollInput.focus(), 300);
+        }
+        document.getElementById('enroll-preview-box').style.display = 'none';
+        document.getElementById('enroll-error-msg').style.display = 'none';
+        switchView(viewNotRecognized);
+      }
+
+      // ── First-Time Registration: Lookup Master Record ─────────────────
+      async function handleVerifyEmployeeCode() {
+        const input = document.getElementById('enroll-code-input');
+        const previewBox = document.getElementById('enroll-preview-box');
+        const errorEl = document.getElementById('enroll-error-msg');
+        let code = (input ? input.value : '').trim().toUpperCase();
+        code = code.replace(/^(?:E\.?G\.?|EXAMPLE)\s*[:\-]?\s*/i, '').trim();
+
+        if (!code) {
+          errorEl.textContent = 'Please enter your Employee Code (e.g. E-2606026)';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        errorEl.style.display = 'none';
+        try {
+          const res = await fetch(`/api/v1/kiosk/employee?code=${encodeURIComponent(code)}`);
+          const data = await res.json();
+
+          if (res.ok && data.success && data.employee) {
+            const emp = data.employee;
+            document.getElementById('preview-emp-name').textContent = emp.name;
+            document.getElementById('preview-emp-details').textContent = `${emp.department || 'General'} • ${emp.designation || 'Staff'} • ${emp.branch || 'Head Office'}`;
+            previewBox.style.display = 'block';
+            wizardSamples.code = code;
+          } else {
+            previewBox.style.display = 'none';
+            errorEl.textContent = data.message || `Employee Code ${code} not found in master records.`;
+            errorEl.style.display = 'block';
+          }
+        } catch (err) {
+          errorEl.textContent = 'Lookup failed: ' + err.message;
+          errorEl.style.display = 'block';
+        }
+      }
+
+      // ── First-Time Registration: Authorize & Start Multi-Pose Wizard ──
+      async function handleAuthorizeAndStartWizard() {
+        const pinInput = document.getElementById('coordinator-pin-input');
+        const errorEl = document.getElementById('enroll-error-msg');
+        const pin = (pinInput ? pinInput.value : '').trim();
+
+        if (!pin) {
+          errorEl.textContent = 'Coordinator PIN or Terminal Password is required.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/v1/kiosk/authorize-enrollment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employee_code: wizardSamples.code,
+              coordinator_pin: pin
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            wizardSamples.token = data.enrollment_token;
+            startMultiPoseWizard();
+          } else {
+            errorEl.textContent = data.message || 'Invalid Coordinator PIN / Password.';
+            errorEl.style.display = 'block';
+          }
+        } catch (err) {
+          errorEl.textContent = 'Authorization error: ' + err.message;
+          errorEl.style.display = 'block';
+        }
+      }
+
+      // ── Multi-Pose Capture Wizard (3 Samples: Front, Left, Right) ─────
+      async function startMultiPoseWizard() {
+        wizardPoseStep = 1;
+        wizardSamples.frontDesc = null; wizardSamples.frontPhoto = null;
+        wizardSamples.leftDesc = null; wizardSamples.leftPhoto = null;
+        wizardSamples.rightDesc = null; wizardSamples.rightPhoto = null;
+
+        updateWizardUI();
+        switchView(viewMultiPoseWizard);
+
+        try {
+          await biometricEngine.startCamera(wizardVideoEl);
+        } catch (e) {
+          console.warn('Wizard camera started on existing stream');
+        }
+      }
+
+      function updateWizardUI() {
+        const wnode1 = document.getElementById('wnode-1');
+        const wnode2 = document.getElementById('wnode-2');
+        const wnode3 = document.getElementById('wnode-3');
+        const instruction = document.getElementById('wizard-instruction-text');
+        const btnLabel = document.getElementById('wizard-btn-label');
+
+        wnode1.className = 'wizard-step-node' + (wizardPoseStep === 1 ? ' active' : (wizardPoseStep > 1 ? ' completed' : ''));
+        wnode2.className = 'wizard-step-node' + (wizardPoseStep === 2 ? ' active' : (wizardPoseStep > 2 ? ' completed' : ''));
+        wnode3.className = 'wizard-step-node' + (wizardPoseStep === 3 ? ' active' : '');
+
+        if (wizardPoseStep === 1) {
+          instruction.textContent = 'Step 1 of 3: Look directly straight into the camera';
+          btnLabel.textContent = 'Capture Front Pose';
+        } else if (wizardPoseStep === 2) {
+          instruction.textContent = 'Step 2 of 3: Turn your head slightly to the LEFT';
+          btnLabel.textContent = 'Capture Left Pose';
+        } else if (wizardPoseStep === 3) {
+          instruction.textContent = 'Step 3 of 3: Turn your head slightly to the RIGHT';
+          btnLabel.textContent = 'Capture Right Pose & Complete';
+        }
+      }
+
+      async function handleCaptureWizardStep() {
+        const wizardStatusText = document.getElementById('wizard-status-text');
+        wizardStatusText.textContent = 'Evaluating face quality & lighting...';
+        KioskAudio.shutterClick();
+
+        try {
+          const scan = await biometricEngine.performThoroughScan(wizardVideoEl, wizardCanvasEl, 800);
+          if (!scan || !scan.success || !scan.descriptor) {
+            showToast('Face not clearly visible. Please adjust position.', 'danger');
+            wizardStatusText.textContent = 'Face not detected. Look at camera.';
+            return;
+          }
+
+          const descArr = Array.isArray(scan.descriptor) ? scan.descriptor : Array.from(scan.descriptor || []);
+
+          if (wizardPoseStep === 1) {
+            wizardSamples.frontDesc = descArr;
+            wizardSamples.frontPhoto = scan.photoBase64;
+            wizardSamples.liveness = scan.livenessMetrics;
+            wizardPoseStep = 2;
+            updateWizardUI();
+            showToast('Front pose captured! Now turn slightly left.', 'success');
+          } else if (wizardPoseStep === 2) {
+            wizardSamples.leftDesc = descArr;
+            wizardSamples.leftPhoto = scan.photoBase64;
+            wizardPoseStep = 3;
+            updateWizardUI();
+            showToast('Left pose captured! Now turn slightly right.', 'success');
+          } else if (wizardPoseStep === 3) {
+            wizardSamples.rightDesc = descArr;
+            wizardSamples.rightPhoto = scan.photoBase64;
+            wizardStatusText.textContent = 'Submitting multi-pose template to master...';
+            submitMultiPoseEnrollment();
+          }
+        } catch (e) {
+          showToast('Capture error: ' + e.message, 'danger');
+        }
+      }
+
+      async function submitMultiPoseEnrollment() {
+        try {
+          const res = await fetch('/api/v1/kiosk/enroll-multi-sample', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employee_code: wizardSamples.code,
+              enrollment_token: wizardSamples.token,
+              front_descriptor: wizardSamples.frontDesc,
+              front_photo: wizardSamples.frontPhoto,
+              left_descriptor: wizardSamples.leftDesc,
+              left_photo: wizardSamples.leftPhoto,
+              right_descriptor: wizardSamples.rightDesc,
+              right_photo: wizardSamples.rightPhoto,
+              liveness_metrics: wizardSamples.liveness
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            KioskAudio.successChime();
+            showToast(`Biometric face template permanently enrolled for ${data.employee.name}!`, 'success');
+            renderProfileRecognized(data);
+          } else {
+            KioskAudio.warningAlert();
+            showToast(data.message || 'Enrollment rejected by security rules.', 'danger');
+            setTimeout(startFaceScannerSession, 3000);
+          }
+        } catch (err) {
+          showToast('Network error during enrollment: ' + err.message, 'danger');
+          setTimeout(startFaceScannerSession, 3000);
+        }
+      }
+
       // ── Render Spoof Blocked View ────────────────────────────────────
       function renderSpoofBlocked(message) {
-        document.getElementById('spoof-details-text').textContent = message || 'Photo on phone screen detected. A live person must face the camera.';
+        document.getElementById('spoof-details-text').textContent = message || 'Photo on screen or static picture detected.';
         switchView(viewSpoofBlocked);
 
         let retrySecs = 4;
@@ -1256,138 +1860,44 @@
         }, 1000);
       }
 
-      // ── Render Not Recognized View ───────────────────────────────────
-      function renderNotRecognized(message) {
-        document.getElementById('not-recognized-msg').textContent = message;
-        const enrollInput = document.getElementById('kiosk-enroll-code-input');
-        if (enrollInput) {
-          enrollInput.value = '';
-          setTimeout(() => enrollInput.focus(), 300);
-        }
-        const feedbackEl = document.getElementById('kiosk-enroll-feedback');
-        if (feedbackEl) {
-          feedbackEl.style.display = 'none';
-          feedbackEl.textContent = '';
-        }
-        switchView(viewNotRecognized);
-      }
+      // ── Event Handlers ───────────────────────────────────────────────
+      btnActionCheckIn.addEventListener('click', () => executePunchAction('CHECK-IN'));
+      btnActionCheckOut.addEventListener('click', () => executePunchAction('CHECK-OUT'));
+      document.getElementById('btn-cancel-session').addEventListener('click', startFaceScannerSession);
 
-      // ── Direct Kiosk Face Linking & Instant Profile Registration ─────
-      async function handleKioskEnrollment() {
-        const enrollInput = document.getElementById('kiosk-enroll-code-input');
-        const feedbackEl = document.getElementById('kiosk-enroll-feedback');
-        const submitBtn = document.getElementById('btn-kiosk-enroll-submit');
-        let code = (enrollInput ? enrollInput.value : '').trim().toUpperCase();
-        code = code.replace(/^(?:E\.?G\.?|EXAMPLE)\s*[:\-]?\s*/i, '').trim();
+      document.getElementById('btn-reset-next-employee').addEventListener('click', startFaceScannerSession);
+      document.getElementById('btn-spoof-retry').addEventListener('click', startFaceScannerSession);
+      document.getElementById('btn-retry-scan').addEventListener('click', startFaceScannerSession);
 
-        if (!code) {
-          if (feedbackEl) {
-            feedbackEl.style.display = 'block';
-            feedbackEl.style.color = '#ef4444';
-            feedbackEl.textContent = 'Please enter your Employee Code (e.g. E-2606026)';
-          }
-          if (enrollInput) enrollInput.focus();
-          return;
-        }
+      document.getElementById('btn-snap-immediate').addEventListener('click', () => {
+        triggerBiometricIdentification();
+      });
 
-        if (!lastCapturedScan || !lastCapturedScan.descriptor) {
-          if (feedbackEl) {
-            feedbackEl.style.display = 'block';
-            feedbackEl.style.color = '#ef4444';
-            feedbackEl.textContent = 'No live face scan found. Please click "Retry Face Scan" to capture your face first.';
-          }
-          return;
-        }
-
-        if (feedbackEl) {
-          feedbackEl.style.display = 'block';
-          feedbackEl.style.color = '#0284c7';
-          feedbackEl.innerHTML = '<i class="bi bi-hourglass-split"></i> Linking face biometric to ' + code + ' and marking punch...';
-        }
-        if (submitBtn) submitBtn.disabled = true;
-
-        try {
-          const res = await fetch('/api/v1/kiosk/enroll-and-punch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              employee_code: code,
-              live_face_descriptor: Array.isArray(lastCapturedScan.descriptor) ? lastCapturedScan.descriptor : Array.from(lastCapturedScan.descriptor || []),
-              photo_base64: lastCapturedScan.photoBase64,
-              liveness_metrics: lastCapturedScan.livenessMetrics
-            })
-          });
-
-          const data = await res.json();
-          if (res.ok && data.success) {
-            KioskAudio.successChime();
-            showToast('Biometric face successfully linked! Welcome, ' + (data.employee ? data.employee.name : ''), 'success');
-            renderProfileSuccess(data);
-          } else if (data.spoof_detected) {
-            KioskAudio.warningAlert();
-            renderSpoofBlocked(data.message);
-          } else {
-            if (feedbackEl) {
-              feedbackEl.style.display = 'block';
-              feedbackEl.style.color = '#ef4444';
-              const errStr = data.message || (data.error && data.error.message) || data.details || ('Enrollment failed (HTTP ' + res.status + ')');
-              feedbackEl.textContent = errStr;
-            }
-          }
-        } catch (err) {
-          if (feedbackEl) {
-            feedbackEl.style.display = 'block';
-            feedbackEl.style.color = '#ef4444';
-            feedbackEl.textContent = 'Network error: ' + err.message;
-          }
-        } finally {
-          if (submitBtn) submitBtn.disabled = false;
-        }
-      }
-
-      // ── Event Handlers & Manual Code Keypad ──────────────────────────
-      const enrollSubmitBtn = document.getElementById('btn-kiosk-enroll-submit');
-      if (enrollSubmitBtn) {
-        enrollSubmitBtn.addEventListener('click', handleKioskEnrollment);
-      }
-      const enrollCodeInput = document.getElementById('kiosk-enroll-code-input');
+      // Enrollment view events
+      document.getElementById('btn-verify-enroll-code').addEventListener('click', handleVerifyEmployeeCode);
+      const enrollCodeInput = document.getElementById('enroll-code-input');
       if (enrollCodeInput) {
         enrollCodeInput.addEventListener('keyup', (e) => {
-          if (e.key === 'Enter') handleKioskEnrollment();
+          if (e.key === 'Enter') handleVerifyEmployeeCode();
         });
       }
-      document.getElementById('btn-snap-immediate').addEventListener('click', () => {
-        triggerAutoCaptureAndPunch();
-      });
+      document.getElementById('btn-start-multi-pose').addEventListener('click', handleAuthorizeAndStartWizard);
 
-      document.getElementById('btn-reset-next-employee').addEventListener('click', () => {
-        startFaceScannerSession();
-      });
+      // Wizard events
+      document.getElementById('btn-wizard-capture-step').addEventListener('click', handleCaptureWizardStep);
+      document.getElementById('btn-wizard-cancel').addEventListener('click', startFaceScannerSession);
 
-      document.getElementById('btn-spoof-retry').addEventListener('click', () => {
-        startFaceScannerSession();
-      });
-
-      document.getElementById('btn-retry-scan').addEventListener('click', () => {
-        startFaceScannerSession();
-      });
-
+      // Manual Keypad events
       document.getElementById('btn-toggle-manual').addEventListener('click', () => {
-        if (countdownTimer) clearInterval(countdownTimer);
         manualCodeInput.value = '';
         switchView(viewManualCode);
       });
-
       document.getElementById('btn-goto-manual').addEventListener('click', () => {
         manualCodeInput.value = '';
         switchView(viewManualCode);
       });
+      document.getElementById('btn-back-to-face').addEventListener('click', startFaceScannerSession);
 
-      document.getElementById('btn-back-to-face').addEventListener('click', () => {
-        startFaceScannerSession();
-      });
-
-      // Keypad buttons
       document.querySelectorAll('.key-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const key = btn.getAttribute('data-key');
@@ -1403,7 +1913,6 @@
         });
       });
 
-      // Manual Lookup Submit
       document.getElementById('btn-submit-manual-code').addEventListener('click', async () => {
         const code = manualCodeInput.value.trim().toUpperCase();
         if (!code) {
@@ -1411,12 +1920,12 @@
           return;
         }
 
-        // If a face scan was captured, offer seamless direct linking & profile display
-        if (lastCapturedScan && lastCapturedScan.descriptor) {
-          const enrollInput = document.getElementById('kiosk-enroll-code-input');
+        // If face was already scanned, prefill into enrollment
+        if (lastScannedLiveFace && lastScannedLiveFace.descriptor) {
+          const enrollInput = document.getElementById('enroll-code-input');
           if (enrollInput) enrollInput.value = code;
           switchView(viewNotRecognized);
-          handleKioskEnrollment();
+          handleVerifyEmployeeCode();
           return;
         }
 
@@ -1445,7 +1954,6 @@
 
       // ── Page Initialization ──────────────────────────────────────────
       window.addEventListener('DOMContentLoaded', () => {
-        // Automatically start the Face Biometric Scanner session immediately!
         startFaceScannerSession();
       });
 
