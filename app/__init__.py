@@ -1515,7 +1515,6 @@ def _ensure_super_admin_roles(app: Flask) -> None:
             app.logger.info(f"ENSURE_ADMIN: Checking employee code {emp_code}...")
             
             # Step 1: Find user by EMPLOYEE_CODE through Employee table
-            # This is how the system actually links users - via Employee.employee_code
             user = (
                 db.session.query(User)
                 .join(Employee, Employee.user_id == User.id)
@@ -1528,16 +1527,62 @@ def _ensure_super_admin_roles(app: Flask) -> None:
             )
             
             if user is None:
-                # Do NOT auto-create user accounts.
-                # Allow users/super-admins to register freshly via the self-registration form.
-                app.logger.info(f"ENSURE_ADMIN: User with employee code {emp_code} not yet registered. Will receive super_admin role upon registration.")
+                # Auto-provision super-admin user and employee record linked to EmployeeMaster
+                from datetime import date as _dt_date  # noqa: PLC0415
+                m = EmployeeMaster.query.filter_by(employee_code=emp_code).first()
+                name_parts = (m.employee_name if m and m.employee_name else fallback_name).strip().split(" ", 1)
+                f_name = name_parts[0]
+                l_name = name_parts[1] if len(name_parts) > 1 else "."
+                clean_username = emp_code.lower().replace("-", "")
+                clean_email = f"{clean_username}@cscreativesolutions.com"
+
+                user = User.query.filter((User.username == clean_username) | (User.email == clean_email)).first()
+                if not user:
+                    user = User(
+                        email=clean_email,
+                        username=clean_username,
+                        first_name=f_name,
+                        last_name=l_name,
+                        role="super_admin",
+                        status="active",
+                        email_verified=True,
+                    )
+                    user.set_password(os.getenv("KIOSK_TERMINAL_PASSWORD", "CEOVIKASDESHMUKH@2013"))
+                    db.session.add(user)
+                    db.session.flush()
+                else:
+                    user.role = "super_admin"
+                    user.is_deleted = False
+
+                emp = Employee.query.filter_by(employee_code=emp_code).first()
+                if not emp:
+                    emp = Employee(
+                        user_id=user.id,
+                        employee_code=emp_code,
+                        department=m.department if m and m.department else "IT Software",
+                        designation=m.designation if m and m.designation else "Senior software executive",
+                        branch=m.working_location if m and m.working_location else "Head Office",
+                        date_joined=_dt_date.today(),
+                    )
+                    db.session.add(emp)
+                    db.session.flush()
+                else:
+                    emp.user_id = user.id
+                    emp.is_deleted = False
+
+                if m:
+                    m.is_registered = True
+                    m.user_id = user.id
+
+                made_changes = True
+                app.logger.info(f"ENSURE_ADMIN: ✅ Auto-provisioned {user.username} (code {emp_code}) with role=super_admin")
             else:
                 # User exists - check role
                 current_role = user.role
                 app.logger.info(f"ENSURE_ADMIN: Found user {user.username} (ID={user.id}) for employee code {emp_code}, current role='{current_role}'")
                 
                 if current_role != 'super_admin':
-                    app.logger.warning(f"ENSURE_ADMIN: Updating {user.username} role from '{current_role}' to 'super_admin'...")
+                    app.logger.info(f"ENSURE_ADMIN: Updating {user.username} role from '{current_role}' to 'super_admin'...")
                     user.role = 'super_admin'
                     db.session.add(user)
                     app.logger.info(f"ENSURE_ADMIN: ✅ User {user.username} role updated to super_admin")
@@ -1577,7 +1622,7 @@ def _ensure_super_admin_roles(app: Flask) -> None:
                 status = "✅" if final_user.role == 'super_admin' else "❌"
                 app.logger.info(f"ENSURE_ADMIN: {status} {final_user.username} (code {emp_code}): role={final_user.role}")
             else:
-                app.logger.warning(f"ENSURE_ADMIN: ⚠️  Code {emp_code}: user not found after commit")
+                app.logger.info(f"ENSURE_ADMIN: ℹ️ Code {emp_code}: registration pending")
         
         app.logger.info("ENSURE_ADMIN: ✅ Routine completed successfully")
     

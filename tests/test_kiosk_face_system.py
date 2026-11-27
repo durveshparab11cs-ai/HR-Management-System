@@ -252,7 +252,11 @@ def test_08_explicit_check_in_recording(app_client):
         from zoneinfo import ZoneInfo
         today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
         master = EmployeeMaster.query.filter_by(employee_code="E-2606026").first()
-        att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
+        emp = Employee.query.filter_by(employee_code="E-2606026").first()
+        if emp:
+            att = Attendance.query.filter_by(employee_id=emp.id, date=today).first()
+        else:
+            att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
         assert att is not None
         assert att.check_in_time is not None
 
@@ -283,7 +287,12 @@ def test_09_explicit_check_out_recording(app_client):
         from zoneinfo import ZoneInfo
         today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
         master = EmployeeMaster.query.filter_by(employee_code="E-2606026").first()
-        att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
+        emp = Employee.query.filter_by(employee_code="E-2606026").first()
+        if emp:
+            att = Attendance.query.filter_by(employee_id=emp.id, date=today).first()
+        else:
+            att = AttendanceMaster.query.filter_by(employee_master_id=master.id, date=today).first()
+        assert att is not None
         assert att.check_out_time is not None
 
 
